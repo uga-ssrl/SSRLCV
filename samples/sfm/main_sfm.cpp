@@ -148,6 +148,7 @@ int main(int argc, char* argv[])
         NVXIO_CHECK_REFERENCE(frame);
 
         //
+        // TODO: Do we need this? A Mask image should not be needed.
         // Load mask image if needed
         //
 
@@ -194,6 +195,7 @@ int main(int argc, char* argv[])
         std::unique_ptr<nvx::SfM> sfm(nvx::SfM::createSfM(context, params));
 
         //
+        // TODO: Do we need this? fence detection is really for autonomous driving.
         // Create FenceDetectorWithKF class instance
         //
         FenceDetectorWithKF fenceDetector;
@@ -202,6 +204,7 @@ int main(int argc, char* argv[])
         ovxio::FrameSource::FrameStatus frameStatus;
         do
         {
+            // NOTE: These frames are from the video source
             frameStatus = source->fetch(frame);
         }
         while (frameStatus == ovxio::FrameSource::TIMEOUT);
@@ -219,7 +222,8 @@ int main(int argc, char* argv[])
             return nvxio::Application::APP_EXIT_CODE_ERROR;
         }
 
-        const vx_size maxNumOfPoints = 20000;
+        // TODO: figure out what's going on here
+        const vx_size maxNumOfPoints = 2000;
         const vx_size maxNumOfPlanesVertices = 2000;
 
         vx_array filteredPoints = vxCreateArray(context, NVX_TYPE_POINT3F, maxNumOfPoints);
@@ -249,6 +253,8 @@ int main(int argc, char* argv[])
         double proc_ms = 0.0;
         float yGroundPlane = 0.0f;
 
+        // NOTE: Some of this section is needed, but not all of it.
+        // We should start Identitying what we do and don't need
         while (!eventData.shouldStop)
         {
             if (!eventData.pause)
@@ -305,12 +311,14 @@ int main(int argc, char* argv[])
             filterPoints(sfm->getPointCloud(), filteredPoints);
             render3D->putPointCloud(filteredPoints, model, pcStyle);
 
+            // NOTE: not needed
             if (eventData.showFences)
             {
                 fenceDetector.getFencePlaneVertices(filteredPoints, planesVertices);
                 render3D->putPlanes(planesVertices, model, fStyle);
             }
 
+            // NOTE: not needed
             if (fullPipeline && eventData.showGP)
             {
                 const float x1(-1.5f), x2(1.5f), z1(1.0f), z2(4.0f);
@@ -346,6 +354,10 @@ int main(int argc, char* argv[])
                 eventData.shouldStop = true;
             }
         }
+
+//============================================
+        // try getting the point cloud here?
+        vx_array cloud = sfm->getPointCloud();
 
         //
         // Release all objects
