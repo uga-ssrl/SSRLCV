@@ -27,17 +27,20 @@
 # Project folders
 PROJECTS := $(shell find . -regextype sed -regex "\./\(samples\|demos\)/.*/Makefile")
 
-%.pr_build: nvxio_build
+%.pr_build:nvxio_build
 	+@$(MAKE) -C $(dir $*)
 
-%.pr_clean: nvxio_clean
+%.pr_clean:nvxio_clean
 	+@$(MAKE) -C $(dir $*) clean
 
-all: build
+all:build
 
-build: $(addsuffix .pr_build,$(PROJECTS))
+build:$(addsuffix .pr_build,$(PROJECTS))
 
-clean: $(addsuffix .pr_clean,$(PROJECTS))
+clean:$(addsuffix .pr_clean,$(PROJECTS))
+	rm -rf bin
+	rm -rf libs
+	rm -f *~
 
 nvxio_build:
 	+@$(MAKE) -C nvxio
