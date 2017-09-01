@@ -26,10 +26,15 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// standard includes:
 #include <iostream>
 #include <string>
 #include <memory>
+#include <vector>  // added by SSRL
+#include <array>   // added by SSRL
+#include <fstream> // added by SSRL
 
+// NVidia, VisionWorks, OpenVX includes: 
 #include <NVX/nvx.h>
 #include <NVX/nvx_timer.hpp>
 #include <NVX/sfm/sfm.h>
@@ -41,9 +46,17 @@
 #include "NVX/SyncTimer.hpp"
 #include "OVX/UtilityOVX.hpp"
 
+// Sample Includes:
 #include "SfM.hpp"
 #include "utils.hpp"
 
+// SSRL includes:
+//#include "ply.h"
+
+// caleb added:
+std::vector<std::array<float, 3>> aggrigate_cloud_vector;
+int aggrigate_cloud_num = 0;
+// :dedda belac
 
 //
 // main - Application entry point
@@ -311,6 +324,48 @@ int main(int argc, char* argv[])
             filterPoints(sfm->getPointCloud(), filteredPoints);
             render3D->putPointCloud(filteredPoints, model, pcStyle);
 
+	    // aggrigate points here??
+	    //============================================ begin C-lab
+
+	    vx_size a_size = 0;
+
+	    vx_array aggrigate_cloud = sfm->getPointCloud();
+	    
+	    NVXIO_SAFE_CALL( vxQueryArray(aggrigate_cloud, VX_ARRAY_ATTRIBUTE_NUMITEMS, &a_size, sizeof(a_size)) );
+	    
+	    if (a_size > 0)
+	      {
+		void *in_ptr = 0;
+		vx_size in_stride = 0;
+		
+		NVXIO_SAFE_CALL( vxAccessArrayRange(aggrigate_cloud, 0, a_size, &in_stride, &in_ptr, VX_READ_ONLY) );
+		
+		for (vx_size i = 0; i < a_size; ++i)
+		  {
+		    nvx_point3f_t pt = vxArrayItem(nvx_point3f_t, in_ptr, i, in_stride);
+		    
+		    if (isPointValid(pt))
+		      {
+			//std::cout << "x: " << pt.x << std::endl;
+			//std::cout << "y: " << pt.y << std::endl;
+			//std::cout << "z: " << pt.z << std::endl; 
+			
+			aggrigate_cloud_num++;
+			// add them to a vector:
+			aggrigate_cloud_vector.push_back({pt.x,pt.y,pt.z});
+		      }
+		    // make total point cloud here:
+		    //total_point_count++;
+		    //total_point_vector.push_back({pt.x,pt.y,pt.z});
+		  }
+		
+		NVXIO_SAFE_CALL( vxCommitArrayRange(aggrigate_cloud, 0, 0, in_ptr) );
+	      }
+	    
+	    
+	    //============================================ end C-lab
+	    
+	    
             // NOTE: not needed
             if (eventData.showFences)
             {
@@ -376,8 +431,15 @@ int main(int argc, char* argv[])
 	std::cout << "=>> point cloud info <<=\n";
 	std::cout << "========================" << std::endl;
 
+	// TODO: abstract the hell out of this
+	
+	typedef struct Vertex {
+	  float x,y,z;             /* the usual 3-space position of a vertex */
+	} Vertex;
 	
 	vx_size test_size = 0;
+	std::vector<std::array<float, 3>> valid_point_vector;
+	std::vector<std::array<float, 3>> total_point_vector;
 	int valid_point_count = 0;
 	int total_point_count = 0;
 	NVXIO_SAFE_CALL( vxQueryArray(cloud, VX_ARRAY_ATTRIBUTE_NUMITEMS, &test_size, sizeof(test_size)) );
@@ -395,24 +457,63 @@ int main(int argc, char* argv[])
 		
 		if (isPointValid(pt))
 		  {
-		    std::cout << "x: " << pt.x << std::endl;
-		    std::cout << "y: " << pt.y << std::endl;
-		    std::cout << "z: " << pt.z << std::endl; 
-		    //NVXIO_SAFE_CALL( vxAddArrayItems(out, 1, &pt, sizeof(pt)) );
-		    valid_point_count++;
-		    // make valid point cloud here:
+		    //std::cout << "x: " << pt.x << std::endl;
+		    //std::cout << "y: " << pt.y << std::endl;
+		    //std::cout << "z: " << pt.z << std::endl; 
 		    
+		    valid_point_count++;
+		    // add them to a vector:
+		    valid_point_vector.push_back({pt.x,pt.y,pt.z});
 		  }
 		// make total point cloud here:
 		total_point_count++;
+		total_point_vector.push_back({pt.x,pt.y,pt.z});
 	      }
 	    
 	    NVXIO_SAFE_CALL( vxCommitArrayRange(cloud, 0, 0, in_ptr) );
 	  }
+	
+	std::cout << "valid points: \t" << valid_point_count << std::endl;
+	std::cout << "total points: \t" << total_point_count << std::endl;
+	std::cout << "aggrigate points: \t" << aggrigate_cloud_num << std::endl;
+	
+	// output the 
+	std::ofstream output_ply;
+	output_ply.open("output_valid.ply");
+	output_ply << "ply\nformat ascii 1.0\nelement vertex ";
+	output_ply << valid_point_count << "\n";
+	output_ply << "property float x\nproperty float y\nproperty float z\n";
+	output_ply << "end_header\n";
+	// add the points, don't judge me
+	for(int i = 0; i < valid_point_vector.size(); i++){
+	  output_ply << valid_point_vector[i][0] << " " << valid_point_vector[i][1] << " " << valid_point_vector[i][2] << "\n";
+	} 
+	output_ply.close();
 
-	std::cout << "valid points: " << valid_point_count << std::endl;
-	std::cout << "total points: " << total_point_count << std::endl;
+	std::ofstream output_ply_2;
+	output_ply_2.open("output_total.ply");
+	output_ply_2 << "ply\nformat ascii 1.0\nelement vertex ";
+	output_ply_2 << total_point_count << "\n";
+	output_ply_2 << "property float x\nproperty float y\nproperty float z\n";
+	output_ply_2 << "end_header\n";
+	// add the points, don't judge me
+	for(int i = 0; i < total_point_vector.size(); i++){
+	  output_ply_2 << total_point_vector[i][0] << " " << total_point_vector[i][1] << " " << total_point_vector[i][2] << "\n";
+	} 
+	output_ply_2.close();
 
+	std::ofstream output_ply_3;
+	output_ply_3.open("output_aggrigate.ply");
+	output_ply_3 << "ply\nformat ascii 1.0\nelement vertex ";
+	output_ply_3 << aggrigate_cloud_num << "\n";
+	output_ply_3 << "property float x\nproperty float y\nproperty float z\n";
+	output_ply_3 << "end_header\n";
+	// add the points, don't judge me
+	for(int i = 0; i < aggrigate_cloud_vector.size(); i++){
+	  output_ply_3 << aggrigate_cloud_vector[i][0] << " " << aggrigate_cloud_vector[i][1] << " " << aggrigate_cloud_vector[i][2] << "\n";
+	}
+	output_ply_3.close();
+	
 //============================================ end C-lab
 
 	//
