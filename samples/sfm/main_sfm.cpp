@@ -355,11 +355,67 @@ int main(int argc, char* argv[])
             }
         }
 
-//============================================
+//============================================ begin C-lab
         // try getting the point cloud here?
         vx_array cloud = sfm->getPointCloud();
 
-        //
+	std::cout << "======= TESTING" << std::endl;
+	
+	std::cout << "sfm->getPointCloud(): ";  
+        std::cout << sfm->getPointCloud() << std::endl;
+
+	std::cout << "&filteredPoints: ";
+	std::cout << &filteredPoints << std::endl;
+
+	std::cout << "filteredPoints: ";
+	std::cout << filteredPoints << std::endl;
+	
+	std::cout << "======= END TEST" << std::endl;
+
+	std::cout << "========================" << std::endl;
+	std::cout << "=>> point cloud info <<=\n";
+	std::cout << "========================" << std::endl;
+
+	
+	vx_size test_size = 0;
+	int valid_point_count = 0;
+	int total_point_count = 0;
+	NVXIO_SAFE_CALL( vxQueryArray(cloud, VX_ARRAY_ATTRIBUTE_NUMITEMS, &test_size, sizeof(test_size)) );
+	
+	if (test_size > 0)
+	  {
+	    void *in_ptr = 0;
+	    vx_size in_stride = 0;
+	    
+	    NVXIO_SAFE_CALL( vxAccessArrayRange(cloud, 0, test_size, &in_stride, &in_ptr, VX_READ_ONLY) );
+
+	    for (vx_size i = 0; i < test_size; ++i)
+	      {
+		nvx_point3f_t pt = vxArrayItem(nvx_point3f_t, in_ptr, i, in_stride);
+		
+		if (isPointValid(pt))
+		  {
+		    std::cout << "x: " << pt.x << std::endl;
+		    std::cout << "y: " << pt.y << std::endl;
+		    std::cout << "z: " << pt.z << std::endl; 
+		    //NVXIO_SAFE_CALL( vxAddArrayItems(out, 1, &pt, sizeof(pt)) );
+		    valid_point_count++;
+		    // make valid point cloud here:
+		    
+		  }
+		// make total point cloud here:
+		total_point_count++;
+	      }
+	    
+	    NVXIO_SAFE_CALL( vxCommitArrayRange(cloud, 0, 0, in_ptr) );
+	  }
+
+	std::cout << "valid points: " << valid_point_count << std::endl;
+	std::cout << "total points: " << total_point_count << std::endl;
+
+//============================================ end C-lab
+
+	//
         // Release all objects
         //
 
