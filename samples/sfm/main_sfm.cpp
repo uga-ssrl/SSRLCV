@@ -59,7 +59,9 @@ int main(int argc, char* argv[])
         // Parse command line arguments
         //
 
+        // TODO: make this a command line arg"
         std::string sourceUri = app.findSampleFilePath("sfm/parking_sfm.mp4");
+        // TODO: make this a command line arg:
         std::string configFile = app.findSampleFilePath("sfm/sfm_config.ini");
         bool fullPipeline = false, noLoop = false;
         std::string maskFile;
@@ -142,8 +144,7 @@ int main(int argc, char* argv[])
         // Create OpenVX Image to hold frames from video source
         //
 
-        vx_image frame = vxCreateImage(context,
-                                       sourceParams.frameWidth, sourceParams.frameHeight, sourceParams.format);
+        vx_image frame = vxCreateImage(context,sourceParams.frameWidth, sourceParams.frameHeight, sourceParams.format);
         NVXIO_CHECK_REFERENCE(frame);
 
         //
@@ -218,7 +219,7 @@ int main(int argc, char* argv[])
             return nvxio::Application::APP_EXIT_CODE_ERROR;
         }
 
-        const vx_size maxNumOfPoints = 2000;
+        const vx_size maxNumOfPoints = 20000;
         const vx_size maxNumOfPlanesVertices = 2000;
 
         vx_array filteredPoints = vxCreateArray(context, NVX_TYPE_POINT3F, maxNumOfPoints);
