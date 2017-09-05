@@ -56,6 +56,10 @@
 // caleb added:
 std::vector<std::array<float, 3>> aggrigate_cloud_vector;
 int aggrigate_cloud_num = 0;
+float n_x = 0.0;
+float inc = 0.6;
+float n_y = 6.0;
+float n_z = 6.0;
 // :dedda belac
 
 //
@@ -327,8 +331,8 @@ int main(int argc, char* argv[])
 	    // aggrigate points here??
 	    //============================================ begin C-lab
 
+	    n_x += inc; // because we're moving in the x direction
 	    vx_size a_size = 0;
-
 	    vx_array aggrigate_cloud = sfm->getPointCloud();
 	    
 	    NVXIO_SAFE_CALL( vxQueryArray(aggrigate_cloud, VX_ARRAY_ATTRIBUTE_NUMITEMS, &a_size, sizeof(a_size)) );
@@ -348,15 +352,11 @@ int main(int argc, char* argv[])
 		      {
 			//std::cout << "x: " << pt.x << std::endl;
 			//std::cout << "y: " << pt.y << std::endl;
-			//std::cout << "z: " << pt.z << std::endl; 
-			
+			//std::cout << "z: " << pt.z << std::endl; 			
 			aggrigate_cloud_num++;
 			// add them to a vector:
-			aggrigate_cloud_vector.push_back({pt.x,pt.y,pt.z});
+			aggrigate_cloud_vector.push_back({pt.x + n_x,pt.y * n_y,pt.z * n_z});
 		      }
-		    // make total point cloud here:
-		    //total_point_count++;
-		    //total_point_vector.push_back({pt.x,pt.y,pt.z});
 		  }
 		
 		NVXIO_SAFE_CALL( vxCommitArrayRange(aggrigate_cloud, 0, 0, in_ptr) );

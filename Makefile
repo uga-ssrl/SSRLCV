@@ -42,6 +42,9 @@ clean:$(addsuffix .pr_clean,$(PROJECTS))
 	rm -rf libs
 	rm -f *~
 
+cleaner:clean
+	rm -f *.ply
+
 nvxio_build:
 	+@$(MAKE) -C nvxio
 
