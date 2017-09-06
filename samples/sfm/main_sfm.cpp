@@ -81,7 +81,8 @@ int main(int argc, char* argv[])
 
         // TODO: make this a command line arg"
 	//std::string sourceUri = app.findSampleFilePath("sfm/Flock_2k_Launch.mp4");
-	std::string sourceUri = app.findSampleFilePath("sfm/bolbicube.mp4");
+	std::string sourceUri = app.findSampleFilePath("sfm/carl1024.mp4");
+	//std::string sourceUri = app.findSampleFilePath("sfm/bolbicube.mp4");
 	//std::string sourceUri = app.findSampleFilePath("sfm/teapot.mp4");
         //std::string sourceUri = app.findSampleFilePath("sfm/parking_sfm.mp4"); //default
         // TODO: make this a command line arg:
