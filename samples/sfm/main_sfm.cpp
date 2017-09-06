@@ -56,10 +56,13 @@
 // caleb added:
 std::vector<std::array<float, 3>> aggrigate_cloud_vector;
 int aggrigate_cloud_num = 0;
+int frame_num = 0;
+int frame_max = 5;
+int frame_inc = 1; // set to 0 to run all frames. set to 1 to run to frame_max
 float n_x = 0.0;
-float inc = 0.6;
-float n_y = 6.0;
-float n_z = 6.0;
+float inc = 0.0; //0.6
+float n_y = 1.0;
+float n_z = 1.0;
 // :dedda belac
 
 //
@@ -77,7 +80,9 @@ int main(int argc, char* argv[])
         //
 
         // TODO: make this a command line arg"
-        std::string sourceUri = app.findSampleFilePath("sfm/parking_sfm.mp4");
+	//std::string sourceUri = app.findSampleFilePath("sfm/Flock_2k_Launch.mp4");
+	std::string sourceUri = app.findSampleFilePath("sfm/teapot.mp4");
+        //std::string sourceUri = app.findSampleFilePath("sfm/parking_sfm.mp4"); //default
         // TODO: make this a command line arg:
         std::string configFile = app.findSampleFilePath("sfm/sfm_config.ini");
         bool fullPipeline = false, noLoop = false;
@@ -331,10 +336,13 @@ int main(int argc, char* argv[])
 	    // aggrigate points here??
 	    //============================================ begin C-lab
 
+	    //if (aggrigate_cloud_num % 5 == 0)
 	    n_x += inc; // because we're moving in the x direction
 	    vx_size a_size = 0;
 	    vx_array aggrigate_cloud = sfm->getPointCloud();
-	    
+	    frame_num += frame_inc;
+
+	    if (frame_num < frame_max){
 	    NVXIO_SAFE_CALL( vxQueryArray(aggrigate_cloud, VX_ARRAY_ATTRIBUTE_NUMITEMS, &a_size, sizeof(a_size)) );
 	    
 	    if (a_size > 0)
@@ -355,13 +363,14 @@ int main(int argc, char* argv[])
 			//std::cout << "z: " << pt.z << std::endl; 			
 			aggrigate_cloud_num++;
 			// add them to a vector:
+			//if (aggrigate_cloud_num % 5 == 0)
 			aggrigate_cloud_vector.push_back({pt.x + n_x,pt.y * n_y,pt.z * n_z});
 		      }
 		  }
 		
 		NVXIO_SAFE_CALL( vxCommitArrayRange(aggrigate_cloud, 0, 0, in_ptr) );
 	      }
-	    
+	    }
 	    
 	    //============================================ end C-lab
 	    
