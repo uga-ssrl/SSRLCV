@@ -57,12 +57,12 @@
 std::vector<std::array<float, 3>> aggrigate_cloud_vector;
 int aggrigate_cloud_num = 0;
 int frame_num = 0;
-int frame_max = 20;
+int frame_max = 50;
 int frame_inc = 0; // set to 0 to run all frames. set to 1 to run to frame_max
 float n_x = 0.0;
-float inc = 0.2; //0.6
-float n_y = 3.0;
-float n_z = 3.0;
+float inc = 0.5; //0.6
+float n_y = 1.0;
+float n_z = 1.0;
 // :dedda belac
 
 //
@@ -81,8 +81,9 @@ int main(int argc, char* argv[])
 
         // TODO: make this a command line arg"
 	//std::string sourceUri = app.findSampleFilePath("sfm/Flock_2k_Launch.mp4");
-	std::string sourceUri = app.findSampleFilePath("sfm/carl1024.mp4");
+	//std::string sourceUri = app.findSampleFilePath("sfm/carl1024.mp4");
 	//std::string sourceUri = app.findSampleFilePath("sfm/bolbicube.mp4");
+	std::string sourceUri = app.findSampleFilePath("sfm/bolbicube2.mp4");
 	//std::string sourceUri = app.findSampleFilePath("sfm/teapot.mp4");
         //std::string sourceUri = app.findSampleFilePath("sfm/parking_sfm.mp4"); //default
         // TODO: make this a command line arg:
