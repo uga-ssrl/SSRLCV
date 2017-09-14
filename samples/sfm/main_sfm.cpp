@@ -26,10 +26,15 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// standard includes:
 #include <iostream>
 #include <string>
 #include <memory>
+#include <vector>  // added by SSRL
+#include <array>   // added by SSRL
+#include <fstream> // added by SSRL
 
+// NVidia, VisionWorks, OpenVX includes: 
 #include <NVX/nvx.h>
 #include <NVX/nvx_timer.hpp>
 #include <NVX/sfm/sfm.h>
@@ -41,9 +46,24 @@
 #include "NVX/SyncTimer.hpp"
 #include "OVX/UtilityOVX.hpp"
 
+// Sample Includes:
 #include "SfM.hpp"
 #include "utils.hpp"
 
+// SSRL includes:
+//#include "ply.h"
+
+// caleb added:
+std::vector<std::array<float, 3>> aggrigate_cloud_vector;
+int aggrigate_cloud_num = 0;
+int frame_num = 0;
+int frame_max = 50;
+int frame_inc = 0; // set to 0 to run all frames. set to 1 to run to frame_max
+float n_x = 0.0;
+float inc = 0.5; //0.6
+float n_y = 1.0;
+float n_z = 1.0;
+// :dedda belac
 
 //
 // main - Application entry point
@@ -60,7 +80,12 @@ int main(int argc, char* argv[])
         //
 
         // TODO: make this a command line arg"
-        std::string sourceUri = app.findSampleFilePath("sfm/parking_sfm.mp4");
+	//std::string sourceUri = app.findSampleFilePath("sfm/Flock_2k_Launch.mp4");
+	//std::string sourceUri = app.findSampleFilePath("sfm/carl1024.mp4");
+	//std::string sourceUri = app.findSampleFilePath("sfm/bolbicube.mp4");
+	std::string sourceUri = app.findSampleFilePath("sfm/bolbicube2.mp4");
+	//std::string sourceUri = app.findSampleFilePath("sfm/teapot.mp4");
+        //std::string sourceUri = app.findSampleFilePath("sfm/parking_sfm.mp4"); //default
         // TODO: make this a command line arg:
         std::string configFile = app.findSampleFilePath("sfm/sfm_config.ini");
         bool fullPipeline = false, noLoop = false;
@@ -148,6 +173,7 @@ int main(int argc, char* argv[])
         NVXIO_CHECK_REFERENCE(frame);
 
         //
+        // TODO: Do we need this? A Mask image should not be needed.
         // Load mask image if needed
         //
 
@@ -194,6 +220,7 @@ int main(int argc, char* argv[])
         std::unique_ptr<nvx::SfM> sfm(nvx::SfM::createSfM(context, params));
 
         //
+        // TODO: Do we need this? fence detection is really for autonomous driving.
         // Create FenceDetectorWithKF class instance
         //
         FenceDetectorWithKF fenceDetector;
@@ -202,6 +229,7 @@ int main(int argc, char* argv[])
         ovxio::FrameSource::FrameStatus frameStatus;
         do
         {
+            // NOTE: These frames are from the video source
             frameStatus = source->fetch(frame);
         }
         while (frameStatus == ovxio::FrameSource::TIMEOUT);
@@ -219,7 +247,8 @@ int main(int argc, char* argv[])
             return nvxio::Application::APP_EXIT_CODE_ERROR;
         }
 
-        const vx_size maxNumOfPoints = 20000;
+        // TODO: figure out what's going on here
+        const vx_size maxNumOfPoints = 2000;
         const vx_size maxNumOfPlanesVertices = 2000;
 
         vx_array filteredPoints = vxCreateArray(context, NVX_TYPE_POINT3F, maxNumOfPoints);
@@ -249,6 +278,8 @@ int main(int argc, char* argv[])
         double proc_ms = 0.0;
         float yGroundPlane = 0.0f;
 
+        // NOTE: Some of this section is needed, but not all of it.
+        // We should start Identitying what we do and don't need
         while (!eventData.shouldStop)
         {
             if (!eventData.pause)
@@ -305,12 +336,56 @@ int main(int argc, char* argv[])
             filterPoints(sfm->getPointCloud(), filteredPoints);
             render3D->putPointCloud(filteredPoints, model, pcStyle);
 
+	    // aggrigate points here??
+	    //============================================ begin C-lab
+
+	    //if (aggrigate_cloud_num % 5 == 0)
+	    n_x += inc; // because we're moving in the x direction
+	    vx_size a_size = 0;
+	    vx_array aggrigate_cloud = sfm->getPointCloud();
+	    frame_num += frame_inc;
+
+	    if (frame_num < frame_max){
+	    NVXIO_SAFE_CALL( vxQueryArray(aggrigate_cloud, VX_ARRAY_ATTRIBUTE_NUMITEMS, &a_size, sizeof(a_size)) );
+	    
+	    if (a_size > 0)
+	      {
+		void *in_ptr = 0;
+		vx_size in_stride = 0;
+		
+		NVXIO_SAFE_CALL( vxAccessArrayRange(aggrigate_cloud, 0, a_size, &in_stride, &in_ptr, VX_READ_ONLY) );
+		
+		for (vx_size i = 0; i < a_size; ++i)
+		  {
+		    nvx_point3f_t pt = vxArrayItem(nvx_point3f_t, in_ptr, i, in_stride);
+		    
+		    if (isPointValid(pt))
+		      {
+			//std::cout << "x: " << pt.x << std::endl;
+			//std::cout << "y: " << pt.y << std::endl;
+			//std::cout << "z: " << pt.z << std::endl; 			
+			aggrigate_cloud_num++;
+			// add them to a vector:
+			//if (aggrigate_cloud_num % 5 == 0)
+			aggrigate_cloud_vector.push_back({pt.x + n_x,pt.y * n_y,pt.z * n_z});
+		      }
+		  }
+		
+		NVXIO_SAFE_CALL( vxCommitArrayRange(aggrigate_cloud, 0, 0, in_ptr) );
+	      }
+	    }
+	    
+	    //============================================ end C-lab
+	    
+	    
+            // NOTE: not needed
             if (eventData.showFences)
             {
                 fenceDetector.getFencePlaneVertices(filteredPoints, planesVertices);
                 render3D->putPlanes(planesVertices, model, fStyle);
             }
 
+            // NOTE: not needed
             if (fullPipeline && eventData.showGP)
             {
                 const float x1(-1.5f), x2(1.5f), z1(1.0f), z2(4.0f);
@@ -347,7 +422,113 @@ int main(int argc, char* argv[])
             }
         }
 
-        //
+//============================================ begin C-lab
+        // try getting the point cloud here?
+        vx_array cloud = sfm->getPointCloud();
+
+	std::cout << "======= TESTING" << std::endl;
+	
+	std::cout << "sfm->getPointCloud(): ";  
+        std::cout << sfm->getPointCloud() << std::endl;
+
+	std::cout << "&filteredPoints: ";
+	std::cout << &filteredPoints << std::endl;
+
+	std::cout << "filteredPoints: ";
+	std::cout << filteredPoints << std::endl;
+	
+	std::cout << "======= END TEST" << std::endl;
+
+	std::cout << "========================" << std::endl;
+	std::cout << "=>> point cloud info <<=\n";
+	std::cout << "========================" << std::endl;
+
+	// TODO: abstract the hell out of this
+	
+	typedef struct Vertex {
+	  float x,y,z;             /* the usual 3-space position of a vertex */
+	} Vertex;
+	
+	vx_size test_size = 0;
+	std::vector<std::array<float, 3>> valid_point_vector;
+	std::vector<std::array<float, 3>> total_point_vector;
+	int valid_point_count = 0;
+	int total_point_count = 0;
+	NVXIO_SAFE_CALL( vxQueryArray(cloud, VX_ARRAY_ATTRIBUTE_NUMITEMS, &test_size, sizeof(test_size)) );
+	
+	if (test_size > 0)
+	  {
+	    void *in_ptr = 0;
+	    vx_size in_stride = 0;
+	    
+	    NVXIO_SAFE_CALL( vxAccessArrayRange(cloud, 0, test_size, &in_stride, &in_ptr, VX_READ_ONLY) );
+
+	    for (vx_size i = 0; i < test_size; ++i)
+	      {
+		nvx_point3f_t pt = vxArrayItem(nvx_point3f_t, in_ptr, i, in_stride);
+		
+		if (isPointValid(pt))
+		  {
+		    //std::cout << "x: " << pt.x << std::endl;
+		    //std::cout << "y: " << pt.y << std::endl;
+		    //std::cout << "z: " << pt.z << std::endl; 
+		    
+		    valid_point_count++;
+		    // add them to a vector:
+		    valid_point_vector.push_back({pt.x,pt.y,pt.z});
+		  }
+		// make total point cloud here:
+		total_point_count++;
+		total_point_vector.push_back({pt.x,pt.y,pt.z});
+	      }
+	    
+	    NVXIO_SAFE_CALL( vxCommitArrayRange(cloud, 0, 0, in_ptr) );
+	  }
+	
+	std::cout << "valid points: \t" << valid_point_count << std::endl;
+	std::cout << "total points: \t" << total_point_count << std::endl;
+	std::cout << "aggrigate points: \t" << aggrigate_cloud_num << std::endl;
+	
+	// output the 
+	std::ofstream output_ply;
+	output_ply.open("output_valid.ply");
+	output_ply << "ply\nformat ascii 1.0\nelement vertex ";
+	output_ply << valid_point_count << "\n";
+	output_ply << "property float x\nproperty float y\nproperty float z\n";
+	output_ply << "end_header\n";
+	// add the points, don't judge me
+	for(int i = 0; i < valid_point_vector.size(); i++){
+	  output_ply << valid_point_vector[i][0] << " " << valid_point_vector[i][1] << " " << valid_point_vector[i][2] << "\n";
+	} 
+	output_ply.close();
+
+	std::ofstream output_ply_2;
+	output_ply_2.open("output_total.ply");
+	output_ply_2 << "ply\nformat ascii 1.0\nelement vertex ";
+	output_ply_2 << total_point_count << "\n";
+	output_ply_2 << "property float x\nproperty float y\nproperty float z\n";
+	output_ply_2 << "end_header\n";
+	// add the points, don't judge me
+	for(int i = 0; i < total_point_vector.size(); i++){
+	  output_ply_2 << total_point_vector[i][0] << " " << total_point_vector[i][1] << " " << total_point_vector[i][2] << "\n";
+	} 
+	output_ply_2.close();
+
+	std::ofstream output_ply_3;
+	output_ply_3.open("output_aggrigate.ply");
+	output_ply_3 << "ply\nformat ascii 1.0\nelement vertex ";
+	output_ply_3 << aggrigate_cloud_num << "\n";
+	output_ply_3 << "property float x\nproperty float y\nproperty float z\n";
+	output_ply_3 << "end_header\n";
+	// add the points, don't judge me
+	for(int i = 0; i < aggrigate_cloud_vector.size(); i++){
+	  output_ply_3 << aggrigate_cloud_vector[i][0] << " " << aggrigate_cloud_vector[i][1] << " " << aggrigate_cloud_vector[i][2] << "\n";
+	}
+	output_ply_3.close();
+	
+//============================================ end C-lab
+
+	//
         // Release all objects
         //
 
