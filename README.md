@@ -2,6 +2,8 @@
 
 ## Compilation
 
+If you are running this for the first time you need to make a `bin` folder in the root of this repo.
+
 `make` and `make clean`, per the uz
 
 ## Running
