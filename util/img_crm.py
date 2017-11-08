@@ -21,10 +21,7 @@ start = -1.0 #meters
 cameras = []
 for x in range (1,101):
     camera = [x, start + x*step, 0.5, 0.0, 1.0, 0.0, 0.0]
-    #print camera
     cameras.append(camera)
-    #print 'test'
-    #print step
 
 f = open('carl_pan_cameras.txt', 'w')
 for c in cameras:
