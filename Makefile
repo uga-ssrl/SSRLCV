@@ -1,2 +1,4 @@
 all:
-	echo 'not yet implemented'
+	g++ src/reprojection.cpp -o bin/reprojection.x
+clean:
+	rm bin/*

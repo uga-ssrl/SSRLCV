@@ -5,3 +5,8 @@ bin
 bin/*
 /bin/*
 *.ply
+.DS_Store
+util/.DS_Store
+src/.DS_Store
+data/.DS_Store
+img/.DS_Store
