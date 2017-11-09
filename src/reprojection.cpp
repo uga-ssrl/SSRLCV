@@ -17,14 +17,15 @@ using namespace std;
 
 // == GLOBAL VARIABLES == //
 bool           verbose = 1;
-bool           debug   = 0;
+bool           debug   = 1;
+
+string cameras_path;
+string matches_path;
 
 unsigned short match_count;
 unsigned short camera_count;
 
-unsigned short cameras_l = 0;
-unsigned short matches_l = 0;
-
+// TODO (some of) this stuff should be set by camera calibration
 unsigned int   res  = 1024;
 float          dpix = 0.00002831538; //(foc*tan(fov/2))/(res/2)
 float          foc  = 0.035;
@@ -52,11 +53,9 @@ void parse_comma_delem(string str, unsigned short flag){
   switch (flag){
     case 1: // matches
       matches.push_back(v);
-      matches_l++;
       break;
     case 2: // cameras
       cameras.push_back(v);
-      cameras_l++;
       break;
     default:
       break;
@@ -67,7 +66,7 @@ void parse_comma_delem(string str, unsigned short flag){
 // loads matches from a match.txt file
 //
 void load_matches(){
-  ifstream infile("data/spongebob_pan_matches.txt");
+  ifstream infile(matches_path);
   string line;
   unsigned short c = 0;
   bool first = 1;
@@ -89,7 +88,7 @@ void load_matches(){
 // loads cameras from a camera.txt file
 //
 void load_cameras(){
-  ifstream infile("data/spongebob_pan_cameras.txt");
+  ifstream infile(cameras_path);
   string line;
   unsigned short c = 0;
   while (getline(infile, line)){
@@ -128,6 +127,8 @@ void two_view_reproject(){
     float x2 = dpix * (stof(matches[i][4]) - res/2.0);
     float y2 = dpix * (stof(matches[i][5]) - res/2.0);
     float points1[6] = {camera1[0],camera1[1],camera1[2],x1 + camera1[0],y1 + camera1[1],foc + camera1[2]};
+    int   rgb[3]     = {stoi(matches[i][6]),stoi(matches[i][7]),stoi(matches[i][8])};
+    // this is just for storing the projections for a ply file later
     vector<float> r31;
     r31.push_back(points1[3]);
     r31.push_back(points1[4]);
@@ -139,7 +140,6 @@ void two_view_reproject(){
     r32.push_back(points2[4]);
     r32.push_back(points2[5]);
     matchesr3.push_back(r32);
-    int   rgb[3]     = {stoi(matches[i][6]),stoi(matches[i][7]),stoi(matches[i][8])};
     // find the vectors
     float v1[3]      = {points1[3] - points1[0],points1[4] - points1[1],points1[5] - points1[2]};
     float v2[3]      = {points2[3] - points2[0],points2[4] - points2[1],points2[5] - points2[2]};
@@ -147,7 +147,7 @@ void two_view_reproject(){
     float smallest = numeric_limits<float>::max();
     float p1[3] = {0.0,0.0,0.0};
     float p2[3] = {0.0,0.0,0.0};
-    for (float i = 5.0; i < 500.0; i += 0.001){
+    for (float i = 5.0; i < 100.0; i += 0.0001){
       // get the points on the lines
       p1[0]  = points1[0] + v1[0]*i;
       p1[1]  = points1[1] + v1[1]*i;
@@ -208,13 +208,31 @@ void save_ply(){
 //
 // This is the main method
 //
-int main(){
-  cout << " == REPROJECTION == " << endl;
+int main(int argc, char* argv[]){
+  cout << "*===================* REPROJECTION *===================*" << endl;
+  if (argc < 3){
+    cout << "not enough arguments ... " << endl;
+    cout << "USAGE: " << endl;
+    cout << "./reprojection.x path/to/cameras.txt path/to/matches.txt" << endl;
+    cout << "*======================================================*" << endl;
+    return 0; // end it all
+  } else {
+    cout << "*                                                      *" << endl;
+    cout << "*                     ~ UGA SSRL ~                     *" << endl;
+    cout << "*        Multiview Onboard Computational Imager        *" << endl;
+    cout << "*                                                      *" << endl;
+  }
+  cout << "*======================================================*" << endl;
+
+  cameras_path = argv[1];
+  matches_path = argv[2];
 
   load_matches();
   load_cameras();
   two_view_reproject();
   save_ply();
+
+  if (verbose) cout << "done!\nresults saved to output.ply" << endl;
 
   return 0;
 }
