@@ -1,8 +1,8 @@
-//======================================
-// UGA SSRL Reprojection
-// Author: Caleb Adams
-// Contact: CalebAshmoreAdams@gmail.com
-//======================================
+//======================================//
+// UGA SSRL Reprojection                //
+// Author: Caleb Adams                  //
+// Contact: CalebAshmoreAdams@gmail.com //
+//======================================//
 
 #include <array>
 #include <cmath>
@@ -17,7 +17,7 @@ using namespace std;
 
 // == GLOBAL VARIABLES == //
 bool           verbose = 1;
-bool           debug   = 1;
+bool           debug   = 0;
 
 string cameras_path;
 string matches_path;
@@ -110,6 +110,38 @@ float euclid_dist(float p1[3], float p2[3]){
 }
 
 //
+// This is used to rotate the projection from the unit vector
+//
+vector<float> rotate_projection(float x, float y, float u_x, float u_y, float u_z){
+  vector<float> u;
+  vector<float> v;
+  // fill the unit vector we want to compare to
+  u.push_back(1.0);
+  u.push_back(0.0);
+  u.push_back(0.0);
+
+  //angle_x
+
+  return v;
+}
+
+//
+// This is used to rotate the projection only in the z direction
+//
+vector<float> rotate_projection_z(float x, float y, float u_x, float u_y, float u_z){
+  vector<float> u;
+  vector<float> v;
+  // fill the unit vector we want to compare to
+  u.push_back(1.0);
+  u.push_back(0.0);
+  u.push_back(0.0);
+
+  //angle_x
+
+  return v;
+}
+
+//
 // loads cameras from a camera.txt file
 // this is currently a 2-view system
 //
@@ -121,25 +153,30 @@ void two_view_reproject(){
     int   image2     = stoi(matches[i][1].substr(0,4));
     float camera1[6] = {stof(cameras[image1-1][1]),stof(cameras[image1-1][2]),stof(cameras[image1-1][3]),stof(cameras[image1-1][4]),stof(cameras[image1-1][5]),stof(cameras[image1-1][6])};
     float camera2[6] = {stof(cameras[image2-1][1]),stof(cameras[image2-1][2]),stof(cameras[image2-1][3]),stof(cameras[image2-1][4]),stof(cameras[image2-1][5]),stof(cameras[image2-1][6])};
-    // TODO rotate the projection so that the camera unit vector is normal to it
+    // scale the projection's coordinates
     float x1 = dpix * (stof(matches[i][2]) - res/2.0);
     float y1 = dpix * (stof(matches[i][3]) - res/2.0);
     float x2 = dpix * (stof(matches[i][4]) - res/2.0);
     float y2 = dpix * (stof(matches[i][5]) - res/2.0);
+    // rotate the projections coordinates
+    vector<float> proj1 = rotate_projection_z(x1,y1,camera1[3],camera1[4],camera1[5]);
+    vector<float> proj2 = rotate_projection_z(x2,y2,camera2[3],camera2[4],camera2[5]);
+    // store the final camera - projection match
+    // TODO I have the unit vectors stored wrong I think. x should be z... not sure what happened
     float points1[6] = {camera1[0],camera1[1],camera1[2],x1 + camera1[0],y1 + camera1[1],foc + camera1[2]};
+    float points2[6] = {camera2[0],camera2[1],camera2[2],x2 + camera2[0],y2 + camera2[1],foc + camera2[2]};
     int   rgb[3]     = {stoi(matches[i][6]),stoi(matches[i][7]),stoi(matches[i][8])};
     // this is just for storing the projections for a ply file later
-    vector<float> r31;
-    r31.push_back(points1[3]);
-    r31.push_back(points1[4]);
-    r31.push_back(points1[5]);
-    matchesr3.push_back(r31);
-    float points2[6] = {camera2[0],camera2[1],camera2[2],x2 + camera2[0],y2 + camera2[1],foc + camera2[2]};
     vector<float> r32;
     r32.push_back(points2[3]);
     r32.push_back(points2[4]);
     r32.push_back(points2[5]);
     matchesr3.push_back(r32);
+    vector<float> r31;
+    r31.push_back(points1[3]);
+    r31.push_back(points1[4]);
+    r31.push_back(points1[5]);
+    matchesr3.push_back(r31);
     // find the vectors
     float v1[3]      = {points1[3] - points1[0],points1[4] - points1[1],points1[5] - points1[2]};
     float v2[3]      = {points2[3] - points2[0],points2[4] - points2[1],points2[5] - points2[2]};
@@ -147,7 +184,7 @@ void two_view_reproject(){
     float smallest = numeric_limits<float>::max();
     float p1[3] = {0.0,0.0,0.0};
     float p2[3] = {0.0,0.0,0.0};
-    for (float i = 5.0; i < 100.0; i += 0.0001){
+    for (float i = 5.0; i < 100.0; i += 0.001){
       // get the points on the lines
       p1[0]  = points1[0] + v1[0]*i;
       p1[1]  = points1[1] + v1[1]*i;

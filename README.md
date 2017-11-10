@@ -10,7 +10,7 @@ If you are running this for the first time you need to make a `bin` folder in th
 
 The executables for `.cpp` programs are placed in the `bin` folder with the extension `.x`
 
-To run the reprojection from the root folder of this repo: `./bin/reprojection.x`
+To run the reprojection from the root folder of this repo: `./bin/reprojection.x path/to/cameras.txt path/to/matches.txt`
 
 ## Source
 
