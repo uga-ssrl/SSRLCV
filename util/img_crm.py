@@ -36,9 +36,14 @@ def rot():
 
     cameras = []
     for dt in range (1,201):
-        u_x = sin((dt-1) * d_theta)
-        u_y = cos((dt-1) * d_theta)
+        u_x = float(sin((dt-1) * d_theta))
+        u_y = float(cos((dt-1) * d_theta))
         u_z = 0.0
+        # there were issues w floats being v inaccurate at small values:
+        if (abs(u_x) < 0.0001):
+            u_x = 0.0
+        if (abs(u_y) < 0.0001):
+            u_y = 0.0
         x = r * u_x
         y = r * u_y
         z = r * u_z

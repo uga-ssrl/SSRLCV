@@ -95,9 +95,10 @@ for n in range(0, len(files)):
             #print match[0]
             #print match[0][0]
             if match.shape[0] > 0:
-                pix_x = int(match[0][0][0])
-                pix_y = int(match[0][0][1])
-                matches.append([files[n][0],files[m][0], match, pix[pix_x,pix_y]])
+                for x in range(0,match.shape[0]):
+                    pix_x = int(match[x][0][0])
+                    pix_y = int(match[x][0][1])
+                    matches.append([files[n][0],files[m][0], match, pix[pix_x,pix_y]])
 if verbose or debug:
     print '100.0%'
 print 'Total Matches: ' + str(total_matches)
