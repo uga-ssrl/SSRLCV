@@ -148,7 +148,8 @@ vector<float> rotate_projection_z(float x, float y, float u_x, float u_y, float 
 void two_view_reproject(){
   // get the data that we want to compute
   cout << "2-view trianulating... " << endl;
-  for(int i = 0; i < matches.size(); i++){
+  int length = matches.size();
+  for(int i = 0; i < length; i++){
     int   image1     = stoi(matches[i][0].substr(0,4));
     int   image2     = stoi(matches[i][1].substr(0,4));
     float camera1[6] = {stof(cameras[image1-1][1]),stof(cameras[image1-1][2]),stof(cameras[image1-1][3]),stof(cameras[image1-1][4]),stof(cameras[image1-1][5]),stof(cameras[image1-1][6])};
@@ -211,6 +212,7 @@ void two_view_reproject(){
       points.push_back(v);
       colors.push_back(c);
     }
+    if (verbose) cout << (((((float)i))/((float)length)) * 100.0) << " \%" << endl;
   }
   cout << "Generated: " << points.size() << " valid points" << endl;
 }
