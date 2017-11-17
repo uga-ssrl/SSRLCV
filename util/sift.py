@@ -94,12 +94,20 @@ for n in range(0, len(files)):
             pix = img.load()
             #print match[0]
             #print match[0][0]
+            prev_x = 0.0
+            prev_y = 0.0
             if match.shape[0] > 0:
-                for x in range(0,match.shape[0]):
-                    pix_x = int(match[x][0][0])
-                    pix_y = int(match[x][0][1])
-                    matches.append([files[n][0],files[m][0], match, pix[pix_x,pix_y]])
-if verbose or debug:
+                pix_x = int(match[0][0][0])
+                pix_y = int(match[0][0][1])
+                matches.append([files[n][0],files[m][0], match, pix[pix_x,pix_y]])
+                # for x in range(0,match.shape[0]):
+                #     if (match[x][0][0] != prev_x and match[x][0][1] != prev_y):
+                #         pix_x = int(match[x][0][0])
+                #         pix_y = int(match[x][0][1])
+                #         matches.append([files[n][0],files[m][0], match, pix[pix_x,pix_y]])
+                #     prev_x = match[x][0][0]
+                #     prev_y = match[x][0][1]
+if verbose:
     print '100.0%'
 print 'Total Matches: ' + str(total_matches)
 
