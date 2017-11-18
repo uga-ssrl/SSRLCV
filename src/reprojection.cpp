@@ -12,6 +12,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <cuda_runtime.h>
+#include "cublas_v2.h"
 
 using namespace std;
 
@@ -50,7 +52,8 @@ void parse_comma_delem(string str, unsigned short flag){
     if (debug) cout << token << endl;
     v.push_back(token);
   }
-  switch (flag){
+  switch (flag)
+  {
     case 1: // matches
       matches.push_back(v);
       break;
@@ -70,12 +73,15 @@ void load_matches(){
   string line;
   unsigned short c = 0;
   bool first = 1;
-  while (getline(infile, line)){
+  while (getline(infile, line))
+  {
       istringstream iss(line);
       if (debug) cout << line << endl;
-      if (first){
+      if (first)
+      {
         first = 0;
-      } else {
+      } else
+      {
         parse_comma_delem(line, 1);
         c++;
       }
@@ -87,11 +93,13 @@ void load_matches(){
 //
 // loads cameras from a camera.txt file
 //
-void load_cameras(){
+void load_cameras()
+{
   ifstream infile(cameras_path);
   string line;
   unsigned short c = 0;
-  while (getline(infile, line)){
+  while (getline(infile, line))
+  {
       istringstream iss(line);
       if (debug) cout << line << endl;
       parse_comma_delem(line, 2);
@@ -105,14 +113,16 @@ void load_cameras(){
 // This is used for linear approximation
 // TODO develop a better way to do linear approximation
 //
-float euclid_dist(float p1[3], float p2[3]){
+float euclid_dist(float p1[3], float p2[3])
+{
   return sqrt(((p2[0] - p1[0])*(p2[0] - p1[0])) + ((p2[1] - p1[1])*(p2[1] - p1[1])) + ((p2[2] - p1[2])*(p2[2] - p1[2])));
 }
 
 //
 // This is used to rotate the projection from the unit vector
 //
-vector<float> rotate_projection(float x, float y, float u_x, float u_y, float u_z){
+vector<float> rotate_projection(float x, float y, float u_x, float u_y, float u_z)
+{
   vector<float> u;
   vector<float> v;
   // fill the unit vector we want to compare to
@@ -128,7 +138,8 @@ vector<float> rotate_projection(float x, float y, float u_x, float u_y, float u_
 //
 // This is used to rotate the projection only in the z direction
 //
-vector<float> rotate_projection_z(float x, float y, float u_x, float u_y, float u_z){
+vector<float> rotate_projection_z(float x, float y, float u_x, float u_y, float u_z)
+{
   vector<float> u;
   vector<float> v;
   // fill the unit vector we want to compare to
@@ -141,19 +152,87 @@ vector<float> rotate_projection_z(float x, float y, float u_x, float u_y, float 
   return v;
 }
 
+int vector_scale(float *x, int xdimension, int ydimension, float scalevalue)
+{
+    //
+    //CUBLAS - scale the projection's coordinates
+    //
+    //allocate system memory to then transfer to gpu memory
+    //initialize content then set vector.
+    //scale vector stat=cublasSscal(handle,n,&al,d x,1);
+    //get vector
+    //cudafree
+    //cublas destroy handle
+    //free host mallocd
+
+    int n = xdimension;
+    cudaError_t cudaStat ; // cudaMalloc status
+    cublasStatus_t stat ; // CUBLAS functions status
+    cublasHandle_t handle ; // CUBLAS context
+
+    /*
+    int j; // index of elements
+    for(j=0;j<n;j++)
+    {
+        x[j]=( float )j; // x={0 ,1 ,2 ,3 ,4 ,5}
+    }
+    printf ("x:\n");
+    for(j=0;j<n;j++)
+    {
+        printf (" %2.0f,",x[j]); // print x
+    }
+    printf ("\n");
+
+    cout << "the test value is: " << x[3*ydimension+6] << endl;
+    */
+
+    // on the device
+    float * d_x; // d_x - x on the device
+    cudaStat = cudaMalloc (( void **)& d_x ,n* sizeof (*x)); // device
+    // memory alloc for x
+    stat = cublasCreate (& handle ); // initialize CUBLAS context
+    stat = cublasSetVector (n, sizeof (*x) ,x ,1 ,d_x ,1); // cp x- >d_x
+    float al =scalevalue; // al =2
+    // scale the vector d_x by the scalar al: d_x = al*d_x
+    stat=cublasSscal(handle,n,&al,d_x,1);
+    stat = cublasGetVector (n, sizeof ( float ) ,d_x ,1 ,x ,1); // cp d_x - >x
+
+    /*
+    printf ("x after Sscal :\n"); // print x after Sscal :
+    for(j=0;j<n;j++)
+    {
+        printf (" %2.0f,",x[j]); // x={0 ,2 ,4 ,6 ,8 ,10}
+    }
+    cout << "the test value is now: " << x[3*ydimension+6] << endl;
+    printf ("\n");
+    */
+
+    cudaFree (d_x); // free device memory
+    cublasDestroy (handle); // destroy CUBLAS context
+    free (x); // free host memory
+    return EXIT_SUCCESS ;
+}
+
+
 //
 // loads cameras from a camera.txt file
 // this is currently a 2-view system
 //
 void two_view_reproject(){
   // get the data that we want to compute
-  cout << "2-view trianulating... " << endl;
+  cout << "2-view triangulating... " << endl;
   int length = matches.size();
-  for(int i = 0; i < length; i++){
+
+  for(int i = 0; i < length; i++)
+  {
     int   image1     = stoi(matches[i][0].substr(0,4));
     int   image2     = stoi(matches[i][1].substr(0,4));
     float camera1[6] = {stof(cameras[image1-1][1]),stof(cameras[image1-1][2]),stof(cameras[image1-1][3]),stof(cameras[image1-1][4]),stof(cameras[image1-1][5]),stof(cameras[image1-1][6])};
     float camera2[6] = {stof(cameras[image2-1][1]),stof(cameras[image2-1][2]),stof(cameras[image2-1][3]),stof(cameras[image2-1][4]),stof(cameras[image2-1][5]),stof(cameras[image2-1][6])};
+
+
+
+
     // scale the projection's coordinates
     float x1 = dpix * (stof(matches[i][2]) - res/2.0);
     float y1 = dpix * (stof(matches[i][3]) - res/2.0);
@@ -199,7 +278,8 @@ void two_view_reproject(){
       else break;
     }
     // store the result if it sasifies the boundary conditions
-    if (p1[2] > 1.4 && p1[2] < 2.7){
+    if (p1[2] > 1.4 && p1[2] < 2.7)
+    {
       vector<float> v;
       vector<int>   c;
       v.push_back(p1[0]);
@@ -217,7 +297,8 @@ void two_view_reproject(){
   cout << "Generated: " << points.size() << " valid points" << endl;
 }
 
-void save_ply(){
+void save_ply()
+{
   ofstream outputFile1("output.ply");
   outputFile1 << "ply\nformat ascii 1.0\nelement vertex ";
   outputFile1 << points.size() << "\n";
@@ -231,7 +312,8 @@ void save_ply(){
   outputFile2 << cameras.size() << "\n";
   outputFile2 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
   outputFile2 << "end_header\n";
-  for(int i = 0; i < cameras.size(); i++){
+  for(int i = 0; i < cameras.size(); i++)
+  {
     outputFile2 << cameras[i][1] << " " << cameras[i][2] << " " << cameras[i][3] << " 255 0 0\n";
   }
   ofstream outputFile3("matches.ply");
@@ -239,7 +321,8 @@ void save_ply(){
   outputFile3 << matchesr3.size() << "\n";
   outputFile3 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
   outputFile3 << "end_header\n";
-  for(int i = 0; i < matchesr3.size(); i++){
+  for(int i = 0; i < matchesr3.size(); i++)
+  {
     outputFile3 << matchesr3[i][0] << " " << matchesr3[i][1] << " " << matchesr3[i][2] << " 0 2551 0\n";
   }
 }
@@ -247,15 +330,19 @@ void save_ply(){
 //
 // This is the main method
 //
-int main(int argc, char* argv[]){
+int main(int argc, char* argv[])
+{
   cout << "*===================* REPROJECTION *===================*" << endl;
   if (argc < 3){
     cout << "not enough arguments ... " << endl;
     cout << "USAGE: " << endl;
     cout << "./reprojection.x path/to/cameras.txt path/to/matches.txt" << endl;
     cout << "*======================================================*" << endl;
-    return 0; // end it all
-  } else {
+    return 0; // end it all. it will be so serene.
+  }
+
+  else
+  {
     cout << "*                                                      *" << endl;
     cout << "*                     ~ UGA SSRL ~                     *" << endl;
     cout << "*        Multiview Onboard Computational Imager        *" << endl;
@@ -270,6 +357,33 @@ int main(int argc, char* argv[]){
   load_cameras();
   two_view_reproject();
   save_ply();
+
+  //vector scale test
+  /*
+  float *x = new float[19000*4];
+  x=( float *) malloc (19000* sizeof (*x)); // host memory alloc for x
+
+  int j; // index of elements
+  for(j=0;j<19000;j++)
+  {
+      x[j]=( float )j; // x={0 ,1 ,2 ,3 ,4 ,5}
+  }
+  printf ("x:\n");
+  for(j=0;j<19000;j++)
+  {
+      printf (" %2.0f,",x[j]); // print x
+  }
+  printf ("\n");
+
+  cout << "the test value is: " << x[3*4+6] << endl;
+
+
+  // ary[i][j] is then rewritten as
+  // ary[i*sizeY+j]
+  vector_scale(x, 19000, 4, 124.0f);
+
+  cout << "the test value is now: " << x[3*4+6] << endl;
+  */
 
   if (verbose) cout << "done!\nresults saved to output.ply" << endl;
 
