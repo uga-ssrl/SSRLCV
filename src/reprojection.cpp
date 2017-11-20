@@ -3,6 +3,12 @@
 // Author: Caleb Adams                  //
 // Contact: CalebAshmoreAdams@gmail.com //
 //======================================//
+// A seriously good source:
+// https://developer.nvidia.com/sites/default/files/akamai/cuda/files/Misc/mygpu.pdf
+// 
+// This program is only meant to perform a 
+// small portion of MOCI's science pipeline
+//
 
 #include <array>
 #include <cmath>
@@ -19,7 +25,7 @@ using namespace std;
 
 // == GLOBAL VARIABLES == //
 bool           verbose = 1;
-bool           debug   = 1;
+bool           debug   = 0;
 bool           simple  = 0;
 
 string cameras_path;
@@ -233,6 +239,57 @@ int vector_scale(float *x, int xdimension, int ydimension, float scalevalue)
     return EXIT_SUCCESS ;
 }
 
+//
+// This is to perform a dot product w the GPU
+// This uses CUDA with CUBLAS
+//
+//int dot_product(float *x, float *y){
+int dot_product(){
+  
+  cudaError_t    cudaStat; // cudaMalloc status
+  cublasStatus_t stat; // CUBLAS functions status
+  cublasHandle_t handle; // CUBLAS context
+
+  int j;
+  float* x;
+  float* y;
+  
+  x = ( float *) malloc (6*sizeof (*x)); // host memory alloc for x
+  y = ( float *) malloc (6*sizeof (*y));// host memory alloc for y
+  
+  for(j=0;j<6;j++)
+    x[j]=( float)j; // just fill x with 1, 2, 3, 4 , 5
+  for(j=0;j<6;j++)
+    y[j]=( float)j; // same for y
+
+  float* d_x;  // d_x - x on the  device
+  float* d_y;  // d_y - y on the device
+
+  cudaStat=cudaMalloc ((void **)&d_x ,6*sizeof (*x));     // device memory  alloc  for x
+  cudaStat=cudaMalloc ((void **)&d_y ,6*sizeof (*y));     // device memory  alloc  for y
+
+  stat = cublasCreate (& handle );   //  initialize  CUBLAS  context
+  stat = cublasSetVector(6,sizeof (*x),x,1,d_x ,1);// cp x->d_x
+  stat = cublasSetVector(6,sizeof (*y),y,1,d_y ,1);// cp y->d_y
+
+  float  result;
+  
+  // dot  product  of two  vectors d_x ,d_y:
+  // d_x [0]* d_y [0]+...+ d_x[n-1]* d_y[n-1]
+
+  stat = cublasSdot(handle,6,d_x,1,d_y,1,&result);
+
+  printf("dot  product x.y:\n");
+  printf("%7.0f\n",result );                  //  print  the  result
+
+  cudaFree(d_x);                             // free  device  memory
+  cudaFree(d_y);                             // free  device  memory
+  cublasDestroy(handle );               //  destroy  CUBLAS  context
+  free(x);                                       // free  host  memory
+  free(y);  
+  
+  return EXIT_SUCCESS;
+}
 
 //
 // This is used to get the angle
@@ -249,8 +306,10 @@ float get_angle(float cam[6], int flag){
   float v[3] = {cam[3],cam[4],cam[5]};
   // find the dot product
   float dot_v_w = v[0]*w[0] + v[1]*w[1] + v[2]*w[2];
+  dot_product();
   // calculate magnitude for v
   float v_mag = sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+  dot_product();
   // make the fraction:
   float fract = (dot_v_w)/(v_mag);
   // find the angle
