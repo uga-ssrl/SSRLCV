@@ -5,3 +5,10 @@ bin
 bin/*
 /bin/*
 *.ply
+.DS_Store
+util/.DS_Store
+src/.DS_Store
+data/.DS_Store
+img/.DS_Store
+img/carl_pan/.DS_Store
+img/spongebob_pan/.DS_Store
