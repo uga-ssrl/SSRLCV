@@ -50,11 +50,38 @@ def rot():
         camera = [dt, x, y, z, u_x, u_y, u_z]
         cameras.append(camera)
 
-
     f = open('cameras.txt', 'w')
     for c in cameras:
         f.write(str(c[0]) + ',' + str(c[1]) + ',' + str(c[2]) + ',' + str(c[3]) + ',' + str(c[4]) + ',' + str(c[5]) + ',' + str(c[6]) + '\n')
 
+
+def everest_rot():
+    d_theta = radians(40.0/200.0)
+    foc     = 0.18288 # focal length of system
+    fov     = radians(10.0)
+    res     = 4208  # resolution of image in one d
+    r       = 401000.0   # meters
+    d_pix = (foc*tan(fov/2))/(res/2)
+
+    cameras = []
+    for dt in range (1,201):
+        u_x = float(sin((dt-1) * d_theta))
+        u_y = float(cos((dt-1) * d_theta))
+        u_z = 0.0
+        # there were issues w floats being v inaccurate at small values:
+        if (abs(u_x) < 0.0001):
+            u_x = 0.0
+        if (abs(u_y) < 0.0001):
+            u_y = 0.0
+        x = r * u_x
+        y = r * u_y
+        z = r * u_z
+        camera = [dt, x, y, z, u_x, u_y, u_z]
+        cameras.append(camera)
+
+    f = open('cameras.txt', 'w')
+    for c in cameras:
+        f.write(str(c[0]) + ',' + str(c[1]) + ',' + str(c[2]) + ',' + str(c[3]) + ',' + str(c[4]) + ',' + str(c[5]) + ',' + str(c[6]) + '\n')
 
 ###############
 # entry point #
@@ -62,4 +89,5 @@ def rot():
 
 print '>> This is just a test util to make an example camera_image match'
 
-rot()
+#rot()
+everest_rot()
