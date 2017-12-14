@@ -396,7 +396,8 @@ void two_view_reproject_pan(){
     float smallest = numeric_limits<float>::max();
     float p1[3] = {0.0,0.0,0.0};
     float p2[3] = {0.0,0.0,0.0};
-    for (float i = 0.0; i < 800.0; i += 0.0001){
+    //for (float i = 0.0; i < 800.0; i += 0.0001){
+    for (float i = 0.0; i < 400.0; i += 0.0001){ // for testing more quickly
       // get the points on the lines
       p1[0]  = points1[0] + v1[0]*i;
       p1[1]  = points1[1] + v1[1]*i;
