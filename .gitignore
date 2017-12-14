@@ -9,6 +9,7 @@ bin/*
 util/.DS_Store
 src/.DS_Store
 data/.DS_Store
-img/.DS_Store
-img/carl_pan/.DS_Store
-img/spongebob_pan/.DS_Store
+data/img/.DS_Store
+data/img/carl_pan/.DS_Store
+data/img/spongebob_pan/.DS_Store
+data/img/everest_40d_untextured
