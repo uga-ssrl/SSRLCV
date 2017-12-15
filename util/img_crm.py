@@ -56,7 +56,14 @@ def rot():
 
 
 def everest_rot():
-    d_theta = radians(40.0/200.0)
+    #d_theta = radians(40.0/200.0)
+    #foc     = 0.18288 # focal length of system
+    #fov     = radians(10.0)
+    #res     = 4208  # resolution of image in one d
+    #r       = 401000.0   # meters
+    #d_pix = (foc*tan(fov/2))/(res/2)
+
+    d_theta = radians(20.0/10.0)
     foc     = 0.18288 # focal length of system
     fov     = radians(10.0)
     res     = 4208  # resolution of image in one d
@@ -64,7 +71,7 @@ def everest_rot():
     d_pix = (foc*tan(fov/2))/(res/2)
 
     cameras = []
-    for dt in range (1,201):
+    for dt in range (1,21):
         u_x = float(sin((dt-1) * d_theta))
         u_y = float(cos((dt-1) * d_theta))
         u_z = 0.0
