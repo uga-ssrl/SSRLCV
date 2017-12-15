@@ -71,7 +71,7 @@ def everest_rot():
     d_pix = (foc*tan(fov/2))/(res/2)
 
     cameras = []
-    for dt in range (1,21):
+    for dt in range (-9,11):
         u_x = float(sin((dt-1) * d_theta))
         u_y = float(cos((dt-1) * d_theta))
         u_z = 0.0
