@@ -67,7 +67,7 @@ def everest_rot():
     foc     = 0.18288 # focal length of system
     fov     = radians(10.0)
     res     = 4208  # resolution of image in one d
-    r       = 401000.0   # meters
+    r       = 401.0   # kmeters
     d_pix = (foc*tan(fov/2))/(res/2)
 
     cameras = []
