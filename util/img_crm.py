@@ -31,7 +31,7 @@ def rot():
     foc     = 0.035 # focal length of system
     fov     = radians(49.135)
     res     = 1024  # resolution of image in one d
-    r       = 2.0   # meters
+    r       = 50.0  #2.0   # meters
     d_pix = (foc*tan(fov/2))/(res/2)
 
     cameras = []
@@ -96,5 +96,5 @@ def everest_rot():
 
 print '>> This is just a test util to make an example camera_image match'
 
-#rot()
-everest_rot()
+rot()
+#everest_rot()
