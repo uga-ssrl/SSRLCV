@@ -37,18 +37,20 @@ unsigned short match_count;
 unsigned short camera_count;
 
 // TODO (some of) this stuff should be set by camera calibration
+
 // This was for the test cases only 
-//unsigned int   res  = 1024;
-//float          dpix = 0.00002831538; //(foc*tan(fov/2))/(res/2)
-//float          foc  = 0.035;
-//float          fov  = 0.785398163397; // 45 degrees
-//float          PI   = 3.1415926535;
-// this is for the blender sim of mnt everest
-unsigned int   res  = 4208;
-float          foc  = 0.18288;
-float          fov  = 0.174533; // 10 degrees
+unsigned int   res  = 1024;
+float          dpix = 0.00002831538; //(foc*tan(fov/2))/(res/2)
+float          foc  = 0.035;
+float          fov  = 0.785398163397; // 45 degrees
 float          PI   = 3.1415926535;
-float          dpix = (foc*tan(fov/2))/(res/2);
+
+// this is for the blender sim of mnt everest
+//unsigned int   res  = 4208;
+//float          foc  = 0.18288;
+//float          fov  = 0.174533; // 10 degrees
+//float          PI   = 3.1415926535;
+//float          dpix = (foc*tan(fov/2))/(res/2);
 
 // for debugging
 float          max_angle = -1000.0;
