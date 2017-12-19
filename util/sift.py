@@ -106,7 +106,7 @@ for n in range(0, len(files)):
                     #pair.append([x[0][0],x[0][1],x[1][0],x[1][1]])
                     pix_x = int(x[0][0])
                     pix_y = int(x[0][1])
-                    print "rgb: " + str(pix[pix_x,pix_y])
+                    #print "rgb: " + str(pix[pix_x,pix_y])
                     matches.append([files[n][0],files[m][0],[x[0][0],x[0][1],x[1][0],x[1][1]], pix[pix_x,pix_y]])
                     #for w in matches:
                     #    print str(w[0])+','+str(w[1])+','+str(w[2][0])+','+str(w[2][1])+','+str(w[2][2])+','+str(w[2][3])+','+str(w[3][0])+','+str(w[3][1])+','+str(w[3][2])+'\n'
