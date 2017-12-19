@@ -102,6 +102,9 @@ for n in range(0, len(files)):
                 #matches.append([files[n][0],files[m][0], match, pix[pix_x,pix_y]])
                  for x in range(0,match.shape[0]):
                      if (match[x][0][0] != prev_x and match[x][0][1] != prev_y):
+                         print "str(match[x][0][0] = " + str(match[x][0][0])
+                         print "str(match[x][0][1] = " + str(match[x][0][1])
+                         print "str(match[x] = " + str(match[x])
                          pix_x = int(match[x][0][0])
                          pix_y = int(match[x][0][1])
                          matches.append([files[n][0],files[m][0], match, pix[pix_x,pix_y]])

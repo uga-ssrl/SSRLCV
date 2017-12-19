@@ -45,6 +45,13 @@ float          foc  = 0.035;
 float          fov  = 0.857550075; // 49.134 degrees  // 0.785398163397; // 45 degrees
 float          PI   = 3.1415926535;
 
+// Test 2 with slightly higher res
+//unsigned int   res  = 2000;
+//float          dpix = 0.00002831538; //(foc*tan(fov/2))/(res/2)
+//float          foc  = 0.035;
+//float          fov  = 0.857550075; // 49.134 degrees  // 0.785398163397; // 45 degrees
+//float          PI   = 3.1415926535;
+
 // this is for the blender sim of mnt everest
 //unsigned int   res  = 4208;
 //float          foc  = 0.18288;
@@ -377,7 +384,7 @@ void two_view_reproject_pan(){
     float p1[3] = {0.0,0.0,0.0};
     float p2[3] = {0.0,0.0,0.0};
     //for (float i = 0.0; i < 800.0; i += 0.0001){
-    for (float i = 0.0; i < 1000.0; i += 0.000001){ // for testing more quickly
+    for (float i = 0.0; i < 1000.0; i += 0.0000001){ // for testing more quickly
       // get the points on the lines
       p1[0]  = points1[0] + v1[0]*i;
       p1[1]  = points1[1] + v1[1]*i;
@@ -391,7 +398,7 @@ void two_view_reproject_pan(){
     }
     // store the result if it sasifies the boundary conditions
     // TODO uncomment this after you test to see how far those points go
-    // if (p1[2] > 1.4 && p1[2] < 2.7){
+    if (p1[2] > 1.0 && p1[2] < 3.0){
       vector<float> v;
       vector<int>   c;
       v.push_back(p1[0]);
@@ -403,7 +410,7 @@ void two_view_reproject_pan(){
       if (debug) cout << p1[0] << "," << p1[1] << "," << p1[2] << endl;
       points.push_back(v);
       colors.push_back(c);
-    // }
+    }
     if (verbose) cout << (((((float)i))/((float)length)) * 100.0) << " \%" << endl;
   }
   cout << "Generated: " << points.size() << " valid points" << endl;
@@ -510,7 +517,7 @@ void two_view_reproject_plane(){
     cout << "smallest: " << smallest << ", j: [" << j_holder << "]" << endl;
     // store the result if it sasifies the boundary conditions
     // TODO uncomment this after you test to see how far those points go
-    // if (p1[2] > 1.4 && p1[2] < 2.7){
+    //if (p1[2] > 1.4 && p1[2] < 2.7){
       vector<float> v;
       vector<int>   c;
       v.push_back(p1[0]);
