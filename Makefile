@@ -3,4 +3,6 @@ all:
 clean:
 	rm -f bin/*
 	rm -f *.ply
-	
+	rm -f src/*~
+	rm -f util/*~
+	rm -f util/*.o

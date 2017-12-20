@@ -97,9 +97,24 @@ for n in range(0, len(files)):
             prev_x = 0.0
             prev_y = 0.0
             if match.shape[0] > 0:
-                pix_x = int(match[0][0][0])
-                pix_y = int(match[0][0][1])
-                matches.append([files[n][0],files[m][0], match, pix[pix_x,pix_y]])
+                #print "match = " + str(match)
+                for x in match:
+                    #print "match[" + str(x) + "] = " + str(x)
+                    print "\t\tx1: " + str(x[0][0]) + ", y1: " + str(x[0][1])
+                    print "\t\tx2: " + str(x[1][0]) + ", y2: " + str(x[1][1])
+                    #pair = []
+                    #pair.append([x[0][0],x[0][1],x[1][0],x[1][1]])
+                    pix_x = int(x[0][0])
+                    pix_y = int(x[0][1])
+                    #print "rgb: " + str(pix[pix_x,pix_y])
+                    matches.append([files[n][0],files[m][0],[x[0][0],x[0][1],x[1][0],x[1][1]], pix[pix_x,pix_y]])
+                    #for w in matches:
+                    #    print str(w[0])+','+str(w[1])+','+str(w[2][0])+','+str(w[2][1])+','+str(w[2][2])+','+str(w[2][3])+','+str(w[3][0])+','+str(w[3][1])+','+str(w[3][2])+'\n'
+
+                #pix_x = int(match[0][0][0])
+                #pix_y = int(match[0][0][1])
+                #matches.append([files[n][0],files[m][0], match, pix[pix_x,pix_y]])
+
                 # for x in range(0,match.shape[0]):
                 #     if (match[x][0][0] != prev_x and match[x][0][1] != prev_y):
                 #         pix_x = int(match[x][0][0])
@@ -116,7 +131,11 @@ print 'Total Matches: ' + str(total_matches)
 f = open('matches.txt', 'w')
 f.write(str(total_matches) + '\n')
 for m in matches:
-    f.write(str(m[0])+','+str(m[1])+','+str(m[2][0][0][0])+','+str(m[2][0][0][1])+','+str(m[2][0][1][0])+','+str(m[2][0][1][1])+','+str(m[3][0])+','+str(m[3][1])+','+str(m[3][2])+'\n')
+    f.write(str(m[0])+','+str(m[1])+','+str(m[2][0])+','+str(m[2][1])+','+str(m[2][2])+','+str(m[2][3])+','+str(m[3][0])+','+str(m[3][1])+','+str(m[3][2])+'\n')
+
+    #f.write(str(m[0])+','+str(m[1])+','+str(m[2][0][0][0])+','+str(m[2][0][0][1])+','+str(m[2][0][1][0])+','+str(m[2][0][1][1])+','+str(m[3][0])+','+str(m[3][1])+','+str(m[3][2])+'\n')
+    
+
     # print m[0]       # image 1
     # print m[1]       # image 2
     # print m[2][0][0][0] # image 1 points
