@@ -133,7 +133,7 @@ f = open('cameras.txt', 'w')
 if verbose:
     print '1,' + str(plane[0]) + ',' + str(plane[1]) + ',' + str(plane[2]) + ',0.0,1.0,0.0\n'
 f.write('1,' + str(plane[0]) + ',' + str(plane[1]) + ',' + str(plane[2]) + ',0.0,1.0,0.0\n')
-rotate_plane_z(radians(45))
+rotate_plane_z(radians(90))
 if verbose:
-    print '1,' + str(plane[0]) + ',' + str(plane[1]) + ',' + str(plane[2]) + ',-0.70710678118,0.70710678118,0.0\n'
-f.write('1,' + str(plane[0]) + ',' + str(plane[1]) + ',' + str(plane[2]) + ',-0.70710678118,0.70710678118,0.0\n')
+    print '1,' + str(plane[0]) + ',' + str(plane[1]) + ',' + str(plane[2]) + ',-1.0,0.0,0.0\n'
+f.write('1,' + str(plane[0]) + ',' + str(plane[1]) + ',' + str(plane[2]) + ',-1.0,0.0,0.0\n')
