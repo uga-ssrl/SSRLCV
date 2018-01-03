@@ -498,7 +498,7 @@ void two_view_reproject_plane(){
     float p1[3]; //= {0.0,0.0,0.0};
     float p2[3]; //= {0.0,0.0,0.0};
     float point[4];
-    for (float j = 0.5; j < 200.0; j += 0.0001){
+    for (float j = 0.1; j < 200.0; j += 0.000000001){
       p1[0] = points1[0] + v1[0]*j;
       p1[1] = points1[1] + v1[1]*j;
       p1[2] = points1[2] + v1[2]*j;
