@@ -518,7 +518,7 @@ void two_view_reproject_plane(){
     cout << "smallest: " << smallest << ", j: [" << j_holder << "]" << endl;
     // store the result if it sasifies the boundary conditions
     // TODO uncomment this after you test to see how far those points go
-    //if (j_holder > 1.0){
+    //    if (point[3] < 0.5){
     vector<float> v;
     vector<int>   c;
     v.push_back(point[0]);
@@ -531,7 +531,7 @@ void two_view_reproject_plane(){
     if (debug) cout << point[0] << "," << point[1] << "," << point[2] << endl;
     points.push_back(v);
     colors.push_back(c);
-      //}
+    //}
     if (verbose) cout << (((((float)i))/((float)length)) * 100.0) << " \%" << endl;
   }
   cout << "Generated: " << points.size() << " valid points" << endl;
