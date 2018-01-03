@@ -39,9 +39,9 @@ edges  = [[0,1], # AB
           [2,6], # CG
           [3,7]] # DH
 
-window_size = 30 #cm
-view_dist   = 60 #cm
-screen_size = 400 #pixs
+window_size = 1.0 #cm
+view_dist   = 1.0 #cm
+screen_size = 1024 #pixs
 
 cm_per_pix  = window_size/screen_size
 
