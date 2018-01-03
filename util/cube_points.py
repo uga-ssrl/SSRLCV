@@ -1,4 +1,4 @@
-import sys, os, pyopencl, time, urllib2
+import sys, os
 from math import sin, cos, tan, sqrt, floor, radians
 
 ## flags and shit
@@ -135,5 +135,5 @@ if verbose:
 f.write('1,' + str(plane[0]) + ',' + str(plane[1]) + ',' + str(plane[2]) + ',0.0,1.0,0.0\n')
 rotate_plane_z(radians(45))
 if verbose:
-    print '1,' + str(plane[0]) + ',' + str(plane[1]) + ',' + str(plane[2]) + ',0.70710678118,0.70710678118,0.0\n'
-f.write('1,' + str(plane[0]) + ',' + str(plane[1]) + ',' + str(plane[2]) + ',0.70710678118,0.70710678118,0.0\n')
+    print '1,' + str(plane[0]) + ',' + str(plane[1]) + ',' + str(plane[2]) + ',-0.70710678118,0.70710678118,0.0\n'
+f.write('1,' + str(plane[0]) + ',' + str(plane[1]) + ',' + str(plane[2]) + ',-0.70710678118,0.70710678118,0.0\n')
