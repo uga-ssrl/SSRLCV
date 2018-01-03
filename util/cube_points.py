@@ -56,6 +56,13 @@ def rotate_plane_z(r):
     plane[1] = sin(r)*x + cos(r)*y;
     plane[2] = z
 
+def rotate_camera_z(r):
+    x = camera[0]
+    y = camera[1]
+    z = camera[2]
+    camera[0] = cos(r)*x + -1*sin(r)*y;
+    camera[1] = sin(r)*x + cos(r)*y;
+    camera[2] = z
 
     #########################
     ###### Entry Point ######
@@ -131,9 +138,9 @@ for i in range(0, len(raw_match_set[0])):
 
 f = open('cameras.txt', 'w')
 if verbose:
-    print '1,' + str(plane[0]) + ',' + str(plane[1]) + ',' + str(plane[2]) + ',0.0,1.0,0.0\n'
-f.write('1,' + str(plane[0]) + ',' + str(plane[1]) + ',' + str(plane[2]) + ',0.0,1.0,0.0\n')
-rotate_plane_z(radians(90))
+    print '1,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.0,1.0,0.0\n'
+f.write('1,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.0,1.0,0.0\n')
+rotate_camera_z(radians(90))
 if verbose:
-    print '1,' + str(plane[0]) + ',' + str(plane[1]) + ',' + str(plane[2]) + ',-1.0,0.0,0.0\n'
-f.write('1,' + str(plane[0]) + ',' + str(plane[1]) + ',' + str(plane[2]) + ',-1.0,0.0,0.0\n')
+    print '1,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',-1.0,0.0,0.0\n'
+f.write('1,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',-1.0,0.0,0.0\n')
