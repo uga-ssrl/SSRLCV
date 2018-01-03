@@ -497,7 +497,8 @@ void two_view_reproject_plane(){
     float j_holder = 0.0;
     float p1[3]; //= {0.0,0.0,0.0};
     float p2[3]; //= {0.0,0.0,0.0};
-    for (float j = 0.5; j < 300.0; j += 0.00001){
+    float point[4];
+    for (float j = 0.5; j < 200.0; j += 0.0001){
       p1[0] = points1[0] + v1[0]*j;
       p1[1] = points1[1] + v1[1]*j;
       p1[2] = points1[2] + v1[2]*j;
@@ -505,29 +506,32 @@ void two_view_reproject_plane(){
       p2[1] = points2[1] + v2[1]*j;
       p2[2] = points2[2] + v2[2]*j;
       float dist = euclid_dist(p1,p2);
-      if (dist < smallest) smallest = dist;
-      else {
+      if (dist < smallest){
+	smallest = dist;
+	point[0] = (p1[0]+p2[0])/2.0;
+	point[1] = (p1[1]+p2[1])/2.0;
+	point[2] = (p1[2]+p2[2])/2.0;
+	point[3] = smallest;
 	j_holder = j;
-	goto breaker;
-      }
+      } else break;
     }
-  breaker:
     cout << "smallest: " << smallest << ", j: [" << j_holder << "]" << endl;
     // store the result if it sasifies the boundary conditions
     // TODO uncomment this after you test to see how far those points go
-    if (j_holder > 1.0){
-      vector<float> v;
-      vector<int>   c;
-      v.push_back(p1[0]);
-      v.push_back(p1[1]);
-      v.push_back(p1[2]);
-      c.push_back(rgb[0]);
-      c.push_back(rgb[1]);
-      c.push_back(rgb[2]);
-      if (debug) cout << p1[0] << "," << p1[1] << "," << p1[2] << endl;
-      points.push_back(v);
-      colors.push_back(c);
-    }
+    //    if (point[3] < 0.5){
+    vector<float> v;
+    vector<int>   c;
+    v.push_back(point[0]);
+    v.push_back(point[1]);
+    v.push_back(point[2]);
+    c.push_back(rgb[0]);
+    c.push_back(rgb[1]);
+    c.push_back(rgb[2]);
+    if (debug) cout << p1[0] << "," << p1[1] << "," << p1[2] << endl;
+    if (debug) cout << point[0] << "," << point[1] << "," << point[2] << endl;
+    points.push_back(v);
+    colors.push_back(c);
+    //}
     if (verbose) cout << (((((float)i))/((float)length)) * 100.0) << " \%" << endl;
   }
   cout << "Generated: " << points.size() << " valid points" << endl;
