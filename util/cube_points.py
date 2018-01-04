@@ -33,8 +33,8 @@ print '<========================>'
 
 # we choose to rotate in the x/y-plane!
 # based on carl_rot_cameras.txt convention
-camera = [0.0,alt+foc,0.0]
-plane  = [0.0,alt,0.0]
+camera = [0.0,alt,0.0]
+plane  = [0.0,alt-foc,0.0]
 
 # the final guy
 raw_match_set = []
@@ -77,7 +77,7 @@ for point in cube_points:
     v_y = point[1] - camera[1]
     v_z = point[2] - camera[2]
     # compute the parametric variable's intersection with the y-plane
-    t = (alt - point[1])/v_y
+    t = ((alt-foc) - point[1])/v_y
     # compute the points!
     x = v_x * t + point[0]
     y = v_y * t + point[1] # redundant, just for readability
@@ -96,7 +96,7 @@ for point in cube_points:
 raw_match_set.append(new_match_set)
 
 # rotate by 45 degrees
-rotate_cube_z(radians(45))
+rotate_cube_z(radians(180))
 
 # do the thing again
 new_match_set = []
@@ -106,7 +106,7 @@ for point in cube_points:
     v_y = point[1] - camera[1]
     v_z = point[2] - camera[2]
     # compute the parametric variable's intersection with the y-plane
-    t = (alt - point[1])/v_y
+    t = ((alt-foc) - point[1])/v_y
     # compute the points!
     x = v_x * t + point[0]
     y = v_y * t + point[1] # redundant, just for readability
@@ -131,7 +131,7 @@ for i in range(0, len(raw_match_set[0])):
     format_str = '0001.jpg,0002.jpg,'
     format_str += str(raw_match_set[0][i][0]) + ',' + str(raw_match_set[0][i][2]) + ','
     format_str += str(raw_match_set[1][i][0]) + ',' + str(raw_match_set[1][i][2]) + ','
-    format_str += '255,0,0\n'
+    format_str += '0,0,255\n'
     f.write(format_str)
     if (verbose):
         print format_str
@@ -140,7 +140,11 @@ f = open('cameras.txt', 'w')
 if verbose:
     print '1,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.0,1.0,0.0\n'
 f.write('1,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.0,1.0,0.0\n')
-rotate_camera_z(radians(90))
+rotate_camera_z(radians(180))
 if verbose:
-    print '1,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',-1.0,0.0,0.0\n'
-f.write('1,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',-1.0,0.0,0.0\n')
+    print '2,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.70710678118,0.70710678118,0.0\n'
+f.write('2,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.70710678118,0.70710678118,0.0\n')
+#if verbose:
+#    print '2,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.0,-1.0,0.0\n'
+#f.write('2,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.0,-1.0,0.0\n')
+

@@ -407,19 +407,19 @@ void two_view_reproject_pan(){
     }
     // store the result if it sasifies the boundary conditions
     // TODO uncomment this after you test to see how far those points go
-    if (p1[2] > 1.0 && p1[2] < 3.0){
-      vector<float> v;
-      vector<int>   c;
-      v.push_back(p1[0]);
-      v.push_back(p1[1]);
-      v.push_back(p1[2]);
-      c.push_back(rgb[0]);
-      c.push_back(rgb[1]);
-      c.push_back(rgb[2]);
-      if (debug) cout << p1[0] << "," << p1[1] << "," << p1[2] << endl;
-      points.push_back(v);
-      colors.push_back(c);
-    }
+    //if (p1[2] > 1.0 && p1[2] < 3.0){
+    vector<float> v;
+    vector<int>   c;
+    v.push_back(p1[0]);
+    v.push_back(p1[1]);
+    v.push_back(p1[2]);
+    c.push_back(rgb[0]);
+    c.push_back(rgb[1]);
+    c.push_back(rgb[2]);
+    if (debug) cout << p1[0] << "," << p1[1] << "," << p1[2] << endl;
+    points.push_back(v);
+    colors.push_back(c);
+    //}
     if (verbose) cout << (((((float)i))/((float)length)) * 100.0) << " \%" << endl;
   }
   cout << "Generated: " << points.size() << " valid points" << endl;
@@ -498,7 +498,7 @@ void two_view_reproject_plane(){
     float p1[3]; //= {0.0,0.0,0.0};
     float p2[3]; //= {0.0,0.0,0.0};
     float point[4];
-    for (float j = 0.1; j < 200.0; j += 0.000000001){
+    for (float j = 0.5; j < 200.0; j += 0.000000001){
       p1[0] = points1[0] + v1[0]*j;
       p1[1] = points1[1] + v1[1]*j;
       p1[2] = points1[2] + v1[2]*j;
