@@ -64,6 +64,12 @@ def rotate_camera_z(r):
     camera[1] = sin(r)*x + cos(r)*y;
     camera[2] = z
 
+def rotate_points_z(x_0,y_0,z_0,r):
+    x = cos(r)*x_0 + -1*sin(r)*y_0;
+    y = sin(r)*x_0 + cos(r)*y_0;
+    z = z_0
+    return [x,y,z]
+    
     #########################
     ###### Entry Point ######
     #########################
@@ -71,6 +77,7 @@ def rotate_camera_z(r):
 print 'computing projections...'
 
 new_match_set = []
+match_count = 0
 for point in cube_points:
     # compute vectors for each point pair:
     v_x = point[0] - camera[0]
@@ -89,17 +96,21 @@ for point in cube_points:
     y = y/dpix + res/2.0
     z = z/dpix + res/2.0
     if (verbose):
-        print 'scaled: ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']'
-    new_match_set.append([x,y,z])
+        print 'scaled: ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']' + ' => ' + str(match_count)
+    new_match_set.append([x,y,z,match_count])
+    match_count += 1
+
+    
     #print point
 
 raw_match_set.append(new_match_set)
 
 # rotate by 45 degrees
-rotate_cube_z(radians(180))
+rotate_cube_z(radians(-10))
 
 # do the thing again
 new_match_set = []
+match_count = 0
 for point in cube_points:
     # compute vectors for each point pair:
     v_x = point[0] - camera[0]
@@ -118,8 +129,9 @@ for point in cube_points:
     y = y/dpix + res/2.0
     z = z/dpix + res/2.0
     if (verbose):
-        print 'scaled: ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']'
-    new_match_set.append([x,y,z])
+        print 'scaled: ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']' + ' => ' + str(match_count)
+    new_match_set.append([x,y,z,match_count])
+    match_count += 1
     #print point
 
 raw_match_set.append(new_match_set)
@@ -136,14 +148,25 @@ for i in range(0, len(raw_match_set[0])):
     if (verbose):
         print format_str
 
+
+#############################
+### cameras
+#############################
+        
 f = open('cameras.txt', 'w')
 if verbose:
     print '1,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.0,1.0,0.0\n'
 f.write('1,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.0,1.0,0.0\n')
-rotate_camera_z(radians(180))
+
+
+rotate_camera_z(radians(-10))
+x_u = abs(cos(radians(-10)))
+y_u = abs(sin(radians(-10)))
+
 if verbose:
-    print '2,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.70710678118,0.70710678118,0.0\n'
-f.write('2,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.70710678118,0.70710678118,0.0\n')
+    print '2,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',' + str(y_u) + ',' + str(x_u) + ',0.0\n'
+f.write('2,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',' + str(y_u) + ',' + str(x_u) + ',0.0\n')
+
 #if verbose:
 #    print '2,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.0,-1.0,0.0\n'
 #f.write('2,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.0,-1.0,0.0\n')
