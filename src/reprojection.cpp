@@ -520,7 +520,7 @@ void two_view_reproject_plane(){
 	point[3] = smallest;
 	j_holder = j;
       } else break;
-      if (debug && asdf_counter >= 30 && 1){ // don't do for now
+      if (debug && asdf_counter >= 30 && 0){ // don't do for now
 	asdf_counter = 0;
 	vector<float> v_t;
 	vector<int>   c_t;
