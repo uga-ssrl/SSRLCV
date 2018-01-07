@@ -34,7 +34,7 @@ using namespace std;
 
 // == GLOBAL VARIABLES == //
 bool           verbose = 1;
-bool           debug   = 1;
+bool           debug   = 0;
 bool           simple  = 0;
 
 string cameras_path;
@@ -547,7 +547,7 @@ void two_view_reproject_plane(){
       }
       asdf_counter++;
     }
-    cout << "smallest: " << smallest << ", j: [" << j_holder << "]" << endl;
+    if (debug) cout << "smallest: " << smallest << ", j: [" << j_holder << "]" << endl;
     // print v bc wtf
     if (debug){
       cout << "v1: [" << v1[0] << "," << v1[1] << "," << v1[2] << "]" << endl;
