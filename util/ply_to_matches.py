@@ -1,9 +1,12 @@
 import sys, os
+import numpy as np
+import random
 from math import sin, cos, tan, sqrt, floor, radians
 from plyfile import PlyData, PlyElement
 
 ## flags and shit
 verbose = False
+noisey = True
 
 # sample cube points
 cube_points = [[ -1.0,  1.0, -1.0], # 0 A
@@ -94,7 +97,7 @@ for point in plydata.elements[0].data: # was cube_points...
     # TODO, automate this scaling somehow
     # scale based of max points...
     # the goal is to get the max point close to 1.0
-    scale = 44.0
+    scale = 561.0
     point[0] /= scale
     point[1] /= scale
     point[2] /= scale
@@ -145,6 +148,24 @@ for point in plydata.elements[0].data: # was cube_points...
         print 'scaled: ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']'
     #
     match.append([x,y,z])
+    # insert gaussian noise here
+    if (noisey):
+        #print 'rand: ' + str(random.randint(-100,100) * 0.0000001)
+        mult = 0.001
+        rand = random.randint(-100,100) * mult
+        match[0][0] += rand
+        rand = random.randint(-100,100) * mult
+        match[0][1] += rand
+        rand = random.randint(-100,100) * mult
+        match[0][2] += rand
+
+        rand = random.randint(-100,100) * mult
+        match[1][0] += rand
+        rand = random.randint(-100,100) * mult
+        match[1][1] += rand
+        rand = random.randint(-100,100) * mult
+        match[1][2] += rand
+    # end gaussian noise insertion
     matches.append(match)
     print '... ' + str(float(perc)/float(len(plydata.elements[0].data)) * 100.0) + '%'
     perc += 1
