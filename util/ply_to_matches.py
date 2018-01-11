@@ -151,7 +151,7 @@ for point in plydata.elements[0].data: # was cube_points...
     # insert gaussian noise here
     if (noisey):
         #print 'rand: ' + str(random.randint(-100,100) * 0.0000001)
-        mult = 0.001
+        mult = 0.01
         rand = random.randint(-100,100) * mult
         match[0][0] += rand
         rand = random.randint(-100,100) * mult
