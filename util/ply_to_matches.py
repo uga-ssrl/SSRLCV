@@ -97,7 +97,7 @@ for point in plydata.elements[0].data: # was cube_points...
     # TODO, automate this scaling somehow
     # scale based of max points...
     # the goal is to get the max point close to 1.0
-    scale = 561.0
+    scale = 810.0
     point[0] /= scale
     point[1] /= scale
     point[2] /= scale
