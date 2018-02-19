@@ -34,7 +34,7 @@ using namespace std;
 
 // == GLOBAL VARIABLES == //
 bool           verbose = 1;
-bool           debug   = 1;
+bool           debug   = 0;
 bool           simple  = 0;
 
 string cameras_path;
@@ -405,21 +405,22 @@ void two_view_reproject_pan(){
       if (dist < smallest) smallest = dist;
       else break;
     }
+    cout << endl;
     // store the result if it sasifies the boundary conditions
     // TODO uncomment this after you test to see how far those points go
-    if (p1[2] > 1.0 && p1[2] < 3.0){
-      vector<float> v;
-      vector<int>   c;
-      v.push_back(p1[0]);
-      v.push_back(p1[1]);
-      v.push_back(p1[2]);
-      c.push_back(rgb[0]);
-      c.push_back(rgb[1]);
-      c.push_back(rgb[2]);
-      if (debug) cout << p1[0] << "," << p1[1] << "," << p1[2] << endl;
-      points.push_back(v);
-      colors.push_back(c);
-    }
+    //if (p1[2] > 1.0 && p1[2] < 3.0){
+    vector<float> v;
+    vector<int>   c;
+    v.push_back(p1[0]);
+    v.push_back(p1[1]);
+    v.push_back(p1[2]);
+    c.push_back(rgb[0]);
+    c.push_back(rgb[1]);
+    c.push_back(rgb[2]);
+    if (debug) cout << p1[0] << "," << p1[1] << "," << p1[2] << endl;
+    points.push_back(v);
+    colors.push_back(c);
+    //}
     if (verbose) cout << (((((float)i))/((float)length)) * 100.0) << " \%" << endl;
   }
   cout << "Generated: " << points.size() << " valid points" << endl;
@@ -460,6 +461,8 @@ void two_view_reproject_plane(){
     float r1 = get_angle(camera1, 0);
     float r2 = get_angle(camera2, 0);
 
+    if (debug) cout << "camera1 angle: " << r1 << ", camera2 angle: " << r2 << endl;
+    
     // for some reason it was not in the right plane?
     vector<float> k1 = rotate_projection_x(x1,y1,0.0,PI/2);
     vector<float> k2 = rotate_projection_x(x2,y2,0.0,PI/2);
@@ -490,23 +493,26 @@ void two_view_reproject_plane(){
     r31.push_back(points1[5]);
     matchesr3.push_back(r31);
     // find the vectors
-    float v1[3]      = {points1[3] - points1[0],points1[4] - points1[1],points1[5] - points1[2]};
-    float v2[3]      = {points2[3] - points2[0],points2[4] - points2[1],points2[5] - points2[2]};
+    float v1[3]    = {points1[3] - points1[0],points1[4] - points1[1],points1[5] - points1[2]};
+    float v2[3]    = {points2[3] - points2[0],points2[4] - points2[1],points2[5] - points2[2]}; 
     // prepare for the linear approximation
     float smallest = numeric_limits<float>::max();
     float j_holder = 0.0;
     float p1[3]; //= {0.0,0.0,0.0};
     float p2[3]; //= {0.0,0.0,0.0};
     float point[4];
-    for (float j = 0.5; j < 200.0; j += 0.0001){
-      p1[0] = points1[0] + v1[0]*j;
-      p1[1] = points1[1] + v1[1]*j;
-      p1[2] = points1[2] + v1[2]*j;
-      p2[0] = points2[0] + v2[0]*j;
-      p2[1] = points2[1] + v2[1]*j;
-      p2[2] = points2[2] + v2[2]*j;
+    int asdf_counter = 0;
+    for (float j = 0.0; j < 8000.0; j += 0.001){
+      p1[0] = points1[3] + v1[0]*j; // points1[0]
+      p1[1] = points1[4] + v1[1]*j;
+      p1[2] = points1[5] + v1[2]*j;
+      p2[0] = points2[3] + v2[0]*j;
+      p2[1] = points2[4] + v2[1]*j;
+      p2[2] = points2[5] + v2[2]*j;
+      // cout << j << endl;
       float dist = euclid_dist(p1,p2);
-      if (dist < smallest){
+      //cout << dist << endl;
+      if (dist <= smallest){
 	smallest = dist;
 	point[0] = (p1[0]+p2[0])/2.0;
 	point[1] = (p1[1]+p2[1])/2.0;
@@ -514,8 +520,39 @@ void two_view_reproject_plane(){
 	point[3] = smallest;
 	j_holder = j;
       } else break;
+      if (debug && asdf_counter >= 30 && 0){ // don't do for now
+	asdf_counter = 0;
+	vector<float> v_t;
+	vector<int>   c_t;
+	vector<float> v_i;
+	vector<int>   c_i;
+	// TODO
+	// do something besides scaling the hell out of this rn
+	v_t.push_back(p1[0]);
+	v_t.push_back(p1[1]);
+	v_t.push_back(p1[2]);
+	c_t.push_back(255);
+	c_t.push_back(105);
+	c_t.push_back(180);
+	points.push_back(v_t);
+	colors.push_back(c_t);
+	v_i.push_back(p2[0]);
+	v_i.push_back(p2[1]);
+	v_i.push_back(p2[2]);
+	c_i.push_back(180);
+	c_i.push_back(105);
+	c_i.push_back(255);
+	points.push_back(v_i);
+	colors.push_back(c_i);
+      }
+      asdf_counter++;
     }
-    cout << "smallest: " << smallest << ", j: [" << j_holder << "]" << endl;
+    if (debug) cout << "smallest: " << smallest << ", j: [" << j_holder << "]" << endl;
+    // print v bc wtf
+    if (debug){
+      cout << "v1: [" << v1[0] << "," << v1[1] << "," << v1[2] << "]" << endl;
+      cout << "v2: [" << v2[0] << "," << v2[1] << "," << v2[2] << "]" << endl;
+    }
     // store the result if it sasifies the boundary conditions
     // TODO uncomment this after you test to see how far those points go
     //    if (point[3] < 0.5){
@@ -552,8 +589,7 @@ void save_ply()
   outputFile2 << cameras.size() << "\n";
   outputFile2 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
   outputFile2 << "end_header\n";
-  for(int i = 0; i < cameras.size(); i++)
-  {
+  for(int i = 0; i < cameras.size(); i++){
     outputFile2 << cameras[i][1] << " " << cameras[i][2] << " " << cameras[i][3] << " 255 0 0\n";
   }
   ofstream outputFile3("matches.ply");
@@ -561,9 +597,14 @@ void save_ply()
   outputFile3 << matchesr3.size() << "\n";
   outputFile3 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
   outputFile3 << "end_header\n";
-  for(int i = 0; i < matchesr3.size(); i++)
-  {
-    outputFile3 << matchesr3[i][0] << " " << matchesr3[i][1] << " " << matchesr3[i][2] << " 0 2551 0\n";
+  int counter = 0;
+  int b = 0;
+  for(int i = 0; i < matchesr3.size(); i++){
+    outputFile3 << matchesr3[i][0] << " " << matchesr3[i][1] << " " << matchesr3[i][2] << " 0 255 " << b << "\n";
+    if (counter%2) b += 25;
+    if (b > 255) b = 0;
+    counter++;
+    //cout << "";
   }
 }
 
