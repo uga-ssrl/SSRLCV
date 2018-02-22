@@ -44,4 +44,4 @@ Camera location and pointing data is stored in a in a `.txt` file. The file incl
 
 * Username: nvidia
 * Password: nivida
-* IP: 172.28.143.214
+* IP: 172.28.143.74
