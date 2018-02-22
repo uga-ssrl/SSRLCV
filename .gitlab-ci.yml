@@ -5,7 +5,7 @@ stages:
   - evaluate
 
 before_script:
-  - export PATH=$LD_LIBRARY_PATH=/usr/local/cuda-8.0/lib64:
+  - export PATH=$LD_LIBRARY_PATH=/usr/local/cuda-8.0/lib64
 
 compile:
   stage: build
