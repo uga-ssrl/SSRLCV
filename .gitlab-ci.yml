@@ -1,5 +1,15 @@
 
-# This is a test yml file
+stages:
+  - build
+  - test
+  - evaluate
 
-job1:
-  script: ./test.sh
+
+compile:
+  stage: build
+  script: make
+
+# Perform unit tests
+unit_tests:
+  script: ./util/CI/unit_test1.sh
+
