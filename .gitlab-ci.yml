@@ -4,15 +4,12 @@ stages:
   - test
   - evaluate
 
-variables:
-  PATH: "/usr/local/cuda-8.0/lib64"
-
 compile:
   stage: build
   script: make
 
-
 # Perform unit tests
 unit_tests:
+  stage: test
   script: ./util/CI/unit_test1.sh
 
