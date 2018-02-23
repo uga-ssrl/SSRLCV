@@ -3,6 +3,9 @@ stages:
   - test
   - evaluate
 
+before_script:
+  export PATH=$PATH:/usr/local/cuda-8.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+
 compile:
   stage: build
   script: bash util/CI/unit_tests1.sh
