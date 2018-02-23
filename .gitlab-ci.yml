@@ -11,7 +11,7 @@ compile:
   script: make
 
 # Perform unit tests
-.unit_tests:
+unit_tests:
   stage: test
   script: ./util/CI/unit_test1.sh
 
