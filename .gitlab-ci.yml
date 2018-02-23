@@ -5,7 +5,7 @@ stages:
 
 compile:
   stage: build
-  script: ./util/CI/unit_tests1.sh
+  script: bash util/CI/unit_tests1.sh
 
 # Perform unit tests
 .unit_tests:
