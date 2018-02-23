@@ -1,7 +1,7 @@
 CUDA_INSTALL_PATH := /usr/local/cuda
 
-CXX := /usr/bin/g++-6
-LINK := /usr/bin/g++-6
+CXX := gcc
+LINK := nvcc
 NVCC  := nvcc
 
 # Includes
