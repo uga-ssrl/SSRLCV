@@ -8,7 +8,7 @@ before_script:
 
 compile:
   stage: build
-  script: bash util/CI/unit_tests1.sh
+  script: make
 
 # Perform unit tests
 .unit_tests:
