@@ -20,35 +20,35 @@
 
 inline void __cudaSafeCall(cudaError err, const char *file, const int line) {
 #ifdef CUDA_ERROR_CHECK
-    if (cudaSuccess != err) {
-        fprintf(stderr, "cudaSafeCall() failed at %s:%i : %s\n",
-                file, line, cudaGetErrorString(err));
-        exit(-1);
-    }
+  if (cudaSuccess != err) {
+      fprintf(stderr, "cudaSafeCall() failed at %s:%i : %s\n",
+      file, line, cudaGetErrorString(err));
+      exit(-1);
+  }
 #endif
 
-    return;
+  return;
 }
 inline void __cudaCheckError(const char *file, const int line) {
 #ifdef CUDA_ERROR_CHECK
-    cudaError err = cudaGetLastError();
-    if (cudaSuccess != err) {
-        fprintf(stderr, "cudaCheckError() failed at %s:%i : %s\n",
-                file, line, cudaGetErrorString(err));
-        exit(-1);
-    }
+  cudaError err = cudaGetLastError();
+  if (cudaSuccess != err) {
+    fprintf(stderr, "cudaCheckError() failed at %s:%i : %s\n",
+    file, line, cudaGetErrorString(err));
+    exit(-1);
+  }
 
     // More careful checking. However, this will affect performance.
     // Comment away if needed.
     //err = cudaDeviceSynchronize();
-    if (cudaSuccess != err) {
-        fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
-                file, line, cudaGetErrorString(err));
-        exit(-1);
-    }
+  if (cudaSuccess != err) {
+    fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
+    file, line, cudaGetErrorString(err));
+    exit(-1);
+  }
 #endif
 
-    return;
+  return;
 }
 
 
@@ -115,15 +115,47 @@ struct Octree{
   float3* normals;
   int* keys;
   int numPoints;
+  float3 min;
+  float3 max;
   Octree();
   Octree(float3* points, float3* normals, int numPoints){
-      this->points = points;
-      this->normals = normals;
-      this->centers = new float3[numPoints];
-      this->keys = new int[numPoints];
-      this->numPoints = numPoints;
+    this->points = points;
+    this->normals = normals;
+    this->centers = new float3[numPoints];
+    this->keys = new int[numPoints];
+    this->numPoints = numPoints;
+  }
+  void findMinMax(){
+    this->min = this->points[i];
+    this->max = this->points[i];
+    float3 currentPoint;
+    for(int i = 0; i < numPoints; ++i){
+      currentPoint = this->points[i];
+      if(currentPoint.x < this->min.x){
+        this->min.x = currentPoint;
+      }
+      if(currentPoint.x > this->max.x){
+        this->max.x = currentPoint;
+      }
+      if(currentPoint.y < this->min.y){
+        this->min.y = currentPoint;
+      }
+      if(currentPoint.y > this->max.y){
+        this->max.y = currentPoint;
+      }
+      if(currentPoint.z < this->min.z){
+        this->min.z = currentPoint;
+      }
+      if(currentPoint.z > this->max.z){
+        this->max.z = currentPoint;
+      }if(currentPoint.z < this->min.z){
+        this->min.x = currentPoint;
+      }
+    }
   }
 };
+
+
 
 int main(){
 
@@ -135,6 +167,7 @@ int main(){
   float3* points = new float3[numPoints];
   float3* normals = new float3[numPoints];
   Octree octree = Octree(points, normals, numPoints);
+  octree.findMinMax();
 
   float width;
   int depth;
