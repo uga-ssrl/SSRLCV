@@ -8,21 +8,60 @@
 #include <vector>
 #include <algorithm>
 #include <thrust/sort.h>
-#include <thrust/execution_policy.h>
 #include <thrust/pair.h>
-#include <thrust/unique_by_key.h>
+#include <thrust/gather.h>
+
+// Define this to turn on error checking
+#define CUDA_ERROR_CHECK
+
+#define CudaSafeCall( err ) __cudaSafeCall( err, __FILE__, __LINE__ )
+#define CudaCheckError()    __cudaCheckError( __FILE__, __LINE__ )
+
+
+inline void __cudaSafeCall(cudaError err, const char *file, const int line) {
+#ifdef CUDA_ERROR_CHECK
+    if (cudaSuccess != err) {
+        fprintf(stderr, "cudaSafeCall() failed at %s:%i : %s\n",
+                file, line, cudaGetErrorString(err));
+        exit(-1);
+    }
+#endif
+
+    return;
+}
+inline void __cudaCheckError(const char *file, const int line) {
+#ifdef CUDA_ERROR_CHECK
+    cudaError err = cudaGetLastError();
+    if (cudaSuccess != err) {
+        fprintf(stderr, "cudaCheckError() failed at %s:%i : %s\n",
+                file, line, cudaGetErrorString(err));
+        exit(-1);
+    }
+
+    // More careful checking. However, this will affect performance.
+    // Comment away if needed.
+    //err = cudaDeviceSynchronize();
+    if (cudaSuccess != err) {
+        fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
+                file, line, cudaGetErrorString(err));
+        exit(-1);
+    }
+#endif
+
+    return;
+}
 
 
 //pretty much just a binary search in each dimension performed by threads
-__global__ void getShuffledXYZ(float3* p, int* keys, float3* centers, float3 c, float W, int N, int D){
+__global__ void getKeys(float3* points, float3* centers, int* keys, float3 c, float W, int N, int D){
 
     int tx = threadIdx.x;
     int bx = blockIdx.x;
     int globalID = bx * blockDim.x + tx;
     if(globalID < N){
-      float x = p[i].x;
-      float y = p[i].y;
-      float z = p[i].z;
+      float x = points[i].x;
+      float y = points[i].y;
+      float z = points[i].z;
       float leftx = c.x-W/2.0f, rightx = c.x + W/2.0f;
       float lefty = c.y-W/2.0f, righty = c.y + W/2.0f;
       float leftz = c.z-W/2.0f, rightz = c.z + W/2.0f;
@@ -84,18 +123,44 @@ struct Octree{
       this->keys = new int[numPoints];
       this->numPoints = numPoints;
   }
-  void calculateNormals(){
-    for(int i = 0; i < numPoints; ++i){
-      //
-    }
-  }
-
 };
 
 int main(){
+
+  //0. find mins and maxs {minX,minY,minZ} {maxX, maxY, maxZ}
   //1. find keys
   //2. sort keys, points, normals, and device_launch_parameters
   //3. compact the keys
+  int numPoints = 10000;
+  float3* points = new float3[numPoints];
+  float3* normals = new float3[numPoints];
+  Octree octree = Octree(points, normals, numPoints);
+
+  float width;
+  int depth;
+
+  float3* pointsDevice;
+  float3* centersDevice;
+  int* keysDevice;
+
+  CudaSafeCall(cudaMalloc((void**)&pointsDevice, numPoints * sizeof(float3)));
+  CudaSafeCall(cudaMalloc((void**)&centersDevice, numPoints * sizeof(float3)));
+  CudaSafeCall(cudaMalloc((void**)&keysDevice, numPoints * sizeof(int)));
+
+  CudaSafeCall(cudaMemcpy(pointsDevice, octree.points, numPoints * sizeof(float3), cudaMemcpyHostToDevice));
+  CudaSafeCall(cudaMemcpy(centersDevice, octree.centers, numPoints * sizeof(float3), cudaMemcpyHostToDevice));
+  CudaSafeCall(cudaMemcpy(keysDevice, octree.keys, numPoints * sizeof(int), cudaMemcpyHostToDevice));
+
+  getKeys<<<1,1>>>(pointsDevice, centersDevice, keysDevice, width, numPoints, depth);
+  CudaCheckError();
+  CudaSafeCall(cudaMemcpy(octree.centers, centerDevice, numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
+  CudaSafeCall(cudaMemcpy(octree.keys, keysDevice, numPoints * sizeof(int), cudaMemcpyDeviceToHost));
+
+  CudaSafeCall(cudaFree(keysDevice));
+  CudaSafeCall(cudaFree(centerDevice));
+  CudaSafeCall(cudaFree(pointsDevice));
+
+
 
 
 
