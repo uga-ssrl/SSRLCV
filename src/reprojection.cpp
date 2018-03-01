@@ -10,16 +10,7 @@
 // small portion of MOCI's science pipeline
 //
 
-#include <array>
-#include <cmath>
-#include <fstream>
-#include <iostream>
-#include <limits>
-#include <sstream>
-#include <string>
-#include <vector>
-// my boiz @ nvidia
-#include <cuda_runtime.h>
+#include "common_includes.h"
 //#include "cublas.h"
 #include "cublas_v2.h"
 //#include "cusolver.h"

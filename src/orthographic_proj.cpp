@@ -6,20 +6,11 @@
 // A seriously good source:
 // https://developer.nvidia.com/sites/default/files/akamai/cuda/files/Misc/mygpu.pdf
 //
-// This program is only meant to perform a 
+// This program is only meant to perform a
 // small portion of MOCI's science pipeline
 //
 
-#include <array>
-#include <cmath>
-#include <fstream>
-#include <iostream>
-#include <limits>
-#include <sstream>
-#include <string>
-#include <vector>
-// my boiz @ nvidia
-#include <cuda_runtime.h>
+#include "common_includes.h"
 //#include "cublas.h"
 #include "cublas_v2.h"
 //#include "cusolver.h"
@@ -47,7 +38,7 @@ unsigned short camera_count;
 
 // TODO (some of) this stuff should be set by camera calibration
 
-// This was for the test cases only 
+// This was for the test cases only
 unsigned int   res  = 1024;
 float          foc  = 0.035;
 float          fov  = 0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
@@ -244,7 +235,7 @@ int vector_scale(float *x, int xdimension, int ydimension, float scalevalue)
 // This uses CUDA with CUBLAS
 //
 int dot_product(float *x, float *y, int length, float &val){
-  
+
   cudaError_t    cudaStat; // cudaMalloc status
   cublasStatus_t stat; // CUBLAS functions status
   cublasHandle_t handle; // CUBLAS context
@@ -262,7 +253,7 @@ int dot_product(float *x, float *y, int length, float &val){
   stat = cublasSetVector(length,sizeof (*y),y,1,d_y ,1);// cp y->d_y
 
   float  result;
-  
+
   // dot  product  of two  vectors d_x ,d_y:
   // d_x [0]* d_y [0]+...+ d_x[n-1]* d_y[n-1]
 
@@ -271,11 +262,11 @@ int dot_product(float *x, float *y, int length, float &val){
   //cout << "dot result: " << result << endl;
 
   val = result;
-  
+
   cudaFree(d_x);                             // free  device  memory
   cudaFree(d_y);                             // free  device  memory
   cublasDestroy(handle );               //  destroy  CUBLAS  context
-  
+
   return EXIT_SUCCESS;
 }
 
@@ -365,7 +356,7 @@ void two_view_orth_proj_plane(){
     // adjust the kp's location
     kp1[0] = camera1[0] - (kp1[0] + (camera1[3] * foc));
     kp1[1] = camera1[1] - (kp1[1] + (camera1[4] * foc));
-    
+
     kp2[0] = camera2[0] - (kp2[0] + (camera2[3] * foc));
     kp2[1] = camera2[1] - (kp2[1] + (camera2[4] * foc));
 
@@ -377,7 +368,7 @@ void two_view_orth_proj_plane(){
 
     orths.push_back(orth_kp1);
     orths.push_back(orth_kp2);
-    
+
     float points1[6] = {camera1[0],camera1[1],camera1[2],kp1[0],kp1[1],kp1[2]};
     float points2[6] = {camera2[0],camera2[1],camera2[2],kp2[0],kp2[1],kp2[2]};
     int   rgb[3]     = {stoi(matches[i][6]),stoi(matches[i][7]),stoi(matches[i][8])};
@@ -393,14 +384,14 @@ void two_view_orth_proj_plane(){
     r31.push_back(points1[4]);
     r31.push_back(points1[5]);
     matchesr3.push_back(r31);
-    
+
     // find the vectors
     // from standard reproj
     //float v1[3]      = {points1[3] - points1[0],points1[4] - points1[1],points1[5] - points1[2]};
     //float v2[3]      = {points2[3] - points2[0],points2[4] - points2[1],points2[5] - points2[2]};
     float v1[3] = {points1[3] - orth_kp1[0],points1[4] - orth_kp1[1],points1[5] - orth_kp1[2]};
-    float v2[3] = {points2[3] - orth_kp2[0],points2[4] - orth_kp2[1],points2[5] - orth_kp2[2]};    
-    
+    float v2[3] = {points2[3] - orth_kp2[0],points2[4] - orth_kp2[1],points2[5] - orth_kp2[2]};
+
     // prepare for the linear approximation
     float smallest = numeric_limits<float>::max();
     float j_holder = 0.0;
@@ -411,7 +402,7 @@ void two_view_orth_proj_plane(){
       p1[0] = orth_kp1[0] + v1[0]*j;
       p1[1] = orth_kp1[1] + v1[1]*j;
       p1[2] = orth_kp1[2] + v1[2]*j;
-      for (float k = j; k < (j+10.0) && k < 100.0; k+=0.01){ 
+      for (float k = j; k < (j+10.0) && k < 100.0; k+=0.01){
 	p2[0] = orth_kp2[0] + v2[0]*k;
 	p2[1] = orth_kp2[1] + v2[1]*k;
 	p2[2] = orth_kp2[2] + v2[2]*k;
