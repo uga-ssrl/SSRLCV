@@ -1,5 +1,7 @@
 #include "Octree.h"
 
+using namespace std;
+
 // Define this to turn on error checking
 #define CUDA_ERROR_CHECK
 
