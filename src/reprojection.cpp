@@ -43,21 +43,21 @@ void printDeviceProperties() {
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, i);
     printf("Device Number: %d\n", i);
-    printf(" -Device name: %s\n", prop.name);
+    printf(" -Device name: %s\n\n", prop.name);
     printf(" -Memory\n  -Memory Clock Rate (KHz): %d\n", prop.memoryClockRate);
     printf("  -Memory Bus Width (bits): %d\n",prop.memoryBusWidth);
     printf("  -Peak Memory Bandwidth (GB/s): %f\n",2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6);
     printf("  -Total Global Memory (bytes): %d\n", prop.totalGlobalMem);
     printf("  -Total Const Memory (bytes): %d\n", prop.totalConstMem);
-    printf("  -Max pitch allowed for memcpy in regions allocated by cudaMallocPitch() (bytes): %d\n", prop.memPitch);
+    printf("  -Max pitch allowed for memcpy in regions allocated by cudaMallocPitch() (bytes): %d\n\n", prop.memPitch);
     printf("  -Shared Memory per block (bytes): %d\n", prop.sharedMemPerBlock);
     printf("  -Max number of threads per block: %d\n",prop.maxThreadsPerBlock);
     printf("  -Max number of blocks: %dx%dx%d\n",prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
     printf("  -32bit Registers per block: %d\n", prop.regsPerBlock);
-    printf("  -Threads per warp (bytes): %d\n", prop.warpSize);
-    printf("  -Total number of multiprocessors: %d\n",prop.multiProcessorCount);
-    printf("  -Shared Memory per Multiprocessor: %d\n",prop.multiProcessorCount);
-    printf("  -32bit Registers per Multiprocessor: %d\n", prop.regsPerMultiprocessor);
+    printf("  -Threads per warp (bytes): %d\n\n", prop.warpSize);
+    printf("  -Total number of Multiprocessors: %d\n",prop.multiProcessorCount);
+    printf("  -Shared Memory per Multiprocessor (bytes): %d\n",prop.sharedMemPerMultiprocessor);
+    printf("  -32bit Registers per Multiprocessor: %d\n\n", prop.regsPerMultiprocessor);
     printf("  -Number of asynchronous engines: %d\n", prop.asyncEngineCount);
     printf("  -Texture alignment requirement (bytes): %d\n  -Texture base addresses that are aligned to "
     "textureAlignment bytes do not need an offset applied to texture fetches.\n", prop.textureAlignment);
@@ -74,10 +74,10 @@ void printDeviceProperties() {
       printf("integrated. (motherboard)\n");
     }
     else{
-      printf("discrete. (card)\n");
+      printf("discrete. (card)\n\n");
     }
     if(prop.isMultiGpuBoard){
-      printf(" -Device is on a MultiGPU configurations.\n");
+      printf(" -Device is on a MultiGPU configurations.\n\n");
     }
     switch(prop.computeMode){
       case(0):
@@ -97,10 +97,10 @@ void printDeviceProperties() {
         break;
       }
       if(prop.canMapHostMemory){
-        printf(" -The device can map host memory into the CUDA address space for use with\n cudaHostAlloc() or cudaHostGetDevicePointer().\n");
+        printf("\n -The device can map host memory into the CUDA address space for use with\n cudaHostAlloc() or cudaHostGetDevicePointer().\n");
       }
       else{
-        printf(" -The device CANNOT map host memory into the CUDA address space.\n");
+        printf("\n -The device CANNOT map host memory into the CUDA address space.\n\n");
       }
       printf(" -ECC support: ");
       if(prop.ECCEnabled){
