@@ -47,7 +47,7 @@ void printDeviceProperties() {
     printf(" -Memory\n  -Memory Clock Rate (KHz): %d\n", prop.memoryClockRate);
     printf("  -Memory Bus Width (bits): %d\n",prop.memoryBusWidth);
     printf("  -Peak Memory Bandwidth (GB/s): %f\n",2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6);
-    printf("  -Total Global Memory (bytes): %d\n", prop.totalGlobalMem);
+    printf("  -Total Global Memory (bytes): %lo\n", prop.totalGlobalMem);
     printf("  -Total Const Memory (bytes): %d\n", prop.totalConstMem);
     printf("  -Max pitch allowed for memcpy in regions allocated by cudaMallocPitch() (bytes): %d\n\n", prop.memPitch);
     printf("  -Shared Memory per block (bytes): %d\n", prop.sharedMemPerBlock);
@@ -97,7 +97,7 @@ void printDeviceProperties() {
         break;
       }
       if(prop.canMapHostMemory){
-        printf("\n -The device can map host memory into the CUDA address space for use with\n cudaHostAlloc() or cudaHostGetDevicePointer().\n");
+        printf("\n -The device can map host memory into the CUDA address space for use with\n cudaHostAlloc() or cudaHostGetDevicePointer().\n\n");
       }
       else{
         printf("\n -The device CANNOT map host memory into the CUDA address space.\n\n");
