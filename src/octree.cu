@@ -1,4 +1,4 @@
-#include "Octree.h"
+#include "octree.cuh"
 
 using namespace std;
 
@@ -50,9 +50,9 @@ __global__ void getKeys(float3* points, float3* centers, int* keys, float3 c, fl
   int bx = blockIdx.x;
   int globalID = bx * blockDim.x + tx;
   if(globalID < N){
-    float x = points[i].x;
-    float y = points[i].y;
-    float z = points[i].z;
+    float x = points[globalID].x;
+    float y = points[globalID].y;
+    float z = points[globalID].z;
     float leftx = c.x-W/2.0f, rightx = c.x + W/2.0f;
     float lefty = c.y-W/2.0f, righty = c.y + W/2.0f;
     float leftz = c.z-W/2.0f, rightz = c.z + W/2.0f;
@@ -91,53 +91,109 @@ __global__ void getKeys(float3* points, float3* centers, int* keys, float3 c, fl
       }
       depth++;
     }
-    keys[i] = key;
-    centers[i].x = c.x;
-    centers[i].y = c.y;
-    centers[i].z = c.z;
+    keys[globalID] = key;
+    centers[globalID].x = c.x;
+    centers[globalID].y = c.y;
+    centers[globalID].z = c.z;
   }
 }
-
 
 Octree::Octree(){
 
 }
-Octree::Octree(float3* points, float3* normals, int numPoints, int depth){
-  this->points = points;
-  this->normals = normals;
-  this->centers = new float3[numPoints];
-  this->keys = new int[numPoints];
-  this->numPoints = numPoints;
+
+void Octree::parsePLY(string pathToFile){
+  cout<<pathToFile + "'s data to be transfered to an empty octree."<<endl;
+	ifstream plystream(pathToFile);
+	string currentLine;
+  vector<float3> points;
+  vector<float3> normals;
+	if (plystream.is_open()) {
+		while (getline(plystream, currentLine)) {
+      stringstream getMyFloats = stringstream(currentLine);
+      float value = 0.0;
+      int index = 0;
+      float3 point;
+      float3 normal;
+      bool lineIsDone = false;
+      while(getMyFloats >> value){
+        switch(index){
+          case 0:
+            point.x = value;
+            break;
+          case 1:
+            point.y = value;
+            break;
+          case 2:
+            point.z = value;
+            break;
+          case 3:
+            normal.x = value;
+            break;
+          case 4:
+            normal.y = value;
+            break;
+          case 5:
+            normal.z = value;
+            break;
+          default:
+            lineIsDone = true;
+            points.push_back(point);
+            normals.push_back(normal);
+            break;
+        }
+        if(lineIsDone) break;
+        ++index;
+      }
+		}
+    this->points = new float3[points.size()];
+    this->normals = new float3[normals.size()];
+    for(int i = 0; i < points.size(); ++i){
+      this->points[i] = points[i];
+      this->normals[i] = normals[i];
+      cout<<points[i].x<<" "<<points[i].y<<" "<<points[i].z<<" "<<normals[i].x<<" "<<normals[i].y<<" "<<normals[i].z<<endl;
+    }
+    cout<<pathToFile + "'s data has been transfered to an initialized octree."<<endl;
+	}
+	else{
+    cout << "Unable to open: " + pathToFile<< endl;
+    exit(1);
+  }
+}
+
+Octree::Octree(string pathToFile, int depth){
+  this->parsePLY(pathToFile);
   this->depth = depth;
 }
 void Octree::findMinMax(){
-  this->min = this->points[i];
-  this->max = this->points[i];
+  this->min = this->points[0];
+  this->max = this->points[0];
   float3 currentPoint;
   for(int i = 0; i < numPoints; ++i){
     currentPoint = this->points[i];
     if(currentPoint.x < this->min.x){
-      this->min.x = currentPoint;
+      this->min.x = currentPoint.x;
     }
     if(currentPoint.x > this->max.x){
-      this->max.x = currentPoint;
+      this->max.x = currentPoint.x;
     }
     if(currentPoint.y < this->min.y){
-      this->min.y = currentPoint;
+      this->min.y = currentPoint.y;
     }
     if(currentPoint.y > this->max.y){
-      this->max.y = currentPoint;
+      this->max.y = currentPoint.y;
     }
     if(currentPoint.z < this->min.z){
-      this->min.z = currentPoint;
+      this->min.z = currentPoint.z;
     }
     if(currentPoint.z > this->max.z){
-      this->max.z = currentPoint;
-    }
-    if(currentPoint.z < this->min.z){
-      this->min.x = currentPoint;
+      this->max.z = currentPoint.z;
     }
   }
+  this->center.x = (this->max.x - this->min.x)/2;
+  this->center.y = (this->max.y - this->min.y)/2;
+  this->center.z = (this->max.z - this->min.z)/2;
+
 }
 
 void Octree::allocateDeviceVariables(){
@@ -155,7 +211,7 @@ void Octree::executeKeyRetrieval(){
   CudaSafeCall(cudaMemcpy(this->centersDevice, this->centers, this->numPoints * sizeof(float3), cudaMemcpyHostToDevice));
   CudaSafeCall(cudaMemcpy(this->keysDevice, this->keys, this->numPoints * sizeof(int), cudaMemcpyHostToDevice));
 
-  getKeys<<<1,1>>>(this->pointsDevice, this->centersDevice, this->keysDevice, this->width, this->numPoints, this->depth);
+  getKeys<<<1,1>>>(this->pointsDevice, this->centersDevice, this->keysDevice, this->center, this->width, this->numPoints, this->depth);
   CudaCheckError();
   CudaSafeCall(cudaMemcpy(this->centers, this->centersDevice, this->numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaMemcpy(this->keys, this->keysDevice, this->numPoints * sizeof(int), cudaMemcpyDeviceToHost));
@@ -164,6 +220,6 @@ void Octree::executeKeyRetrieval(){
 
 void Octree::cudaFreeMemory(){
   CudaSafeCall(cudaFree(this->keysDevice));
-  CudaSafeCall(cudaFree(this->centerDevice));
+  CudaSafeCall(cudaFree(this->centersDevice));
   CudaSafeCall(cudaFree(this->pointsDevice));
 }
