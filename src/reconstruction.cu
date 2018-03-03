@@ -13,6 +13,14 @@ int main(){
 
   int depth = 10;//this number is a placeholder
   Octree octree = Octree("../data/carl.ply", depth);
+
+  //this will be temporary due to the normals needing to be facing inward
+  for(int i = 0; i < octree.numPoints; ++i){
+    octree.normals[i].x = octree.normals[i].x * -1;
+    octree.normals[i].y = octree.normals[i].y * -1;
+    octree.normals[i].z = octree.normals[i].z * -1;
+  }
+
   //octree.findMinMax();
   //octree.executeKeyRetrieval();
 

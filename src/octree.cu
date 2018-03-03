@@ -148,6 +148,7 @@ void Octree::parsePLY(string pathToFile){
 		}
     this->points = new float3[points.size()];
     this->normals = new float3[normals.size()];
+    this->numPoints = (int) points.size();
     for(int i = 0; i < points.size(); ++i){
       this->points[i] = points[i];
       this->normals[i] = normals[i];
