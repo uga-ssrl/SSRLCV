@@ -6,7 +6,7 @@
 // A seriously good source:
 // https://developer.nvidia.com/sites/default/files/akamai/cuda/files/Misc/mygpu.pdf
 //
-// This program is only meant to perform a 
+// This program is only meant to perform a
 // small portion of MOCI's science pipeline
 //
 
@@ -30,7 +30,121 @@
 #define N 8192
 #define  BILLION  1000000000L;
 
+//Just to print all properties on TX2 pertinent to cuda development
 using namespace std;
+
+
+void printDeviceProperties() {
+  cout<<"---------------START OF DEVICE PROPERTIES---------------"<<endl;
+
+  int nDevices;
+  cudaGetDeviceCount(&nDevices);
+  for (int i = 0; i < nDevices; i++) {
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, i);
+    printf("Device Number: %d\n", i);
+    printf(" -Device name: %s\n", prop.name);
+    printf(" -Memory\n  -Memory Clock Rate (KHz): %d\n", prop.memoryClockRate);
+    printf("  -Memory Bus Width (bits): %d\n",prop.memoryBusWidth);
+    printf("  -Peak Memory Bandwidth (GB/s): %f\n",2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6);
+    printf("  -Total Global Memory (bytes): %d\n", prop.totalGlobalMem);
+    printf("  -Total Const Memory (bytes): %d\n", prop.totalConstMem);
+    printf("  -Max pitch allowed for memcpy in regions allocated by cudaMallocPitch() (bytes): %d\n", prop.memPitch);
+    printf("  -Shared Memory per block (bytes): %d\n", prop.sharedMemPerBlock);
+    printf("  -Max number of threads per block: %d\n",prop.maxThreadsPerBlock);
+    printf("  -Max number of blocks: %dx%dx%d\n",prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
+    printf("  -32bit Registers per block: %d\n", prop.regsPerBlock);
+    printf("  -Threads per warp (bytes): %d\n", prop.warpSize);
+    printf("  -Total number of multiprocessors: %d\n",prop.multiProcessorCount);
+    printf("  -Shared Memory per Multiprocessor: %d\n",prop.multiProcessorCount);
+    printf("  -32bit Registers per Multiprocessor: %d\n", prop.regsPerMultiprocessor);
+    printf("  -Number of asynchronous engines: %d\n", prop.asyncEngineCount);
+    printf("  -Texture alignment requirement (bytes): %d\n  -Texture base addresses that are aligned to "
+    "textureAlignment bytes do not need an offset applied to texture fetches.\n", prop.textureAlignment);
+    printf(" -Device Compute Capability:\n  -Major revision #: %d\n  -Minor revision #: %d\n", prop.major, prop.minor);
+    printf(" -Run time limit for kernels that get executed on this device: ");
+    if(prop.kernelExecTimeoutEnabled){
+      printf("YES\n");
+    }
+    else{
+      printf("NO\n");
+    }
+    printf(" -Device is ");
+    if(prop.integrated){
+      printf("integrated. (motherboard)\n");
+    }
+    else{
+      printf("discrete. (card)\n");
+    }
+    if(prop.isMultiGpuBoard){
+      printf(" -Device is on a MultiGPU configurations.\n");
+    }
+    switch(prop.computeMode){
+      case(0):
+        printf(" -Default compute mode (Multiple threads can use cudaSetDevice() with this device)\n");
+        break;
+      case(1):
+        printf(" -Compute-exclusive-thread mode (Only one thread in one processwill be able to use\n cudaSetDevice() with this device)\n");
+        break;
+      case(2):
+        printf(" -Compute-prohibited mode (No threads can use cudaSetDevice() with this device)\n");
+        break;
+      case(3):
+        printf(" -Compute-exclusive-process mode (Many threads in one process will be able to use\n cudaSetDevice() with this device)\n");
+        break;
+      default:
+        printf(" -GPU in unknown compute mode.\n");
+        break;
+      }
+      if(prop.canMapHostMemory){
+        printf(" -The device can map host memory into the CUDA address space for use with\n cudaHostAlloc() or cudaHostGetDevicePointer().\n");
+      }
+      else{
+        printf(" -The device CANNOT map host memory into the CUDA address space.\n");
+      }
+      printf(" -ECC support: ");
+      if(prop.ECCEnabled){
+        printf(" ON\n");
+      }
+      else{
+        printf(" OFF\n");
+      }
+      printf(" -PCI Bus ID: %d\n", prop.pciBusID);
+      printf(" -PCI Domain ID: %d\n", prop.pciDomainID);
+      printf(" -PCI Device (slot) ID: %d\n", prop.pciDeviceID);
+      printf(" -Using a TCC Driver: ");
+      if(prop.tccDriver){
+        printf("YES\n");
+      }
+      else{
+        printf("NO\n");
+      }
+      printf(" -Device Supports compute preemptions: ");
+      if(prop.computePreemptionSupported){
+        printf("YES (temporary task interruption switches ARE supported)\n");
+      }
+      else{
+        printf("NO (temporary task interruption switches ARE NOT supported)\n");
+      }
+      printf(" -Device support for cudaLaunchCooperativeKernel(): ");
+      if(prop.cooperativeLaunch){
+        printf("YES\n");
+      }
+      else{
+        printf("NO\n");
+      }
+      printf(" -Device support for cudaLaunchCooperativeKernelMultiDevice participation: ");
+      if(prop.cooperativeMultiDeviceLaunch){
+        printf("YES\n");
+      }
+      else{
+        printf("NO\n");
+      }
+    }
+    cout<<"----------------END OF DEVICE PROPERTIES----------------"<<endl;
+
+}
+
 
 // == GLOBAL VARIABLES == //
 bool           verbose = 1;
@@ -47,7 +161,7 @@ unsigned short camera_count;
 
 // TODO (some of) this stuff should be set by camera calibration
 
-// This was for the test cases only 
+// This was for the test cases only
 unsigned int   res  = 1024;
 float          foc  = 0.035;
 float          fov  = 0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
@@ -243,7 +357,7 @@ int vector_scale(float *x, int xdimension, int ydimension, float scalevalue)
 // This uses CUDA with CUBLAS
 //
 int dot_product(float *x, float *y, int length, float &val){
-  
+
   cudaError_t    cudaStat; // cudaMalloc status
   cublasStatus_t stat; // CUBLAS functions status
   cublasHandle_t handle; // CUBLAS context
@@ -261,7 +375,7 @@ int dot_product(float *x, float *y, int length, float &val){
   stat = cublasSetVector(length,sizeof (*y),y,1,d_y ,1);// cp y->d_y
 
   float  result;
-  
+
   // dot  product  of two  vectors d_x ,d_y:
   // d_x [0]* d_y [0]+...+ d_x[n-1]* d_y[n-1]
 
@@ -270,11 +384,11 @@ int dot_product(float *x, float *y, int length, float &val){
   //cout << "dot result: " << result << endl;
 
   val = result;
-  
+
   cudaFree(d_x);                             // free  device  memory
   cudaFree(d_y);                             // free  device  memory
   cublasDestroy(handle );               //  destroy  CUBLAS  context
-  
+
   return EXIT_SUCCESS;
 }
 
@@ -462,7 +576,7 @@ void two_view_reproject_plane(){
     float r2 = get_angle(camera2, 0);
 
     if (debug) cout << "camera1 angle: " << r1 << ", camera2 angle: " << r2 << endl;
-    
+
     // for some reason it was not in the right plane?
     vector<float> k1 = rotate_projection_x(x1,y1,0.0,PI/2);
     vector<float> k2 = rotate_projection_x(x2,y2,0.0,PI/2);
@@ -494,7 +608,7 @@ void two_view_reproject_plane(){
     matchesr3.push_back(r31);
     // find the vectors
     float v1[3]    = {points1[3] - points1[0],points1[4] - points1[1],points1[5] - points1[2]};
-    float v2[3]    = {points2[3] - points2[0],points2[4] - points2[1],points2[5] - points2[2]}; 
+    float v2[3]    = {points2[3] - points2[0],points2[4] - points2[1],points2[5] - points2[2]};
     // prepare for the linear approximation
     float smallest = numeric_limits<float>::max();
     float j_holder = 0.0;
@@ -645,6 +759,7 @@ int main(int argc, char* argv[])
 
   if (verbose) cout << "done!\nresults saved to output.ply" << endl;
   if (debug) cout << "max angle: " << max_angle << " | min angle: " << min_angle << endl;
+  printDeviceProperties();
 
   return 0;
 }
