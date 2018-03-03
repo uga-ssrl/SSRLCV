@@ -119,27 +119,6 @@ void printDeviceProperties() {
       else{
         printf("NO\n");
       }
-      printf(" -Device Supports compute preemptions: ");
-      if(prop.computePreemptionSupported){
-        printf("YES (temporary task interruption switches ARE supported)\n");
-      }
-      else{
-        printf("NO (temporary task interruption switches ARE NOT supported)\n");
-      }
-      printf(" -Device support for cudaLaunchCooperativeKernel(): ");
-      if(prop.cooperativeLaunch){
-        printf("YES\n");
-      }
-      else{
-        printf("NO\n");
-      }
-      printf(" -Device support for cudaLaunchCooperativeKernelMultiDevice participation: ");
-      if(prop.cooperativeMultiDeviceLaunch){
-        printf("YES\n");
-      }
-      else{
-        printf("NO\n");
-      }
     }
     cout<<"----------------END OF DEVICE PROPERTIES----------------"<<endl;
 
