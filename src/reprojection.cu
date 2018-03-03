@@ -1,12 +1,12 @@
 //#======================================#//
-//# UGA SSRL Orthographic Reprojection   #//
+//# UGA SSRL Reprojection                #//
 //# Author: Caleb Adams                  #//
 //# Contact: CalebAshmoreAdams@gmail.com #//
 //#======================================#//
 // A seriously good source:
 // https://developer.nvidia.com/sites/default/files/akamai/cuda/files/Misc/mygpu.pdf
 //
-// This program is only meant to perform a 
+// This program is only meant to perform a
 // small portion of MOCI's science pipeline
 //
 
@@ -30,11 +30,105 @@
 #define N 8192
 #define  BILLION  1000000000L;
 
+//Just to print all properties on TX2 pertinent to cuda development
 using namespace std;
+
+
+void printDeviceProperties() {
+  cout<<"\n---------------START OF DEVICE PROPERTIES---------------\n"<<endl;
+
+  int nDevices;
+  cudaGetDeviceCount(&nDevices);
+  for (int i = 0; i < nDevices; i++) {
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, i);
+    printf("Device Number: %d\n", i);
+    printf(" -Device name: %s\n\n", prop.name);
+    printf(" -Memory\n  -Memory Clock Rate (KHz): %d\n", prop.memoryClockRate);
+    printf("  -Memory Bus Width (bits): %d\n",prop.memoryBusWidth);
+    printf("  -Peak Memory Bandwidth (GB/s): %f\n",2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6);
+    printf("  -Total Global Memory (bytes): %lo\n", prop.totalGlobalMem);
+    printf("  -Total Const Memory (bytes): %d\n", prop.totalConstMem);
+    printf("  -Max pitch allowed for memcpy in regions allocated by cudaMallocPitch() (bytes): %d\n\n", prop.memPitch);
+    printf("  -Shared Memory per block (bytes): %d\n", prop.sharedMemPerBlock);
+    printf("  -Max number of threads per block: %d\n",prop.maxThreadsPerBlock);
+    printf("  -Max number of blocks: %dx%dx%d\n",prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
+    printf("  -32bit Registers per block: %d\n", prop.regsPerBlock);
+    printf("  -Threads per warp (bytes): %d\n\n", prop.warpSize);
+    printf("  -Total number of Multiprocessors: %d\n",prop.multiProcessorCount);
+    printf("  -Shared Memory per Multiprocessor (bytes): %d\n",prop.sharedMemPerMultiprocessor);
+    printf("  -32bit Registers per Multiprocessor: %d\n\n", prop.regsPerMultiprocessor);
+    printf("  -Number of asynchronous engines: %d\n", prop.asyncEngineCount);
+    printf("  -Texture alignment requirement (bytes): %d\n  -Texture base addresses that are aligned to "
+    "textureAlignment bytes do not need an offset applied to texture fetches.\n\n", prop.textureAlignment);
+
+    printf(" -Device Compute Capability:\n  -Major revision #: %d\n  -Minor revision #: %d\n", prop.major, prop.minor);
+    printf(" -Run time limit for kernels that get executed on this device: ");
+    if(prop.kernelExecTimeoutEnabled){
+      printf("YES\n");
+    }
+    else{
+      printf("NO\n");
+    }
+    printf(" -Device is ");
+    if(prop.integrated){
+      printf("integrated. (motherboard)\n");
+    }
+    else{
+      printf("discrete. (card)\n\n");
+    }
+    if(prop.isMultiGpuBoard){
+      printf(" -Device is on a MultiGPU configurations.\n\n");
+    }
+    switch(prop.computeMode){
+      case(0):
+        printf(" -Default compute mode (Multiple threads can use cudaSetDevice() with this device)\n");
+        break;
+      case(1):
+        printf(" -Compute-exclusive-thread mode (Only one thread in one processwill be able to use\n cudaSetDevice() with this device)\n");
+        break;
+      case(2):
+        printf(" -Compute-prohibited mode (No threads can use cudaSetDevice() with this device)\n");
+        break;
+      case(3):
+        printf(" -Compute-exclusive-process mode (Many threads in one process will be able to use\n cudaSetDevice() with this device)\n");
+        break;
+      default:
+        printf(" -GPU in unknown compute mode.\n");
+        break;
+      }
+      if(prop.canMapHostMemory){
+        printf("\n -The device can map host memory into the CUDA address space for use with\n cudaHostAlloc() or cudaHostGetDevicePointer().\n\n");
+      }
+      else{
+        printf("\n -The device CANNOT map host memory into the CUDA address space.\n\n");
+      }
+      printf(" -ECC support: ");
+      if(prop.ECCEnabled){
+        printf(" ON\n");
+      }
+      else{
+        printf(" OFF\n");
+      }
+      printf(" -PCI Bus ID: %d\n", prop.pciBusID);
+      printf(" -PCI Domain ID: %d\n", prop.pciDomainID);
+      printf(" -PCI Device (slot) ID: %d\n", prop.pciDeviceID);
+      printf(" -Using a TCC Driver: ");
+      if(prop.tccDriver){
+        printf("YES\n");
+      }
+      else{
+        printf("NO\n");
+      }
+    }
+    cout<<"\n----------------END OF DEVICE PROPERTIES----------------\n"<<endl;
+
+}
+
 
 // == GLOBAL VARIABLES == //
 bool           verbose = 1;
-bool           debug   = 1;
+bool           debug   = 0;
 bool           simple  = 0;
 
 string cameras_path;
@@ -47,7 +141,7 @@ unsigned short camera_count;
 
 // TODO (some of) this stuff should be set by camera calibration
 
-// This was for the test cases only 
+// This was for the test cases only
 unsigned int   res  = 1024;
 float          foc  = 0.035;
 float          fov  = 0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
@@ -77,7 +171,6 @@ vector< vector<string> > cameras;
 vector< vector<string> > projections;
 vector< vector<float> >  points;
 vector< vector<float> >  matchesr3;
-vector< vector<float> >  orths;
 vector< vector<int> >    colors;
 // ====================== //
 
@@ -244,7 +337,7 @@ int vector_scale(float *x, int xdimension, int ydimension, float scalevalue)
 // This uses CUDA with CUBLAS
 //
 int dot_product(float *x, float *y, int length, float &val){
-  
+
   cudaError_t    cudaStat; // cudaMalloc status
   cublasStatus_t stat; // CUBLAS functions status
   cublasHandle_t handle; // CUBLAS context
@@ -262,7 +355,7 @@ int dot_product(float *x, float *y, int length, float &val){
   stat = cublasSetVector(length,sizeof (*y),y,1,d_y ,1);// cp y->d_y
 
   float  result;
-  
+
   // dot  product  of two  vectors d_x ,d_y:
   // d_x [0]* d_y [0]+...+ d_x[n-1]* d_y[n-1]
 
@@ -271,11 +364,11 @@ int dot_product(float *x, float *y, int length, float &val){
   //cout << "dot result: " << result << endl;
 
   val = result;
-  
+
   cudaFree(d_x);                             // free  device  memory
   cudaFree(d_y);                             // free  device  memory
   cublasDestroy(handle );               //  destroy  CUBLAS  context
-  
+
   return EXIT_SUCCESS;
 }
 
@@ -317,10 +410,122 @@ float get_angle(float cam[6], int flag){
 
 //
 // loads cameras from a camera.txt file
+// this assumes the camera is constrained to a line
+// this is currently a 2-view system
+//
+void two_view_reproject_pan(){
+  // get the data that we want to compute
+  cout << "2-view triangulating... " << endl;
+  int length = matches.size();
+  if (simple) length = 5000; // limit the number of points to 5k
+  for(int i = 0; i < length; i++){
+    int   image1     = stoi(matches[i][0].substr(0,4));
+    int   image2     = stoi(matches[i][1].substr(0,4));
+    float camera1[6] = {stof(cameras[image1-1][1]),stof(cameras[image1-1][2]),stof(cameras[image1-1][3]),stof(cameras[image1-1][4]),stof(cameras[image1-1][5]),stof(cameras[image1-1][6])};
+    float camera2[6] = {stof(cameras[image2-1][1]),stof(cameras[image2-1][2]),stof(cameras[image2-1][3]),stof(cameras[image2-1][4]),stof(cameras[image2-1][5]),stof(cameras[image2-1][6])};
+
+    // scale the projection's coordinates
+    float x1 = dpix * (stof(matches[i][2]) - res/2.0);
+    float y1 = dpix * (stof(matches[i][3]) - res/2.0);
+    float x2 = dpix * (stof(matches[i][4]) - res/2.0);
+    float y2 = dpix * (stof(matches[i][5]) - res/2.0);
+
+    // NOTE FROM HERE ON THERE ARE THINGS for the rotation
+
+    // rotate the coords to be correct
+    if (debug && 0){ // just set to not do this for now
+      cout << "camera1 unit vector: " << camera1[3] << "," << camera1[4] << "," << camera1[5] << endl;
+      cout << "rotation1: " << get_angle(camera1, 0) << endl;
+      cout << "camera2 unit vector: " << camera2[3] << "," << camera2[4] << "," << camera2[5] << endl;
+      cout << "rotation2: " << get_angle(camera2, 0) << endl;
+    }
+
+    // get the needed rotation
+    float r1 = get_angle(camera1, 0);
+    float r2 = get_angle(camera2, 0);
+
+    float angle = 0.0;
+
+    // for some reason it was not in the right plane?
+    vector<float> k1 = rotate_projection_x(x1,y1,0.0,angle);
+    vector<float> k2 = rotate_projection_x(x2,y2,0.0,angle);
+
+    vector<float> kp1 = rotate_projection_z(k1[0],k1[1],k1[2],r1 + angle);
+    vector<float> kp2 = rotate_projection_z(k2[0],k2[1],k2[2],r2 + angle);
+
+    // adjust the kp's location
+    kp1[0] = camera1[0] - (kp1[0] + (camera1[3] * foc));
+    kp1[1] = camera1[1] - (kp1[1] + (camera1[4] * foc));
+
+    kp2[0] = camera2[0] - (kp2[0] + (camera2[3] * foc));
+    kp2[1] = camera2[1] - (kp2[1] + (camera2[4] * foc));
+
+    // NOTE This is the pan-view way to do this
+
+    float points1[6] = {camera1[0],camera1[1],camera1[2],x1 + camera1[0],y1 + camera1[1],foc + camera1[2]};
+    float points2[6] = {camera2[0],camera2[1],camera2[2],x2 + camera2[0],y2 + camera2[1],foc + camera2[2]};
+    int   rgb[3]     = {stoi(matches[i][6]),stoi(matches[i][7]),stoi(matches[i][8])};
+
+    // END NOTE
+
+    // this is just for storing the projections for a ply file later
+    vector<float> r32;
+    r32.push_back(points2[3]);
+    r32.push_back(points2[4]);
+    r32.push_back(points2[5]);
+    matchesr3.push_back(r32);
+    vector<float> r31;
+    r31.push_back(points1[3]);
+    r31.push_back(points1[4]);
+    r31.push_back(points1[5]);
+    matchesr3.push_back(r31);
+    // find the vectors
+    float v1[3]      = {points1[3] - points1[0],points1[4] - points1[1],points1[5] - points1[2]};
+    float v2[3]      = {points2[3] - points2[0],points2[4] - points2[1],points2[5] - points2[2]};
+    // prepare for the linear approximation
+    float smallest = numeric_limits<float>::max();
+    float p1[3] = {0.0,0.0,0.0};
+    float p2[3] = {0.0,0.0,0.0};
+    //for (float i = 0.0; i < 800.0; i += 0.0001){
+    for (float i = 0.0; i < 1000.0; i += 0.0000001){ // for testing more quickly
+      // get the points on the lines
+      p1[0]  = points1[0] + v1[0]*i;
+      p1[1]  = points1[1] + v1[1]*i;
+      p1[2]  = points1[2] + v1[2]*i;
+      p2[0]  = points2[0] + v2[0]*i;
+      p2[1]  = points2[1] + v2[1]*i;
+      p2[2]  = points2[2] + v2[2]*i;
+      float dist = euclid_dist(p1,p2);
+      if (dist < smallest) smallest = dist;
+      else break;
+    }
+    cout << endl;
+    // store the result if it sasifies the boundary conditions
+    // TODO uncomment this after you test to see how far those points go
+    //if (p1[2] > 1.0 && p1[2] < 3.0){
+    vector<float> v;
+    vector<int>   c;
+    v.push_back(p1[0]);
+    v.push_back(p1[1]);
+    v.push_back(p1[2]);
+    c.push_back(rgb[0]);
+    c.push_back(rgb[1]);
+    c.push_back(rgb[2]);
+    if (debug) cout << p1[0] << "," << p1[1] << "," << p1[2] << endl;
+    points.push_back(v);
+    colors.push_back(c);
+    //}
+    if (verbose) cout << (((((float)i))/((float)length)) * 100.0) << " \%" << endl;
+  }
+  cout << "Generated: " << points.size() << " valid points" << endl;
+}
+
+//
+// loads cameras from a camera.txt file
 // this assumes that the camera is constrained to a plane
 // this is currently a 2-view system
 //
-void two_view_orth_proj_plane(){
+void two_view_reproject_plane(){
   // get the data that we want to compute
   cout << "2-view trianulating... " << endl;
   int length = matches.size();
@@ -350,34 +555,22 @@ void two_view_orth_proj_plane(){
     float r1 = get_angle(camera1, 0);
     float r2 = get_angle(camera2, 0);
 
+    if (debug) cout << "camera1 angle: " << r1 << ", camera2 angle: " << r2 << endl;
+
     // for some reason it was not in the right plane?
     vector<float> k1 = rotate_projection_x(x1,y1,0.0,PI/2);
     vector<float> k2 = rotate_projection_x(x2,y2,0.0,PI/2);
-    vector<float> orth_k1 = rotate_projection_x(x1,y1,0.0,PI/2);
-    vector<float> orth_k2 = rotate_projection_x(x2,y2,0.0,PI/2);
 
-    // rotate it in the z
     vector<float> kp1 = rotate_projection_z(k1[0],k1[1],k1[2],r1 + PI/2.0); // + PI/2.0
     vector<float> kp2 = rotate_projection_z(k2[0],k2[1],k2[2],r2 + PI/2.0); // + PI/2.0
-    vector<float> orth_kp1 = rotate_projection_z(k1[0],k1[1],k1[2],r1 + PI/2.0); // + PI/2.0
-    vector<float> orth_kp2 = rotate_projection_z(k2[0],k2[1],k2[2],r2 + PI/2.0); // + PI/2.0
 
     // adjust the kp's location
     kp1[0] = camera1[0] - (kp1[0] + (camera1[3] * foc));
     kp1[1] = camera1[1] - (kp1[1] + (camera1[4] * foc));
-    
+
     kp2[0] = camera2[0] - (kp2[0] + (camera2[3] * foc));
     kp2[1] = camera2[1] - (kp2[1] + (camera2[4] * foc));
 
-    orth_kp1[0] = camera1[0] + (orth_kp1[0] + (camera1[3] * foc));
-    orth_kp1[1] = camera1[1] + (orth_kp1[1] + (camera1[4] * foc));
-
-    orth_kp2[0] = camera2[0] + (orth_kp2[0] + (camera2[3] * foc));
-    orth_kp2[1] = camera2[1] + (orth_kp2[1] + (camera2[4] * foc));
-
-    orths.push_back(orth_kp1);
-    orths.push_back(orth_kp2);
-    
     float points1[6] = {camera1[0],camera1[1],camera1[2],kp1[0],kp1[1],kp1[2]};
     float points2[6] = {camera2[0],camera2[1],camera2[2],kp2[0],kp2[1],kp2[2]};
     int   rgb[3]     = {stoi(matches[i][6]),stoi(matches[i][7]),stoi(matches[i][8])};
@@ -393,47 +586,70 @@ void two_view_orth_proj_plane(){
     r31.push_back(points1[4]);
     r31.push_back(points1[5]);
     matchesr3.push_back(r31);
-    
     // find the vectors
-    // from standard reproj
-    //float v1[3]      = {points1[3] - points1[0],points1[4] - points1[1],points1[5] - points1[2]};
-    //float v2[3]      = {points2[3] - points2[0],points2[4] - points2[1],points2[5] - points2[2]};
-    float v1[3] = {points1[3] - orth_kp1[0],points1[4] - orth_kp1[1],points1[5] - orth_kp1[2]};
-    float v2[3] = {points2[3] - orth_kp2[0],points2[4] - orth_kp2[1],points2[5] - orth_kp2[2]};    
-    
+    float v1[3]    = {points1[3] - points1[0],points1[4] - points1[1],points1[5] - points1[2]};
+    float v2[3]    = {points2[3] - points2[0],points2[4] - points2[1],points2[5] - points2[2]};
     // prepare for the linear approximation
     float smallest = numeric_limits<float>::max();
     float j_holder = 0.0;
     float p1[3]; //= {0.0,0.0,0.0};
     float p2[3]; //= {0.0,0.0,0.0};
-    float point[3];
-    for (float j = 0.8; j < 100.0; j += 0.01){
-      p1[0] = orth_kp1[0] + v1[0]*j;
-      p1[1] = orth_kp1[1] + v1[1]*j;
-      p1[2] = orth_kp1[2] + v1[2]*j;
-      for (float k = j; k < (j+10.0) && k < 100.0; k+=0.01){ 
-	p2[0] = orth_kp2[0] + v2[0]*k;
-	p2[1] = orth_kp2[1] + v2[1]*k;
-	p2[2] = orth_kp2[2] + v2[2]*k;
-	float dist = euclid_dist(p1,p2);
-	if (dist < smallest){
-	  smallest = dist;
-	  // find midpoint here
-	  point[0] = (p1[0] + p2[0])/2.0;
-	  point[1] = (p1[1] + p2[1])/2.0;
-	  point[2] = (p1[2] + p2[2])/2.0;
-	}
-	else break;
-	//else {
-	//  j_holder = j;
-	//  goto breaker;
-	//}
+    float point[4];
+    int asdf_counter = 0;
+    for (float j = 0.0; j < 8000.0; j += 0.001){
+      p1[0] = points1[3] + v1[0]*j; // points1[0]
+      p1[1] = points1[4] + v1[1]*j;
+      p1[2] = points1[5] + v1[2]*j;
+      p2[0] = points2[3] + v2[0]*j;
+      p2[1] = points2[4] + v2[1]*j;
+      p2[2] = points2[5] + v2[2]*j;
+      // cout << j << endl;
+      float dist = euclid_dist(p1,p2);
+      //cout << dist << endl;
+      if (dist <= smallest){
+	smallest = dist;
+	point[0] = (p1[0]+p2[0])/2.0;
+	point[1] = (p1[1]+p2[1])/2.0;
+	point[2] = (p1[2]+p2[2])/2.0;
+	point[3] = smallest;
+	j_holder = j;
+      } else break;
+      if (debug && asdf_counter >= 30 && 0){ // don't do for now
+	asdf_counter = 0;
+	vector<float> v_t;
+	vector<int>   c_t;
+	vector<float> v_i;
+	vector<int>   c_i;
+	// TODO
+	// do something besides scaling the hell out of this rn
+	v_t.push_back(p1[0]);
+	v_t.push_back(p1[1]);
+	v_t.push_back(p1[2]);
+	c_t.push_back(255);
+	c_t.push_back(105);
+	c_t.push_back(180);
+	points.push_back(v_t);
+	colors.push_back(c_t);
+	v_i.push_back(p2[0]);
+	v_i.push_back(p2[1]);
+	v_i.push_back(p2[2]);
+	c_i.push_back(180);
+	c_i.push_back(105);
+	c_i.push_back(255);
+	points.push_back(v_i);
+	colors.push_back(c_i);
       }
+      asdf_counter++;
     }
-    //breaker:
-    cout << "smallest: " << smallest << ", j: [" << j_holder << "]" << endl;
+    if (debug) cout << "smallest: " << smallest << ", j: [" << j_holder << "]" << endl;
+    // print v bc wtf
+    if (debug){
+      cout << "v1: [" << v1[0] << "," << v1[1] << "," << v1[2] << "]" << endl;
+      cout << "v2: [" << v2[0] << "," << v2[1] << "," << v2[2] << "]" << endl;
+    }
     // store the result if it sasifies the boundary conditions
     // TODO uncomment this after you test to see how far those points go
+    //    if (point[3] < 0.5){
     vector<float> v;
     vector<int>   c;
     v.push_back(point[0]);
@@ -442,9 +658,11 @@ void two_view_orth_proj_plane(){
     c.push_back(rgb[0]);
     c.push_back(rgb[1]);
     c.push_back(rgb[2]);
+    if (debug) cout << p1[0] << "," << p1[1] << "," << p1[2] << endl;
     if (debug) cout << point[0] << "," << point[1] << "," << point[2] << endl;
     points.push_back(v);
     colors.push_back(c);
+    //}
     if (verbose) cout << (((((float)i))/((float)length)) * 100.0) << " \%" << endl;
   }
   cout << "Generated: " << points.size() << " valid points" << endl;
@@ -465,8 +683,7 @@ void save_ply()
   outputFile2 << cameras.size() << "\n";
   outputFile2 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
   outputFile2 << "end_header\n";
-  for(int i = 0; i < cameras.size(); i++)
-  {
+  for(int i = 0; i < cameras.size(); i++){
     outputFile2 << cameras[i][1] << " " << cameras[i][2] << " " << cameras[i][3] << " 255 0 0\n";
   }
   ofstream outputFile3("matches.ply");
@@ -474,18 +691,14 @@ void save_ply()
   outputFile3 << matchesr3.size() << "\n";
   outputFile3 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
   outputFile3 << "end_header\n";
-  for(int i = 0; i < matchesr3.size(); i++)
-  {
-    outputFile3 << matchesr3[i][0] << " " << matchesr3[i][1] << " " << matchesr3[i][2] << " 0 255 0\n";
-  }
-  ofstream outputFile4("orths.ply");
-  outputFile4 << "ply\nformat ascii 1.0\nelement vertex ";
-  outputFile4 << orths.size() << "\n";
-  outputFile4 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
-  outputFile4 << "end_header\n";
-  for(int i = 0; i < orths.size(); i++)
-  {
-    outputFile4 << orths[i][0] << " " << orths[i][1] << " " << orths[i][2] << " 50 0 255\n";
+  int counter = 0;
+  int b = 0;
+  for(int i = 0; i < matchesr3.size(); i++){
+    outputFile3 << matchesr3[i][0] << " " << matchesr3[i][1] << " " << matchesr3[i][2] << " 0 255 " << b << "\n";
+    if (counter%2) b += 25;
+    if (b > 255) b = 0;
+    counter++;
+    //cout << "";
   }
 }
 
@@ -494,11 +707,12 @@ void save_ply()
 //
 int main(int argc, char* argv[])
 {
-  cout << "*===================* ORTHOGRAPHIC REPROJECTION *===================*" << endl;
-  if (argc < 3){
+  cout << "*===================* REPROJECTION *===================*" << endl;
+  if (argc < 4){
     cout << "not enough arguments ... " << endl;
     cout << "USAGE: " << endl;
-    cout << "./orthographic_proj.x path/to/cameras.txt path/to/matches.txt" << endl;
+    cout << "./reprojection.x path/to/cameras.txt path/to/matches.txt 1/0" << endl;
+    cout << "the last arg is a 1 if panning and a 0 if plane constrained" << endl;
     cout << "*======================================================*" << endl;
     return 0; // end it all. it will be so serene.
   }
@@ -514,15 +728,18 @@ int main(int argc, char* argv[])
 
   cameras_path = argv[1];
   matches_path = argv[2];
+  to_pan       = atoi(argv[3]);
 
 
   load_matches();
   load_cameras();
-  two_view_orth_proj_plane();
+  if (to_pan) two_view_reproject_pan();
+  else two_view_reproject_plane();
   save_ply();
 
   if (verbose) cout << "done!\nresults saved to output.ply" << endl;
   if (debug) cout << "max angle: " << max_angle << " | min angle: " << min_angle << endl;
+  printDeviceProperties();
 
   return 0;
 }
