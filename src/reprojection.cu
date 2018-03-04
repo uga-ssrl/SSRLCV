@@ -54,7 +54,7 @@ void printDeviceProperties() {
     printf("  -Max number of threads per block: %d\n",prop.maxThreadsPerBlock);
     printf("  -Max number of blocks: %dx%dx%d\n",prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
     printf("  -32bit Registers per block: %d\n", prop.regsPerBlock);
-    printf("  -Threads per warp (bytes): %d\n\n", prop.warpSize);
+    printf("  -Threads per warp: %d\n\n", prop.warpSize);
     printf("  -Total number of Multiprocessors: %d\n",prop.multiProcessorCount);
     printf("  -Shared Memory per Multiprocessor (bytes): %lo\n",prop.sharedMemPerMultiprocessor);
     printf("  -32bit Registers per Multiprocessor: %d\n\n", prop.regsPerMultiprocessor);
