@@ -10,25 +10,32 @@ INCLUDES = -I. -I/usr/local/cuda/include
 # Common flags
 COMMONFLAGS += ${INCLUDES}
 NVCCFLAGS += ${COMMONFLAGS}
-NVCCFLAGS += -std=c++11 -gencode=arch=compute_60,code=sm_60 -Iinclude -lcublas
+NVCCFLAGS += -std=c++11 -gencode=arch=compute_60,code=sm_60 -Iinclude -lcublas -lthrust
 CXXFLAGS += ${COMMONFLAGS}
 CXXFLAGS += -Wall -g -std=c++11 -Iinclude -lcublas
 
 LIB_CUDA := -L/usr/local/cuda-9.1/lib64 -lcudart -lcublas
 
 SRCDIR = ./src
-OBJDIR = ./util
+OBJDIR = ./obj
 BINDIR = ./bin
 
-_OBJS = reprojection.cpp.o
+_OBJS1 = reprojection.cu.o
+_OBJS2 = octree.cu.o
+_OBJS2 += reconstruction.cu.o
 
-OBJS = ${patsubst %, ${OBJDIR}/%, ${_OBJS}}
 
-TARGET = reprojection.x
-LINKLINE = ${LINK} -o ${BINDIR}/${TARGET} ${OBJS} ${LIB_CUDA}
+OBJS1 = ${patsubst %, ${OBJDIR}/%, ${_OBJS1}}
+OBJS2 = ${patsubst %, ${OBJDIR}/%, ${_OBJS2}}
 
+TARGET1 = reprojection.exe
+TARGET2 = reconstruction.exe
+LINKLINE1 = ${LINK} -o ${BINDIR}/${TARGET1} ${OBJS1} ${LIB_CUDA}
+LINKLINE2 = ${LINK} -o ${BINDIR}/${TARGET2} ${OBJS2} ${LIB_CUDA}
 
 .SUFFIXES: .cpp .cu .o
+
+all: ${BINDIR}/${TARGET1} ${BINDIR}/${TARGET2}
 
 ${OBJDIR}/%.cu.o: ${SRCDIR}/%.cu
 	${NVCC} ${NVCCFLAGS} -c $< -o $@
@@ -36,8 +43,11 @@ ${OBJDIR}/%.cu.o: ${SRCDIR}/%.cu
 ${OBJDIR}/%.cpp.o: ${SRCDIR}/%.cpp
 	${CXX} ${CXXFLAGS} -c $< -o $@
 
-${BINDIR}/${TARGET}: ${OBJS} Makefile
-	${LINKLINE}
+${BINDIR}/${TARGET1}: ${OBJS1} Makefile
+	${LINKLINE1}
+
+${BINDIR}/${TARGET2}: ${OBJS2} Makefile
+	${LINKLINE2}
 
 clean:
 	rm -f bin/*

@@ -99,6 +99,10 @@ __global__ void getKeys(float3* points, float3* centers, int* keys, float3 c, fl
 }
 
 Octree::Octree(){
+  //
+}
+
+Octree::~Octree(){
 
 }
 
@@ -108,6 +112,7 @@ void Octree::parsePLY(string pathToFile){
 	string currentLine;
   vector<float3> points;
   vector<float3> normals;
+  float minX = 0, minY = 0, minZ = 0, maxX = 0, maxY = 0, maxZ = 0;
 	if (plystream.is_open()) {
 		while (getline(plystream, currentLine)) {
       stringstream getMyFloats = stringstream(currentLine);
@@ -120,12 +125,18 @@ void Octree::parsePLY(string pathToFile){
         switch(index){
           case 0:
             point.x = value;
+            if(value > maxX) maxX = value;
+            if(value < minX) minX = value;
             break;
           case 1:
             point.y = value;
+            if(value > maxY) maxY = value;
+            if(value < minY) minY = value;
             break;
           case 2:
             point.z = value;
+            if(value > maxZ) maxZ = value;
+            if(value < minZ) minZ = value;
             break;
           case 3:
             normal.x = value;
@@ -146,15 +157,34 @@ void Octree::parsePLY(string pathToFile){
         ++index;
       }
 		}
-    this->points = new float3[points.size()];
-    this->normals = new float3[normals.size()];
+    this->min = {minX,minY,minZ};
+    this->max = {maxX,maxY,maxZ};
+
+    this->center.x = (maxX - minX)/2;
+    this->center.y = (maxY - minY)/2;
+    this->center.z = (maxZ - minZ)/2;
+
+    this->width = maxX - minX;
+    if(this->width < maxY - minY) this->width = maxY - minY;
+    if(this->width < maxZ - minZ) this->width = maxZ - minZ;
+
     this->numPoints = (int) points.size();
+    this->points = new float3[this->numPoints];
+    this->normals = new float3[this->numPoints];
+    this->centers = new float3[this->numPoints];
+    this->keys = new int[this->numPoints];
+
     for(int i = 0; i < points.size(); ++i){
       this->points[i] = points[i];
       this->normals[i] = normals[i];
-      cout<<points[i].x<<" "<<points[i].y<<" "<<points[i].z<<" "<<normals[i].x<<" "<<normals[i].y<<" "<<normals[i].z<<endl;
+      this->centers[i] = {0.0f,0.0f,0.0f};
+      this->keys[i] = 0;
     }
-    cout<<pathToFile + "'s data has been transfered to an initialized octree."<<endl;
+    printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
+    printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
+    printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
+    printf("number of points = %d\n\n", this->numPoints);
+    cout<<pathToFile + "'s data has been transfered to an initialized octree.\n"<<endl;
 	}
 	else{
     cout << "Unable to open: " + pathToFile<< endl;
@@ -166,56 +196,42 @@ Octree::Octree(string pathToFile, int depth){
   this->parsePLY(pathToFile);
   this->depth = depth;
 }
-void Octree::findMinMax(){
-  this->min = this->points[0];
-  this->max = this->points[0];
-  float3 currentPoint;
-  for(int i = 0; i < numPoints; ++i){
-    currentPoint = this->points[i];
-    if(currentPoint.x < this->min.x){
-      this->min.x = currentPoint.x;
-    }
-    if(currentPoint.x > this->max.x){
-      this->max.x = currentPoint.x;
-    }
-    if(currentPoint.y < this->min.y){
-      this->min.y = currentPoint.y;
-    }
-    if(currentPoint.y > this->max.y){
-      this->max.y = currentPoint.y;
-    }
-    if(currentPoint.z < this->min.z){
-      this->min.z = currentPoint.z;
-    }
-    if(currentPoint.z > this->max.z){
-      this->max.z = currentPoint.z;
-    }
-  }
-  this->center.x = (this->max.x - this->min.x)/2;
-  this->center.y = (this->max.y - this->min.y)/2;
-  this->center.z = (this->max.z - this->min.z)/2;
-
-}
 
 void Octree::allocateDeviceVariables(){
+
   CudaSafeCall(cudaMalloc((void**)&this->pointsDevice, this->numPoints * sizeof(float3)));
   CudaSafeCall(cudaMalloc((void**)&this->centersDevice, this->numPoints * sizeof(float3)));
+  CudaSafeCall(cudaMalloc((void**)&this->normalsDevice, this->numPoints * sizeof(float3)));
   CudaSafeCall(cudaMalloc((void**)&this->keysDevice, this->numPoints * sizeof(int)));
-  CudaSafeCall(cudaMalloc((void**)&this->normalsDevice, this->numPoints * sizeof(int)));
 
 }
 
-void Octree::executeKeyRetrieval(){
+void Octree::copyArraysHostToDevice(bool points, bool centers, bool normals, bool keys){
+  if(points) CudaSafeCall(cudaMemcpy(this->pointsDevice, this->points, this->numPoints * sizeof(float3), cudaMemcpyHostToDevice));
+  if(centers) CudaSafeCall(cudaMemcpy(this->centersDevice, this->centers, this->numPoints * sizeof(float3), cudaMemcpyHostToDevice));
+  if(normals) CudaSafeCall(cudaMemcpy(this->normalsDevice, this->normals, this->numPoints * sizeof(float3), cudaMemcpyHostToDevice));
+  if(keys) CudaSafeCall(cudaMemcpy(this->keysDevice, this->keys, this->numPoints * sizeof(int), cudaMemcpyHostToDevice));
 
+}
 
-  CudaSafeCall(cudaMemcpy(this->pointsDevice, this->points, this->numPoints * sizeof(float3), cudaMemcpyHostToDevice));
-  CudaSafeCall(cudaMemcpy(this->centersDevice, this->centers, this->numPoints * sizeof(float3), cudaMemcpyHostToDevice));
-  CudaSafeCall(cudaMemcpy(this->keysDevice, this->keys, this->numPoints * sizeof(int), cudaMemcpyHostToDevice));
+void Octree::copyArraysDeviceToHost(bool points, bool centers, bool normals, bool keys){
+  if(points) CudaSafeCall(cudaMemcpy(this->points, this->pointsDevice, this->numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
+  if(centers) CudaSafeCall(cudaMemcpy(this->centers, this->centersDevice, this->numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
+  if(normals) CudaSafeCall(cudaMemcpy(this->normals, this->normalsDevice, this->numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
+  if(keys) CudaSafeCall(cudaMemcpy(this->keys, this->keysDevice, this->numPoints * sizeof(int), cudaMemcpyDeviceToHost));
 
-  getKeys<<<1,1>>>(this->pointsDevice, this->centersDevice, this->keysDevice, this->center, this->width, this->numPoints, this->depth);
+}
+
+void Octree::executeKeyRetrieval(dim3 grid, dim3 block){
+
+  getKeys<<<grid,block>>>(this->pointsDevice, this->centersDevice, this->keysDevice, this->center, this->width, this->numPoints, this->depth);
   CudaCheckError();
-  CudaSafeCall(cudaMemcpy(this->centers, this->centersDevice, this->numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
-  CudaSafeCall(cudaMemcpy(this->keys, this->keysDevice, this->numPoints * sizeof(int), cudaMemcpyDeviceToHost));
+
+}
+
+void Octree::sortByKey(){
+  int* keyConst = new int[this->numPoints];
+
 
 }
 

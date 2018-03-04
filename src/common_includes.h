@@ -17,6 +17,8 @@
 #include <cmath>
 #include <limits>
 #include <sstream>
+#include <time.h>
+#include <string>
 
 
 

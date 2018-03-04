@@ -30,13 +30,19 @@ struct Octree{
   int* keysDevice;
 
   Octree();
+  ~Octree();
+  //parsPLY parse a ply and initializes all variables of an octree
   void parsePLY(std::string pathToFile);
   Octree(std::string pathToFile, int depth);
-  void findMinMax();
   void allocateDeviceVariables();
-  void executeKeyRetrieval();
+  void copyArraysHostToDevice(bool points, bool centers, bool normals, bool keys);
+  void copyArraysDeviceToHost(bool points, bool centers, bool normals, bool keys);
+  void executeKeyRetrieval(dim3 grid, dim3 block);
+  void sortByKey();
   void cudaFreeMemory();
 
 };
 
 #endif /* OCTREE_H */
+
+//TODO complete implementation default constructor and destructor
