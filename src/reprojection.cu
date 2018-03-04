@@ -50,7 +50,7 @@ void printDeviceProperties() {
     printf("  -Total Global Memory (bytes): %lo\n", prop.totalGlobalMem);
     printf("  -Total Const Memory (bytes): %lo\n", prop.totalConstMem);
     printf("  -Max pitch allowed for memcpy in regions allocated by cudaMallocPitch() (bytes): %lo\n\n", prop.memPitch);
-    printf("  -Shared Memory per block (bytes): %d\n", prop.sharedMemPerBlock);
+    printf("  -Shared Memory per block (bytes): %lo\n", prop.sharedMemPerBlock);
     printf("  -Max number of threads per block: %d\n",prop.maxThreadsPerBlock);
     printf("  -Max number of blocks: %dx%dx%d\n",prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
     printf("  -32bit Registers per block: %d\n", prop.regsPerBlock);
