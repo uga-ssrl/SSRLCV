@@ -48,18 +48,18 @@ void printDeviceProperties() {
     printf("  -Memory Bus Width (bits): %d\n",prop.memoryBusWidth);
     printf("  -Peak Memory Bandwidth (GB/s): %f\n",2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6);
     printf("  -Total Global Memory (bytes): %lo\n", prop.totalGlobalMem);
-    printf("  -Total Const Memory (bytes): %d\n", prop.totalConstMem);
-    printf("  -Max pitch allowed for memcpy in regions allocated by cudaMallocPitch() (bytes): %d\n\n", prop.memPitch);
+    printf("  -Total Const Memory (bytes): %lo\n", prop.totalConstMem);
+    printf("  -Max pitch allowed for memcpy in regions allocated by cudaMallocPitch() (bytes): %lo\n\n", prop.memPitch);
     printf("  -Shared Memory per block (bytes): %d\n", prop.sharedMemPerBlock);
     printf("  -Max number of threads per block: %d\n",prop.maxThreadsPerBlock);
     printf("  -Max number of blocks: %dx%dx%d\n",prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
     printf("  -32bit Registers per block: %d\n", prop.regsPerBlock);
     printf("  -Threads per warp (bytes): %d\n\n", prop.warpSize);
     printf("  -Total number of Multiprocessors: %d\n",prop.multiProcessorCount);
-    printf("  -Shared Memory per Multiprocessor (bytes): %d\n",prop.sharedMemPerMultiprocessor);
+    printf("  -Shared Memory per Multiprocessor (bytes): %lo\n",prop.sharedMemPerMultiprocessor);
     printf("  -32bit Registers per Multiprocessor: %d\n\n", prop.regsPerMultiprocessor);
     printf("  -Number of asynchronous engines: %d\n", prop.asyncEngineCount);
-    printf("  -Texture alignment requirement (bytes): %d\n  -Texture base addresses that are aligned to "
+    printf("  -Texture alignment requirement (bytes): %lo\n  -Texture base addresses that are aligned to "
     "textureAlignment bytes do not need an offset applied to texture fetches.\n\n", prop.textureAlignment);
 
     printf(" -Device Compute Capability:\n  -Major revision #: %d\n  -Minor revision #: %d\n", prop.major, prop.minor);
