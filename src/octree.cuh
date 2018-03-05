@@ -4,16 +4,18 @@
 #include "common_includes.h"
 #include <thrust/sort.h>
 #include <thrust/pair.h>
+#include <thrust/unique.h>
 #include <thrust/gather.h>
 
 
-__global__ void getKeys(float3* points, float3* centers, int* keys, float3 c, float W, int N, int D);
+__global__ void getKeys(float3* points, float3* nodeCenters, int* keys, float3 c, float W, int N, int D);
 
 
 struct Octree{
 
   float3* points;
-  float3* centers;
+  float3* nodeCenters;
+  int* nodeSortedPointIndexes;
   float3* normals;
   float3 center;
   int* keys;
@@ -25,7 +27,7 @@ struct Octree{
   int depth;
 
   float3* pointsDevice;
-  float3* centersDevice;
+  float3* nodeCentersDevice;
   float3* normalsDevice;
   int* keysDevice;
 
@@ -35,11 +37,16 @@ struct Octree{
   void parsePLY(std::string pathToFile);
   Octree(std::string pathToFile, int depth);
   void allocateDeviceVariables();
-  void copyArraysHostToDevice(bool points, bool centers, bool normals, bool keys);
-  void copyArraysDeviceToHost(bool points, bool centers, bool normals, bool keys);
+  void copyArraysHostToDevice(bool points, bool nodeCenters, bool normals, bool keys);
+  void copyArraysDeviceToHost(bool points, bool nodeCenters, bool normals, bool keys);
+  //node array
   void executeKeyRetrieval(dim3 grid, dim3 block);
   void sortByKey();
+  void compactData();
+
+
   void cudaFreeMemory();
+
 
 };
 

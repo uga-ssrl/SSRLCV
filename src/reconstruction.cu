@@ -28,8 +28,9 @@ int main(int argc, char *argv[]){
       //3. compact the keys
 
       string filePath = argv[1];
+      clock_t totalTimer = clock();
 
-      int depth = 10;//this number is a placeholder
+      int depth = 12;//this number is a placeholder
       Octree octree = Octree(filePath, depth);
 
       //this will be temporary due to the normals needing to be facing inward
@@ -38,9 +39,8 @@ int main(int argc, char *argv[]){
         octree.normals[i].y = octree.normals[i].y * -1;
         octree.normals[i].z = octree.normals[i].z * -1;
       }
-
       bool transferPoints;
-      bool transferCenters;
+      bool transfernodeCenters;
       bool transferNormals;
       bool transferKeys;
 
@@ -67,12 +67,17 @@ int main(int argc, char *argv[]){
       cudatimer = clock() - cudatimer;
       printf("allocation took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 
-      transferPoints = true;transferCenters = true;transferNormals = false;transferKeys = true;
+      transferPoints = true;transfernodeCenters = true;transferNormals = false;transferKeys = true;
       cudatimer = clock();
-      octree.copyArraysHostToDevice(transferPoints, transferCenters, transferNormals, transferKeys);
+      octree.copyArraysHostToDevice(transferPoints, transfernodeCenters, transferNormals, transferKeys);
       cudatimer = clock() - cudatimer;
       printf("cudaMemcpyHostToDevice for key retrieval took %f seconds.\n",((float) cudatimer)/CLOCKS_PER_SEC);
 
+      /*
+      Gets unique key for each node that houses points.
+      */
+      //grid = {2,1,1};
+      //block = {1024,1,1};
       printf("\nGETKEYS KERNEL: grid = {%d,%d,%d} - block = {%d,%d,%d}\n",grid.x, grid.y, grid.z, block.x, block.y, block.z);
       cudatimer = clock();
       octree.executeKeyRetrieval(grid, block);
@@ -80,28 +85,42 @@ int main(int argc, char *argv[]){
       printf("getKeys kernel took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
       cudatimer = clock();
 
-      transferPoints = false;//transferCenters = true;transferNormals = false;transferKeys = true;
+      transferPoints = false;//transfernodeCenters = true;transferNormals = false;transferKeys = true;
       cudatimer = clock();
-      octree.copyArraysDeviceToHost(transferPoints, transferCenters, transferNormals, transferKeys);
+      octree.copyArraysDeviceToHost(transferPoints, transfernodeCenters, transferNormals, transferKeys);
       cudatimer = clock() - cudatimer;
       printf("cudaMemcpyDeviceToHost after key retrieval took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 
       /*
       //this is just for checking key retrieval and or printing points and normals
       for(int i = 0; i < octree.numPoints; ++i){
-        printBits(sizeof(int), &octree.keys[i]);
+        //printBits(sizeof(int), &octree.keys[i]);
         //cout<<octree.keys[i]<<endl;
         //printf("point = {%f,%f,%f} - norm = {%f,%f,%f}\n",octree.points[i].x,octree.points[i].y,octree.points[i].z,octree.normals[i].x,octree.normals[i].y,octree.normals[i].z);
-
+        printf("center = {%f,%f,%f}\n",octree.nodeCenters[i].x,octree.nodeCenters[i].y,octree.nodeCenters[i].z);
       }
       */
 
+      /*
+      Sort all arrays on host by key
+      */
       cudatimer = clock();
       octree.sortByKey();
       cudatimer = clock() - cudatimer;
       printf("octree sort_by_key took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 
+      /*
+      Compact the keys, point indexes, nodeCenters so that we have
+      the unique nodes at the finest levelD.
+      */
+      cudatimer = clock();
+      octree.compactData();
+      cudatimer = clock() - cudatimer;
+      printf("octree unique_by_key took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
+
       octree.cudaFreeMemory();
+      totalTimer = clock() - totalTimer;
+      printf("\nRECONSTRUCTION TOOK %f seconds.\n\n",((float) totalTimer)/CLOCKS_PER_SEC);
 
       return 0;
     }
