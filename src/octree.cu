@@ -230,9 +230,15 @@ void Octree::executeKeyRetrieval(dim3 grid, dim3 block){
 }
 
 void Octree::sortByKey(){
-  int* keyConst = new int[this->numPoints];
-
-
+  int* keyTemp = new int[this->numPoints];
+  for(int array = 0; array < 3; ++array){
+    for(int i = 0; i < this->numPoints && array < 2; ++i){
+      keyTemp[i] = this->keys[i];
+    }
+    if(array == 0) thrust::sort_by_key(keyTemp, keyTemp + this->numPoints, this->points);
+    else if(array == 1) thrust::sort_by_key(keyTemp, keyTemp + this->numPoints, this->centers);
+    else if(array == 2)  thrust::sort_by_key(this->keys, this->keys + this->numPoints, this->normals);
+  }
 }
 
 void Octree::cudaFreeMemory(){
