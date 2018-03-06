@@ -145,9 +145,9 @@ int main(int argc, char *argv[]){
       octree.inclusiveScanForNodeAddresses();
       printf("inclusive scan of nodeNumbers took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 
-      for(int i = 0; i < octree.numNodes; ++i){
-        printf("%d children...%d incSum\n",octree.nodeNumbers[i], octree.nodeAddresses[i]);
-      }
+      //for(int i = 0; i < octree.numNodes; ++i){
+      //  printf("%d children...%d incSum\n",octree.nodeNumbers[i], octree.nodeAddresses[i]);
+      //}
 
       octree.cudaFreeMemory();
       totalTimer = clock() - totalTimer;
