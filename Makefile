@@ -10,7 +10,7 @@ INCLUDES = -I. -I/usr/local/cuda/include
 # Common flags
 COMMONFLAGS += ${INCLUDES}
 NVCCFLAGS += ${COMMONFLAGS}
-NVCCFLAGS += -std=c++11 -gencode=arch=compute_60,code=sm_60 -Iinclude -lcublas -lthrust
+NVCCFLAGS += -std=c++11 -gencode=arch=compute_62,code=sm_62 -Iinclude -lcublas -lthrust
 CXXFLAGS += ${COMMONFLAGS}
 CXXFLAGS += -Wall -g -std=c++11 -Iinclude -lcublas
 
