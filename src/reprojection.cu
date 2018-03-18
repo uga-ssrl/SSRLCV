@@ -623,7 +623,7 @@ void two_view_reproject_plane(){
 
 void save_ply()
 {
-  ofstream outputFile1("output.ply");
+  ofstream outputFile1("./out/output.ply");
   outputFile1 << "ply\nformat ascii 1.0\nelement vertex ";
   outputFile1 << points.size() << "\n";
   outputFile1 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
@@ -631,7 +631,7 @@ void save_ply()
   for(int i = 0; i < points.size(); i++){
     outputFile1 << points[i][0] << " " << points[i][1] << " " << points[i][2] << " " << colors[i][0] << " " << colors[i][1] << " " << colors[i][2] << "\n";
   }
-  ofstream outputFile2("cameras.ply");
+  ofstream outputFile2("./out/cameras.ply");
   outputFile2 << "ply\nformat ascii 1.0\nelement vertex ";
   outputFile2 << cameras.size() << "\n";
   outputFile2 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
@@ -639,7 +639,7 @@ void save_ply()
   for(int i = 0; i < cameras.size(); i++){
     outputFile2 << cameras[i][1] << " " << cameras[i][2] << " " << cameras[i][3] << " 255 0 0\n";
   }
-  ofstream outputFile3("matches.ply");
+  ofstream outputFile3("./out/matches.ply");
   outputFile3 << "ply\nformat ascii 1.0\nelement vertex ";
   outputFile3 << matchesr3.size() << "\n";
   outputFile3 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
@@ -690,7 +690,7 @@ int main(int argc, char* argv[])
   else two_view_reproject_plane();
   save_ply();
 
-  if (verbose) cout << "done!\nresults saved to output.ply" << endl;
+  if (verbose) cout << "done!\nresults saved to ./out/output.ply" << endl;
   if (debug) cout << "max angle: " << max_angle << " | min angle: " << min_angle << endl;
 
   return 0;

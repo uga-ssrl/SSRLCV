@@ -97,19 +97,19 @@ __global__ void getNodeKeys(float3* points, float3* nodeCenters, int* nodeKeys, 
   }
 }
 
-__global__ void findAllNodes(int numNodes, int* nodeNumbers, int* nodeKeys){
+__global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, Node* uniqueNodes){
   int tx = threadIdx.x;
   int bx = blockIdx.x;
   int globalID = bx * blockDim.x + tx;
   int tempCurrentKey = 0;
   int tempPrevKey = 0;
-  if(globalID < numNodes){
+  if(globalID < numUniqueNodes){
     if(globalID == 0){
       nodeNumbers[globalID] = 0;
       return;
     }
-    tempCurrentKey = nodeKeys[globalID] >> 3;
-    tempPrevKey = nodeKeys[globalID - 1] >> 3;
+    tempCurrentKey = uniqueNodes[globalID].key >> 3;
+    tempPrevKey = uniqueNodes[globalID - 1].key >> 3;
     if(tempPrevKey == tempCurrentKey){
       nodeNumbers[globalID] = 0;
     }
@@ -118,6 +118,22 @@ __global__ void findAllNodes(int numNodes, int* nodeNumbers, int* nodeKeys){
     }
   }
 }
+
+__global__ void fill1NodeArray(Node* uniqueNodes, int* nodeAddresses, Node* finalNodeArray, int numUniqueNodes){
+  int tx = threadIdx.x;
+  int bx = blockIdx.x;
+  int globalID = bx * blockDim.x + tx;
+  Node currentNode;
+  int address = 0;
+  int currentDKey = 0;
+  if(globalID < numUniqueNodes){
+    currentNode = uniqueNodes[globalID];
+    currentDKey = currentNode.key&((1<<3)-1);
+    address = nodeAddresses[globalID] + currentDKey;//actually last three printBits
+    finalNodeArray[address] = currentNode;
+  }
+}
+
 
 Octree::Octree(){
 
@@ -195,6 +211,8 @@ void Octree::parsePLY(string pathToFile){
     this->nodeCenters = new float3[this->numPoints];
     this->nodePointIndexes = new int[this->numPoints];
     this->nodeKeys = new int[this->numPoints];
+    this->totalNodes = 0;
+    this->numUniqueNodes = 0;
 
     for(int i = 0; i < points.size(); ++i){
       this->points[i] = points[i];
@@ -221,48 +239,47 @@ Octree::Octree(string pathToFile, int depth){
   this->depth = depth;
 }
 
-void Octree::allocateDeviceVariablesNODES(bool afterNodeDetermination){
-  if(!afterNodeDetermination){
-    CudaSafeCall(cudaMalloc((void**)&this->nodeCentersDevice, this->numPoints * sizeof(float3)));
-    CudaSafeCall(cudaMalloc((void**)&this->nodeKeysDevice, this->numPoints * sizeof(int)));
-    CudaSafeCall(cudaMalloc((void**)&this->nodePointIndexesDevice, this->numPoints * sizeof(int)));
-  }
-  else{
-    CudaSafeCall(cudaMalloc((void**)&this->nodeNumbersDevice, this->numNodes * sizeof(int)));
-    CudaSafeCall(cudaMalloc((void**)&this->nodeAddressesDevice, this->numNodes * sizeof(int)));
-  }
+void Octree::copyPointsToDevice(){
+  CudaSafeCall(cudaMemcpy(this->pointsDevice, this->points, this->numPoints * sizeof(float3), cudaMemcpyHostToDevice));
 }
-
-void Octree::allocateDeviceVariablesGENERAL(){
-  CudaSafeCall(cudaMalloc((void**)&this->pointsDevice, this->numPoints * sizeof(float3)));
-  CudaSafeCall(cudaMalloc((void**)&this->normalsDevice, this->numPoints * sizeof(float3)));
-}
-
-void Octree::copyArraysHostToDeviceNODES(bool transferNodeCenters, bool transferNodeKeys, bool transferNodePointIndexes, bool transferNodeNumbers, bool transferNodeAddresses){
-  if(transferNodeCenters) CudaSafeCall(cudaMemcpy(this->nodeCentersDevice, this->nodeCenters, this->numPoints * sizeof(float3), cudaMemcpyHostToDevice));
-  if(transferNodeKeys) CudaSafeCall(cudaMemcpy(this->nodeKeysDevice, this->nodeKeys, this->numPoints * sizeof(int), cudaMemcpyHostToDevice));
-  if(transferNodePointIndexes) CudaSafeCall(cudaMemcpy(this->nodePointIndexesDevice, this->nodePointIndexes, this->numPoints * sizeof(int), cudaMemcpyHostToDevice));
-  if(transferNodeNumbers) CudaSafeCall(cudaMemcpy(this->nodeNumbersDevice, this->nodeNumbers, this->numNodes * sizeof(int), cudaMemcpyHostToDevice));
-  if(transferNodeAddresses) CudaSafeCall(cudaMemcpy(this->nodeAddressesDevice, this->nodeAddresses, this->numNodes * sizeof(int), cudaMemcpyHostToDevice));
-}
-
-void Octree::copyArraysHostToDeviceGENERAL(bool transferPoints, bool transferNormals){
-  if(points) CudaSafeCall(cudaMemcpy(this->pointsDevice, this->points, this->numPoints * sizeof(float3), cudaMemcpyHostToDevice));
-  if(normals) CudaSafeCall(cudaMemcpy(this->normalsDevice, this->normals, this->numPoints * sizeof(float3), cudaMemcpyHostToDevice));
-}
-
-void Octree::copyArraysDeviceToHostNODES(bool transferNodeCenters, bool transferNodeKeys, bool transferNodePointIndexes, bool transferNodeNumbers, bool transferNodeAddresses){
-  if(transferNodeCenters) CudaSafeCall(cudaMemcpy(this->nodeCenters, this->nodeCentersDevice, this->numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
-  if(transferNodeKeys) CudaSafeCall(cudaMemcpy(this->nodeKeys, this->nodeKeysDevice, this->numPoints * sizeof(int), cudaMemcpyDeviceToHost));
-  if(transferNodePointIndexes) CudaSafeCall(cudaMemcpy(this->nodePointIndexes, this->nodePointIndexesDevice, this->numPoints * sizeof(int), cudaMemcpyDeviceToHost));
-  if(transferNodeNumbers) CudaSafeCall(cudaMemcpy(this->nodeNumbers, this->nodeNumbersDevice, this->numNodes * sizeof(int), cudaMemcpyDeviceToHost));
-  if(transferNodeAddresses) CudaSafeCall(cudaMemcpy(this->nodeAddresses, this->nodeAddressesDevice, this->numNodes * sizeof(int), cudaMemcpyDeviceToHost));
+void Octree::copyPointsToHost(){
+  CudaSafeCall(cudaMemcpy(this->points, this->pointsDevice, this->numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
 
 }
+void Octree::copyNormalsToDevice(){
+  CudaSafeCall(cudaMemcpy(this->normalsDevice, this->normals, this->numPoints * sizeof(float3), cudaMemcpyHostToDevice));
+}
+void Octree::copyNormalsToHost(){
+  CudaSafeCall(cudaMemcpy(this->normals, this->normalsDevice, this->numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
 
-void Octree::copyArraysDeviceToHostGENERAL(bool transferPoints, bool transferNormals){
-  if(points) CudaSafeCall(cudaMemcpy(this->points, this->pointsDevice, this->numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
-  if(normals) CudaSafeCall(cudaMemcpy(this->normals, this->normalsDevice, this->numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
+}
+void Octree::copyNodeCentersToDevice(){
+  CudaSafeCall(cudaMemcpy(this->nodeCentersDevice, this->nodeCenters, this->numPoints * sizeof(float3), cudaMemcpyHostToDevice));
+}
+void Octree::copyNodeCentersToHost(){
+  CudaSafeCall(cudaMemcpy(this->nodeCenters, this->nodeCentersDevice, this->numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
+
+}
+void Octree::copyNodeKeysToDevice(){
+  CudaSafeCall(cudaMemcpy(this->nodeKeysDevice, this->nodeKeys, this->numPoints * sizeof(int), cudaMemcpyHostToDevice));
+}
+void Octree::copyNodeKeysToHost(){
+  CudaSafeCall(cudaMemcpy(this->nodeKeys, this->nodeKeysDevice, this->numPoints * sizeof(int), cudaMemcpyDeviceToHost));
+
+}
+void Octree::copyNodePointIndexesToDevice(){
+  CudaSafeCall(cudaMemcpy(this->nodePointIndexesDevice, this->nodePointIndexes, this->numPoints * sizeof(int), cudaMemcpyHostToDevice));
+}
+void Octree::copyNodePointIndexesToHost(){
+  CudaSafeCall(cudaMemcpy(this->nodePointIndexes, this->nodePointIndexesDevice, this->numPoints * sizeof(int), cudaMemcpyDeviceToHost));
+}
+void Octree::copyFinalNodeArrayToDevice(){
+  CudaSafeCall(cudaMemcpy(this->finalNodeArrayDevice, this->finalNodeArray, this->totalNodes * sizeof(Node), cudaMemcpyHostToDevice));
+
+}
+void Octree::copyFinalNodeArrayToHost(){
+  CudaSafeCall(cudaMemcpy(this->finalNodeArray, this->finalNodeArrayDevice, this->totalNodes * sizeof(Node), cudaMemcpyDeviceToHost));
+
 }
 
 void Octree::executeKeyRetrieval(dim3 grid, dim3 block){
@@ -274,25 +291,31 @@ void Octree::executeKeyRetrieval(dim3 grid, dim3 block){
 
 void Octree::sortByKey(){
   int* keyTemp = new int[this->numPoints];
-  for(int array = 0; array < 3; ++array){
+  int* keyTempDevice;
+  CudaSafeCall(cudaMalloc((void**)&keyTempDevice, this->numPoints*sizeof(int)));
+
+  for(int array = 0; array < 2; ++array){
     for(int i = 0; i < this->numPoints; ++i){
       keyTemp[i] = this->nodeKeys[i];
     }
+    thrust::device_ptr<float3> P(this->pointsDevice);
+    thrust::device_ptr<float3> C(this->nodeCentersDevice);
+    thrust::device_ptr<float3> N(this->normalsDevice);
+    thrust::device_ptr<int> K(this->nodeKeysDevice);
+
+    CudaSafeCall(cudaMemcpy(keyTempDevice, keyTemp, this->numPoints * sizeof(int), cudaMemcpyHostToDevice));
+    thrust::device_ptr<int> KT(keyTempDevice);
     if(array == 0){
-      thrust::sort_by_key(keyTemp, keyTemp + this->numPoints, this->points);
+      thrust::sort_by_key(KT, KT + this->numPoints, P);
     }
     else if(array == 1){
-      thrust::sort_by_key(keyTemp, keyTemp + this->numPoints, this->nodeCenters);
-    }
-    else if(array == 2){
-      thrust::sort_by_key(keyTemp, keyTemp + this->numPoints, this->normals);
-      thrust::sort_by_key(this->nodeKeys, this->nodeKeys + this->numPoints, this->normals);
-
+      thrust::sort_by_key(KT, KT + this->numPoints, C);
+      thrust::sort_by_key(K, K + this->numPoints, N);
     }
   }
 }
 
-//two new node arrays are instantiated here once numNodes is found out
+//three new node arrays are instantiated here once numUniqueNodes is found out
 void Octree::compactData(){
   thrust::pair<int*, float3*> nodeKeyCenters;//the last value of these node arrays
   thrust::pair<int*, int*> nodeKeyPointIndexes;//the last value of these node arrays
@@ -303,58 +326,32 @@ void Octree::compactData(){
   }
   nodeKeyCenters = thrust::unique_by_key(keyTemp, keyTemp + this->numPoints, this->nodeCenters);
   nodeKeyPointIndexes = thrust::unique_by_key(this->nodeKeys, this->nodeKeys + this->numPoints, this->nodePointIndexes);
-  int numNodes = 0;
+  int numUniqueNodes = 0;
   for(int i = 0; this->nodeKeys[i] != *nodeKeyPointIndexes.first; ++i){
-    ++numNodes;
+    ++numUniqueNodes;
   }
+  this->numUniqueNodes = numUniqueNodes;
 
-  /*
-  //just used to check accuracy of unique_by_key
-  printf("numNodes = %d (from keysTemp)\n", numNodes);
-  numNodes = 0;
-  for(int i = 0; this->nodeCenters[i].x != (*nodeKeyCenters.second).x ||
-  this->nodeCenters[i].y != (*nodeKeyCenters.second).y ||
-  this->nodeCenters[i].z != (*nodeKeyCenters.second).z; ++i){
-    ++numNodes;
-  }
-  printf("numNodes = %d (from centers)\n", numNodes);
-  numNodes = 0;
-  for(int i = 0; keyTemp[i] != *nodeKeyCenters.first; ++i){
-    ++numNodes;
-  }
-  printf("numNodes = %d (from keys)\n", numNodes);
-  numNodes = 0;
-  for(int i = 0; this->nodePointIndexes[i] != *nodeKeyPointIndexes.second; ++i){
-    ++numNodes;
-  }
-  printf("numNodes = %d (from pointIndexes)\n", numNodes);
-  */
-  this->numNodes = numNodes;
-  this->nodeNumbers = new int[this->numNodes];
-  this->nodeAddresses = new int[this->numNodes];
-  for(int i = 0; i < this->numNodes; ++i){
-    this->nodeNumbers[i] = 0;
-    this->nodeAddresses[i] = 0;
+}
+
+void Octree::fillInUniqueNodes(){
+  this->uniqueNodeArray = new Node[this->numUniqueNodes];
+  for(int i = 0; i < this->numUniqueNodes; ++i){
+    this->uniqueNodeArray[i].center = this->nodeCenters[i];
+    this->uniqueNodeArray[i].pointIndex = this->nodePointIndexes[i];
+    if(i + 1 == this->numUniqueNodes){
+      this->uniqueNodeArray[i].numPoints = this->nodePointIndexes[i + 1] - this->nodePointIndexes[i];
+    }
+    else{
+      this->uniqueNodeArray[i].numPoints = this->numPoints - this->nodePointIndexes[i];
+
+    }
+    this->uniqueNodeArray[i].key = this->nodeKeys[i];
   }
 }
 
-void Octree::inclusiveScanForNodeAddresses(){
-  thrust::inclusive_scan(this->nodeNumbers, this->nodeNumbers + this->numNodes, this->nodeAddresses);
-}
+void Octree::executeFindAllNodes(dim3 grid, dim3 block, int numUniqueNodes, int* nodeNumbers, Node* uniqueNodes){
 
-void Octree::executeFindAllNodes(dim3 grid, dim3 block){
-
-  findAllNodes<<<grid,block>>>(this->numNodes, this->nodeNumbersDevice, this->nodeKeysDevice);
+  findAllNodes<<<grid,block>>>(numUniqueNodes, nodeNumbers, uniqueNodes);
   CudaCheckError();
-}
-
-
-void Octree::cudaFreeMemory(){
-  CudaSafeCall(cudaFree(this->nodeKeysDevice));
-  CudaSafeCall(cudaFree(this->nodeCentersDevice));
-  CudaSafeCall(cudaFree(this->pointsDevice));
-  CudaSafeCall(cudaFree(this->normalsDevice));
-  CudaSafeCall(cudaFree(this->nodePointIndexesDevice));
-  CudaSafeCall(cudaFree(this->nodeNumbersDevice));
-  CudaSafeCall(cudaFree(this->nodeAddressesDevice ));
 }

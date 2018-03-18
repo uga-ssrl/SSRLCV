@@ -6,13 +6,25 @@
 #include <thrust/pair.h>
 #include <thrust/unique.h>
 #include <thrust/gather.h>
-#include <thrust/scan.h>
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 
 
 
-__global__ void getNodeKeys(float3* points, float3* nodeCenters,int* nodeKeys,
-  float3 c, float W, int N, int D);
-__global__ void findAllNodes(int numNodes, int* nodeNumbers, int* nodeKeys);
+
+struct Node{
+  int pointIndex;
+  float3 center;
+  int key;
+  int numPoints;
+
+};
+
+
+__global__ void getNodeKeys(float3* points, float3* nodeCenters,int* nodeKeys, float3 c, float W, int N, int D);
+__global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, Node* uniqueNodes);
+__global__ void fill1NodeArray(Node* uniqueNodes, int* nodeAddresses, Node* finalNodeArray, int numUniqueNodes);
+
 
 struct Octree{
 
@@ -20,13 +32,13 @@ struct Octree{
   float3* normals;
   float3 center;
 
-  //nodeArray
-  int numNodes;
+  int numUniqueNodes;
+  int totalNodes;
   float3* nodeCenters;
   int* nodePointIndexes;
   int* nodeKeys;
-  int* nodeNumbers;
-  int* nodeAddresses;
+  Node* uniqueNodeArray;
+  Node* finalNodeArray;
 
 
   int numPoints;
@@ -41,30 +53,32 @@ struct Octree{
   float3* nodeCentersDevice;
   int* nodePointIndexesDevice;
   int* nodeKeysDevice;
-  int* nodeNumbersDevice;
-  int* nodeAddressesDevice;
+  Node* finalNodeArrayDevice;
 
   Octree();
   ~Octree();
   //parsPLY parse a ply and initializes all variables of an octree
   void parsePLY(std::string pathToFile);
   Octree(std::string pathToFile, int depth);
-  void allocateDeviceVariablesNODES(bool afterNodeDetermination);
-  void allocateDeviceVariablesGENERAL();
-  void copyArraysHostToDeviceNODES(bool transferNodeCenters, bool transferNodeKeys, bool transferNodePointIndexes, bool transferNodeNumbers, bool transferNodeAddresses);
-  void copyArraysHostToDeviceGENERAL(bool transferPoints, bool transferNormals);
-  void copyArraysDeviceToHostNODES(bool transferNodeCenters, bool transferNodeKeys, bool transferNodePointIndexes, bool transferNodeNumbers, bool transferNodeAddresses);
-  void copyArraysDeviceToHostGENERAL(bool transferPoints, bool transferNormals);
 
-  //node array
+  void copyPointsToDevice();
+  void copyPointsToHost();
+  void copyNormalsToDevice();
+  void copyNormalsToHost();
+  void copyNodeCentersToDevice();
+  void copyNodeCentersToHost();
+  void copyNodeKeysToDevice();
+  void copyNodeKeysToHost();
+  void copyNodePointIndexesToDevice();
+  void copyNodePointIndexesToHost();
+  void copyFinalNodeArrayToDevice();
+  void copyFinalNodeArrayToHost();
+
   void executeKeyRetrieval(dim3 grid, dim3 block);
   void sortByKey();
   void compactData();//also instantiates nodeNumbers and nodeAddresses
-  void executeFindAllNodes(dim3 grid, dim3 block);
-  void inclusiveScanForNodeAddresses();
-
-
-  void cudaFreeMemory();
+  void fillInUniqueNodes();
+  void executeFindAllNodes(dim3 grid, dim3 block, int numUniqueNodes, int* nodeNumbers, Node* uniqueNodes);
 
 
 };

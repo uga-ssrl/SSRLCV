@@ -10,11 +10,11 @@ INCLUDES = -I. -I/usr/local/cuda/include
 # Common flags
 COMMONFLAGS += ${INCLUDES}
 NVCCFLAGS += ${COMMONFLAGS}
-NVCCFLAGS += -std=c++11 -gencode=arch=compute_62,code=sm_62 -Iinclude -lcublas -lthrust
+NVCCFLAGS += -std=c++11 -gencode=arch=compute_61,code=sm_61 -Iinclude -lcublas -lthrust
 CXXFLAGS += ${COMMONFLAGS}
 CXXFLAGS += -Wall -g -std=c++11 -Iinclude -lcublas
 
-LIB_CUDA := -gencode=arch=compute_60,code=sm_60 -L/usr/local/cuda-9.1/lib64 -lcudart -lcublas
+LIB_CUDA :=  -gencode=arch=compute_61,code=sm_61 -L/usr/local/cuda-9.1/lib64 -lcudart -lcublas
 
 SRCDIR = ./src
 OBJDIR = ./obj
@@ -51,7 +51,7 @@ ${BINDIR}/${TARGET2}: ${OBJS2} Makefile
 
 clean:
 	rm -f bin/*
-	rm -f *.ply
+	rm -f out/*
 	rm -f src/*~
 	rm -f util/*~
-	rm -f obj/*.o
+	rm -f obj/*
