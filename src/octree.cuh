@@ -8,22 +8,33 @@
 #include <thrust/gather.h>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
+#include <thrust/scan.h>
+#include <thrust/device_ptr.h>
 
-
-
+//current max depth is 10
 
 struct Node{
   int pointIndex;
   float3 center;
   int key;
   int numPoints;
-
+  int parent;
+  int children[8];
+  int neighbors[27];
+  int edges[12];
+  int vertices[8];
+  int faces[6];
 };
 
-
+/*
+HELPER METHODS AND CUDA KERNELS
+*/
 __global__ void getNodeKeys(float3* points, float3* nodeCenters,int* nodeKeys, float3 c, float W, int N, int D);
-__global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, Node* uniqueNodes);
-__global__ void fill1NodeArray(Node* uniqueNodes, int* nodeAddresses, Node* finalNodeArray, int numUniqueNodes);
+__global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, int* uniqueNodeKeys);
+int* calculateNodeAddresses(int numUniqueNodes, int* uniqueNodeKeys);
+__global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes);
+__global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes);
+Node* createParentNodeArray();//not implemented
 
 
 struct Octree{
@@ -32,14 +43,14 @@ struct Octree{
   float3* normals;
   float3 center;
 
-  int numUniqueNodes;
+  int numFinestUniqueNodes;
   int totalNodes;
-  float3* nodeCenters;
-  int* nodePointIndexes;
-  int* nodeKeys;
-  Node* uniqueNodeArray;
-  Node* finalNodeArray;
 
+  float3* finestNodeCenters;
+  int* finestNodePointIndexes;
+  int* finestNodeKeys;
+
+  Node* uniqueNodesAtFinestLevel;
 
   int numPoints;
   float3 min;
@@ -50,9 +61,11 @@ struct Octree{
   float3* pointsDevice;
   float3* normalsDevice;
 
-  float3* nodeCentersDevice;
-  int* nodePointIndexesDevice;
-  int* nodeKeysDevice;
+  float3* finestNodeCentersDevice;
+  int* finestNodePointIndexesDevice;
+  int* finestNodeKeysDevice;
+
+  Node* finalNodeArray;
   Node* finalNodeArrayDevice;
 
   Octree();
@@ -65,23 +78,22 @@ struct Octree{
   void copyPointsToHost();
   void copyNormalsToDevice();
   void copyNormalsToHost();
-  void copyNodeCentersToDevice();
-  void copyNodeCentersToHost();
-  void copyNodeKeysToDevice();
-  void copyNodeKeysToHost();
-  void copyNodePointIndexesToDevice();
-  void copyNodePointIndexesToHost();
-  void copyFinalNodeArrayToDevice();
-  void copyFinalNodeArrayToHost();
+
+  void copyFinestNodeCentersToDevice();
+  void copyFinestNodeCentersToHost();
+  void copyFinestNodeKeysToDevice();
+  void copyFinestNodeKeysToHost();
+  void copyFinestNodePointIndexesToDevice();
+  void copyFinestNodePointIndexesToHost();
 
   void executeKeyRetrieval(dim3 grid, dim3 block);
   void sortByKey();
   void compactData();//also instantiates nodeNumbers and nodeAddresses
-  void fillInUniqueNodes();
-  void executeFindAllNodes(dim3 grid, dim3 block, int numUniqueNodes, int* nodeNumbers, Node* uniqueNodes);
 
+  void fillUniqueNodesAtFinestLevel();
+  void createFinalNodeArray();
 
-};
+  };
 
 #endif /* OCTREE_H */
 
