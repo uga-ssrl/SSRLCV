@@ -45,8 +45,7 @@ Polar ** 		G;					// Gradient 				--		(x,y) ∈ Window		|-->	θ ∈[0,2π] , r
 void ComputeGradient()
 {
 	//TODO: Address boundary conditions here.  Out of range for x ∈{0,imgX} , same with y
-	for(x = 0, y = 0; x < imgX && y < imgY; x++, y++ )
-	{
+	for(x = 0; x < imgX; x++) { for(y = 0; y < imgY; y++) {
 
 		static float dx = I[x+1][y] - I[x-1][y];
 		static float dy = I[x][y+1] - I[x][y-1];
@@ -57,7 +56,7 @@ void ComputeGradient()
 		g->ang = fmod(atan2(dx,dy), PI) * TO_DEG; 
 		// MOCI GANG MOCI GANG MOCI GANG MOCI GANG MOCI GANG MOCI GANG MOCI GANG
 
-	}
+	} }
 }
 
 /** Compute the cell orientation histogram over a square window @(wx, wy) with size HIST_WINDOW_SIZE.
@@ -71,8 +70,7 @@ void ComputeCellOrientationHistogram(double * result, double wx, double wy)
 {
 	static const float width = 180 / HIST_BINS; // "w"
 
-	for(x = wx, y = wy; x < wx + HIST_WINDOW_SIZE && y < wy + HIST_WINDOW_SIZE; x++, y++)
-	{
+	for(x = wx; x < wx + HIST_WINDOW_SIZE; x++) { for(y = wy; y < wy + HIST_WINDOW_SIZE; y++ ) {
 
 		Polar * g = &(G[x][y]);
 		int bin = fmod(floor((g->ang / width) - 0.5 ),  HIST_BINS);			// "j"
@@ -81,7 +79,7 @@ void ComputeCellOrientationHistogram(double * result, double wx, double wy)
 
 		hist[bin] = vote; 
 
-	}
+	} }
 }
 
 
