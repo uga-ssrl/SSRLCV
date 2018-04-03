@@ -45,7 +45,7 @@ Polar ** 		G;					// Gradient 				--		(x,y) ∈ Window		|-->	θ ∈[0,2π] , r
 void ComputeGradient()
 {
 	//TODO: Address boundary conditions here.  Out of range for x ∈{0,imgX} , same with y
-	for(x = 0; x < imgX; x++) { for(y = 0; y < imgY; y++) {
+	for(int x = 0; x < imgX; x++) { for(int y = 0; y < imgY; y++) {
 
 		static float dx = I[x+1][y] - I[x-1][y];
 		static float dy = I[x][y+1] - I[x][y-1];
@@ -70,14 +70,20 @@ void ComputeCellOrientationHistogram(double * result, double wx, double wy)
 {
 	static const float width = 180 / HIST_BINS; // "w"
 
-	for(x = wx; x < wx + HIST_WINDOW_SIZE; x++) { for(y = wy; y < wy + HIST_WINDOW_SIZE; y++ ) {
+	for(int x = wx; x < wx + HIST_WINDOW_SIZE; x++) { for(int y = wy; y < wy + HIST_WINDOW_SIZE; y++ ) {
 
 		Polar * g = &(G[x][y]);
-		int bin = fmod(floor((g->ang / width) - 0.5 ),  HIST_BINS);			// "j"
-		double center = width * (bin + 0.5);								// "c_i"
-		double vote = g.mag * (( center -> g.ang ) / width);				// "v"
 
-		hist[bin] = vote; 
+		int bin1 		= fmod(floor((g->ang / width) - 0.5 ),  HIST_BINS);			// "j"			-- Bin index
+		double ctr1 	= width * (bin1 + 1 + 0.5);									// "c_(j+1)"	-- Center, of bin j+1
+		double vot1 	= g->mag * (( ctr1 - g->ang ) / width);						// "v"			-- Bin vote
+
+		int bin2		= fmod(bin1 + 1,  HIST_BINS);								// "j+1"		-- Bin index
+		double ctr2 	= width * (bin1 + 0.5);										// "c_j"		-- Center, of bin j
+		int vot2		 = g->mag * (( g->ang - ctr2 ) / width);					// "v_(j+1)"	-- Bin vote
+
+		result[bin1] = vot1; 
+		result[bin2] = vot2;
 
 	} }
 }
@@ -95,7 +101,7 @@ int main(int argc, char ** argv)
 
 
 	ComputeGradient();	
-	for(int i = 0, i < numKeypoints; i++)  ComputeCellOrientationHistogram( Histograms[i],   KeypointsX[i], KeypointsY[i]   );
+	for(int i = 0; i < numKeypoints; i++)  ComputeCellOrientationHistogram( Histograms[i],   KeypointsX[i], KeypointsY[i]   );
 
 	//TODO: Output
 
