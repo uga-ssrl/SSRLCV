@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-all:
-	nvcc -std=c++11 src/reprojection.cu -o bin/reprojection.x -lcublas
-=======
 CUDA_INSTALL_PATH := /usr/local/cuda
 
 CXX := gcc
@@ -24,7 +20,7 @@ SRCDIR = ./src
 OBJDIR = ./util
 BINDIR = ./bin
 
-_OBJS = reprojection.cpp.o
+_OBJS = reprojection.cu.o
 
 OBJS = ${patsubst %, ${OBJDIR}/%, ${_OBJS}}
 
@@ -43,7 +39,6 @@ ${OBJDIR}/%.cpp.o: ${SRCDIR}/%.cpp
 ${BINDIR}/${TARGET}: ${OBJS} Makefile
 	${LINKLINE}
 
->>>>>>> cudaMake&Error
 clean:
 	rm -f bin/*
 	rm -f *.ply
