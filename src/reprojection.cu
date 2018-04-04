@@ -26,6 +26,7 @@
 // to remove eventually
 #include <time.h>
 
+
 // alsp remove eventually
 #define N 8192
 #define  BILLION  1000000000L;
@@ -173,6 +174,45 @@ vector< vector<float> >  points;
 vector< vector<float> >  matchesr3;
 vector< vector<int> >    colors;
 // ====================== //
+// Define this to turn on error checking
+#define CUDA_ERROR_CHECK
+
+#define CudaSafeCall( err ) __cudaSafeCall( err, __FILE__, __LINE__ )
+#define CudaCheckError()    __cudaCheckError( __FILE__, __LINE__ )
+
+
+inline void __cudaSafeCall(cudaError err, const char *file, const int line) {
+#ifdef CUDA_ERROR_CHECK
+    if (cudaSuccess != err) {
+        fprintf(stderr, "cudaSafeCall() failed at %s:%i : %s\n",
+                file, line, cudaGetErrorString(err));
+        exit(-1);
+    }
+#endif
+
+    return;
+}
+inline void __cudaCheckError(const char *file, const int line) {
+#ifdef CUDA_ERROR_CHECK
+    cudaError err = cudaGetLastError();
+    if (cudaSuccess != err) {
+        fprintf(stderr, "cudaCheckError() failed at %s:%i : %s\n",
+                file, line, cudaGetErrorString(err));
+        exit(-1);
+    }
+
+    // More careful checking. However, this will affect performance.
+    // Comment away if needed.
+    err = cudaDeviceSynchronize();
+    if (cudaSuccess != err) {
+        fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
+                file, line, cudaGetErrorString(err));
+        exit(-1);
+    }
+#endif
+
+    return;
+}
 
 //
 // parses comma delemeted string
@@ -311,23 +351,32 @@ int vector_scale(float *x, int xdimension, int ydimension, float scalevalue)
     //free host mallocd
 
     int n = xdimension;
-    cudaError_t cudaStat ; // cudaMalloc status
+    //not necessary anymore with CudaSafeCall
+    //cudaError_t cudaStat ; // cudaMalloc status
     cublasStatus_t stat ; // CUBLAS functions status
     cublasHandle_t handle ; // CUBLAS context
 
     // on the device
     float * d_x; // d_x - x on the device
-    cudaStat = cudaMalloc (( void **)& d_x ,n* sizeof (*x)); // device
+    CudaSafeCall(cudaMalloc (( void **)& d_x ,n* sizeof (*x))); // device
     // memory alloc for x
-    stat = cublasCreate (& handle ); // initialize CUBLAS context
-    stat = cublasSetVector (n, sizeof (*x) ,x ,1 ,d_x ,1); // cp x- >d_x
+    cublasCreate (& handle ); // initialize CUBLAS context
+    CudaCheckError();
+
+    cublasSetVector (n, sizeof (*x) ,x ,1 ,d_x ,1); // cp x- >d_x
+    CudaCheckError();
+
     float al =scalevalue; // al =2
     // scale the vector d_x by the scalar al: d_x = al*d_x
     stat=cublasSscal(handle,n,&al,d_x,1);
-    stat = cublasGetVector (n, sizeof ( float ) ,d_x ,1 ,x ,1); // cp d_x - >x
+    CudaCheckError();
 
-    cudaFree (d_x); // free device memory
+    stat = cublasGetVector (n, sizeof ( float ) ,d_x ,1 ,x ,1); // cp d_x - >x
+    CudaCheckError();
+
+    CudaSafeCall(cudaFree (d_x)); // free device memory
     cublasDestroy (handle); // destroy CUBLAS context
+    CudaCheckError();
     free (x); // free host memory
     return EXIT_SUCCESS ;
 }
@@ -337,8 +386,6 @@ int vector_scale(float *x, int xdimension, int ydimension, float scalevalue)
 // This uses CUDA with CUBLAS
 //
 int dot_product(float *x, float *y, int length, float &val){
-
-  cudaError_t    cudaStat; // cudaMalloc status
   cublasStatus_t stat; // CUBLAS functions status
   cublasHandle_t handle; // CUBLAS context
 
@@ -347,12 +394,17 @@ int dot_product(float *x, float *y, int length, float &val){
   float* d_x;  // d_x - x on the  device
   float* d_y;  // d_y - y on the device
 
-  cudaStat = cudaMalloc ((void **)&d_x ,length*sizeof (*x));     // device memory  alloc  for x
-  cudaStat = cudaMalloc ((void **)&d_y ,length*sizeof (*y));     // device memory  alloc  for y
+  CudaSafeCall(cudaMalloc ((void **)&d_x ,length*sizeof (*x)));     // device memory  alloc  for x
+  CudaSafeCall(cudaMalloc ((void **)&d_y ,length*sizeof (*y)));     // device memory  alloc  for y
 
   stat = cublasCreate (& handle );   //  initialize  CUBLAS  context
+  CudaCheckError();
+
   stat = cublasSetVector(length,sizeof (*x),x,1,d_x ,1);// cp x->d_x
+  CudaCheckError();
+
   stat = cublasSetVector(length,sizeof (*y),y,1,d_y ,1);// cp y->d_y
+  CudaCheckError();
 
   float  result;
 
@@ -360,14 +412,15 @@ int dot_product(float *x, float *y, int length, float &val){
   // d_x [0]* d_y [0]+...+ d_x[n-1]* d_y[n-1]
 
   stat = cublasSdot(handle,length,d_x,1,d_y,1,&result);
-
+  CudaCheckError();
   //cout << "dot result: " << result << endl;
 
   val = result;
 
-  cudaFree(d_x);                             // free  device  memory
-  cudaFree(d_y);                             // free  device  memory
+  CudaSafeCall(cudaFree(d_x));                             // free  device  memory
+  CudaSafeCall(cudaFree(d_y));                             // free  device  memory
   cublasDestroy(handle );               //  destroy  CUBLAS  context
+  CudaCheckError();
 
   return EXIT_SUCCESS;
 }
