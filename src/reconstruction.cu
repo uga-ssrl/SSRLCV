@@ -58,6 +58,7 @@ void printBits(size_t const size, void const * const ptr){
     puts("");
 }
 
+
 int main(int argc, char *argv[]){
   try{
     if(argc == 2){
@@ -146,10 +147,18 @@ int main(int argc, char *argv[]){
       printf("octree unique_by_key took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 
       octree.fillUniqueNodesAtFinestLevel();
-
-
       octree.createFinalNodeArray();
+      octree.fillLUTs();
+      octree.printLUTs();
 
+      printf("TOTAL NODES = %d",octree.totalNodes);
+
+      //this should be a parent table and child table
+      //octree.fillNeighborhoods();
+
+      //octree.computeVertexArray();
+      //octree.computeEdgeArray();
+      //octree.computeFaceArray();S
 
       CudaSafeCall(cudaFree(octree.finestNodeKeysDevice));
       CudaSafeCall(cudaFree(octree.finestNodeCentersDevice));

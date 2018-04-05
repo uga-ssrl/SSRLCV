@@ -99,7 +99,7 @@ __global__ void getNodeKeys(float3* points, float3* nodeCenters, int* nodeKeys, 
   }
 }
 
-__global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, int* uniqueNodeKeys){
+__global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, Node* uniqueNodes){
   int tx = threadIdx.x;
   int bx = blockIdx.x;
   int globalID = bx * blockDim.x + tx;
@@ -110,8 +110,8 @@ __global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, int* uniqueNo
       nodeNumbers[globalID] = 0;
       return;
     }
-    tempCurrentKey = uniqueNodeKeys[globalID] >> 3;
-    tempPrevKey = uniqueNodeKeys[globalID - 1] >> 3;
+    tempCurrentKey = uniqueNodes[globalID].key >> 3;
+    tempPrevKey = uniqueNodes[globalID - 1].key >> 3;
     if(tempPrevKey == tempCurrentKey){
       nodeNumbers[globalID] = 0;
     }
@@ -121,8 +121,7 @@ __global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, int* uniqueNo
   }
 }
 
-//cannot do this!!!!!!! no return of device pointer
-int* calculateNodeAddresses(int numUniqueNodes, int* uniqueNodeKeys){
+void calculateNodeAddresses(int numUniqueNodes, Node* uniqueNodesDevice, int* nodeAddressesDevice){
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   if(numUniqueNodes < 65535) grid.x = (unsigned int) numUniqueNodes;
@@ -136,34 +135,24 @@ int* calculateNodeAddresses(int numUniqueNodes, int* uniqueNodeKeys){
     }
   }
   int* nodeNumbers = new int[numUniqueNodes];
-  int* nodeAddresses = new int[numUniqueNodes];
   for(int i = 0; i < numUniqueNodes; ++i){
     nodeNumbers[i] = 0;
-    nodeAddresses[i] = 0;
   }
-  int* uniqueNodeKeysDevice;
   int* nodeNumbersDevice;
-  int* nodeAddressesDevice;
   CudaSafeCall(cudaMalloc((void**)&nodeNumbersDevice, numUniqueNodes * sizeof(int)));
-  CudaSafeCall(cudaMalloc((void**)&nodeAddressesDevice, numUniqueNodes * sizeof(int)));
-  CudaSafeCall(cudaMalloc((void**)&uniqueNodeKeysDevice, numUniqueNodes * sizeof(int)));
 
   CudaSafeCall(cudaMemcpy(nodeNumbersDevice, nodeNumbers, numUniqueNodes * sizeof(int), cudaMemcpyHostToDevice));
-  CudaSafeCall(cudaMemcpy(nodeAddressesDevice, nodeAddresses, numUniqueNodes * sizeof(int), cudaMemcpyHostToDevice));
-  CudaSafeCall(cudaMemcpy(uniqueNodeKeysDevice, uniqueNodeKeys, numUniqueNodes * sizeof(int), cudaMemcpyHostToDevice));
+  //this is just copying 0s not actually making nodeNumbers and nodeAddresses the same
+  CudaSafeCall(cudaMemcpy(nodeAddressesDevice, nodeNumbers, numUniqueNodes * sizeof(int), cudaMemcpyHostToDevice));
 
-  findAllNodes<<<grid,block>>>(numUniqueNodes, nodeNumbersDevice, uniqueNodeKeysDevice);
+  findAllNodes<<<grid,block>>>(numUniqueNodes, nodeNumbersDevice, uniqueNodesDevice);
   CudaCheckError();
   cudaDeviceSynchronize();
   thrust::device_ptr<int> nN(nodeNumbersDevice);
   thrust::device_ptr<int> nA(nodeAddressesDevice);
   thrust::inclusive_scan(nN, nN + numUniqueNodes, nA);
-  CudaSafeCall(cudaMemcpy(nodeAddresses, nodeAddressesDevice, numUniqueNodes * sizeof(int), cudaMemcpyDeviceToHost));
 
-  CudaSafeCall(cudaFree(nodeAddressesDevice));
   CudaSafeCall(cudaFree(nodeNumbersDevice));
-  CudaSafeCall(cudaFree(uniqueNodeKeysDevice));
-  return nodeAddresses;
 
 }
 
@@ -176,14 +165,35 @@ __global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeAddresses, Node* 
     for(int i = 0; i < 8; ++i){
       Node currentNode;
       currentNode.numPoints = 0;
-      currentNode.key = (uniqueNodes[globalID].key<<3) + i;
+      currentNode.key = ((uniqueNodes[globalID].key>>3)<<3) + i;//needs to be the parent of that nodes key + i
+      currentNode.parent = -1;
+      for(int c = 0; c < 8; ++c) currentNode.children[i] = -1;
       address = nodeAddresses[globalID] + i;
       outputNodeArray[address] = currentNode;
+      //will have centers
     }
   }
 }
 
-__global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes ){
+__global__ void fillFinestNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int* pointNodeIndex){
+  int tx = threadIdx.x;
+  int bx = blockIdx.x;
+  int globalID = bx * blockDim.x + tx;
+  Node currentNode;
+  int address = 0;
+  int currentDKey = 0;
+  if(globalID < numUniqueNodes){
+    currentNode = uniqueNodes[globalID];
+    currentDKey = currentNode.key&((1<<3)-1);
+    address = nodeAddresses[globalID] + currentDKey;//actually last three printBits
+    for(int i = currentNode.pointIndex; i < currentNode.numPoints + currentNode.pointIndex; ++i){
+      pointNodeIndex[i] = address;
+    }
+    outputNodeArray[address] = currentNode;
+  }
+}
+
+__global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes){
   int tx = threadIdx.x;
   int bx = blockIdx.x;
   int globalID = bx * blockDim.x + tx;
@@ -197,6 +207,45 @@ __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, 
     outputNodeArray[address] = currentNode;
   }
 }
+
+__global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD, int numNodesAtDepth){
+  int numUniqueNodesAtDepth = numNodesAtDepth / 8;
+  int tx = threadIdx.x;
+  int bx = blockIdx.x;
+  int globalID = bx * blockDim.x + tx;
+  globalID *= 8;//this is to make sure initiation strides are 8
+  Node parentNode;
+  int parentKey;
+  if(globalID < numUniqueNodesAtDepth){
+    parentKey = nodeArrayD[globalID].key>>3;
+    parentKey <<= 3;
+    parentNode.key = parentKey;
+    parentNode.pointIndex = nodeArrayD[globalID].pointIndex;
+    for(int i = 0; i < 8; ++i){
+      parentNode.numPoints += nodeArrayD[globalID + i].numPoints;
+      nodeArrayD[globalID + i].parent = globalID;
+      parentNode.children[i] = globalID + i;//index of NodeArry(d+1)
+      //center?
+      uniqueNodes[globalID] = parentNode;
+    }
+  }
+}
+
+__global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int* parentLUT, int* childLUT, int* depthIndex, int depth){
+  int tx = threadIdx.x;
+  int bx = blockIdx.x;
+  int globalID = bx * blockDim.x + tx;
+  int numNodesAtDepth;
+  for(int i = 0; i < depth; ++i){
+
+    if(globalID < numNodes){
+
+    }
+    __syncthreads();
+  }
+
+}
+
 
 
 /*
@@ -278,6 +327,7 @@ void Octree::parsePLY(string pathToFile){
     this->finestNodeCenters = new float3[this->numPoints];
     this->finestNodePointIndexes = new int[this->numPoints];
     this->finestNodeKeys = new int[this->numPoints];
+    this->pointNodeIndex = new int[this->numPoints];
     this->totalNodes = 0;
     this->numFinestUniqueNodes = 0;
 
@@ -286,6 +336,7 @@ void Octree::parsePLY(string pathToFile){
       this->normals[i] = normals[i];
       this->finestNodeCenters[i] = {0.0f,0.0f,0.0f};
       this->finestNodeKeys[i] = 0;
+      this->pointNodeIndex[i] = -1;
       //initializing here even though points are not sorted yet
       this->finestNodePointIndexes[i] = i;
     }
@@ -333,7 +384,6 @@ void Octree::copyFinestNodeKeysToDevice(){
 }
 void Octree::copyFinestNodeKeysToHost(){
   CudaSafeCall(cudaMemcpy(this->finestNodeKeys, this->finestNodeKeysDevice, this->numPoints * sizeof(int), cudaMemcpyDeviceToHost));
-
 }
 void Octree::copyFinestNodePointIndexesToDevice(){
   CudaSafeCall(cudaMemcpy(this->finestNodePointIndexesDevice, this->finestNodePointIndexes, this->numPoints * sizeof(int), cudaMemcpyHostToDevice));
@@ -408,9 +458,6 @@ void Octree::fillUniqueNodesAtFinestLevel(){
       currentNode.numPoints = this->numPoints - this->finestNodePointIndexes[i] - 1;
     }
 
-
-
-
     this->uniqueNodesAtFinestLevel[i] = currentNode;
   }
 }
@@ -426,14 +473,10 @@ void Octree::createFinalNodeArray(){
   Node** nodeArray2D = new Node*[this->depth + 1];
   CudaSafeCall(cudaMemcpy(nodeArray2D, nodeArray2DDevice, (this->depth + 1)*sizeof(Node*), cudaMemcpyDeviceToHost));
 
-  Node* currentNodeDevice;//not being used????
-
   int* currentNodeAddressDevice;
 
-  int* depthIndices = new int[this->depth + 1];
+  this->depthIndex = new int[this->depth + 1];
   int numUniqueNodes = this->numFinestUniqueNodes;
-  int* currentKeys = new int[numUniqueNodes];
-  //loop through depths
 
   for(int d = this->depth; d >= 0; --d){
     dim3 grid = {1,1,1};
@@ -446,72 +489,197 @@ void Octree::createFinalNodeArray(){
       }
       while(grid.x*block.x > numUniqueNodes){
         --grid.x;
+        if(grid.x*block.x < numUniqueNodes){
+          ++grid.x;//to ensure that numThreads > numUniqueNodes
+          break;
+        }
       }
     }
-    int* currentNodeAddress = new int[numUniqueNodes];
-    for(int i = 0; i < numUniqueNodes; ++i) currentNodeAddress = 0;
-    CudaSafeCall(cudaMalloc((void**)&currentNodeAddressDevice, numUniqueNodes*sizeof(int)));
-    if(d == this->depth){
-      currentNodeAddress = calculateNodeAddresses(numUniqueNodes, this->finestNodeKeys);
-    }
-    else{
-      currentNodeAddress = calculateNodeAddresses(numUniqueNodes, currentKeys);
-    }
 
-    //broken here
-    CudaSafeCall(cudaMemcpy(currentNodeAddressDevice, currentNodeAddress, numUniqueNodes*sizeof(int), cudaMemcpyHostToDevice));
-    int numNodesAtDepth = d > 0 ? currentNodeAddress[numUniqueNodes - 1] + 8 : 1;
+    CudaSafeCall(cudaMalloc((void**)&currentNodeAddressDevice, numUniqueNodes*sizeof(int)));
+    calculateNodeAddresses(numUniqueNodes, uniqueNodesDevice, currentNodeAddressDevice);
+
+    int* nodeAddressesHost = new int[numUniqueNodes];
+    CudaSafeCall(cudaMemcpy(nodeAddressesHost, currentNodeAddressDevice, numUniqueNodes* sizeof(int), cudaMemcpyDeviceToHost));
+
+    int numNodesAtDepth = d > 0 ? nodeAddressesHost[numUniqueNodes - 1] + 8 : 1;
+    delete[] nodeAddressesHost;
 
     CudaSafeCall(cudaMalloc((void**)&nodeArray2D[this->depth - d], numNodesAtDepth* sizeof(Node)));
-    //populate node array from base nodeAddress >>>
-    //params = uniqueNodesDevice, nodeArray2D[this->depth - d], currentNodeAddressDevice,
-    //          numUniqueNodes, numNodesAtDepth, ???currentNodeDepth???
-    //to populate node array you look at the nodeAddresses
-    //if the address of i != i - 1 then that is a parent and you need to add 8 nodes with the starting address being the parents
 
     fillBlankNodeArray<<<grid,block>>>(uniqueNodesDevice, currentNodeAddressDevice, nodeArray2D[this->depth - d], numUniqueNodes);
     CudaCheckError();
     cudaDeviceSynchronize();
-    fillNodeArrayWithUniques<<<grid,block>>>(uniqueNodesDevice, currentNodeAddressDevice, nodeArray2D[this->depth - d], numUniqueNodes);
-
-    //DOUBLE FREE OR CORRUPTION ERROR AFTER THIS
-    /*
-    CudaSafeCall(cudaFree(uniqueNodesDevice));
-    CudaSafeCall(cudaFree(currentNodeAddressDevice));
-    delete[] currentNodeAddress;
-    delete[] currentKeys;
-    numUniqueNodes = numNodesAtDepth / 8;
-
-    int* currentKeys = new int[numUniqueNodes];
-
-    if(d > 0){
-      CudaSafeCall(cudaMalloc((void**)&uniqueNodesDevice, numUniqueNodes*sizeof(Node)));
-      //get keys for that depth!!!!!!
-      //params  = nodeArray2D[D-d], currentKeys(my addition), numNodesAtDepth
-
-
-
-
+    if(this->depth == d){
+      int* pointNodeIndexDevice;
+      CudaSafeCall(cudaMalloc((void**)&pointNodeIndexDevice, this->numPoints*sizeof(int)));
+      CudaSafeCall(cudaMemcpy(pointNodeIndexDevice, this->pointNodeIndex, numUniqueNodes* sizeof(int), cudaMemcpyHostToDevice));
+      fillFinestNodeArrayWithUniques<<<grid,block>>>(uniqueNodesDevice, currentNodeAddressDevice, nodeArray2D[this->depth - d], numUniqueNodes, pointNodeIndexDevice);
+      CudaCheckError();
+      CudaSafeCall(cudaMemcpy(this->pointNodeIndex, pointNodeIndexDevice, this->numPoints*sizeof(int), cudaMemcpyDeviceToHost));
+      CudaSafeCall(cudaFree(pointNodeIndexDevice));
+    }
+    else{
+      fillNodeArrayWithUniques<<<grid,block>>>(uniqueNodesDevice, currentNodeAddressDevice, nodeArray2D[this->depth - d], numUniqueNodes);
+      CudaCheckError();
+      cudaDeviceSynchronize();
     }
 
-    depthIndices[this->depth - d] = this->totalNodes;
+    //need to find centers????????? is that necessary
+    //missing parameters when comparing to hoppes algorithm on: numNodesD and currentNodeDepth
+    //https://devtalk.nvidia.com/default/topic/609551/teaching-and-curriculum-support/
+    //my-cuda-programming-lecture-and-teaching-of-poisson-parallel-surface-reconstruction-in-a-summer-scho/
+
+    CudaSafeCall(cudaFree(uniqueNodesDevice));
+    CudaSafeCall(cudaFree(currentNodeAddressDevice));
+    numUniqueNodes = numNodesAtDepth / 8;
+
+    //get unique nodes at next depth
+    if(d > 0){
+      CudaSafeCall(cudaMalloc((void**)&uniqueNodesDevice, numUniqueNodes*sizeof(Node)));
+      if(numUniqueNodes < 65535) grid.x = (unsigned int) numUniqueNodes;
+      else{
+        grid.x = 65535;
+        while(grid.x*block.x < numUniqueNodes){
+          ++block.x;
+        }
+        while(grid.x*block.x > numUniqueNodes){
+          --grid.x;
+          if(grid.x*block.x < numUniqueNodes){
+            ++grid.x;//to ensure that numThreads > numUniqueNodes
+            break;
+          }
+        }
+      }
+      generateParentalUniqueNodes<<<grid,block>>>(uniqueNodesDevice, nodeArray2D[this->depth - d], numNodesAtDepth);
+      cudaDeviceSynchronize();
+    }
+    //now we have unique nodes at next depth
+
+    this->depthIndex[this->depth - d] = this->totalNodes;
     this->totalNodes += numNodesAtDepth;
+    cout<<this->totalNodes<<" "<<this->depthIndex[this->depth -d]<<" "<<numNodesAtDepth
+
+
+
+    <<endl;
+    //necessary????
     //???currentNodeDepth*=2.0 //this is most likely distance from the center of the octree
-    */
   }
-  /*
+  cout<<"2D NODE ARRAY COMPLETED"<<endl;
   this->finalNodeArray = new Node[this->totalNodes];
   CudaSafeCall(cudaMalloc((void**)&this->finalNodeArrayDevice, this->totalNodes*sizeof(Node)));
   for(int i = 0; i <= this->depth; ++i){
     if(i < this->depth){
-      CudaSafeCall(cudaMemcpy(this->finalNodeArrayDevice + depthIndices[i], nodeArray2D[i], (depthIndices[i+1]-depthIndices[i])*sizeof(Node), cudaMemcpyDeviceToDevice));
+      CudaSafeCall(cudaMemcpy(this->finalNodeArrayDevice + this->depthIndex[i], nodeArray2D[i], (this->depthIndex[i+1]-this->depthIndex[i])*sizeof(Node), cudaMemcpyDeviceToDevice));
     }
     else{
-      CudaSafeCall(cudaMemcpy(this->finalNodeArrayDevice + depthIndices[i], nodeArray2D[i], sizeof(Node), cudaMemcpyDeviceToDevice));
+      CudaSafeCall(cudaMemcpy(this->finalNodeArrayDevice + this->depthIndex[i], nodeArray2D[i], sizeof(Node), cudaMemcpyDeviceToDevice));
     }
     CudaSafeCall(cudaFree(nodeArray2D[i]));
   }
-  CudaSafeCall(cudaFree(nodeArray2DDevice));
+  CudaSafeCall(cudaMemcpy(this->finalNodeArray, this->finalNodeArrayDevice, this->totalNodes*sizeof(Node), cudaMemcpyDeviceToHost));
+  CudaSafeCall(cudaMemcpy(this->depthIndexDevice, this->depthIndex, (this->depth + 1)*sizeof(Node), cudaMemcpyHostToDevice));
+
   delete[] nodeArray2D;
-  */
+  cout<<"NODE ARRAY FLATTENED AND COMPLETED"<<endl;
+}
+
+void Octree::fillLUTs(){
+  int c[6][6][6];
+  int p[6][6][6];
+
+  int numbParent = 0;
+  for (int k = 5; k >= 0; k -= 2){
+    for (int i = 0; i < 6; i += 2){
+    	for (int j = 5; j >= 0; j -= 2){
+    		int numb = 0;
+    		for (int l = 0; l < 2; l++){
+    		  for (int m = 0; m < 2; m++){
+    				for (int n = 0; n < 2; n++){
+    					c[i+m][j-n][k-l] = numb++;
+    					p[i+m][j-n][k-l] = numbParent;
+    				}
+    			}
+        }
+        numbParent++;
+      }
+    }
+  }
+
+  int numbLUT = 0;
+  for (int k = 3; k > 1; k--){
+    for (int i = 2; i < 4; i++){
+    	for (int j = 3; j > 1; j--){
+    		int numb = 0;
+    		for (int n = 1; n >= -1; n--){
+    			for (int l = -1; l <= 1; l++){
+    				for (int m = 1; m >= -1; m--){
+    					this->parentLUT[numbLUT][numb] = p[i+l][j+m][k+n];
+    					this->childLUT[numbLUT][numb++] = c[i+l][j+m][k+n];
+    				}
+    			}
+        }
+        numbLUT++;
+      }
+    }
+  }
+
+  CudaSafeCall(cudaMalloc((void**)&this->parentLUTDevice, 8*27*sizeof(int)));
+  CudaSafeCall(cudaMalloc((void**)&this->childLUTDevice, 8*27*sizeof(int)));
+  CudaSafeCall(cudaMemcpy(this->parentLUTDevice, this->parentLUT, 8*27*sizeof(int), cudaMemcpyHostToDevice));
+  CudaSafeCall(cudaMemcpy(this->childLUTDevice, this->childLUT, 8*27*sizeof(int), cudaMemcpyHostToDevice));
+
+}
+
+void Octree::printLUTs(){
+  cout<<"\nPARENT LUT"<<endl;
+  for(int row = 0; row <  8; ++row){
+    for(int col = 0; col < 27; ++col){
+      cout<<this->parentLUT[row][col]<<" ";
+    }
+    cout<<endl;
+  }
+  cout<<"\nCHILD LUT"<<endl;
+  for(int row = 0; row <  8; ++row){
+    for(int col = 0; col < 27; ++col){
+      cout<<this->childLUT[row][col]<<" ";
+    }
+    cout<<endl;
+  }
+
+}
+
+void Octree::fillNeighborhoods(){
+
+  //need to use highest number of nodes in a depth instead of totalNodes
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  if(this->totalNodes < 65535) grid.x = (unsigned int) this->totalNodes;
+  else{
+    grid.x = 65535;
+    while(grid.x*block.x < this->totalNodes){
+      ++block.x;
+    }
+    while(grid.x*block.x > this->totalNodes){
+      --grid.x;
+      if(grid.x*block.x < this->totalNodes){
+        ++grid.x;//to ensure that numThreads > totalNodes
+        break;
+      }
+    }
+  }
+  computeNeighboringNodes<<<grid, block>>>(this->finalNodeArrayDevice, this->totalNodes, this->parentLUTDevice, this->childLUTDevice, this->depthIndexDevice, this->depth);
+  CudaCheckError();
+  CudaSafeCall(cudaMemcpy(this->finalNodeArray, this->finalNodeArrayDevice, this->totalNodes * sizeof(Node), cudaMemcpyDeviceToHost));
+
+}
+void Octree::computeVertexArray(){
+
+}
+void Octree::computeEdgeArray(){
+
+}
+void Octree::computeFaceArray(){
+
 }
