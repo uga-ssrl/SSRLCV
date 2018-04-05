@@ -149,20 +149,6 @@ float          fov  = 0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45
 float          PI   = 3.1415926535;
 float          dpix = (foc*tan(fov/2))/(res/2); //float          dpix = 0.00002831538; //(foc*tan(fov/2))/(res/2)
 
-// Test 2 with slightly higher res
-//unsigned int   res  = 2000;
-//float          dpix = 0.00002831538; //(foc*tan(fov/2))/(res/2)
-//float          foc  = 0.035;
-//float          fov  = 0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
-//float          PI   = 3.1415926535;
-
-// this is for the blender sim of mnt everest
-//unsigned int   res  = 4208;
-//float          foc  = 0.18288;
-//float          fov  = 0.174533; // 10 degrees
-//float          PI   = 3.1415926535;
-//float          dpix = (foc*tan(fov/2))/(res/2);
-
 // for debugging
 float          max_angle = -1000.0;
 float          min_angle =  1000.0;

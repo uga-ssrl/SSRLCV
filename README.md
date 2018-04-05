@@ -11,11 +11,9 @@ lines in the Makefile to specify the location of the library.
 
 ## Running
 
-The executables for `.cpp` programs are placed in the `bin` folder with the extension `.x`
+The executables for `.cpp` and `.cu` programs are placed in the `bin` folder with the extension `.x`
 
-To run the reprojection from the root folder of this repo: `./bin/reprojection.x path/to/cameras.txt path/to/matches.txt 0/1`
-
-where '0' represents a reprojection constrained to a plane and '1' represents a projection constrained to a line.
+To run the reprojection from the root folder of this repo: `./bin/reprojection.x path/to/cameras.txt path/to/matches.txt`
 
 ## Source
 
