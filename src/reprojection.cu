@@ -467,110 +467,7 @@ float get_angle(float cam[6], int flag){
 // this is currently a 2-view system
 //
 void two_view_reproject_pan(){
-  // get the data that we want to compute
-  cout << "2-view triangulating... " << endl;
-  int length = matches.size();
-  if (simple) length = 5000; // limit the number of points to 5k
-  for(int i = 0; i < length; i++){
-    int   image1     = stoi(matches[i][0].substr(0,4));
-    int   image2     = stoi(matches[i][1].substr(0,4));
-    float camera1[6] = {stof(cameras[image1-1][1]),stof(cameras[image1-1][2]),stof(cameras[image1-1][3]),stof(cameras[image1-1][4]),stof(cameras[image1-1][5]),stof(cameras[image1-1][6])};
-    float camera2[6] = {stof(cameras[image2-1][1]),stof(cameras[image2-1][2]),stof(cameras[image2-1][3]),stof(cameras[image2-1][4]),stof(cameras[image2-1][5]),stof(cameras[image2-1][6])};
-
-    // scale the projection's coordinates
-    float x1 = dpix * (stof(matches[i][2]) - res/2.0);
-    float y1 = dpix * (stof(matches[i][3]) - res/2.0);
-    float x2 = dpix * (stof(matches[i][4]) - res/2.0);
-    float y2 = dpix * (stof(matches[i][5]) - res/2.0);
-
-    // NOTE FROM HERE ON THERE ARE THINGS for the rotation
-
-    // rotate the coords to be correct
-    if (debug && 0){ // just set to not do this for now
-      cout << "camera1 unit vector: " << camera1[3] << "," << camera1[4] << "," << camera1[5] << endl;
-      cout << "rotation1: " << get_angle(camera1, 0) << endl;
-      cout << "camera2 unit vector: " << camera2[3] << "," << camera2[4] << "," << camera2[5] << endl;
-      cout << "rotation2: " << get_angle(camera2, 0) << endl;
-    }
-
-    // get the needed rotation
-    float r1 = get_angle(camera1, 0);
-    float r2 = get_angle(camera2, 0);
-
-    float angle = 0.0;
-
-    // for some reason it was not in the right plane?
-    vector<float> k1 = rotate_projection_x(x1,y1,0.0,angle);
-    vector<float> k2 = rotate_projection_x(x2,y2,0.0,angle);
-
-    vector<float> kp1 = rotate_projection_z(k1[0],k1[1],k1[2],r1 + angle);
-    vector<float> kp2 = rotate_projection_z(k2[0],k2[1],k2[2],r2 + angle);
-
-    // adjust the kp's location
-    kp1[0] = camera1[0] - (kp1[0] + (camera1[3] * foc));
-    kp1[1] = camera1[1] - (kp1[1] + (camera1[4] * foc));
-
-    kp2[0] = camera2[0] - (kp2[0] + (camera2[3] * foc));
-    kp2[1] = camera2[1] - (kp2[1] + (camera2[4] * foc));
-
-    // NOTE This is the pan-view way to do this
-
-    float points1[6] = {camera1[0],camera1[1],camera1[2],x1 + camera1[0],y1 + camera1[1],foc + camera1[2]};
-    float points2[6] = {camera2[0],camera2[1],camera2[2],x2 + camera2[0],y2 + camera2[1],foc + camera2[2]};
-    int   rgb[3]     = {stoi(matches[i][6]),stoi(matches[i][7]),stoi(matches[i][8])};
-
-    // END NOTE
-
-    // this is just for storing the projections for a ply file later
-    vector<float> r32;
-    r32.push_back(points2[3]);
-    r32.push_back(points2[4]);
-    r32.push_back(points2[5]);
-    matchesr3.push_back(r32);
-    vector<float> r31;
-    r31.push_back(points1[3]);
-    r31.push_back(points1[4]);
-    r31.push_back(points1[5]);
-    matchesr3.push_back(r31);
-    // find the vectors
-    float v1[3]      = {points1[3] - points1[0],points1[4] - points1[1],points1[5] - points1[2]};
-    float v2[3]      = {points2[3] - points2[0],points2[4] - points2[1],points2[5] - points2[2]};
-    // prepare for the linear approximation
-    float smallest = numeric_limits<float>::max();
-    float p1[3] = {0.0,0.0,0.0};
-    float p2[3] = {0.0,0.0,0.0};
-    //for (float i = 0.0; i < 800.0; i += 0.0001){
-    for (float i = 0.0; i < 1000.0; i += 0.0000001){ // for testing more quickly
-      // get the points on the lines
-      p1[0]  = points1[0] + v1[0]*i;
-      p1[1]  = points1[1] + v1[1]*i;
-      p1[2]  = points1[2] + v1[2]*i;
-      p2[0]  = points2[0] + v2[0]*i;
-      p2[1]  = points2[1] + v2[1]*i;
-      p2[2]  = points2[2] + v2[2]*i;
-      float dist = euclid_dist(p1,p2);
-      if (dist < smallest) smallest = dist;
-      else break;
-    }
-    cout << endl;
-    // store the result if it sasifies the boundary conditions
-    // TODO uncomment this after you test to see how far those points go
-    //if (p1[2] > 1.0 && p1[2] < 3.0){
-    vector<float> v;
-    vector<int>   c;
-    v.push_back(p1[0]);
-    v.push_back(p1[1]);
-    v.push_back(p1[2]);
-    c.push_back(rgb[0]);
-    c.push_back(rgb[1]);
-    c.push_back(rgb[2]);
-    if (debug) cout << p1[0] << "," << p1[1] << "," << p1[2] << endl;
-    points.push_back(v);
-    colors.push_back(c);
-    //}
-    if (verbose) cout << (((((float)i))/((float)length)) * 100.0) << " \%" << endl;
-  }
-  cout << "Generated: " << points.size() << " valid points" << endl;
+  cout << "depricated, do not use" << endl;
 }
 
 //
@@ -761,11 +658,10 @@ void save_ply()
 int main(int argc, char* argv[])
 {
   cout << "*===================* REPROJECTION *===================*" << endl;
-  if (argc < 4){
+  if (argc < 3){
     cout << "not enough arguments ... " << endl;
     cout << "USAGE: " << endl;
-    cout << "./reprojection.x path/to/cameras.txt path/to/matches.txt 1/0" << endl;
-    cout << "the last arg is a 1 if panning and a 0 if plane constrained" << endl;
+    cout << "./reprojection.x path/to/cameras.txt path/to/matches.txt" << endl;
     cout << "*======================================================*" << endl;
     return 0; // end it all. it will be so serene.
   }
@@ -781,18 +677,15 @@ int main(int argc, char* argv[])
 
   cameras_path = argv[1];
   matches_path = argv[2];
-  to_pan       = atoi(argv[3]);
-
 
   load_matches();
   load_cameras();
-  if (to_pan) two_view_reproject_pan();
-  else two_view_reproject_plane();
+  two_view_reproject_plane();
   save_ply();
 
   if (verbose) cout << "done!\nresults saved to output.ply" << endl;
   if (debug) cout << "max angle: " << max_angle << " | min angle: " << min_angle << endl;
-  printDeviceProperties();
+  if (debug) printDeviceProperties();
 
   return 0;
 }
