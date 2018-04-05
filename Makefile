@@ -20,11 +20,11 @@ SRCDIR = ./src
 OBJDIR = ./util
 BINDIR = ./bin
 
-_OBJS = reprojection.cu.o
+_OBJS = 2viewreprojection.cu.o
 
 OBJS = ${patsubst %, ${OBJDIR}/%, ${_OBJS}}
 
-TARGET = reprojection.x
+TARGET = 2viewreprojection.x
 LINKLINE = ${LINK} -o ${BINDIR}/${TARGET} ${OBJS} ${LIB_CUDA}
 
 
