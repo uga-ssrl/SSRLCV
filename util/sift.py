@@ -111,17 +111,6 @@ for n in range(0, len(files)):
                     #for w in matches:
                     #    print str(w[0])+','+str(w[1])+','+str(w[2][0])+','+str(w[2][1])+','+str(w[2][2])+','+str(w[2][3])+','+str(w[3][0])+','+str(w[3][1])+','+str(w[3][2])+'\n'
 
-                #pix_x = int(match[0][0][0])
-                #pix_y = int(match[0][0][1])
-                #matches.append([files[n][0],files[m][0], match, pix[pix_x,pix_y]])
-
-                # for x in range(0,match.shape[0]):
-                #     if (match[x][0][0] != prev_x and match[x][0][1] != prev_y):
-                #         pix_x = int(match[x][0][0])
-                #         pix_y = int(match[x][0][1])
-                #         matches.append([files[n][0],files[m][0], match, pix[pix_x,pix_y]])
-                #     prev_x = match[x][0][0]
-                #     prev_y = match[x][0][1]
 if verbose:
     print '100.0%'
 print 'Total Matches: ' + str(total_matches)
@@ -132,16 +121,3 @@ f = open('matches.txt', 'w')
 f.write(str(total_matches) + '\n')
 for m in matches:
     f.write(str(m[0])+','+str(m[1])+','+str(m[2][0])+','+str(m[2][1])+','+str(m[2][2])+','+str(m[2][3])+','+str(m[3][0])+','+str(m[3][1])+','+str(m[3][2])+'\n')
-
-    #f.write(str(m[0])+','+str(m[1])+','+str(m[2][0][0][0])+','+str(m[2][0][0][1])+','+str(m[2][0][1][0])+','+str(m[2][0][1][1])+','+str(m[3][0])+','+str(m[3][1])+','+str(m[3][2])+'\n')
-    
-
-    # print m[0]       # image 1
-    # print m[1]       # image 2
-    # print m[2][0][0][0] # image 1 points
-    # print m[2][0][0][1] # image 2 points
-    # print m[2][0][1][0] # image 1 points
-    # print m[2][0][1][1] # image 2 points
-    # print m[3][0]    # image rgb
-    # print m[3][1]
-    # print m[3][2]
