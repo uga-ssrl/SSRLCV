@@ -18,12 +18,16 @@ struct Node{
   float3 center;//may not be necessary
   int key;
   int numPoints;
-  int parent;
-  int children[8];//currently for depth + 1 nodeArray
+
+  int parent;//index
+  int children[8];
   int neighbors[27];
+
   int edges[12];
   int vertices[8];
   int faces[6];
+
+  __device__ __host__ Node();
 };
 
 /*
@@ -31,14 +35,15 @@ HELPER METHODS AND CUDA KERNELS
 that do not have return types, they
 alter parameters
 */
+__device__ __host__ void printBits(size_t const size, void const * const ptr);
 __global__ void getNodeKeys(float3* points, float3* nodeCenters,int* nodeKeys, float3 c, float W, int N, int D);
 __global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, Node* uniqueNodes);
-void calculateNodeAddresses(int numUniqueNodes, Node* uniqueNodes, int* nodeAddressesDevice);
-__global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes);
+void calculateNodeAddresses(int numUniqueNodes, Node* uniqueNodes, int* nodeAddressesDevice, int* nodeNumbersDevice);
+__global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeNumbers, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes);
 __global__ void fillFinestNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int* pointNodeIndex);
 __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes);
 __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD, int numNodesAtDepth);
-__global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int* parentLUT, int* childLUT, int* depthIndex, int depth);
+__global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depthIndex, int childDepthIndex, int depthDistance, int* parentLUT, int* childLUT, int* numNeighbors);
 
 struct Octree{
 

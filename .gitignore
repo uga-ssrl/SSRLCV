@@ -2,3 +2,5 @@
 *.exe
 src/*.txt
 out/*.ply
+
+*.ply

@@ -42,21 +42,7 @@ inline void __cudaCheckError(const char *file, const int line) {
   return;
 }
 
-void printBits(size_t const size, void const * const ptr){
-    unsigned char *b = (unsigned char*) ptr;
-    unsigned char byte;
-    int i, j;
 
-    for (i=size-1;i>=0;i--)
-    {
-        for (j=7;j>=0;j--)
-        {
-            byte = (b[i] >> j) & 1;
-            printf("%u", byte);
-        }
-    }
-    puts("");
-}
 
 
 int main(int argc, char *argv[]){
@@ -71,9 +57,9 @@ int main(int argc, char *argv[]){
 
       //this will be temporary due to the normals needing to be facing inward
       for(int i = 0; i < octree.numPoints; ++i){
-        octree.normals[i].x = octree.normals[i].x * -1;
-        octree.normals[i].y = octree.normals[i].y * -1;
-        octree.normals[i].z = octree.normals[i].z * -1;
+        octree.normals[i].x *= -1;
+        octree.normals[i].y *= -1;
+        octree.normals[i].z *= -1;
       }
 
       dim3 grid = {1,1,1};
@@ -92,6 +78,9 @@ int main(int argc, char *argv[]){
       }
 
       clock_t cudatimer;
+    //missing parameters when comparing to hoppes algorithm on: numNodesD and currentNodeDepth
+    //https://devtalk.nvidia.com/default/topic/609551/teaching-and-curriculum-support/
+    //my-cuda-programming-lecture-and-teaching-of-poisson-parallel-surface-reconstruction-in-a-summer-scho/
 
       cudatimer = clock();
       CudaSafeCall(cudaMalloc((void**)&octree.pointsDevice, octree.numPoints * sizeof(float3)));
@@ -117,7 +106,10 @@ int main(int argc, char *argv[]){
       printf("\ngetNodeKeys KERNEL: grid = {%d,%d,%d} - block = {%d,%d,%d}\n",grid.x, grid.y, grid.z, block.x, block.y, block.z);
       cudatimer = clock();
       octree.executeKeyRetrieval(grid, block);//get keys at lowest depth
-      cudatimer = clock() - cudatimer;
+      //missing parameters when comparing to hoppes algorithm on: numNodesD and currentNodeDepth
+    //https://devtalk.nvidia.com/default/topic/609551/teaching-and-curriculum-support/
+    //my-cuda-programming-lecture-and-teaching-of-poisson-parallel-surface-reconstruction-in-a-summer-scho/
+    cudatimer = clock() - cudatimer;
       printf("getnodeKeys kernel took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 
       /*
@@ -151,20 +143,14 @@ int main(int argc, char *argv[]){
       octree.fillLUTs();
       octree.printLUTs();
 
-      printf("TOTAL NODES = %d",octree.totalNodes);
+      printf("TOTAL NODES = %d\n\n",octree.totalNodes);
 
-      //this should be a parent table and child table
-      //octree.fillNeighborhoods();
+      octree.fillNeighborhoods();
 
       //octree.computeVertexArray();
       //octree.computeEdgeArray();
-      //octree.computeFaceArray();S
+      //octree.computeFaceArray();
 
-      CudaSafeCall(cudaFree(octree.finestNodeKeysDevice));
-      CudaSafeCall(cudaFree(octree.finestNodeCentersDevice));
-      CudaSafeCall(cudaFree(octree.pointsDevice));
-      CudaSafeCall(cudaFree(octree.normalsDevice));
-      CudaSafeCall(cudaFree(octree.finestNodePointIndexesDevice));
       totalTimer = clock() - totalTimer;
       printf("\nRECONSTRUCTION TOOK %f seconds.\n\n",((float) totalTimer)/CLOCKS_PER_SEC);
 
