@@ -140,11 +140,10 @@ int main(int argc, char *argv[]){
 
       octree.fillUniqueNodesAtFinestLevel();
       octree.createFinalNodeArray();
-      octree.fillLUTs();
-      octree.printLUTs();
+
 
       printf("TOTAL NODES = %d\n\n",octree.totalNodes);
-
+      octree.fillLUTs();
       octree.fillNeighborhoods();
 
       //octree.computeVertexArray();
