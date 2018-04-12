@@ -271,7 +271,7 @@ __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depth
     if(childDepthIndex != -1 && threadIdx.x < 8){
       nodeArray[blockID].children[threadIdx.x] += childDepthIndex;
     }
-    __syncthreads();
+    __syncthreads();//threads wait until all other threads have finished above operations
     if(nodeArray[blockID].parent != -1){
       nodeArray[blockID].parent += (depthIndex + numNodes);
       int parentIndex = nodeArray[blockID].parent;
