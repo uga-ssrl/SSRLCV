@@ -144,9 +144,9 @@ int main(int argc, char *argv[]){
 
       printf("TOTAL NODES = %d\n\n",octree.totalNodes);
       octree.fillLUTs();
-      octree.fillNeighborhoods();
+      octree.fillNeighborhoods();//this is partially nondeterministic
 
-      //octree.computeVertexArray();
+      octree.computeVertexArray();
       //octree.computeEdgeArray();
       //octree.computeFaceArray();
 

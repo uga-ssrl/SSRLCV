@@ -13,6 +13,15 @@
 
 //current max depth is 10
 
+struct Vertex{
+  float3 coord;
+  int nodes[8];
+  int depth;//might not be necessary
+
+  __device__ __host__ Vertex();
+
+};
+
 struct Node{
   int pointIndex;
   float3 center;//may not be necessary
@@ -43,8 +52,10 @@ void calculateNodeAddresses(int numUniqueNodes, Node* uniqueNodes, int* nodeAddr
 __global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeNumbers, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int currentDepth);
 __global__ void fillFinestNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int* pointNodeIndex);
 __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, Node* childNodeArray ,int numUniqueNodes);
-__global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD, int numNodesAtDepth);
+__global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD, int numNodesAtDepth, float totalWidth);
 __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depthIndex, int* parentLUT, int* childLUT, int* numNeighbors, int childDepthIndex);
+__global__ void findVertexOwners(Node* nodeArray, int numNodes, int depthIndex, int* vertexLUT, int* numVertices, int* ownerInidices, int* vertexPlacement);
+__global__ void fillUniqueVertexArray(Node* nodeArray, Vertex* vertexArray, int numVertices, int depthIndex, int depth, float width, int* vertexLUT, int* ownerInidices, int* vertexPlacement);
 
 struct Octree{
 
@@ -72,6 +83,9 @@ struct Octree{
   int totalNodes;
   Node* finalNodeArray;
   Node* finalNodeArrayDevice;
+  int totalVertices;
+  Vertex* vertexArray;
+  Vertex* vertexArrayDevice;
 
   int* depthIndex;
   int* depthIndexDevice;
@@ -79,6 +93,8 @@ struct Octree{
   int* parentLUTDevice;//only need to be copied 1 time (read only)
   int childLUT[8][27];//indirect pointers
   int* childLUTDevice;//only need to be copied 1 time (read only)
+  int vertexLUT[8][8];//indirect pointers
+  int* vertexLUTDevice;//only need to be copied 1 time (read only)
 
   Octree();
   ~Octree();
