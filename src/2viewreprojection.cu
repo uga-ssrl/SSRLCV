@@ -26,15 +26,54 @@
 // to remove eventually
 #include <time.h>
 
-
 // alsp remove eventually
 #define N 8192
 #define  BILLION  1000000000L;
 
-//Just to print all properties on TX2 pertinent to cuda development
+// Define this to turn on error checking
+#define CUDA_ERROR_CHECK
+
+#define CudaSafeCall( err ) __cudaSafeCall( err, __FILE__, __LINE__ )
+#define CudaCheckError()    __cudaCheckError( __FILE__, __LINE__ )
+
+inline void __cudaSafeCall(cudaError err, const char *file, const int line) {
+#ifdef CUDA_ERROR_CHECK
+    if (cudaSuccess != err) {
+        fprintf(stderr, "cudaSafeCall() failed at %s:%i : %s\n",
+                file, line, cudaGetErrorString(err));
+        exit(-1);
+    }
+#endif
+
+    return;
+}
+inline void __cudaCheckError(const char *file, const int line) {
+#ifdef CUDA_ERROR_CHECK
+    cudaError err = cudaGetLastError();
+    if (cudaSuccess != err) {
+        fprintf(stderr, "cudaCheckError() failed at %s:%i : %s\n",
+                file, line, cudaGetErrorString(err));
+        exit(-1);
+    }
+
+    // More careful checking. However, this will affect performance.
+    // Comment away if needed.
+    err = cudaDeviceSynchronize();
+    if (cudaSuccess != err) {
+        fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
+                file, line, cudaGetErrorString(err));
+        exit(-1);
+    }
+#endif
+
+    return;
+}
+
+
 using namespace std;
 
-
+//Just to print all properties on TX2 pertinent to cuda development
+// TODO move this to a different file
 void printDeviceProperties() {
   cout<<"\n---------------START OF DEVICE PROPERTIES---------------\n"<<endl;
 
@@ -123,20 +162,16 @@ void printDeviceProperties() {
       }
     }
     cout<<"\n----------------END OF DEVICE PROPERTIES----------------\n"<<endl;
-
 }
 
 
 // == GLOBAL VARIABLES == //
-bool           verbose = 1;
-bool           debug   = 0;
-bool           simple  = 0;
-
+bool   verbose = 1;
+bool   debug   = 0;
+bool   simple  = 0;
 string cameras_path;
 string matches_path;
-
 int    to_pan;
-
 unsigned short match_count;
 unsigned short camera_count;
 
@@ -160,45 +195,6 @@ vector< vector<float> >  points;
 vector< vector<float> >  matchesr3;
 vector< vector<int> >    colors;
 // ====================== //
-// Define this to turn on error checking
-#define CUDA_ERROR_CHECK
-
-#define CudaSafeCall( err ) __cudaSafeCall( err, __FILE__, __LINE__ )
-#define CudaCheckError()    __cudaCheckError( __FILE__, __LINE__ )
-
-
-inline void __cudaSafeCall(cudaError err, const char *file, const int line) {
-#ifdef CUDA_ERROR_CHECK
-    if (cudaSuccess != err) {
-        fprintf(stderr, "cudaSafeCall() failed at %s:%i : %s\n",
-                file, line, cudaGetErrorString(err));
-        exit(-1);
-    }
-#endif
-
-    return;
-}
-inline void __cudaCheckError(const char *file, const int line) {
-#ifdef CUDA_ERROR_CHECK
-    cudaError err = cudaGetLastError();
-    if (cudaSuccess != err) {
-        fprintf(stderr, "cudaCheckError() failed at %s:%i : %s\n",
-                file, line, cudaGetErrorString(err));
-        exit(-1);
-    }
-
-    // More careful checking. However, this will affect performance.
-    // Comment away if needed.
-    err = cudaDeviceSynchronize();
-    if (cudaSuccess != err) {
-        fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
-                file, line, cudaGetErrorString(err));
-        exit(-1);
-    }
-#endif
-
-    return;
-}
 
 //
 // parses comma delemeted string
@@ -272,8 +268,7 @@ void load_cameras()
 // This is used for linear approximation
 // TODO develop a better way to do linear approximation
 //
-float euclid_dist(float p1[3], float p2[3])
-{
+float euclid_dist(float p1[3], float p2[3]){
   return sqrt(((p2[0] - p1[0])*(p2[0] - p1[0])) + ((p2[1] - p1[1])*(p2[1] - p1[1])) + ((p2[2] - p1[2])*(p2[2] - p1[2])));
 }
 
@@ -323,8 +318,7 @@ vector<float> rotate_projection_z(float x, float y, float z, float r){
   return v;
 }
 
-int vector_scale(float *x, int xdimension, int ydimension, float scalevalue)
-{
+int vector_scale(float *x, int xdimension, int ydimension, float scalevalue){
     //
     //CUBLAS - scale the projection's coordinates
     //
@@ -459,9 +453,8 @@ void two_view_reproject_pan(){
 //
 // loads cameras from a camera.txt file
 // this assumes that the camera is constrained to a plane
-// this is currently a 2-view system
 //
-void two_view_reproject_plane(){
+void two_view_reproject_cpu(){
   // get the data that we want to compute
   cout << "2-view trianulating... " << endl;
   int length = matches.size();
@@ -668,7 +661,7 @@ int main(int argc, char* argv[])
 
   load_matches();
   load_cameras();
-  two_view_reproject_plane();
+  two_view_reproject_cpu();
   save_ply();
 
   if (verbose) cout << "done!\nresults saved to output.ply" << endl;
