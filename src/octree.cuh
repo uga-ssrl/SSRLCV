@@ -10,6 +10,7 @@
 #include <thrust/host_vector.h>
 #include <thrust/scan.h>
 #include <thrust/device_ptr.h>
+#include <thrust/copy.h>
 
 //current max depth is 10
 
