@@ -240,7 +240,7 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
   float x1 = d_dpix * ((     r2points[i_m+2]) - d_res/2.0);
   float y1 = d_dpix * ((-1.0*r2points[i_m+3]) + d_res/2.0);
 
-  
+
 
 }
 
@@ -726,7 +726,7 @@ void two_view_reproject_gpu(){
   // calculate the block & thread count here
   int THREAD_COUNT = 1024;
   int BLOCK_COUNT  = POINT_CLOUD_SIZE/THREAD_COUNT;
-  two_view_reproject<<<BLOCK_COUNT,THREAD_COUNT>>>(match_points,camera_data,point_cloud);
+  two_view_reproject<<<BLOCK_COUNT,THREAD_COUNT>>>(d_in_m,d_in_c,d_out_p);
   CudaCheckError();
 
   cudaMemcpy(point_cloud, d_out_p, POINT_CLOUD_BYTES, cudaMemcpyDeviceToHost);
