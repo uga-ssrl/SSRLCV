@@ -170,7 +170,7 @@ void printDeviceProperties() {
 bool   verbose = 1;
 bool   debug   = 1;
 bool   simple  = 0;
-bool   gpu_acc = 1; // is GPU accellerated?
+int    gpu_acc = 1; // is GPU accellerated?
 string cameras_path;
 string matches_path;
 int    to_pan;
@@ -218,6 +218,54 @@ float         *point_cloud;
 // =========== All Device Functions =========== //
 // ============================================ //
 
+// dot product of 2 vectors!
+__device__ float dot_product(float *A, float *B, int size){
+  float product = 0;
+  for (int i = 0; i < size; i++){
+    product += A[i] * B[i];
+  }
+  return product;
+}
+
+// returns the angle between the input vector and the x unit vector
+__device__ float get_vector_x_angle(float cam[6]){
+  float w[3] = {1.0,0.0,0.0};
+  float v[3] = {cam[3],cam[4],cam[5]};
+  // find the dot product
+  float dot_v_w = dot_product(v,w,3);
+  // calculate magnitude for v
+  float v_mag = dot_product(v,v,3);
+  // make the fraction:
+  float fract = (dot_v_w)/(sqrt(v_mag));
+  // find the angle
+  float angle = acos(fract);
+  // check to see if outside of second quad
+  if (cam[4] < 0.0) angle = 2 * d_PI - angle;
+  return angle;
+}
+
+// rotates a 3x1 vector in the x plane
+__device__ float* rotate_projection_x(float *v, float angle){
+  float x_n = v[0];
+  float y_n = cos(angle)*v[1] + -1*sin(angle)*v[2];
+  float z_n = sin(angle)*v[1] + cos(angle)*v[2];
+  float w[3] = {x_n,y_n,z_n};
+  return w;
+}
+
+// rotates a 3x1 vector in the z plane
+__device__ float* rotate_projection_z(float *v, float angle){
+  float x_n = cos(angle)*v[0] + -1*sin(angle)*v[1];
+  float y_n = sin(angle)*v[0] + cos(angle)*v[1];
+  float z_n = v[2];
+  float w[3] = {x_n,y_n,z_n};
+  return w;
+}
+
+__device__ float euclid(float p1[3], float p2[3]){
+  return sqrt(((p2[0] - p1[0])*(p2[0] - p1[0])) + ((p2[1] - p1[1])*(p2[1] - p1[1])) + ((p2[2] - p1[2])*(p2[2] - p1[2])));
+}
+
 //
 // CUDA kernel for performing a two view reprojection
 //
@@ -226,7 +274,7 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
   // get index
   int i_m = threadIdx.x * blockIdx.x + threadIdx.x;
   // return so that we're only getting every fourth match thing
-  if (!(i_m%4)) return;
+  if (!(i_m%4) && i_m > 0) return;
   // get the index of the point in the point cloud
   int i_p = 3*(i_m/4);
 
@@ -240,7 +288,78 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
   float x1 = d_dpix * ((     r2points[i_m+2]) - d_res/2.0);
   float y1 = d_dpix * ((-1.0*r2points[i_m+3]) + d_res/2.0);
 
+  float scaled0[3] = {x0,y0,0.0};
+  float scaled1[3] = {x1,y1,0.0};
 
+  // get the camera angles
+  float r0 = get_vector_x_angle(camera0);
+  float r1 = get_vector_x_angle(camera1);
+
+  // rotate the dudes in the x plane
+  float *k0;
+  float *k1;
+  k0 = rotate_projection_x(scaled0,d_PI/2.0);
+  k1 = rotate_projection_x(scaled1,d_PI/2.0);
+
+  //rotate the dudes in the z plane
+  float *kp0;
+  float *kp1;
+  kp0 = rotate_projection_z(k0,r0 + d_PI/2.0); // + PI/2.0
+  kp1 = rotate_projection_z(k1,r1 + d_PI/2.0); // + PI/2.0
+
+  // adjust the kp's location in a plane
+  kp0[0] = camera0[0] - (kp0[0] + (camera0[3] * d_foc));
+  kp0[1] = camera0[1] - (kp0[1] + (camera0[4] * d_foc));
+
+  kp1[0] = camera1[0] - (kp1[0] + (camera1[3] * d_foc));
+  kp1[1] = camera1[1] - (kp1[1] + (camera1[4] * d_foc));
+
+  float points0[6] = {camera0[0],camera0[1],camera0[2],kp0[0],kp0[1],kp0[2]};
+  float points1[6] = {camera1[0],camera1[1],camera1[2],kp1[0],kp1[1],kp1[2]};
+
+  // TODO store the points calculated here, this would just be for debugging
+  // and this could help with debugging if needed
+
+  // calculate the vectors
+  float v0[3]    = {points0[3] - points0[0],points0[4] - points0[1],points0[5] - points0[2]};
+  float v1[3]    = {points1[3] - points1[0],points1[4] - points1[1],points1[5] - points1[2]};
+
+  // TODO here is where a better method could be used to find the closest
+  // point of intescetion between the two lines
+  float smallest = 800000000.0; // this needs to be really big
+  float p0[3]; //= {0.0,0.0,0.0};
+  float p1[3]; //= {0.0,0.0,0.0};
+  float point[4];
+  //=====================//
+  //=                   =//
+  //=    Here be a      =//
+  //=   brute force     =//
+  //=                   =//
+  //=====================//
+  // TODO don't brute force this, when u have time later pls fix this
+  for (float t = 1.0; t < 8000.0; t += 0.0001){
+    p0[0] = points0[3] + v0[0]*t;
+    p0[1] = points0[4] + v0[1]*t;
+    p0[2] = points0[5] + v0[2]*t;
+    p1[0] = points1[3] + v1[0]*t;
+    p1[1] = points1[4] + v1[1]*t;
+    p1[2] = points1[5] + v1[2]*t;
+    float dist = euclid(p0,p1);
+    if (dist <= smallest){
+      smallest = dist;
+      point[0] = (p0[0]+p1[0])/2.0;
+      point[1] = (p0[1]+p1[1])/2.0;
+      point[2] = (p0[2]+p1[2])/2.0;
+      point[3] = smallest;
+    } else break;
+  }
+  point_cloud[i_p]   = point[0];
+  point_cloud[i_p+1] = point[1];
+  point_cloud[i_p+2] = point[2];
+
+  // for debugging
+  point_cloud[i_p]   = (float) i_p;
+  point_cloud[i_p+1] = (float) i_m;
 
 }
 
@@ -347,12 +466,11 @@ void load_cameras(){
   // 6 (float) camera properties per camera
   CAMERA_DATA_SIZE = 2 * 6;
   camera_data      = new (nothrow) float[CAMERA_DATA_SIZE];
-  while (getline(infile, line))
-  {
+  while (getline(infile, line)){
       istringstream iss(line);
       if (debug) cout << line << endl;
       parse_comma_delem(line, 2, -1, -1, index);
-      index++;
+      index+=6;
       c++;
   }
   camera_count = c;
@@ -631,12 +749,12 @@ void two_view_reproject_cpu(){
       float dist = euclid_dist(p1,p2);
       //cout << dist << endl;
       if (dist <= smallest){
-	smallest = dist;
-	point[0] = (p1[0]+p2[0])/2.0;
-	point[1] = (p1[1]+p2[1])/2.0;
-	point[2] = (p1[2]+p2[2])/2.0;
-	point[3] = smallest;
-	j_holder = j;
+    	smallest = dist;
+    	point[0] = (p1[0]+p2[0])/2.0;
+    	point[1] = (p1[1]+p2[1])/2.0;
+    	point[2] = (p1[2]+p2[2])/2.0;
+    	point[3] = smallest;
+    	j_holder = j;
       } else break;
       if (debug && asdf_counter >= 30 && 0){ // don't do for now
 	asdf_counter = 0;
@@ -724,8 +842,13 @@ void two_view_reproject_gpu(){
   cudaMemcpy(d_in_c, camera_data, CAMERA_DATA_BYTES, cudaMemcpyHostToDevice);
 
   // calculate the block & thread count here
-  int THREAD_COUNT = 1024;
+  int THREAD_COUNT = 512;
   int BLOCK_COUNT  = POINT_CLOUD_SIZE/THREAD_COUNT;
+  if (!BLOCK_COUNT){ // a very small point cloud
+    BLOCK_COUNT = 1;
+    THREAD_COUNT = POINT_CLOUD_SIZE;
+  }
+  if (debug) cout << "THREAD COUNT: " << THREAD_COUNT << endl << "BLOCK COUNT: " << BLOCK_COUNT << endl << "Point Cloud Size: " << POINT_CLOUD_SIZE << endl;
   two_view_reproject<<<BLOCK_COUNT,THREAD_COUNT>>>(d_in_m,d_in_c,d_out_p);
   CudaCheckError();
 
@@ -738,36 +861,58 @@ void two_view_reproject_gpu(){
 }
 
 void save_ply(){
-  ofstream outputFile1("output.ply");
-  outputFile1 << "ply\nformat ascii 1.0\nelement vertex ";
-  outputFile1 << points.size() << "\n";
-  outputFile1 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
-  outputFile1 << "end_header\n";
-  for(int i = 0; i < points.size(); i++){
-    outputFile1 << points[i][0] << " " << points[i][1] << " " << points[i][2] << " " << colors[i][0] << " " << colors[i][1] << " " << colors[i][2] << "\n";
-  }
-  if (debug){
-    ofstream outputFile2("cameras.ply");
-    outputFile2 << "ply\nformat ascii 1.0\nelement vertex ";
-    outputFile2 << cameras.size() << "\n";
-    outputFile2 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
-    outputFile2 << "end_header\n";
-    for(int i = 0; i < cameras.size(); i++){
-      outputFile2 << cameras[i][1] << " " << cameras[i][2] << " " << cameras[i][3] << " 255 0 0\n";
+  if (gpu_acc){
+    int point_cloud_size = (MATCH_POINTS_SIZE/4);
+    ofstream outputFile1("output.ply");
+    outputFile1 << "ply\nformat ascii 1.0\nelement vertex ";
+    outputFile1 << point_cloud_size << "\n";
+    outputFile1 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
+    outputFile1 << "end_header\n";
+    for(int i = 0; i < point_cloud_size*3; i+=3){
+      outputFile1 << point_cloud[i] << " " << point_cloud[i+1] << " " << point_cloud[i+2] << " " << 0 << " " << 255 << " " << 0 << "\n";
     }
-    ofstream outputFile3("matches.ply");
-    outputFile3 << "ply\nformat ascii 1.0\nelement vertex ";
-    outputFile3 << matchesr3.size() << "\n";
-    outputFile3 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
-    outputFile3 << "end_header\n";
-    int counter = 0;
-    int b = 0;
-    for(int i = 0; i < matchesr3.size(); i++){
-      outputFile3 << matchesr3[i][0] << " " << matchesr3[i][1] << " " << matchesr3[i][2] << " 0 255 " << b << "\n";
-      if (counter%2) b += 25;
-      if (b > 255) b = 0;
-      counter++;
-      //cout << "";
+    if (debug){
+      ofstream outputFile2("cameras.ply");
+      outputFile2 << "ply\nformat ascii 1.0\nelement vertex ";
+      outputFile2 << 2 << "\n";
+      outputFile2 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
+      outputFile2 << "end_header\n";
+      for(int i = 0; i < 12; i+=6){
+        outputFile2 << camera_data[i] << " " << camera_data[i+1] << " " << camera_data[i+2] << " 255 0 0\n";
+      }
+    }
+  } else {
+    ofstream outputFile1("output.ply");
+    outputFile1 << "ply\nformat ascii 1.0\nelement vertex ";
+    outputFile1 << points.size() << "\n";
+    outputFile1 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
+    outputFile1 << "end_header\n";
+    for(int i = 0; i < points.size(); i++){
+      outputFile1 << points[i][0] << " " << points[i][1] << " " << points[i][2] << " " << colors[i][0] << " " << colors[i][1] << " " << colors[i][2] << "\n";
+    }
+    if (debug){
+      ofstream outputFile2("cameras.ply");
+      outputFile2 << "ply\nformat ascii 1.0\nelement vertex ";
+      outputFile2 << cameras.size() << "\n";
+      outputFile2 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
+      outputFile2 << "end_header\n";
+      for(int i = 0; i < cameras.size(); i++){
+        outputFile2 << cameras[i][1] << " " << cameras[i][2] << " " << cameras[i][3] << " 255 0 0\n";
+      }
+      ofstream outputFile3("matches.ply");
+      outputFile3 << "ply\nformat ascii 1.0\nelement vertex ";
+      outputFile3 << matchesr3.size() << "\n";
+      outputFile3 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
+      outputFile3 << "end_header\n";
+      int counter = 0;
+      int b = 0;
+      for(int i = 0; i < matchesr3.size(); i++){
+        outputFile3 << matchesr3[i][0] << " " << matchesr3[i][1] << " " << matchesr3[i][2] << " 0 255 " << b << "\n";
+        if (counter%2) b += 25;
+        if (b > 255) b = 0;
+        counter++;
+        //cout << "";
+      }
     }
   }
 }
@@ -797,6 +942,7 @@ int main(int argc, char* argv[]){
 
   cameras_path = argv[1];
   matches_path = argv[2];
+  gpu_acc = stoi(argv[3]);
 
   load_matches();
   load_cameras();
