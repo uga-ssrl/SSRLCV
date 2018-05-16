@@ -44,7 +44,6 @@ inline void __cudaCheckError(const char *file, const int line) {
 
 
 
-
 int main(int argc, char *argv[]){
   try{
     if(argc == 2){
@@ -78,9 +77,9 @@ int main(int argc, char *argv[]){
       }
 
       clock_t cudatimer;
-    //missing parameters when comparing to hoppes algorithm on: numNodesD and currentNodeDepth
-    //https://devtalk.nvidia.com/default/topic/609551/teaching-and-curriculum-support/
-    //my-cuda-programming-lecture-and-teaching-of-poisson-parallel-surface-reconstruction-in-a-summer-scho/
+      //missing parameters when comparing to hoppes algorithm on: numNodesD and currentNodeDepth
+      //https://devtalk.nvidia.com/default/topic/609551/teaching-and-curriculum-support/
+      //my-cuda-programming-lecture-and-teaching-of-poisson-parallel-surface-reconstruction-in-a-summer-scho/
 
       cudatimer = clock();
       CudaSafeCall(cudaMalloc((void**)&octree.pointsDevice, octree.numPoints * sizeof(float3)));
@@ -88,6 +87,7 @@ int main(int argc, char *argv[]){
       CudaSafeCall(cudaMalloc((void**)&octree.finestNodeCentersDevice, octree.numPoints * sizeof(float3)));
       CudaSafeCall(cudaMalloc((void**)&octree.finestNodeKeysDevice, octree.numPoints * sizeof(int)));
       CudaSafeCall(cudaMalloc((void**)&octree.finestNodePointIndexesDevice, octree.numPoints * sizeof(int)));
+
       cudatimer = clock() - cudatimer;
       printf("initial allocation took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 
@@ -106,6 +106,7 @@ int main(int argc, char *argv[]){
       printf("\ngetNodeKeys KERNEL: grid = {%d,%d,%d} - block = {%d,%d,%d}\n",grid.x, grid.y, grid.z, block.x, block.y, block.z);
       cudatimer = clock();
       octree.executeKeyRetrieval(grid, block);//get keys at lowest depth
+
       //missing parameters when comparing to hoppes algorithm on: numNodesD and currentNodeDepth
     //https://devtalk.nvidia.com/default/topic/609551/teaching-and-curriculum-support/
     //my-cuda-programming-lecture-and-teaching-of-poisson-parallel-surface-reconstruction-in-a-summer-scho/
@@ -117,6 +118,7 @@ int main(int argc, char *argv[]){
       */
       cudatimer = clock();
       octree.sortByKey();
+
       cudatimer = clock() - cudatimer;
       printf("octree sort_by_key took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 
@@ -126,6 +128,7 @@ int main(int argc, char *argv[]){
       octree.copyFinestNodeKeysToHost();
       octree.copyPointsToHost();
       octree.copyNormalsToHost();
+
       cudatimer = clock() - cudatimer;
       printf("cudaMemcpyDeviceToHost took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 
@@ -135,24 +138,26 @@ int main(int argc, char *argv[]){
       */
       cudatimer = clock();
       octree.compactData();
+
       cudatimer = clock() - cudatimer;
       printf("octree unique_by_key took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 
       octree.fillUniqueNodesAtFinestLevel();
       octree.createFinalNodeArray();
 
-
       printf("TOTAL NODES = %d\n\n",octree.totalNodes);
       octree.fillLUTs();
-      octree.fillNeighborhoods();//this is partially nondeterministic
+      octree.fillNeighborhoods();
 
-      octree.computeVertexArray();
+      //octree.computeVertexArray();
       //octree.computeEdgeArray();
       //octree.computeFaceArray();
 
       totalTimer = clock() - totalTimer;
       printf("\nRECONSTRUCTION TOOK %f seconds.\n\n",((float) totalTimer)/CLOCKS_PER_SEC);
-
+      //this will destroy all memory on the GPU
+      //should place more cudaFrees throughout the program
+      cudaDeviceReset();
 
       return 0;
     }
