@@ -393,12 +393,12 @@ __global__ void fillUniqueVertexArray(Node* nodeArray, Vertex* vertexArray, int 
 __global__ void findEdgeOwners(Node* nodeArray, int numNodes, int depthIndex, int* edgeLUT, int* numEdges, int* ownerInidices, int* edgePlacement){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
-    int edgeID = (blockID*12) + threadIdx.x;
+    int edgeID = (blockID*4) + threadIdx.x;
     blockID += depthIndex;
-    int sharesEdges = -1;
-    for(int i = 0; i < 4; ++i){//iterate through neighbors that share edge
-      sharesEdges = edgeLUT[(threadIdx.x*4) + i];
-      if(nodeArray[blockID].neighbors[sharesEdges] != -1 && sharesEdges < 13){//less than itself
+    int sharesEdge = -1;
+    for(int i = 0; i < 12; ++i){//iterate through neighbors that share edge
+      sharesEdge = edgeLUT[(threadIdx.x*4) + i];
+      if(nodeArray[blockID].neighbors[sharesEdge] != -1 && sharesEdge < 13){//less than itself
         return;
       }
     }
@@ -417,6 +417,20 @@ __global__ void fillUniqueEdgeArray(Node* nodeArray, Edge* edgeArray, int numEdg
 
     int ownerNodeIndex = ownerInidices[globalID];
     int ownedIndex = edgePlacement[globalID];
+    int2 vertexEdgeIdentity[12];
+    vertexEdgeIdentity[0] = {0,1};
+    vertexEdgeIdentity[1] = {0,2};
+    vertexEdgeIdentity[2] = {1,3};
+    vertexEdgeIdentity[3] = {2,3};
+    vertexEdgeIdentity[4] = {0,4};
+    vertexEdgeIdentity[5] = {1,5};
+    vertexEdgeIdentity[6] = {2,6};
+    vertexEdgeIdentity[7] = {3,7};
+    vertexEdgeIdentity[8] = {4,5};
+    vertexEdgeIdentity[9] = {4,6};
+    vertexEdgeIdentity[10] = {5,7};
+    vertexEdgeIdentity[11] = {6,7};
+
     int3 edgeCoordIdentity[8];
     edgeCoordIdentity[0] = {-1,-1,-1};
     edgeCoordIdentity[1] = {-1,1,-1};
@@ -429,17 +443,20 @@ __global__ void fillUniqueEdgeArray(Node* nodeArray, Edge* edgeArray, int numEdg
 
     float depthHalfWidth = width/powf(2, depth + 1);
     Edge edge = Edge();
-    /*
-    edge.coord.x = nodeArray[ownerNodeIndex].center.x + depthHalfWidth*edgeCoordIdentity[ownedIndex].x;
-    edge.coord.y = nodeArray[ownerNodeIndex].center.y + depthHalfWidth*edgeCoordIdentity[ownedIndex].y;
-    edge.coord.z = nodeArray[ownerNodeIndex].center.z + depthHalfWidth*edgeCoordIdentity[ownedIndex].z;
-    */
+
+    edge.p1.x = nodeArray[ownerNodeIndex].center.x + depthHalfWidth*edgeCoordIdentity[vertexEdgeIdentity[ownedIndex].x].x;
+    edge.p1.y = nodeArray[ownerNodeIndex].center.y + depthHalfWidth*edgeCoordIdentity[vertexEdgeIdentity[ownedIndex].x].y;
+    edge.p1.z = nodeArray[ownerNodeIndex].center.z + depthHalfWidth*edgeCoordIdentity[vertexEdgeIdentity[ownedIndex].x].z;
+    edge.p1.x = nodeArray[ownerNodeIndex].center.x + depthHalfWidth*edgeCoordIdentity[vertexEdgeIdentity[ownedIndex].y].x;
+    edge.p1.y = nodeArray[ownerNodeIndex].center.y + depthHalfWidth*edgeCoordIdentity[vertexEdgeIdentity[ownedIndex].y].y;
+    edge.p1.z = nodeArray[ownerNodeIndex].center.z + depthHalfWidth*edgeCoordIdentity[vertexEdgeIdentity[ownedIndex].y].z;
     edge.depth = depth;
     int neighborSharingEdge = -1;
-    for(int i = ownedIndex*8; i < (ownedIndex + 1)*8; ++i){
+    for(int i = ownedIndex*4; i < (ownedIndex + 1)*4; ++i){
       neighborSharingEdge = nodeArray[ownerNodeIndex].neighbors[edgeLUT[i]];
-      edge.nodes[i - (ownedIndex*8)] =  neighborSharingEdge;
-      if(neighborSharingEdge != -1) nodeArray[neighborSharingEdge].edges[7 - (i - (ownedIndex*8))] = globalID + edgeIndex;
+      edge.nodes[i - (ownedIndex*4)] =  neighborSharingEdge;
+      //this probably needs to be checked
+      if(neighborSharingEdge != -1) nodeArray[neighborSharingEdge].edges[11 - (i - (ownedIndex*4))] = globalID + edgeIndex;
     }
     edgeArray[globalID] = edge;
   }
@@ -1155,7 +1172,7 @@ void Octree::computeVertexArray(){
     }
     CudaSafeCall(cudaFree(vertexArray2D[i]));
   }
-  cout<<"VERTEX ARRAY COMPLETED"<<endl;
+  cout<<"VERTEX ARRAY COMPLETED"<<endl<<endl;
   CudaSafeCall(cudaMemcpy(this->vertexArray, this->vertexArrayDevice, this->totalVertices*sizeof(Vertex), cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaFree(this->vertexLUTDevice));
   CudaSafeCall(cudaFree(vertexArray2DDevice));
@@ -1219,7 +1236,7 @@ void Octree::computeEdgeArray(){
       this->depthIndex[i], this->edgeLUTDevice, atomicCounter, ownerInidicesDevice, edgePlacementDevice);
     CudaCheckError();
     CudaSafeCall(cudaMemcpy(&numEdges, atomicCounter, sizeof(int), cudaMemcpyDeviceToHost));
-    if(i == this->depth  && numEdges - prevCount != 8){
+    if(i == this->depth  && numEdges - prevCount != 12){
       cout<<"ERROR GENERATING EDGES, numNodesAtDepth 0 != 8 -> "<<numEdges - prevCount<<endl;
       exit(-1);
     }
@@ -1297,7 +1314,7 @@ void Octree::computeEdgeArray(){
     }
     CudaSafeCall(cudaFree(edgeArray2D[i]));
   }
-  cout<<"EDGE ARRAY COMPLETED"<<endl;
+  cout<<"EDGE ARRAY COMPLETED"<<endl<<endl;
   CudaSafeCall(cudaMemcpy(this->edgeArray, this->edgeArrayDevice, this->totalEdges*sizeof(Edge), cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaFree(this->edgeLUTDevice));
   CudaSafeCall(cudaFree(edgeArray2DDevice));

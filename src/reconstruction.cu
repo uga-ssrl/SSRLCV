@@ -150,11 +150,11 @@ int main(int argc, char *argv[]){
       octree.fillNeighborhoods();
 
       octree.computeVertexArray();
-      //octree.computeEdgeArray();
+      octree.computeEdgeArray();
       //octree.computeFaceArray();
 
       totalTimer = clock() - totalTimer;
-      printf("\nRECONSTRUCTION TOOK %f seconds.\n\n",((float) totalTimer)/CLOCKS_PER_SEC);
+      printf("\nOCTREE BUILD TOOK %f seconds.\n\n",((float) totalTimer)/CLOCKS_PER_SEC);
       //this will destroy all memory on the GPU
       //should place more cudaFrees throughout the program
       cudaDeviceReset();
