@@ -31,7 +31,7 @@ inline void __cudaCheckError(const char *file, const int line) {
 
     // More careful checking. However, this will affect performance.
     // Comment away if needed.
-    //err = cudaDeviceSynchronize();
+    err = cudaDeviceSynchronize();
   if (cudaSuccess != err) {
     fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
     file, line, cudaGetErrorString(err));
@@ -317,11 +317,11 @@ __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depth
 __global__ void findVertexOwners(Node* nodeArray, int numNodes, int depthIndex, int* vertexLUT, int* numVertices, int* ownerInidices, int* vertexPlacement){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
-    int vertexID = blockID*8 + threadIdx.x;
+    int vertexID = (blockID*8) + threadIdx.x;
     blockID += depthIndex;
     int sharesVertex = -1;
     for(int i = 0; i < 8; ++i){//iterate through neighbors that share vertex
-      sharesVertex = vertexLUT[threadIdx.x*8 + i];
+      sharesVertex = vertexLUT[(threadIdx.x*8) + i];
       if(nodeArray[blockID].neighbors[sharesVertex] != -1 && sharesVertex < 13){//less than itself
         return;
       }
@@ -354,7 +354,6 @@ __global__ void fillUniqueVertexArray(Node* nodeArray, Vertex* vertexArray, int 
 
     float depthHalfWidth = width/powf(2, depth + 1);
     Vertex vertex = Vertex();
-
     vertex.coord.x = nodeArray[ownerNodeIndex].center.x + depthHalfWidth*vertexCoordIdentity[ownedIndex].x;
     vertex.coord.y = nodeArray[ownerNodeIndex].center.y + depthHalfWidth*vertexCoordIdentity[ownedIndex].y;
     vertex.coord.z = nodeArray[ownerNodeIndex].center.z + depthHalfWidth*vertexCoordIdentity[ownedIndex].z;
@@ -366,7 +365,6 @@ __global__ void fillUniqueVertexArray(Node* nodeArray, Vertex* vertexArray, int 
       if(neighborSharingVertex != -1) nodeArray[neighborSharingVertex].vertices[7 - (i - (ownedIndex*8))] = globalID;
     }
     vertexArray[globalID] = vertex;
-
   }
 }
 
@@ -850,14 +848,11 @@ void Octree::fillNeighborhoods(){
         }
       }
     }
-    if(childDepthIndex != -1) cout<<"CHILD NODES START AT "<<childDepthIndex<<endl;
     CudaSafeCall(cudaMemcpy(atomicCounterDevice, &atomicCounter, sizeof(int), cudaMemcpyHostToDevice));
-    cout<<"COMPUTE NEIGHBORHOOD ON DEPTH "<<this->depth - i<<" HAS INITIATED AND INCLUDES "<<numNodesAtDepth<<" NODES STARTING AT "<<depthStartingIndex<<endl;
     computeNeighboringNodes<<<grid, block>>>(this->finalNodeArrayDevice, numNodesAtDepth, depthStartingIndex, this->parentLUTDevice, this->childLUTDevice, atomicCounterDevice, childDepthIndex);
     CudaCheckError();
     CudaSafeCall(cudaMemcpy(&atomicCounter, atomicCounterDevice, sizeof(int), cudaMemcpyDeviceToHost));
-    cout<<"NUM NEIGHBORS NOT INCLUDING SELF= "<<atomicCounter<<endl;//currently partially nondeterministic. need to find out why
-    cout<<endl;
+    cout<<"COMPUTED NEIGHBORHOOD ON DEPTH "<<this->depth - i<<" NUM NEIGHBORS = "<<atomicCounter<<endl;
     atomicCounter = 0;
   }
   CudaSafeCall(cudaMemcpy(this->finalNodeArray, this->finalNodeArrayDevice, this->totalNodes * sizeof(Node), cudaMemcpyDeviceToHost));
@@ -915,7 +910,7 @@ void Octree::fillNeighborhoods(){
 void Octree::computeVertexArray(){
   int numNodesAtDepth = 0;
   dim3 grid = {1,1,1};
-  dim3 block = {8,1,1};
+  dim3 block = {1,1,1};
   int* atomicCounter;
   int numVertices = 0;
   CudaSafeCall(cudaMalloc((void**)&atomicCounter, sizeof(int)));
@@ -969,6 +964,7 @@ void Octree::computeVertexArray(){
 
     prevCount = numVertices;
     vertexIndex[i] = numVertices;
+    block.x = 8;//reset previously allocated resources
     findVertexOwners<<<grid, block>>>(this->finalNodeArrayDevice, numNodesAtDepth,
       this->depthIndex[i], this->vertexLUTDevice, atomicCounter, ownerInidicesDevice, vertexPlacementDevice);
     CudaCheckError();
@@ -981,11 +977,9 @@ void Octree::computeVertexArray(){
     cout<<numVertices - prevCount<<" VERTICES AT DEPTH "<<this->depth - i<<" - ";
     cout<<"TOTAL VERTICES = "<<numVertices<<endl;
 
+
     CudaSafeCall(cudaMalloc((void**)&compactedOwnerArrayDevice,(numVertices - prevCount)*sizeof(int)));
     CudaSafeCall(cudaMalloc((void**)&compactedVertexPlacementDevice,(numVertices - prevCount)*sizeof(int)));
-    //may not be necessary
-    //CudaSafeCall(cudaMemcpy(compactedOwnerArrayDevice, ownerInidices + (numVertices - prevCount), + (numVertices - prevCount)*sizeof(int), cudaMemcpyHostToDevice));
-    //CudaSafeCall(cudaMemcpy(compactedVertexPlacementDevice, ownerInidices + (numVertices - prevCount), + (numVertices - prevCount)*sizeof(int), cudaMemcpyHostToDevice));
 
     thrust::device_ptr<int> arrayToCompact(ownerInidicesDevice);
     thrust::device_ptr<int> arrayOut(compactedOwnerArrayDevice);
@@ -1015,6 +1009,7 @@ void Octree::computeVertexArray(){
     delete[] compactedOwnerArray;
     //*/
 
+    grid.y = 1;//reset and allocated resources
     if(numVertices - prevCount < 65535) grid.x = (unsigned int) numVertices - prevCount;
     else{
       grid.x = 65535;
@@ -1029,6 +1024,7 @@ void Octree::computeVertexArray(){
         }
       }
     }
+
     fillUniqueVertexArray<<<grid, block>>>(this->finalNodeArrayDevice, vertexArray2D[i],
       numVertices - prevCount, this->depthIndex[i], this->depth - i,
       this->width, this->vertexLUTDevice, compactedOwnerArrayDevice, compactedVertexPlacementDevice);

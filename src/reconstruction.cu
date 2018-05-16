@@ -149,7 +149,7 @@ int main(int argc, char *argv[]){
       octree.fillLUTs();
       octree.fillNeighborhoods();
 
-      //octree.computeVertexArray();
+      octree.computeVertexArray();
       //octree.computeEdgeArray();
       //octree.computeFaceArray();
 
