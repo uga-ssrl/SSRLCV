@@ -14,23 +14,73 @@
 
 //current max depth is 10
 
+/*
+edge = [vertex1, vertex2]
+  0 = [0,1]
+  1 = [0,2]
+  2 = [1,3]
+  3 = [3,2]
+  //the following ordering was assumed, may need to be revised
+  4 = [0,4]
+  5 = [1,5]
+  6 = [2,6]
+  7 = [3,7]
+  8 = [4,5]
+  9 = [4,6]
+  10 = [5,7]
+  11 = [6,7]
+*/
+
+/*
+face = [edge1, edge2, edge3, edge4]
+  0 = [0,1,2,3]
+  //the following ordering was assumed, may need to be revised
+  1 = [0,4,5,8]
+  2 = [1,4,6,9]
+  3 = [2,5,7,10]
+  4 = [3,6,7,11]
+  5 = [8,9,10,11]
+*/
+
 struct Vertex{
   float3 coord;
   int nodes[8];
-  int depth;//might not be necessary
+  int depth;
 
   __device__ __host__ Vertex();
 
 };
 
+struct Edge{
+  float3 p1;
+  float3 p2;
+  int depth;
+  int nodes[4];
+
+  __device__ __host__ Edge();
+
+};
+
+struct Face{
+  float3 p1;
+  float3 p2;
+  float3 p3;
+  float3 p4;
+  int depth;
+  int nodes[2];
+
+  __device__ __host__ Face();
+
+};
+
 struct Node{
   int pointIndex;
-  float3 center;//may not be necessary
+  float3 center;
   int key;
   int numPoints;
   int depth;
 
-  int parent;//index
+  int parent;
   int children[8];
   int neighbors[27];
 
@@ -49,14 +99,23 @@ alter parameters
 __device__ __host__ void printBits(size_t const size, void const * const ptr);
 __global__ void getNodeKeys(float3* points, float3* nodeCenters,int* nodeKeys, float3 c, float W, int N, int D);
 __global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, Node* uniqueNodes);
+
 void calculateNodeAddresses(int numUniqueNodes, Node* uniqueNodes, int* nodeAddressesDevice, int* nodeNumbersDevice);
 __global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeNumbers, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int currentDepth);
 __global__ void fillFinestNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int* pointNodeIndex);
 __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, Node* childNodeArray ,int numUniqueNodes);
 __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD, int numNodesAtDepth, float totalWidth);
+
 __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depthIndex, int* parentLUT, int* childLUT, int* numNeighbors, int childDepthIndex);
+
 __global__ void findVertexOwners(Node* nodeArray, int numNodes, int depthIndex, int* vertexLUT, int* numVertices, int* ownerInidices, int* vertexPlacement);
-__global__ void fillUniqueVertexArray(Node* nodeArray, Vertex* vertexArray, int numVertices, int depthIndex, int depth, float width, int* vertexLUT, int* ownerInidices, int* vertexPlacement);
+__global__ void fillUniqueVertexArray(Node* nodeArray, Vertex* vertexArray, int numVertices, int vertexIndex,int depthIndex, int depth, float width, int* vertexLUT, int* ownerInidices, int* vertexPlacement);
+
+__global__ void findEdgeOwners(Node* nodeArray, int numNodes, int depthIndex, int* edgeLUT, int* numEdges, int* ownerInidices, int* edgePlacement);
+__global__ void fillUniqueEdgeArray(Node* nodeArray, Edge* edgeArray, int numEdges, int edgeIndex,int depthIndex, int depth, float width, int* edgeLUT, int* ownerInidices, int* edgePlacement);
+
+__global__ void findFaceOwners(Node* nodeArray, int numNodes, int depthIndex, int* faceLUT, int* numFaces, int* ownerInidices, int* facePlacement);
+__global__ void fillUniqueFaceArray(Node* nodeArray, Face* faceArray, int numFaces, int faceIndex,int depthIndex, int depth, float width, int* faceLUT, int* ownerInidices, int* facePlacement);
 
 struct Octree{
 
@@ -87,6 +146,12 @@ struct Octree{
   int totalVertices;
   Vertex* vertexArray;
   Vertex* vertexArrayDevice;
+  int totalEdges;
+  Edge* edgeArray;
+  Edge* edgeArrayDevice;
+  int totalFaces;
+  Face* faceArray;
+  Face* faceArrayDevice;
 
   int* depthIndex;
   int* depthIndexDevice;
@@ -96,6 +161,23 @@ struct Octree{
   int* childLUTDevice;//only need to be copied 1 time (read only)
   int vertexLUT[8][8];//indirect pointers
   int* vertexLUTDevice;//only need to be copied 1 time (read only)
+  int edgeLUT[12][4]{
+    {1,4,10,13},
+    {3,4,12,13},
+    {4,5,13,14},
+    {4,7,13,16},
+    {9,10,12,13},
+    {10,11,13,14},
+    {12,13,15,16},
+    {13,14,16,17},
+    {10,13,19,22},
+    {12,13,21,22},
+    {13,14,22,23},
+    {13,16,22,25}
+  };//indirect pointers calculated by hand
+  int* edgeLUTDevice;//only need to be copied 1 time (read only)
+  int faceLUT[6] = {4,10,12,14,16,22};//indirect pointers calculated by hand
+  int* faceLUTDevice;//only need to be copied 1 time (read only)
 
   Octree();
   ~Octree();
