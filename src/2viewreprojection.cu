@@ -17,6 +17,7 @@
 #include <limits>
 #include <sstream>
 #include <string>
+#include <new>
 #include <vector>
 // my boiz @ nvidia
 #include <cuda_runtime.h>
@@ -28,7 +29,7 @@
 
 // alsp remove eventually
 #define N 8192
-#define  BILLION  1000000000L;
+#define BILLION  1000000000L;
 
 // Define this to turn on error checking
 #define CUDA_ERROR_CHECK
@@ -167,8 +168,9 @@ void printDeviceProperties() {
 
 // == GLOBAL VARIABLES == //
 bool   verbose = 1;
-bool   debug   = 0;
+bool   debug   = 1;
 bool   simple  = 0;
+int    gpu_acc = 1; // is GPU accellerated?
 string cameras_path;
 string matches_path;
 int    to_pan;
@@ -176,8 +178,14 @@ unsigned short match_count;
 unsigned short camera_count;
 
 // TODO (some of) this stuff should be set by camera calibration
-
+// TODO have this stuff sent in with camera parameter files
 // This was for the test cases only
+__constant__ int   d_res  = 1024;
+__constant__ float d_foc  = 0.035;
+__constant__ float d_fov  = 0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
+__constant__ float d_PI   = 3.1415926535;
+__constant__ float d_dpix = 0.00002831538; //(d_foc*tan(d_fov/2))/(d_res/2);
+
 unsigned int   res  = 1024;
 float          foc  = 0.035;
 float          fov  = 0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
@@ -188,18 +196,181 @@ float          dpix = (foc*tan(fov/2))/(res/2); //float          dpix = 0.000028
 float          max_angle = -1000.0;
 float          min_angle =  1000.0;
 
+// for the CPU
 vector< vector<string> > matches;
 vector< vector<string> > cameras;
 vector< vector<string> > projections;
 vector< vector<float> >  points;
 vector< vector<float> >  matchesr3;
 vector< vector<int> >    colors;
-// ====================== //
+
+// for the GPU, Host -> Device memory things
+int MATCH_POINTS_SIZE;
+int MATCH_COLORS_SIZE;
+int CAMERA_DATA_SIZE;
+
+float         *match_points;
+unsigned char *match_colors;
+float         *camera_data;
+float         *point_cloud;
+
+// ============================================ //
+// =========== All Device Functions =========== //
+// ============================================ //
+
+// dot product of 2 vectors!
+__device__ float dot_product(float *A, float *B, int size){
+  float product = 0;
+  for (int i = 0; i < size; i++){
+    product += A[i] * B[i];
+  }
+  return product;
+}
+
+// returns the angle between the input vector and the x unit vector
+__device__ float get_vector_x_angle(float cam[6]){
+  float w[3] = {1.0,0.0,0.0};
+  float v[3] = {cam[3],cam[4],cam[5]};
+  // find the dot product
+  float dot_v_w = dot_product(v,w,3);
+  // calculate magnitude for v
+  float v_mag = dot_product(v,v,3);
+  // make the fraction:
+  float fract = (dot_v_w)/(sqrt(v_mag));
+  // find the angle
+  float angle = acos(fract);
+  // check to see if outside of second quad
+  if (cam[4] < 0.0) angle = 2 * d_PI - angle;
+  return angle;
+}
+
+// rotates a 3x1 vector in the x plane
+__device__ float* rotate_projection_x(float *v, float angle){
+  float x_n = v[0];
+  float y_n = cos(angle)*v[1] + -1*sin(angle)*v[2];
+  float z_n = sin(angle)*v[1] + cos(angle)*v[2];
+  float w[3] = {x_n,y_n,z_n};
+  return w;
+}
+
+// rotates a 3x1 vector in the z plane
+__device__ float* rotate_projection_z(float *v, float angle){
+  float x_n = cos(angle)*v[0] + -1*sin(angle)*v[1];
+  float y_n = sin(angle)*v[0] + cos(angle)*v[1];
+  float z_n = v[2];
+  float w[3] = {x_n,y_n,z_n};
+  return w;
+}
+
+__device__ float euclid(float p1[3], float p2[3]){
+  return sqrt(((p2[0] - p1[0])*(p2[0] - p1[0])) + ((p2[1] - p1[1])*(p2[1] - p1[1])) + ((p2[2] - p1[2])*(p2[2] - p1[2])));
+}
+
+//
+// CUDA kernel for performing a two view reprojection
+//
+__global__ void two_view_reproject(float *r2points, float *r3cameras,float *point_cloud){
+
+  // get index
+  int i_m = threadIdx.x * blockIdx.x + threadIdx.x;
+  // return so that we're only getting every fourth match thing
+  if (!(i_m%4) && i_m > 0) return;
+  // get the index of the point in the point cloud
+  int i_p = 3*(i_m/4);
+
+  // grab the camera data, not nessesary but this makes it conseptually easier
+  float camera0[6] = {r3cameras[0],r3cameras[1],r3cameras[2],r3cameras[3],r3cameras[4],r3cameras[5]};
+  float camera1[6] = {r3cameras[6],r3cameras[7],r3cameras[8],r3cameras[9],r3cameras[10],r3cameras[11]};
+
+  // scale my dudes
+  float x0 = d_dpix * ((     r2points[i_m]  ) - d_res/2.0);
+  float y0 = d_dpix * ((-1.0*r2points[i_m+1]) + d_res/2.0);
+  float x1 = d_dpix * ((     r2points[i_m+2]) - d_res/2.0);
+  float y1 = d_dpix * ((-1.0*r2points[i_m+3]) + d_res/2.0);
+
+  float scaled0[3] = {x0,y0,0.0};
+  float scaled1[3] = {x1,y1,0.0};
+
+  // get the camera angles
+  float r0 = get_vector_x_angle(camera0);
+  float r1 = get_vector_x_angle(camera1);
+
+  // rotate the dudes in the x plane
+  float *k0;
+  float *k1;
+  k0 = rotate_projection_x(scaled0,d_PI/2.0);
+  k1 = rotate_projection_x(scaled1,d_PI/2.0);
+
+  //rotate the dudes in the z plane
+  float *kp0;
+  float *kp1;
+  kp0 = rotate_projection_z(k0,r0 + d_PI/2.0); // + PI/2.0
+  kp1 = rotate_projection_z(k1,r1 + d_PI/2.0); // + PI/2.0
+
+  // adjust the kp's location in a plane
+  kp0[0] = camera0[0] - (kp0[0] + (camera0[3] * d_foc));
+  kp0[1] = camera0[1] - (kp0[1] + (camera0[4] * d_foc));
+
+  kp1[0] = camera1[0] - (kp1[0] + (camera1[3] * d_foc));
+  kp1[1] = camera1[1] - (kp1[1] + (camera1[4] * d_foc));
+
+  float points0[6] = {camera0[0],camera0[1],camera0[2],kp0[0],kp0[1],kp0[2]};
+  float points1[6] = {camera1[0],camera1[1],camera1[2],kp1[0],kp1[1],kp1[2]};
+
+  // TODO store the points calculated here, this would just be for debugging
+  // and this could help with debugging if needed
+
+  // calculate the vectors
+  float v0[3]    = {points0[3] - points0[0],points0[4] - points0[1],points0[5] - points0[2]};
+  float v1[3]    = {points1[3] - points1[0],points1[4] - points1[1],points1[5] - points1[2]};
+
+  // TODO here is where a better method could be used to find the closest
+  // point of intescetion between the two lines
+  float smallest = 800000000.0; // this needs to be really big
+  float p0[3]; //= {0.0,0.0,0.0};
+  float p1[3]; //= {0.0,0.0,0.0};
+  float point[4];
+  //=====================//
+  //=                   =//
+  //=    Here be a      =//
+  //=   brute force     =//
+  //=                   =//
+  //=====================//
+  // TODO don't brute force this, when u have time later pls fix this
+  for (float t = 1.0; t < 8000.0; t += 0.0001){
+    p0[0] = points0[3] + v0[0]*t;
+    p0[1] = points0[4] + v0[1]*t;
+    p0[2] = points0[5] + v0[2]*t;
+    p1[0] = points1[3] + v1[0]*t;
+    p1[1] = points1[4] + v1[1]*t;
+    p1[2] = points1[5] + v1[2]*t;
+    float dist = euclid(p0,p1);
+    if (dist <= smallest){
+      smallest = dist;
+      point[0] = (p0[0]+p1[0])/2.0;
+      point[1] = (p0[1]+p1[1])/2.0;
+      point[2] = (p0[2]+p1[2])/2.0;
+      point[3] = smallest;
+    } else break;
+  }
+  point_cloud[i_p]   = point[0];
+  point_cloud[i_p+1] = point[1];
+  point_cloud[i_p+2] = point[2];
+
+  // for debugging
+  point_cloud[i_p]   = (float) i_p;
+  point_cloud[i_p+1] = (float) i_m;
+
+}
+
+// ============================================ //
+// ============ All Host Functions ============ //
+// ============================================ //
 
 //
 // parses comma delemeted string
 //
-void parse_comma_delem(string str, unsigned short flag){
+void parse_comma_delem(string str, unsigned short flag, unsigned int m_p, unsigned int m_c, unsigned int c){
   istringstream ss(str);
   string token;
   vector<string> v;
@@ -210,10 +381,34 @@ void parse_comma_delem(string str, unsigned short flag){
   switch (flag)
   {
     case 1: // matches
-      matches.push_back(v);
+      if (gpu_acc){ // we must do mem differently for the GPU accellerated guy
+        // based on the data types of our file format
+        // do the match locations
+        if (debug) cout << "ATTEMPTING TO RELLOCATE 4 ELEMENTS IN VECTOR LENGTH: " << v.size() << endl;
+        match_points[m_p]   = stof(v[2]);
+        match_points[m_p+1] = stof(v[3]);
+        match_points[m_p+2] = stof(v[4]);
+        match_points[m_p+4] = stof(v[5]);
+        // do the colors, alright chars i think
+        // TODO make colors work, need to implement a method from 3 bytes -> 1 byte of chars
+        //match_colors[m_c]   = v[6];
+        //match_colors[m_c+1] = v[7];
+        //match_colors[m_c+2] = v[8];
+      } else {
+        matches.push_back(v);
+      }
       break;
     case 2: // cameras
-      cameras.push_back(v);
+      if (gpu_acc){
+        camera_data[c]   = stof(v[1]);
+        camera_data[c+1] = stof(v[2]);
+        camera_data[c+2] = stof(v[3]);
+        camera_data[c+3] = stof(v[4]);
+        camera_data[c+4] = stof(v[5]);
+        camera_data[c+5] = stof(v[6]);
+      } else {
+        cameras.push_back(v);
+      }
       break;
     default:
       break;
@@ -228,16 +423,29 @@ void load_matches(){
   string line;
   unsigned short c = 0;
   bool first = 1;
-  while (getline(infile, line))
-  {
+  unsigned int index_p = 0;
+  unsigned int index_c  = 0;
+  while (getline(infile, line)){
       istringstream iss(line);
       if (debug) cout << line << endl;
-      if (first)
-      {
+      if (first){
         first = 0;
-      } else
-      {
-        parse_comma_delem(line, 1);
+        if (gpu_acc){
+          // we need to allocate the memory for the number of GPU matches
+          // the 4 floating point locations of matches, 4 * (float) * size
+          if (debug) cout << "DYNAMICALLY ALLOCATING ON HOST... " << endl << "read: " << stoi(line) << ", genrating: " << (4*stoi(line)) << endl;
+          MATCH_POINTS_SIZE = 4*(stoi(line)+1);
+          match_points      = new (nothrow) float[MATCH_POINTS_SIZE];
+          // now for the clors, 3 * (unsigned char) * size
+          // TODO potentially average the colors instead of just picking the first image?
+          if (debug) cout << "DYNAMICALLY ALLOCATING ON HOST... " << endl << "read: " << stoi(line) << ", genrating: " << (3*stoi(line)) << endl;
+          MATCH_COLORS_SIZE = 3*(stoi(line)+1);
+          match_colors      = new (nothrow) unsigned char[MATCH_COLORS_SIZE];
+        }
+      } else{
+        parse_comma_delem(line, 1, index_p, index_c, -1);
+        index_p += 4;
+        index_c += 3;
         c++;
       }
   }
@@ -248,16 +456,21 @@ void load_matches(){
 //
 // loads cameras from a camera.txt file
 //
-void load_cameras()
-{
+void load_cameras(){
   ifstream infile(cameras_path);
   string line;
   unsigned short c = 0;
-  while (getline(infile, line))
-  {
+  unsigned int index = 0;
+  // TODO this needs to be generalized past just a 2-view allocation.
+  // this would be similar to how the matches dynamically allocates
+  // 6 (float) camera properties per camera
+  CAMERA_DATA_SIZE = 2 * 6;
+  camera_data      = new (nothrow) float[CAMERA_DATA_SIZE];
+  while (getline(infile, line)){
       istringstream iss(line);
       if (debug) cout << line << endl;
-      parse_comma_delem(line, 2);
+      parse_comma_delem(line, 2, -1, -1, index);
+      index+=6;
       c++;
   }
   camera_count = c;
@@ -536,12 +749,12 @@ void two_view_reproject_cpu(){
       float dist = euclid_dist(p1,p2);
       //cout << dist << endl;
       if (dist <= smallest){
-	smallest = dist;
-	point[0] = (p1[0]+p2[0])/2.0;
-	point[1] = (p1[1]+p2[1])/2.0;
-	point[2] = (p1[2]+p2[2])/2.0;
-	point[3] = smallest;
-	j_holder = j;
+    	smallest = dist;
+    	point[0] = (p1[0]+p2[0])/2.0;
+    	point[1] = (p1[1]+p2[1])/2.0;
+    	point[2] = (p1[2]+p2[2])/2.0;
+    	point[3] = smallest;
+    	j_holder = j;
       } else break;
       if (debug && asdf_counter >= 30 && 0){ // don't do for now
 	asdf_counter = 0;
@@ -597,38 +810,109 @@ void two_view_reproject_cpu(){
   cout << "Generated: " << points.size() << " valid points" << endl;
 }
 
-void save_ply()
-{
-  ofstream outputFile1("output.ply");
-  outputFile1 << "ply\nformat ascii 1.0\nelement vertex ";
-  outputFile1 << points.size() << "\n";
-  outputFile1 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
-  outputFile1 << "end_header\n";
-  for(int i = 0; i < points.size(); i++){
-    outputFile1 << points[i][0] << " " << points[i][1] << " " << points[i][2] << " " << colors[i][0] << " " << colors[i][1] << " " << colors[i][2] << "\n";
+//
+// A GPU accellerated version of the original CPU one
+// TODO: Optimize with a Newton's Method, should be decently simple...
+// for now this will use the dumbass iterative solution in the CPU method
+//
+void two_view_reproject_gpu(){
+  if (verbose) cout << "Allocating memory on GPU... " << endl;
+
+  // get ready for moving bytes
+  const int MATCH_POINTS_BYTES = MATCH_POINTS_SIZE * sizeof(float);
+  const int CAMERA_DATA_BYTES  = CAMERA_DATA_SIZE * sizeof(float);
+
+  const int POINT_CLOUD_SIZE   = 3*(MATCH_POINTS_SIZE/4);
+  const int POINT_CLOUD_BYTES  = POINT_CLOUD_SIZE * sizeof(float);
+
+  // create pointers on the device
+  float *d_in_m;
+  float *d_in_c;
+  float *d_out_p;
+
+  // allocate the space on the GPU
+  cudaMalloc((void **) &d_in_m, MATCH_POINTS_BYTES);
+  cudaMalloc((void **) &d_in_c, CAMERA_DATA_BYTES);
+  cudaMalloc((void **) &d_out_p, POINT_CLOUD_BYTES); // this was already a global pointer
+  // allocate memory for the point cloud on the CPU
+  point_cloud = new (nothrow) float[POINT_CLOUD_SIZE];
+
+  // transfer the memory to the GPU
+  cudaMemcpy(d_in_m, match_points, MATCH_POINTS_BYTES, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_in_c, camera_data, CAMERA_DATA_BYTES, cudaMemcpyHostToDevice);
+
+  // calculate the block & thread count here
+  int THREAD_COUNT = 512;
+  int BLOCK_COUNT  = POINT_CLOUD_SIZE/THREAD_COUNT;
+  if (!BLOCK_COUNT){ // a very small point cloud
+    BLOCK_COUNT = 1;
+    THREAD_COUNT = POINT_CLOUD_SIZE;
   }
-  if (debug){
-    ofstream outputFile2("cameras.ply");
-    outputFile2 << "ply\nformat ascii 1.0\nelement vertex ";
-    outputFile2 << cameras.size() << "\n";
-    outputFile2 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
-    outputFile2 << "end_header\n";
-    for(int i = 0; i < cameras.size(); i++){
-      outputFile2 << cameras[i][1] << " " << cameras[i][2] << " " << cameras[i][3] << " 255 0 0\n";
+  if (debug) cout << "THREAD COUNT: " << THREAD_COUNT << endl << "BLOCK COUNT: " << BLOCK_COUNT << endl << "Point Cloud Size: " << POINT_CLOUD_SIZE << endl;
+  two_view_reproject<<<BLOCK_COUNT,THREAD_COUNT>>>(d_in_m,d_in_c,d_out_p);
+  CudaCheckError();
+
+  cudaMemcpy(point_cloud, d_out_p, POINT_CLOUD_BYTES, cudaMemcpyDeviceToHost);
+
+  cudaFree(d_in_m);
+  cudaFree(d_in_c);
+  cudaFree(d_out_p);
+
+}
+
+void save_ply(){
+  if (gpu_acc){
+    int point_cloud_size = (MATCH_POINTS_SIZE/4);
+    ofstream outputFile1("output.ply");
+    outputFile1 << "ply\nformat ascii 1.0\nelement vertex ";
+    outputFile1 << point_cloud_size << "\n";
+    outputFile1 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
+    outputFile1 << "end_header\n";
+    for(int i = 0; i < point_cloud_size*3; i+=3){
+      outputFile1 << point_cloud[i] << " " << point_cloud[i+1] << " " << point_cloud[i+2] << " " << 0 << " " << 255 << " " << 0 << "\n";
     }
-    ofstream outputFile3("matches.ply");
-    outputFile3 << "ply\nformat ascii 1.0\nelement vertex ";
-    outputFile3 << matchesr3.size() << "\n";
-    outputFile3 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
-    outputFile3 << "end_header\n";
-    int counter = 0;
-    int b = 0;
-    for(int i = 0; i < matchesr3.size(); i++){
-      outputFile3 << matchesr3[i][0] << " " << matchesr3[i][1] << " " << matchesr3[i][2] << " 0 255 " << b << "\n";
-      if (counter%2) b += 25;
-      if (b > 255) b = 0;
-      counter++;
-      //cout << "";
+    if (debug){
+      ofstream outputFile2("cameras.ply");
+      outputFile2 << "ply\nformat ascii 1.0\nelement vertex ";
+      outputFile2 << 2 << "\n";
+      outputFile2 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
+      outputFile2 << "end_header\n";
+      for(int i = 0; i < 12; i+=6){
+        outputFile2 << camera_data[i] << " " << camera_data[i+1] << " " << camera_data[i+2] << " 255 0 0\n";
+      }
+    }
+  } else {
+    ofstream outputFile1("output.ply");
+    outputFile1 << "ply\nformat ascii 1.0\nelement vertex ";
+    outputFile1 << points.size() << "\n";
+    outputFile1 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
+    outputFile1 << "end_header\n";
+    for(int i = 0; i < points.size(); i++){
+      outputFile1 << points[i][0] << " " << points[i][1] << " " << points[i][2] << " " << colors[i][0] << " " << colors[i][1] << " " << colors[i][2] << "\n";
+    }
+    if (debug){
+      ofstream outputFile2("cameras.ply");
+      outputFile2 << "ply\nformat ascii 1.0\nelement vertex ";
+      outputFile2 << cameras.size() << "\n";
+      outputFile2 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
+      outputFile2 << "end_header\n";
+      for(int i = 0; i < cameras.size(); i++){
+        outputFile2 << cameras[i][1] << " " << cameras[i][2] << " " << cameras[i][3] << " 255 0 0\n";
+      }
+      ofstream outputFile3("matches.ply");
+      outputFile3 << "ply\nformat ascii 1.0\nelement vertex ";
+      outputFile3 << matchesr3.size() << "\n";
+      outputFile3 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
+      outputFile3 << "end_header\n";
+      int counter = 0;
+      int b = 0;
+      for(int i = 0; i < matchesr3.size(); i++){
+        outputFile3 << matchesr3[i][0] << " " << matchesr3[i][1] << " " << matchesr3[i][2] << " 0 255 " << b << "\n";
+        if (counter%2) b += 25;
+        if (b > 255) b = 0;
+        counter++;
+        //cout << "";
+      }
     }
   }
 }
@@ -636,8 +920,7 @@ void save_ply()
 //
 // This is the main method
 //
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]){
   cout << "*===================* REPROJECTION *===================*" << endl;
   if (argc < 3){
     cout << "not enough arguments ... " << endl;
@@ -647,8 +930,7 @@ int main(int argc, char* argv[])
     return 0; // end it all. it will be so serene.
   }
 
-  else
-  {
+  else {
     cout << "*                                                      *" << endl;
     cout << "*                     ~ UGA SSRL ~                     *" << endl;
     cout << "*        Multiview Onboard Computational Imager        *" << endl;
@@ -656,17 +938,20 @@ int main(int argc, char* argv[])
   }
   cout << "*======================================================*" << endl;
 
+  if (debug) printDeviceProperties();
+
   cameras_path = argv[1];
   matches_path = argv[2];
+  gpu_acc = stoi(argv[3]);
 
   load_matches();
   load_cameras();
-  two_view_reproject_cpu();
+  if (gpu_acc) two_view_reproject_gpu();
+  else two_view_reproject_cpu();
   save_ply();
 
   if (verbose) cout << "done!\nresults saved to output.ply" << endl;
   if (debug) cout << "max angle: " << max_angle << " | min angle: " << min_angle << endl;
-  if (debug) printDeviceProperties();
 
   return 0;
 }
