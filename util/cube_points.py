@@ -16,10 +16,10 @@ cube_points = [[ -1.0,  1.0, -1.0], # 0 A
 
 origin = [0.0,0.0,0.0]
 foc    = 0.035 # in meters
-fov    = 0.8575553107; # 49.1343 degrees
+fov    = 0.8575553107 # 49.1343 degrees
 alt    = 5.0 # in meters
 res    = 1024 # pixels
-dpix   = (foc*tan(fov/2))/(res/2);
+dpix   = (foc*tan(fov/2))/(res/2)
 
 print '      CONFIGURATION:'
 print '<========================>'
