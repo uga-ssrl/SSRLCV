@@ -19,7 +19,7 @@ edge = [vertex1, vertex2]
   0 = [0,1]
   1 = [0,2]
   2 = [1,3]
-  3 = [3,2]
+  3 = [2,3]
   //the following ordering was assumed, may need to be revised
   4 = [0,4]
   5 = [1,5]
@@ -40,6 +40,17 @@ face = [edge1, edge2, edge3, edge4]
   3 = [2,5,7,10]
   4 = [3,6,7,11]
   5 = [8,9,10,11]
+*/
+
+/*
+face = [vertex1, vertex2, vertex3, vertex4]
+  0 = [0,1,2,3]
+  //the following ordering was assumed, may need to be revised
+  1 = [0,1,4,5]
+  2 = [0,2,4,6]
+  3 = [1,3,5,7]
+  4 = [2,3,6,7]
+  5 = [4,5,6,7]
 */
 
 struct Vertex{
@@ -159,21 +170,22 @@ struct Octree{
   int* parentLUTDevice;//only need to be copied 1 time (read only)
   int childLUT[8][27];//indirect pointers
   int* childLUTDevice;//only need to be copied 1 time (read only)
-  int vertexLUT[8][8];//indirect pointers
+
+  int vertexLUT[8][7];//indirect pointers
   int* vertexLUTDevice;//only need to be copied 1 time (read only)
-  int edgeLUT[12][4]{
-    {1,4,10,13},
-    {3,4,12,13},
-    {4,5,13,14},
-    {4,7,13,16},
-    {9,10,12,13},
-    {10,11,13,14},
-    {12,13,15,16},
-    {13,14,16,17},
-    {10,13,19,22},
-    {12,13,21,22},
-    {13,14,22,23},
-    {13,16,22,25}
+  int edgeLUT[12][3]{
+    {1,4,10},
+    {3,4,12},
+    {4,5,14},
+    {4,7,16},
+    {9,10,12},
+    {10,11,14},
+    {12,15,16},
+    {14,16,17},
+    {10,19,22},
+    {12,21,22},
+    {14,22,23},
+    {16,22,25}
   };//indirect pointers calculated by hand
   int* edgeLUTDevice;//only need to be copied 1 time (read only)
   int faceLUT[6] = {4,10,12,14,16,22};//indirect pointers calculated by hand

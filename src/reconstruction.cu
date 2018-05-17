@@ -151,7 +151,7 @@ int main(int argc, char *argv[]){
 
       octree.computeVertexArray();
       octree.computeEdgeArray();
-      //octree.computeFaceArray();
+      octree.computeFaceArray();
 
       totalTimer = clock() - totalTimer;
       printf("\nOCTREE BUILD TOOK %f seconds.\n\n",((float) totalTimer)/CLOCKS_PER_SEC);
