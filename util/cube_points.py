@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import sys, os
 from math import sin, cos, tan, sqrt, floor, radians
 
