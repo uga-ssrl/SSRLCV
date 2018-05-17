@@ -12,7 +12,7 @@ COMMONFLAGS += ${INCLUDES}
 NVCCFLAGS += ${COMMONFLAGS}
 NVCCFLAGS += -std=c++11 -gencode=arch=compute_62,code=sm_62 -Iinclude -lcublas
 CXXFLAGS += ${COMMONFLAGS}
-CXXFLAGS += -Wall -g -std=c++11 -Iinclude -lcublas
+CXXFLAGS += -Wall -G -g -std=c++11 -Iinclude -lcublas
 
 LIB_CUDA := -L/usr/local/cuda-9.0/lib64 -lcudart -lcublas
 
