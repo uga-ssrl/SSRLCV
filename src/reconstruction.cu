@@ -144,8 +144,10 @@ int main(int argc, char *argv[]){
 
       octree.fillUniqueNodesAtFinestLevel();
       octree.createFinalNodeArray();
-
       printf("TOTAL NODES = %d\n\n",octree.totalNodes);
+
+      octree.freePrereqArrays();
+
       octree.fillLUTs();
       octree.fillNeighborhoods();
 

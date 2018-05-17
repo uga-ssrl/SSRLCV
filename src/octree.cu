@@ -757,6 +757,17 @@ void Octree::fillUniqueNodesAtFinestLevel(){
   }
 }
 
+void Octree::freePrereqArrays(){
+  delete[] finestNodeCenters;
+  delete[] finestNodePointIndexes;
+  delete[] finestNodeKeys;
+  delete[] uniqueNodesAtFinestLevel;
+  CudaSafeCall(cudaFree(finestNodeCentersDevice));
+  CudaSafeCall(cudaFree(finestNodePointIndexesDevice));
+  CudaSafeCall(cudaFree(finestNodeKeysDevice));
+  cout<<"PREREQUISITE/FINEST DEPTH ARRAYS HAVE BEEN DELETED"<<endl;
+}
+
 void Octree::createFinalNodeArray(){
 
   Node* uniqueNodesDevice;

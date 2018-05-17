@@ -142,6 +142,7 @@ struct Octree{
   float width;
   int depth;
 
+  //do not need these
   int numFinestUniqueNodes;
   float3* finestNodeCenters;
   int* finestNodePointIndexes;
@@ -151,6 +152,7 @@ struct Octree{
   int* finestNodePointIndexesDevice;
   int* finestNodeKeysDevice;
 
+  //final octree structures
   int totalNodes;
   Node* finalNodeArray;
   Node* finalNodeArrayDevice;
@@ -170,7 +172,7 @@ struct Octree{
   int* parentLUTDevice;//only need to be copied 1 time (read only)
   int childLUT[8][27];//indirect pointers
   int* childLUTDevice;//only need to be copied 1 time (read only)
-
+  //these LUTS do not include neighbor 13 (nodes relation to itself)
   int vertexLUT[8][7];//indirect pointers
   int* vertexLUTDevice;//only need to be copied 1 time (read only)
   int edgeLUT[12][3]{
@@ -213,6 +215,8 @@ struct Octree{
   void sortByKey();
   void compactData();//also instantiates nodeNumbers and nodeAddresses
   void fillUniqueNodesAtFinestLevel();
+
+  void freePrereqArrays();
 
   void createFinalNodeArray();//also allocates/copies deviceIndices
   void printLUTs();
