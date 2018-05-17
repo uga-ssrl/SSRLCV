@@ -290,10 +290,16 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
 
   // get index
   int i_m = blockIdx.x * blockDim.x + threadIdx.x;
+  int i_p = 3*(i_m);
+  i_m *= 4;
+
+  //THIS IS NOW DONE WHEN DECIDING NUMBER OF THREADS
+  //TODO encapsulate everything below this point in a conditional that ensures no out of bounds access
   // return so that we're only getting every fourth match thing
-  if (!(i_m%4) && i_m > 0) return;
+  //if ((i_m+1)%4 != 0){
+  //  return;
+  //}
   // get the index of the point in the point cloud
-  int i_p = 3*(i_m/4);
 
   // grab the camera data, not nessesary but this makes it conseptually easier
   float camera0[6] = {r3cameras[0],r3cameras[1],r3cameras[2],r3cameras[3],r3cameras[4],r3cameras[5]};
@@ -372,7 +378,7 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
   //=====================//
   // TODO don't brute force this, when u have time later pls fix this
 
-  for (float t = 0.1; t < 8000.0; t += 0.001){
+  for (float t = 0.0f; t < 8000.0f; t += 0.001){
     t_holder = t;
 
     p0[0] = points0[3] + (v0[0]*t);
@@ -393,13 +399,16 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
       point[3] = smallest;
     } else break;
   }
+
   point_cloud[i_p]   = point[0];
   point_cloud[i_p+1] = point[1];
   point_cloud[i_p+2] = point[2];
 
-  if (d_debug) printf("=================\ncamera0: [%f,%f,%f,%f,%f,%f]\ncamera1: [%f,%f,%f,%f,%f,%f]\nkp0: [%f,%f,%f]\nkp1: [%f,%f,%f]\ncamera0 angle: %f, camera1 angle: %f \nsmallest: %f, t: [%f]\nv0: [%f,%f,%f]\nv1: [%f,%f,%f]\np0: [%f,%f,%f]\np1: [%f,%f,%f]\npoint: [%f,%f,%f]\nmatch point index: %d\n point cloud index: %d\nsaved to point_cloud: [%f,%f,%f]\n\n",camera0[0],camera0[1],camera0[2],camera0[3],camera0[4],camera0[5],camera1[0],camera1[1],camera1[2],camera1[3],camera1[4],camera1[5],kp0[0],kp0[1],kp0[2],kp1[0],kp1[1],kp1[2],r0,r1,point[3],t_holder,v0[0],v0[1],v0[2],v1[0],v1[1],p1[2],p0[0],p0[1],p0[2],p1[0],p1[1],p1[2],point[0],point[1],point[2],i_m,i_p,point_cloud[i_p],point_cloud[i_p+1],point_cloud[i_p+2]);
-
-  // for debugging
+  if (d_debug){
+    printf("smallest: %f, t: [%f]\nv0: [%f,%f,%f]\nv1: [%f,%f,%f]\np0: [%f,%f,%f]\np1: [%f,%f,%f]\n",point[3],t_holder,v0[0],v0[1],v0[2],v1[0],v1[1],p1[2],p0[0],p0[1],p0[2],p1[0],p1[1],p1[2]);
+    //printf("\ncamera0: [%f,%f,%f,%f,%f,%f]\ncamera1: [%f,%f,%f,%f,%f,%f]\nkp0: [%f,%f,%f]\nkp1: [%f,%f,%f]\ncamera0 angle: %f, camera1 angle: %f \n",kp0[0],kp0[1],kp0[2],kp1[0],kp1[1],kp1[2],r0,r1,camera0[0],camera0[1],camera0[2],camera0[3],camera0[4],camera0[5],camera1[0],camera1[1],camera1[2],camera1[3],camera1[4],camera1[5]);
+    //printf("point: [%f,%f,%f]\nmatch point index: %d\npoint cloud index: %d\nsaved to point_cloud: [%f,%f,%f]\n\n",point[0],point[1],point[2],i_m,i_p,point_cloud[i_p],point_cloud[i_p+1],point_cloud[i_p+2]);
+  } // for debugging
   //point_cloud[i_p]   = (float) i_p;
   //point_cloud[i_p+1] = (float) i_m;
 
@@ -894,10 +903,10 @@ void two_view_reproject_gpu(){
 
   // calculate the block & thread count here
   dim3 THREAD_COUNT = {512,1,1};
-  dim3 BLOCK_COUNT  = {(POINT_CLOUD_SIZE/THREAD_COUNT.x),1,1};
+  dim3 BLOCK_COUNT  = {((POINT_CLOUD_SIZE/3)/THREAD_COUNT.x),1,1};
   if (!BLOCK_COUNT.x){ // a very small point cloud
     BLOCK_COUNT.x = 1;
-    THREAD_COUNT.x = POINT_CLOUD_SIZE;
+    THREAD_COUNT.x = POINT_CLOUD_SIZE/3;
   }
   if (debug) cout << "THREAD COUNT: " << THREAD_COUNT.x << endl << "BLOCK COUNT: " << BLOCK_COUNT.x << endl << "Point Cloud Size: " << POINT_CLOUD_SIZE << endl;
   two_view_reproject<<<BLOCK_COUNT,THREAD_COUNT>>>(d_in_m,d_in_c,d_out_p);
@@ -926,7 +935,7 @@ void save_ply(){
       cout << "POINT CLOUD DEBUG:" << endl;
       for (int i =0; i < point_cloud_size*3; i++){
         if (!(i%3)) cout << endl;
-        cout << point_cloud[i] << "\t\t";
+        cout << point_cloud[i] << "\t\t\t";
       }
       cout << endl;
     }
