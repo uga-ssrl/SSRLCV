@@ -41,3 +41,20 @@ inline void __cudaCheckError(const char *file, const int line) {
 
   return;
 }
+
+//implement kernels here
+
+
+//TODO implement these
+void computeDivergenceVector(){
+
+}
+void computeImplicitFunction(){
+
+}
+void marchingCubes(){
+
+}
+void isosurfaceExtraction(){
+
+}

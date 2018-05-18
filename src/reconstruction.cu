@@ -3,13 +3,7 @@
 #include "poisson.cuh"
 using namespace std;
 
-/*
-POISSON RECONSTRUCTION METHODS
-*/
-void computeDivergenceVector();
-void computeImplicitFunction();
-void marchingCubes();
-void isosurfaceExtraction();
+
 
 int main(int argc, char *argv[]){
   try{
