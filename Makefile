@@ -9,10 +9,12 @@ INCLUDES = -I. -I/usr/local/cuda/include
 
 # Common flags
 COMMONFLAGS += ${INCLUDES}
-NVCCFLAGS += ${COMMONFLAGS}
-NVCCFLAGS += -std=c++11 -gencode=arch=compute_61,code=sm_61 -Iinclude -lcublas -lthrust
 CXXFLAGS += ${COMMONFLAGS}
 CXXFLAGS += -Wall -g -std=c++11 -Iinclude -lcublas
+# compute_<#> and sm_<#> will need to change depending on the device
+# if this is not done you will receive a no kernel image is availabe error
+NVCCFLAGS += ${COMMONFLAGS}
+NVCCFLAGS += -std=c++11 -gencode=arch=compute_61,code=sm_61 -Iinclude -lcublas -lthrust
 
 LIB_CUDA :=  -gencode=arch=compute_61,code=sm_61 -L/usr/local/cuda-9.1/lib64 -lcudart -lcublas
 
@@ -22,6 +24,7 @@ BINDIR = ./bin
 
 _OBJS1 = reprojection.cu.o
 _OBJS2 = octree.cu.o
+_OBJS2 += poisson.cu.o
 _OBJS2 += reconstruction.cu.o
 
 

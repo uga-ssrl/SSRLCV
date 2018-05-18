@@ -29,9 +29,9 @@ inline void __cudaCheckError(const char *file, const int line) {
     exit(-1);
   }
 
-    // More careful checking. However, this will affect performance.
-    // Comment away if needed.
-    err = cudaDeviceSynchronize();
+  // More careful checking. However, this will affect performance.
+  // Comment away if needed.
+  //err = cudaDeviceSynchronize();
   if (cudaSuccess != err) {
     fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
     file, line, cudaGetErrorString(err));
@@ -171,6 +171,7 @@ __global__ void getNodeKeys(float3* points, float3* nodeCenters, int* nodeKeys, 
   }
 }
 
+
 __global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, Node* uniqueNodes){
   int tx = threadIdx.x;
   int bx = blockIdx.x;
@@ -193,20 +194,7 @@ __global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, Node* uniqueN
     }
   }
 }
-
-void calculateNodeAddresses(int numUniqueNodes, Node* uniqueNodesDevice, int* nodeAddressesDevice, int* nodeNumbersDevice){
-  dim3 grid = {1,1,1};
-  dim3 block = {1,1,1};
-  if(numUniqueNodes < 65535) grid.x = (unsigned int) numUniqueNodes;
-  else{
-    grid.x = 65535;
-    while(grid.x*block.x < numUniqueNodes){
-      ++block.x;
-    }
-    while(grid.x*block.x > numUniqueNodes){
-      --grid.x;
-    }
-  }
+void calculateNodeAddresses(dim3 grid, dim3 block, int numUniqueNodes, Node* uniqueNodesDevice, int* nodeAddressesDevice, int* nodeNumbersDevice){
 
   findAllNodes<<<grid,block>>>(numUniqueNodes, nodeNumbersDevice, uniqueNodesDevice);
   CudaCheckError();
@@ -215,9 +203,7 @@ void calculateNodeAddresses(int numUniqueNodes, Node* uniqueNodesDevice, int* no
   thrust::device_ptr<int> nA(nodeAddressesDevice);
   thrust::inclusive_scan(nN, nN + numUniqueNodes, nA);
 
-
 }
-
 __global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeNumbers, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int currentDepth){
   int tx = threadIdx.x;
   int bx = blockIdx.x;
@@ -234,7 +220,6 @@ __global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeNumbers, int* nod
     }
   }
 }
-
 __global__ void fillFinestNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int* pointNodeIndex){
   int tx = threadIdx.x;
   int bx = blockIdx.x;
@@ -254,7 +239,6 @@ __global__ void fillFinestNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddre
     outputNodeArray[address].numPoints = uniqueNodes[globalID].numPoints;
   }
 }
-
 __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, Node* childNodeArray,int numUniqueNodes){
   int tx = threadIdx.x;
   int bx = blockIdx.x;
@@ -275,7 +259,6 @@ __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, 
     outputNodeArray[address].numPoints = uniqueNodes[globalID].numPoints;
   }
 }
-
 __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD, int numNodesAtDepth, float totalWidth){
   int numUniqueNodesAtParentDepth = numNodesAtDepth / 8;
   int tx = threadIdx.x;
@@ -299,7 +282,7 @@ __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD,
   }
 }
 
-//nondeterministic behaviour happening at depths 6-8 in here
+
 __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depthIndex,int* parentLUT, int* childLUT, int* numNeighbors, int childDepthIndex){
 
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
@@ -335,6 +318,7 @@ __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depth
 
   }
 }
+
 
 __global__ void findVertexOwners(Node* nodeArray, int numNodes, int depthIndex, int* vertexLUT, int* numVertices, int* ownerInidices, int* vertexPlacement){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
@@ -380,7 +364,7 @@ __global__ void fillUniqueVertexArray(Node* nodeArray, Vertex* vertexArray, int 
     vertex.coord.z = nodeArray[ownerNodeIndex].center.z + depthHalfWidth*vertexCoordIdentity[ownedIndex].z;
     vertex.depth = depth;
     int neighborSharingVertex = -1;
-    for(int i = ownedIndex*7; i < (ownedIndex + 1)*7; ++i){
+    for(int i = ownedIndex*7; i < ownedIndex + 7; ++i){
       neighborSharingVertex = nodeArray[ownerNodeIndex].neighbors[vertexLUT[i]];
       vertex.nodes[i - (ownedIndex*7)] =  neighborSharingVertex;
       if(neighborSharingVertex != -1) nodeArray[neighborSharingVertex].vertices[7 - (i - (ownedIndex*7))] = globalID + vertexIndex;
@@ -388,6 +372,7 @@ __global__ void fillUniqueVertexArray(Node* nodeArray, Vertex* vertexArray, int 
     vertexArray[globalID] = vertex;
   }
 }
+
 
 __global__ void findEdgeOwners(Node* nodeArray, int numNodes, int depthIndex, int* edgeLUT, int* numEdges, int* ownerInidices, int* edgePlacement){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
@@ -413,7 +398,6 @@ __global__ void fillUniqueEdgeArray(Node* nodeArray, Edge* edgeArray, int numEdg
   int bx = blockIdx.x;
   int globalID = bx * blockDim.x + tx;
   if(globalID < numEdges){
-
     int ownerNodeIndex = ownerInidices[globalID];
     int ownedIndex = edgePlacement[globalID];
     int2 vertexEdgeIdentity[12];
@@ -450,16 +434,17 @@ __global__ void fillUniqueEdgeArray(Node* nodeArray, Edge* edgeArray, int numEdg
     edge.p2.y = nodeArray[ownerNodeIndex].center.y + depthHalfWidth*edgeCoordIdentity[vertexEdgeIdentity[ownedIndex].y].y;
     edge.p2.z = nodeArray[ownerNodeIndex].center.z + depthHalfWidth*edgeCoordIdentity[vertexEdgeIdentity[ownedIndex].y].z;
     edge.depth = depth;
+
     int neighborSharingEdge = -1;
-    for(int i = ownedIndex*4; i < (ownedIndex + 1)*4; ++i){
+    for(int i = ownedIndex*3; i < ownedIndex + 3; ++i){
       neighborSharingEdge = nodeArray[ownerNodeIndex].neighbors[edgeLUT[i]];
-      edge.nodes[i - (ownedIndex*4)] =  neighborSharingEdge;
-      //this probably needs to be checked
-      if(neighborSharingEdge != -1) nodeArray[neighborSharingEdge].edges[11 - (i - (ownedIndex*4))] = globalID + edgeIndex;
+      edge.nodes[i - (ownedIndex*3)] =  neighborSharingEdge;
+      if(neighborSharingEdge != -1) nodeArray[neighborSharingEdge].edges[11 - (i - (ownedIndex*3))] = globalID + edgeIndex;
     }
     edgeArray[globalID] = edge;
   }
 }
+
 
 __global__ void findFaceOwners(Node* nodeArray, int numNodes, int depthIndex, int* faceLUT, int* numFaces, int* ownerInidices, int* facePlacement){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
@@ -549,12 +534,19 @@ Octree::~Octree(){
 
 }
 
+/*
+TODO remove normal reading from this and replace it with colors
+normals will be determined after the octree has be built
+
+TODO also optimize memory usage with colors added, illegal memory access occurs when not freeing enough 
+*/
 void Octree::parsePLY(string pathToFile){
   cout<<pathToFile + "'s data to be transfered to an empty octree."<<endl;
 	ifstream plystream(pathToFile);
 	string currentLine;
   vector<float3> points;
-  vector<float3> normals;
+  vector<float3> normals;//this will not be used in here once normal determination is done
+  vector<uchar3> colors;
   float minX = 0, minY = 0, minZ = 0, maxX = 0, maxY = 0, maxZ = 0;
 	if (plystream.is_open()) {
 		while (getline(plystream, currentLine)) {
@@ -563,6 +555,7 @@ void Octree::parsePLY(string pathToFile){
       int index = 0;
       float3 point;
       float3 normal;
+      uchar3 color;
       bool lineIsDone = false;
       int numPoints= 0;
       while(getMyFloats >> value){
@@ -583,19 +576,23 @@ void Octree::parsePLY(string pathToFile){
             if(value < minZ) minZ = value;
             break;
           case 3:
-            normal.x = value;
+            normal.x = (value*-1);
+            color.x = 255;//will have value once normal is removed after testing
             break;
           case 4:
-            normal.y = value;
+            normal.y = (value*-1);
+            color.y = 255;//will have value once normal is removed after testing
             break;
           case 5:
-            normal.z = value;
+            normal.z = (value*-1);
+            color.z = 255;//will have value once normal is removed after testing
             break;
           default:
             numPoints++;
             lineIsDone = true;
             points.push_back(point);
-            normals.push_back(normal);
+            normals.push_back(normal);//only for testing
+            colors.push_back(color);
             break;
         }
         if(lineIsDone) break;
@@ -618,6 +615,7 @@ void Octree::parsePLY(string pathToFile){
     this->numPoints = (int) points.size();
     this->points = new float3[this->numPoints];
     this->normals = new float3[this->numPoints];
+    this->colors = new uchar3[this->numPoints];
     this->finestNodeCenters = new float3[this->numPoints];
     this->finestNodePointIndexes = new int[this->numPoints];
     this->finestNodeKeys = new int[this->numPoints];
@@ -628,6 +626,7 @@ void Octree::parsePLY(string pathToFile){
     for(int i = 0; i < points.size(); ++i){
       this->points[i] = points[i];
       this->normals[i] = normals[i];
+      this->colors[i] = colors[i];
       this->finestNodeCenters[i] = {0.0f,0.0f,0.0f};
       this->finestNodeKeys[i] = 0;
       this->pointNodeIndex[i] = -1;
@@ -652,6 +651,27 @@ Octree::Octree(string pathToFile, int depth){
   this->depth = depth;
 }
 
+void Octree::init_octree_gpu(){
+  clock_t cudatimer;
+  cudatimer = clock();
+
+  CudaSafeCall(cudaMalloc((void**)&this->pointsDevice, this->numPoints * sizeof(float3)));
+  CudaSafeCall(cudaMalloc((void**)&this->normalsDevice, this->numPoints * sizeof(float3)));
+  CudaSafeCall(cudaMalloc((void**)&this->colorsDevice, this->numPoints * sizeof(uchar3)));
+  CudaSafeCall(cudaMalloc((void**)&this->finestNodeCentersDevice, this->numPoints * sizeof(float3)));
+  CudaSafeCall(cudaMalloc((void**)&this->finestNodeKeysDevice, this->numPoints * sizeof(int)));
+  CudaSafeCall(cudaMalloc((void**)&this->finestNodePointIndexesDevice, this->numPoints * sizeof(int)));
+
+  this->copyPointsToDevice();
+  this->copyFinestNodeCentersToDevice();
+  this->copyFinestNodeKeysToDevice();
+  this->copyNormalsToDevice();
+  this->copyColorsToDevice();
+
+  cudatimer = clock() - cudatimer;
+  printf("initial allocation & base variable copy took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
+}
+
 void Octree::copyPointsToDevice(){
   CudaSafeCall(cudaMemcpy(this->pointsDevice, this->points, this->numPoints * sizeof(float3), cudaMemcpyHostToDevice));
 }
@@ -664,6 +684,12 @@ void Octree::copyNormalsToDevice(){
 }
 void Octree::copyNormalsToHost(){
   CudaSafeCall(cudaMemcpy(this->normals, this->normalsDevice, this->numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
+}
+void Octree::copyColorsToDevice(){
+  CudaSafeCall(cudaMemcpy(this->colorsDevice, this->colors, this->numPoints * sizeof(uchar3), cudaMemcpyHostToDevice));
+}
+void Octree::copyColorsToHost(){
+  CudaSafeCall(cudaMemcpy(this->colors, this->colorsDevice, this->numPoints * sizeof(uchar3), cudaMemcpyDeviceToHost));
 }
 
 void Octree::copyFinestNodeCentersToDevice(){
@@ -685,41 +711,117 @@ void Octree::copyFinestNodePointIndexesToDevice(){
 void Octree::copyFinestNodePointIndexesToHost(){
   CudaSafeCall(cudaMemcpy(this->finestNodePointIndexes, this->finestNodePointIndexesDevice, this->numPoints * sizeof(int), cudaMemcpyDeviceToHost));
 }
+void Octree::freePrereqArrays(){
+  delete[] finestNodeCenters;
+  delete[] finestNodePointIndexes;
+  delete[] finestNodeKeys;
+  delete[] uniqueNodesAtFinestLevel;
+  CudaSafeCall(cudaFree(finestNodeCentersDevice));
+  CudaSafeCall(cudaFree(finestNodePointIndexesDevice));
+  CudaSafeCall(cudaFree(finestNodeKeysDevice));
+  cout<<"PREREQUISITE/FINEST DEPTH ARRAYS HAVE BEEN DELETED"<<endl;
+}
 
-void Octree::executeKeyRetrieval(dim3 grid, dim3 block){
+void Octree::copyNodesToDevice(){
+  CudaSafeCall(cudaMemcpy(this->finalNodeArrayDevice, this->finalNodeArray, this->totalNodes * sizeof(Node), cudaMemcpyHostToDevice));
+}
+void Octree::copyNodesToHost(){
+  CudaSafeCall(cudaMemcpy(this->finalNodeArray, this->finalNodeArrayDevice, this->totalNodes * sizeof(Node), cudaMemcpyDeviceToHost));
+}
+void Octree::copyVerticesToDevice(){
+  CudaSafeCall(cudaMemcpy(this->vertexArrayDevice, this->vertexArray, this->totalVertices * sizeof(Vertex), cudaMemcpyHostToDevice));
+}
+void Octree::copyVerticesToHost(){
+  CudaSafeCall(cudaMemcpy(this->vertexArray, this->vertexArrayDevice, this->totalVertices * sizeof(Vertex), cudaMemcpyDeviceToHost));
+}
+void Octree::copyEdgesToDevice(){
+  CudaSafeCall(cudaMemcpy(this->edgeArrayDevice, this->edgeArray, this->totalEdges * sizeof(Edge), cudaMemcpyHostToDevice));
+}
+void Octree::copyEdgesToHost(){
+  CudaSafeCall(cudaMemcpy(this->edgeArray, this->edgeArrayDevice, this->totalEdges * sizeof(Edge), cudaMemcpyDeviceToHost));
+}
+void Octree::copyFacesToDevice(){
+  CudaSafeCall(cudaMemcpy(this->faceArrayDevice, this->faceArray, this->totalFaces * sizeof(Face), cudaMemcpyHostToDevice));
+}
+void Octree::copyFacesToHost(){
+  CudaSafeCall(cudaMemcpy(this->faceArray, this->faceArrayDevice, this->totalFaces * sizeof(Face), cudaMemcpyDeviceToHost));
+}
+
+//TODO optimize if possible and remove normals from this section
+void Octree::generateKeys(){
+  clock_t cudatimer;
+  cudatimer = clock();
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  if(this->numPoints < 65535) grid.x = (unsigned int) this->numPoints;
+  else{
+    grid.x = 65535;
+    while(grid.x*block.x < this->numPoints){
+      ++block.x;
+    }
+    while(grid.x*block.x > this->numPoints){
+      --grid.x;
+      if(grid.x*block.x < this->numPoints){
+        ++grid.x;//to ensure that numThreads > this->numPoints
+        break;
+      }
+    }
+  }
 
   getNodeKeys<<<grid,block>>>(this->pointsDevice, this->finestNodeCentersDevice, this->finestNodeKeysDevice, this->center, this->width, this->numPoints, this->depth);
   CudaCheckError();
+  cudatimer = clock() - cudatimer;
+  printf("getnodeKeys kernel took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 
 }
-
 void Octree::sortByKey(){
+  clock_t cudatimer;
+  cudatimer = clock();
+
   int* keyTemp = new int[this->numPoints];
   int* keyTempDevice;
   CudaSafeCall(cudaMalloc((void**)&keyTempDevice, this->numPoints*sizeof(int)));
 
-  for(int array = 0; array < 2; ++array){
+  for(int array = 0; array < 3; ++array){
     for(int i = 0; i < this->numPoints; ++i){
       keyTemp[i] = this->finestNodeKeys[i];
     }
-    thrust::device_ptr<float3> P(this->pointsDevice);
-    thrust::device_ptr<float3> C(this->finestNodeCentersDevice);
-    thrust::device_ptr<float3> N(this->normalsDevice);
-    thrust::device_ptr<int> K(this->finestNodeKeysDevice);
+    thrust::device_ptr<float3> pnts(this->pointsDevice);
+    thrust::device_ptr<float3> cnts(this->finestNodeCentersDevice);
+    thrust::device_ptr<float3> nmls(this->normalsDevice);
+    thrust::device_ptr<uchar3> clrs(this->colorsDevice);
+    thrust::device_ptr<int> kys(this->finestNodeKeysDevice);
 
     CudaSafeCall(cudaMemcpy(keyTempDevice, keyTemp, this->numPoints * sizeof(int), cudaMemcpyHostToDevice));
-    thrust::device_ptr<int> KT(keyTempDevice);
+    thrust::device_ptr<int> temp(keyTempDevice);
     if(array == 0){
-      thrust::sort_by_key(KT, KT + this->numPoints, P);
+      thrust::sort_by_key(temp, temp + this->numPoints, pnts);
     }
     else if(array == 1){
-      thrust::sort_by_key(KT, KT + this->numPoints, C);
-      thrust::sort_by_key(K, K + this->numPoints, N);
+      thrust::sort_by_key(temp, temp + this->numPoints, cnts);
+      thrust::sort_by_key(kys, kys + this->numPoints, clrs);//this also sorts the keys
+    }
+    else{
+      thrust::sort_by_key(temp, temp + this->numPoints, nmls);
     }
   }
-}
 
+  CudaSafeCall(cudaFree(keyTempDevice));
+
+  cudatimer = clock() - cudatimer;
+  printf("octree sort_by_key took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
+}
+//TODO use device pointers
 void Octree::compactData(){
+  clock_t cudatimer;
+  cudatimer = clock();
+  this->copyPointsToHost();
+  this->copyNormalsToHost();
+  this->copyColorsToHost();
+  this->copyFinestNodeCentersToHost();
+  this->copyFinestNodeKeysToHost();
+
   thrust::pair<int*, float3*> nodeKeyCenters;//the last value of these node arrays
   thrust::pair<int*, int*> nodeKeyPointIndexes;//the last value of these node arrays
 
@@ -727,6 +829,7 @@ void Octree::compactData(){
   for(int i = 0; i < this->numPoints; ++i){
     keyTemp[i] = this->finestNodeKeys[i];
   }
+
   nodeKeyCenters = thrust::unique_by_key(keyTemp, keyTemp + this->numPoints, this->finestNodeCenters);
   nodeKeyPointIndexes = thrust::unique_by_key(this->finestNodeKeys, this->finestNodeKeys + this->numPoints, this->finestNodePointIndexes);
   int numUniqueNodes = 0;
@@ -734,11 +837,11 @@ void Octree::compactData(){
     numUniqueNodes++;
   }
   this->numFinestUniqueNodes = numUniqueNodes;
+  cudatimer = clock() - cudatimer;
+  printf("octree unique_by_key took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 
 }
-
 void Octree::fillUniqueNodesAtFinestLevel(){
-  //we have keys, centers, numpoints, point indexes
   this->uniqueNodesAtFinestLevel = new Node[this->numFinestUniqueNodes];
   for(int i = 0; i < this->numFinestUniqueNodes; ++i){
     Node currentNode;
@@ -757,23 +860,11 @@ void Octree::fillUniqueNodesAtFinestLevel(){
   }
 }
 
-void Octree::freePrereqArrays(){
-  delete[] finestNodeCenters;
-  delete[] finestNodePointIndexes;
-  delete[] finestNodeKeys;
-  delete[] uniqueNodesAtFinestLevel;
-  CudaSafeCall(cudaFree(finestNodeCentersDevice));
-  CudaSafeCall(cudaFree(finestNodePointIndexesDevice));
-  CudaSafeCall(cudaFree(finestNodeKeysDevice));
-  cout<<"PREREQUISITE/FINEST DEPTH ARRAYS HAVE BEEN DELETED"<<endl;
-}
-
 void Octree::createFinalNodeArray(){
 
   Node* uniqueNodesDevice;
   CudaSafeCall(cudaMalloc((void**)&uniqueNodesDevice, this->numFinestUniqueNodes*sizeof(Node)));
   CudaSafeCall(cudaMemcpy(uniqueNodesDevice, this->uniqueNodesAtFinestLevel, this->numFinestUniqueNodes*sizeof(Node), cudaMemcpyHostToDevice));
-
   Node** nodeArray2DDevice;
   CudaSafeCall(cudaMalloc((void**)&nodeArray2DDevice, (this->depth + 1)*sizeof(Node*)));
   Node** nodeArray2D = new Node*[this->depth + 1];
@@ -784,7 +875,6 @@ void Octree::createFinalNodeArray(){
   int* nodeNumbersDevice;
 
   this->depthIndex = new int[this->depth + 1];
-  CudaSafeCall(cudaMalloc((void**)&this->depthIndexDevice, (this->depth + 1)*sizeof(int)));
 
   int numUniqueNodes = this->numFinestUniqueNodes;
 
@@ -816,8 +906,7 @@ void Octree::createFinalNodeArray(){
     //this is just to fill the arrays with 0s
     CudaSafeCall(cudaMemcpy(nodeNumbersDevice, nodeAddressesHost, numUniqueNodes * sizeof(int), cudaMemcpyHostToDevice));
     CudaSafeCall(cudaMemcpy(nodeAddressesDevice, nodeAddressesHost, numUniqueNodes * sizeof(int), cudaMemcpyHostToDevice));
-
-    calculateNodeAddresses(numUniqueNodes, uniqueNodesDevice, nodeAddressesDevice, nodeNumbersDevice);
+    calculateNodeAddresses(grid, block, numUniqueNodes, uniqueNodesDevice, nodeAddressesDevice, nodeNumbersDevice);
     CudaSafeCall(cudaMemcpy(nodeAddressesHost, nodeAddressesDevice, numUniqueNodes* sizeof(int), cudaMemcpyDeviceToHost));
 
     int numNodesAtDepth = d > 0 ? nodeAddressesHost[numUniqueNodes - 1] + 8: 1;
@@ -831,11 +920,11 @@ void Octree::createFinalNodeArray(){
     cudaDeviceSynchronize();
     if(this->depth == d){
       int* pointNodeIndexDevice;
-      CudaSafeCall(cudaMalloc((void**)&pointNodeIndexDevice, this->numPoints*sizeof(int)));
-      CudaSafeCall(cudaMemcpy(pointNodeIndexDevice, this->pointNodeIndex, numUniqueNodes* sizeof(int), cudaMemcpyHostToDevice));
+      CudaSafeCall(cudaMalloc((void**)&pointNodeIndexDevice, this->numPoints * sizeof(int)));
+      CudaSafeCall(cudaMemcpy(this->pointNodeIndex, pointNodeIndexDevice, this->numPoints * sizeof(int), cudaMemcpyDeviceToHost));
       fillFinestNodeArrayWithUniques<<<grid,block>>>(uniqueNodesDevice, nodeAddressesDevice,nodeArray2D[this->depth - d], numUniqueNodes, pointNodeIndexDevice);
       CudaCheckError();
-      CudaSafeCall(cudaMemcpy(this->pointNodeIndex, pointNodeIndexDevice, this->numPoints*sizeof(int), cudaMemcpyDeviceToHost));
+      CudaSafeCall(cudaMemcpy(pointNodeIndexDevice, this->pointNodeIndex, this->numPoints * sizeof(int), cudaMemcpyHostToDevice));
       CudaSafeCall(cudaFree(pointNodeIndexDevice));
     }
     else{
@@ -885,15 +974,13 @@ void Octree::createFinalNodeArray(){
     }
     CudaSafeCall(cudaFree(nodeArray2D[i]));
   }
-
-  CudaSafeCall(cudaMemcpy(this->finalNodeArray, this->finalNodeArrayDevice, this->totalNodes*sizeof(Node), cudaMemcpyDeviceToHost));
-  CudaSafeCall(cudaMemcpy(this->depthIndexDevice, this->depthIndex, (this->depth + 1)*sizeof(int), cudaMemcpyHostToDevice));
   delete[] nodeArray2D;
   CudaSafeCall(cudaFree(nodeArray2DDevice));
 
   cout<<"NODE ARRAY FLATTENED AND COMPLETED"<<endl;
-}
+  printf("TOTAL NODES = %d\n\n",this->totalNodes);
 
+}
 void Octree::printLUTs(){
   cout<<"\nPARENT LUT"<<endl;
   for(int row = 0; row <  8; ++row){
@@ -929,7 +1016,6 @@ void Octree::printLUTs(){
   }
   cout<<endl<<endl;
 }
-
 void Octree::fillLUTs(){
   int c[6][6][6];
   int p[6][6][6];
@@ -1017,7 +1103,6 @@ void Octree::fillLUTs(){
   CudaSafeCall(cudaMemcpy(this->childLUTDevice, flatChildLUT, 216*sizeof(int), cudaMemcpyHostToDevice));
   this->printLUTs();
 }
-
 void Octree::fillNeighborhoods(){
 
   //need to use highest number of nodes in a depth instead of totalNodes
@@ -1060,7 +1145,13 @@ void Octree::fillNeighborhoods(){
     cout<<"COMPUTED NEIGHBORHOOD ON DEPTH "<<this->depth - i<<" NUM NEIGHBORS = "<<atomicCounter<<endl;
     atomicCounter = 0;
   }
-  CudaSafeCall(cudaMemcpy(this->finalNodeArray, this->finalNodeArrayDevice, this->totalNodes * sizeof(Node), cudaMemcpyDeviceToHost));
+  this->copyNodesToHost();
+  CudaSafeCall(cudaFree(this->childLUTDevice));
+  CudaSafeCall(cudaFree(this->parentLUTDevice));
+
+}
+
+void Octree::checkForGeneralNodeErrors(){
   int numFuckedNodes = 0;
   int orphanNodes = 0;
   int nodesWithOutChildren = 0;
@@ -1107,8 +1198,7 @@ void Octree::fillNeighborhoods(){
     cout<<nodesThatCantFindChildren<<" ERROR CHILDREN WITHOUT PARENTS"<<endl;
     exit(-1);
   }
-  CudaSafeCall(cudaFree(this->childLUTDevice));
-  CudaSafeCall(cudaFree(this->parentLUTDevice));
+
   cout<<"NODES WITHOUT POINTS = "<<noPoints<<endl;
   cout<<"NODES WITH POINTS = "<<this->totalNodes - noPoints<<endl<<endl;
 }
@@ -1198,7 +1288,7 @@ void Octree::computeVertexArray(){
     CudaSafeCall(cudaFree(vertexPlacementDevice));
 
     //uncomment this if you want to check vertex array
-    ///*
+    /*
     int* compactedOwnerArray = new int[numVertices - prevCount];
     CudaSafeCall(cudaMemcpy(compactedOwnerArray, compactedOwnerArrayDevice, (numVertices - prevCount)*sizeof(int), cudaMemcpyDeviceToHost));
     if(i == 1){
@@ -1210,7 +1300,7 @@ void Octree::computeVertexArray(){
       }
     }
     delete[] compactedOwnerArray;
-    //*/
+    */
 
     grid.y = 1;//reset and allocated resources
     if(numVertices - prevCount < 65535) grid.x = (unsigned int) numVertices - prevCount;
@@ -1251,7 +1341,7 @@ void Octree::computeVertexArray(){
     CudaSafeCall(cudaFree(vertexArray2D[i]));
   }
   cout<<"VERTEX ARRAY COMPLETED"<<endl<<endl;
-  CudaSafeCall(cudaMemcpy(this->vertexArray, this->vertexArrayDevice, this->totalVertices*sizeof(Vertex), cudaMemcpyDeviceToHost));
+  this->copyVerticesToHost();
   CudaSafeCall(cudaFree(this->vertexLUTDevice));
   CudaSafeCall(cudaFree(vertexArray2DDevice));
 }
@@ -1339,20 +1429,20 @@ void Octree::computeEdgeArray(){
     CudaSafeCall(cudaFree(ownerInidicesDevice));
     CudaSafeCall(cudaFree(edgePlacementDevice));
 
-    //uncomment this if you want to check edge array
-    ///*
-    int* compactedOwnerArray = new int[numEdges - prevCount];
-    CudaSafeCall(cudaMemcpy(compactedOwnerArray, compactedOwnerArrayDevice, (numEdges - prevCount)*sizeof(int), cudaMemcpyDeviceToHost));
-    if(i == 1){
-      for(int a = 0; a < numEdges - prevCount; ++a){
+    //uncomment this if you want to check vertex array
+    /*
+    int* compactedOwnerArray = new int[numVertices - prevCount];
+    CudaSafeCall(cudaMemcpy(compactedOwnerArray, compactedOwnerArrayDevice, (numVertices - prevCount)*sizeof(int), cudaMemcpyDeviceToHost));
+    if(i == 0){
+      for(int a = 0; a < numVertices - prevCount; ++a){
         if(compactedOwnerArray[a] == -1){
-          cout<<"ERROR IN COMPACTING EDGE IDENTIFIER ARRAY"<<endl;
+          cout<<a<<" ERROR IN COMPACTING VERTEX IDENTIFIER ARRAY"<<endl;
           exit(-1);
         }
       }
     }
     delete[] compactedOwnerArray;
-    //*/
+    */
 
     grid.y = 1;//reset and allocated resources
     if(numEdges - prevCount < 65535) grid.x = (unsigned int) numEdges - prevCount;
@@ -1538,4 +1628,9 @@ void Octree::computeFaceArray(){
   CudaSafeCall(cudaMemcpy(this->faceArray, this->faceArrayDevice, this->totalFaces*sizeof(Face), cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaFree(this->faceLUTDevice));
   CudaSafeCall(cudaFree(faceArray2DDevice));
+}
+
+//TODO implement!
+void Octree::computeNormals(){
+
 }
