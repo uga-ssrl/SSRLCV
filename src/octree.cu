@@ -538,7 +538,7 @@ Octree::~Octree(){
 TODO remove normal reading from this and replace it with colors
 normals will be determined after the octree has be built
 
-TODO also optimize memory usage with colors added, illegal memory access occurs when not freeing enough 
+TODO also optimize memory usage with colors added, illegal memory access occurs when not freeing enough
 */
 void Octree::parsePLY(string pathToFile){
   cout<<pathToFile + "'s data to be transfered to an empty octree."<<endl;
@@ -1291,7 +1291,7 @@ void Octree::computeVertexArray(){
     /*
     int* compactedOwnerArray = new int[numVertices - prevCount];
     CudaSafeCall(cudaMemcpy(compactedOwnerArray, compactedOwnerArrayDevice, (numVertices - prevCount)*sizeof(int), cudaMemcpyDeviceToHost));
-    if(i == 1){
+    if(i == 0){
       for(int a = 0; a < numVertices - prevCount; ++a){
         if(compactedOwnerArray[a] == -1){
           cout<<"ERROR IN COMPACTING VERTEX IDENTIFIER ARRAY"<<endl;
@@ -1429,14 +1429,14 @@ void Octree::computeEdgeArray(){
     CudaSafeCall(cudaFree(ownerInidicesDevice));
     CudaSafeCall(cudaFree(edgePlacementDevice));
 
-    //uncomment this if you want to check vertex array
+    //uncomment this if you want to check edge array
     /*
-    int* compactedOwnerArray = new int[numVertices - prevCount];
-    CudaSafeCall(cudaMemcpy(compactedOwnerArray, compactedOwnerArrayDevice, (numVertices - prevCount)*sizeof(int), cudaMemcpyDeviceToHost));
+    int* compactedOwnerArray = new int[numEdges - prevCount];
+    CudaSafeCall(cudaMemcpy(compactedOwnerArray, compactedOwnerArrayDevice, (numEdges - prevCount)*sizeof(int), cudaMemcpyDeviceToHost));
     if(i == 0){
-      for(int a = 0; a < numVertices - prevCount; ++a){
+      for(int a = 0; a < numEdges - prevCount; ++a){
         if(compactedOwnerArray[a] == -1){
-          cout<<a<<" ERROR IN COMPACTING VERTEX IDENTIFIER ARRAY"<<endl;
+          cout<<a<<" ERROR IN COMPACTING EDGE IDENTIFIER ARRAY"<<endl;
           exit(-1);
         }
       }
@@ -1575,7 +1575,7 @@ void Octree::computeFaceArray(){
     /*
     int* compactedOwnerArray = new int[numFaces - prevCount];
     CudaSafeCall(cudaMemcpy(compactedOwnerArray, compactedOwnerArrayDevice, (numFaces - prevCount)*sizeof(int), cudaMemcpyDeviceToHost));
-    if(i == 1){
+    if(i == 0){
       for(int a = 0; a < numFaces - prevCount; ++a){
         if(compactedOwnerArray[a] == -1){
           cout<<"ERROR IN COMPACTING FACE IDENTIFIER ARRAY"<<endl;
