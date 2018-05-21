@@ -1,6 +1,6 @@
 stages:
   - build
-  - test
+  - cube_reproject
   - evaluate
 
 before_script:
@@ -16,7 +16,7 @@ compile:
 
 # Perform unit tests
 unit_tests:
-  stage: test
+  stage: cube_reproject
   script:
     - bash util/CI/unit_test01.sh
-    - bash util/CI/unti_test02.sh
+    - bash util/CI/unit_test02.sh
