@@ -169,11 +169,12 @@ void printDeviceProperties() {
 
 // == GLOBAL VARIABLES == //
 bool   verbose = 1;
-bool   debug   = 1;
+bool   debug   = 0;
 bool   simple  = 0;
 int    gpu_acc = 1; // is GPU accellerated?
 
-__constant__ bool   d_debug = 1;
+__constant__ bool   d_debug         = 0;
+__constant__ bool   d_least_squares = 0;
 
 string cameras_path;
 string matches_path;
@@ -293,14 +294,6 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
   int i_p = 3*(i_m);
   i_m *= 4;
 
-  //THIS IS NOW DONE WHEN DECIDING NUMBER OF THREADS
-  //TODO encapsulate everything below this point in a conditional that ensures no out of bounds access
-  // return so that we're only getting every fourth match thing
-  //if ((i_m+1)%4 != 0){
-  //  return;
-  //}
-  // get the index of the point in the point cloud
-
   // grab the camera data, not nessesary but this makes it conseptually easier
   float camera0[6] = {r3cameras[0],r3cameras[1],r3cameras[2],r3cameras[3],r3cameras[4],r3cameras[5]};
   float camera1[6] = {r3cameras[6],r3cameras[7],r3cameras[8],r3cameras[9],r3cameras[10],r3cameras[11]};
@@ -311,36 +304,18 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
   float x1 = d_dpix * ((     r2points[i_m+2]) - d_res/2.0);
   float y1 = d_dpix * ((-1.0*r2points[i_m+3]) + d_res/2.0);
 
-  //float scaled0[3] = {x0,y0,0.0};
-  //float scaled1[3] = {x1,y1,0.0};
   float kp0[3] = {x0,y0,0.0};
   float kp1[3] = {x1,y1,0.0};
-
 
   // get the camera angles
   float r0 = get_vector_x_angle(camera0);
   float r1 = get_vector_x_angle(camera1);
 
-  // rotate the dudes in the x plane
-  //float *k0;
-  //float *k1;
-  //k0 = rotate_projection_x(scaled0,d_PI/2.0);
-  //k1 = rotate_projection_x(scaled1,d_PI/2.0);
-
   rotate_projection_x(kp0,d_PI/2.0); // was d_PI/2.0
   rotate_projection_x(kp1,d_PI/2.0);
-  //k0 = scaled0;
-  //k1 = scaled1;
 
-  //rotate the dudes in the z plane
-  //float *kp0;
-  //float *kp1;
-  //kp0 = rotate_projection_z(k0,r0 + d_PI/2.0); // + PI/2.0
-  //kp1 = rotate_projection_z(k1,r1 + d_PI/2.0); // + PI/2.0
   rotate_projection_z(kp0,r0 + d_PI/2.0); // + d_PI/2.0
   rotate_projection_z(kp1,r1 + d_PI/2.0); // + d_PI/2.0
-  //kp0 = k0;
-  //kp1 = k1;
 
   // adjust the kp's location in a plane
   kp0[0] = camera0[0] - (kp0[0] + (camera0[3] * d_foc));
@@ -352,13 +327,6 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
   float points0[6] = {camera0[0],camera0[1],camera0[2],kp0[0],kp0[1],kp0[2]};
   float points1[6] = {camera1[0],camera1[1],camera1[2],kp1[0],kp1[1],kp1[2]};
 
-  // TODO store the points calculated here, this would just be for debugging
-  // and this could help with debugging if needed
-  // float points1[6] = {camera1[0],camera1[1],camera1[2],kp1[0],kp1[1],kp1[2]};
-  // float points2[6] = {camera2[0],camera2[1],camera2[2],kp2[0],kp2[1],kp2[2]};
-  //
-  // float v1[3]    = {points1[3] - points1[0],points1[4] - points1[1],points1[5] - points1[2]};
-  // float v2[3]    = {points2[3] - points2[0],points2[4] - points2[1],points2[5] - points2[2]};
   // calculate the vectors
   float v0[3]    = {points0[3] - points0[0],points0[4] - points0[1],points0[5] - points0[2]};
   float v1[3]    = {points1[3] - points1[0],points1[4] - points1[1],points1[5] - points1[2]};
@@ -370,47 +338,52 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
   float p0[3]; //= {0.0,0.0,0.0};
   float p1[3]; //= {0.0,0.0,0.0};
   float point[4];
-  //=====================//
-  //=                   =//
-  //=    Here be a      =//
-  //=   brute force     =//
-  //=                   =//
-  //=====================//
-  // TODO don't brute force this, when u have time later pls fix this
+  // TODO add a least squares version
+  if (d_least_squares){
+    //=====================//
+    //=                   =//
+    //=    Here be a      =//
+    //=   least squares   =//
+    //=                   =//
+    //=====================//
 
-  for (float t = 0.0f; t < 8000.0f; t += 0.001){
-    t_holder = t;
+  } else {
+    //=====================//
+    //=                   =//
+    //=    Here be a      =//
+    //=   brute force     =//
+    //=                   =//
+    //=====================//
+    for (float t = 0.0f; t < 8000.0f; t += 0.001){
+      t_holder = t;
 
-    p0[0] = points0[3] + (v0[0]*t);
-    p0[1] = points0[4] + (v0[1]*t);
-    p0[2] = points0[5] + (v0[2]*t);
+      p0[0] = points0[3] + (v0[0]*t);
+      p0[1] = points0[4] + (v0[1]*t);
+      p0[2] = points0[5] + (v0[2]*t);
 
-    p1[0] = points1[3] + (v1[0]*t);
-    p1[1] = points1[4] + (v1[1]*t);
-    p1[2] = points1[5] + (v1[2]*t);
+      p1[0] = points1[3] + (v1[0]*t);
+      p1[1] = points1[4] + (v1[1]*t);
+      p1[2] = points1[5] + (v1[2]*t);
 
-    //float dist = euclid(p0,p1);
-    float dist = norm3df((p0[0]-p1[0]),(p0[1]-p1[1]),(p0[2]-p0[2]));
-    if (dist <= smallest){
-      smallest = dist;
-      point[0] = (p0[0]+p1[0])/2.0;
-      point[1] = (p0[1]+p1[1])/2.0;
-      point[2] = (p0[2]+p1[2])/2.0;
-      point[3] = smallest;
-    } else break;
+      //float dist = euclid(p0,p1);
+      float dist = norm3df((p0[0]-p1[0]),(p0[1]-p1[1]),(p0[2]-p0[2]));
+      if (dist <= smallest){
+        smallest = dist;
+        point[0] = (p0[0]+p1[0])/2.0;
+        point[1] = (p0[1]+p1[1])/2.0;
+        point[2] = (p0[2]+p1[2])/2.0;
+        point[3] = smallest;
+      } else break;
+    }
   }
-
+  // this is the standard output for the result
   point_cloud[i_p]   = point[0];
   point_cloud[i_p+1] = point[1];
   point_cloud[i_p+2] = point[2];
 
   if (d_debug){
     printf("smallest: %f, t: [%f]\nv0: [%f,%f,%f]\nv1: [%f,%f,%f]\np0: [%f,%f,%f]\np1: [%f,%f,%f]\n",point[3],t_holder,v0[0],v0[1],v0[2],v1[0],v1[1],p1[2],p0[0],p0[1],p0[2],p1[0],p1[1],p1[2]);
-    //printf("\ncamera0: [%f,%f,%f,%f,%f,%f]\ncamera1: [%f,%f,%f,%f,%f,%f]\nkp0: [%f,%f,%f]\nkp1: [%f,%f,%f]\ncamera0 angle: %f, camera1 angle: %f \n",kp0[0],kp0[1],kp0[2],kp1[0],kp1[1],kp1[2],r0,r1,camera0[0],camera0[1],camera0[2],camera0[3],camera0[4],camera0[5],camera1[0],camera1[1],camera1[2],camera1[3],camera1[4],camera1[5]);
-    //printf("point: [%f,%f,%f]\nmatch point index: %d\npoint cloud index: %d\nsaved to point_cloud: [%f,%f,%f]\n\n",point[0],point[1],point[2],i_m,i_p,point_cloud[i_p],point_cloud[i_p+1],point_cloud[i_p+2]);
   } // for debugging
-  //point_cloud[i_p]   = (float) i_p;
-  //point_cloud[i_p+1] = (float) i_m;
 
 }
 
@@ -581,50 +554,6 @@ vector<float> rotate_projection_z(float x, float y, float z, float r){
   v.push_back(z_n);
   return v;
 }
-
-// depricated
-// int vector_scale(float *x, int xdimension, int ydimension, float scalevalue){
-//     //
-//     //CUBLAS - scale the projection's coordinates
-//     //
-//     //allocate system memory to then transfer to gpu memory
-//     //initialize content then set vector.
-//     //scale vector stat=cublasSscal(handle,n,&al,d x,1);
-//     //get vector
-//     //cudafree
-//     //cublas destroy handle
-//     //free host mallocd
-//
-//     int n = xdimension;
-//     //not necessary anymore with CudaSafeCall
-//     //cudaError_t cudaStat ; // cudaMalloc status
-//     cublasStatus_t stat ; // CUBLAS functions status
-//     cublasHandle_t handle ; // CUBLAS context
-//
-//     // on the device
-//     float * d_x; // d_x - x on the device
-//     CudaSafeCall(cudaMalloc (( void **)& d_x ,n* sizeof (*x))); // device
-//     // memory alloc for x
-//     cublasCreate (& handle ); // initialize CUBLAS context
-//     CudaCheckError();
-//
-//     cublasSetVector (n, sizeof (*x) ,x ,1 ,d_x ,1); // cp x- >d_x
-//     CudaCheckError();
-//
-//     float al =scalevalue; // al =2
-//     // scale the vector d_x by the scalar al: d_x = al*d_x
-//     stat=cublasSscal(handle,n,&al,d_x,1);
-//     CudaCheckError();
-//
-//     stat = cublasGetVector (n, sizeof ( float ) ,d_x ,1 ,x ,1); // cp d_x - >x
-//     CudaCheckError();
-//
-//     CudaSafeCall(cudaFree (d_x)); // free device memory
-//     cublasDestroy (handle); // destroy CUBLAS context
-//     CudaCheckError();
-//     free (x); // free host memory
-//     return EXIT_SUCCESS ;
-// }
 
 //
 // This is to perform a dot product w the GPU
@@ -1016,7 +945,7 @@ int main(int argc, char* argv[]){
 
   cameras_path = argv[1];
   matches_path = argv[2];
-  gpu_acc = stoi(argv[3]);
+  if (argc == 4) gpu_acc = stoi(argv[3]);
 
   load_matches();
   load_cameras();
