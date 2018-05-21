@@ -8,7 +8,9 @@ before_script:
 
 compile:
   stage: build
-  script: make
+  script: 
+    - make
+    - echo hello
 
 # Perform unit tests
 unit_tests:
