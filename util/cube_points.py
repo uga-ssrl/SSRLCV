@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import sys, os
 from math import sin, cos, tan, sqrt, floor, radians
 
@@ -16,10 +18,10 @@ cube_points = [[ -1.0,  1.0, -1.0], # 0 A
 
 origin = [0.0,0.0,0.0]
 foc    = 0.035 # in meters
-fov    = 0.8575553107; # 49.1343 degrees
+fov    = 0.8575553107 # 49.1343 degrees
 alt    = 5.0 # in meters
 res    = 1024 # pixels
-dpix   = (foc*tan(fov/2))/(res/2);
+dpix   = (foc*tan(fov/2))/(res/2)
 
 print '      CONFIGURATION:'
 print '<========================>'
@@ -128,65 +130,6 @@ for point in cube_points:
     matches.append(match)
     print ''
 
-#new_match_set = []
-#match_count = 0
-#for point in cube_points:
-## compute vectors for each point pair:
-#    v_x = point[0] - camera[0]
-#    v_y = point[1] - camera[1]
-#    v_z = point[2] - camera[2]
-#    # compute the parametric variable's intersection with the y-plane
-#    t = ((alt-foc) - point[1])/v_y
-#    # compute the points!
-#    x = v_x * t + point[0]
-#    y = v_y * t + point[1] # redundant, just for readability
-#    z = v_z * t + point[2]
-#    if (verbose):
-#        print 'projected point: ' + str(point) + '\t --> ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']'
-#    # scale the projected point with dpix
-#    x = x/dpix + res/2.0
-#    y = y/dpix + res/2.0
-#    z = z/dpix + res/2.0
-#    if (verbose):
-#        print 'scaled: ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']' + ' => ' + str(match_count)
-#    new_match_set.append([x,y,z,match_count])
-#    match_count += 1
-
-    
-    #print point
-
-#raw_match_set.append(new_match_set)
-
-# rotate by 45 degrees
-#rotate_cube_z(radians(-10))
-
-# do the thing again
-#new_match_set = []
-#match_count = 0
-#for point in cube_points:
-#    # compute vectors for each point pair:
-#    v_x = point[0] - camera[0]
-#    v_y = point[1] - camera[1]
-#    v_z = point[2] - camera[2]
-#    # compute the parametric variable's intersection with the y-plane
-#    t = ((alt-foc) - point[1])/v_y
-#    # compute the points!
-#    x = v_x * t + point[0]
-#    y = v_y * t + point[1] # redundant, just for readability
-#    z = v_z * t + point[2]
-#    if (verbose):
-#        print 'projected point: ' + str(point) + '\t --> ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']'
-#    # scale the projected point with dpix
-#    x = x/dpix + res/2.0
-#    y = y/dpix + res/2.0
-#    z = z/dpix + res/2.0
-#    if (verbose):
-#        print 'scaled: ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']' + ' => ' + str(match_count)
-#    new_match_set.append([x,y,z,match_count])
-#    match_count += 1
-    #print point
-
-#raw_match_set.append(new_match_set)
 
 #print raw_match_set
 print matches
@@ -220,8 +163,4 @@ y_u = abs(sin(radians(-10)))
 if verbose:
     print '2,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',' + str(y_u) + ',' + str(x_u) + ',0.0\n'
 f.write('2,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',' + str(y_u) + ',' + str(x_u) + ',0.0\n')
-
-#if verbose:
-#    print '2,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.0,-1.0,0.0\n'
-#f.write('2,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.0,-1.0,0.0\n')
 

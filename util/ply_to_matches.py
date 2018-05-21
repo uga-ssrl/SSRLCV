@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import sys, os
 import numpy as np
 import random
