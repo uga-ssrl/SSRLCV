@@ -52,11 +52,13 @@ int main(int argc, char *argv[]){
       /*
       RECONTRUCTION PREP HAS COMPLETED NOW ONTO POISSON RECONSTRUCTION
       */
+      Poisson poisson = Poisson(octree);
 
-      //computeDivergenceVector();
-      //computeImplicitFunction();
-      //marchingCubes();
-      //isosurfaceExtraction();
+      //poisson.computeLaplacianMatrix();
+      //poisson.computeDivergenceVector();
+      //poisson.computeImplicitFunction();
+      //poisson.marchingCubes();
+      //poisson.isosurfaceExtraction();
 
       cudaDeviceReset();
       totalTimer = clock() - totalTimer;

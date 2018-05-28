@@ -2,6 +2,7 @@
 
 using namespace std;
 
+#define MAX_POSSIBLE_DEPTH = 10
 // Define this to turn on error checking
 #define CUDA_ERROR_CHECK
 
@@ -31,7 +32,7 @@ inline void __cudaCheckError(const char *file, const int line) {
 
   // More careful checking. However, this will affect performance.
   // Comment away if needed.
-  //err = cudaDeviceSynchronize();
+  err = cudaDeviceSynchronize();
   if (cudaSuccess != err) {
     fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
     file, line, cudaGetErrorString(err));
@@ -42,6 +43,7 @@ inline void __cudaCheckError(const char *file, const int line) {
   return;
 }
 
+__constant__ int d_MAX_POSSIBLE_DEPTH = 10;
 
 __device__ __host__ Vertex::Vertex(){
   for(int i = 0; i < 8; ++i){
@@ -76,9 +78,12 @@ __device__ __host__ Node::Node(){
   this->pointIndex = -1;
   this->center = {0.0f,0.0f,0.0f};
   this->key = 0;
+  this->width = 0.0f;
   this->numPoints = 0;
   this->parent = -1;
   this->depth = -1;
+  this->numFinestChildren = 0;
+  this->finestChildIndex = -1;
   for(int i = 0; i < 27; ++i){
     if(i < 6){
       this->faces[i] = -1;
@@ -237,6 +242,8 @@ __global__ void fillFinestNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddre
     outputNodeArray[address].center = uniqueNodes[globalID].center;
     outputNodeArray[address].pointIndex = uniqueNodes[globalID].pointIndex;
     outputNodeArray[address].numPoints = uniqueNodes[globalID].numPoints;
+    outputNodeArray[address].finestChildIndex = address;//itself
+    outputNodeArray[address].numFinestChildren = 1;//itself
   }
 }
 __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, Node* childNodeArray,int numUniqueNodes){
@@ -257,8 +264,11 @@ __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, 
     outputNodeArray[address].center = uniqueNodes[globalID].center;
     outputNodeArray[address].pointIndex = uniqueNodes[globalID].pointIndex;
     outputNodeArray[address].numPoints = uniqueNodes[globalID].numPoints;
+    outputNodeArray[address].finestChildIndex = uniqueNodes[globalID].finestChildIndex;
+    outputNodeArray[address].numFinestChildren = uniqueNodes[globalID].numFinestChildren;
   }
 }
+//TODO make this kernel increment numFinestChildren and set finestChildIndex
 __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD, int numNodesAtDepth, float totalWidth){
   int numUniqueNodesAtParentDepth = numNodesAtDepth / 8;
   int tx = threadIdx.x;
@@ -266,18 +276,26 @@ __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD,
   int globalID = bx * blockDim.x + tx;
   int nodeArrayIndex = globalID*8;
   if(globalID < numUniqueNodesAtParentDepth){
+    uniqueNodes[globalID] = Node();//may not be necessary
     uniqueNodes[globalID].key = nodeArrayD[nodeArrayIndex].key>>3;
     uniqueNodes[globalID].pointIndex = nodeArrayD[nodeArrayIndex].pointIndex;
     int depth =  nodeArrayD[nodeArrayIndex].depth;
     uniqueNodes[globalID].depth = depth - 1;
     float3 center = nodeArrayD[nodeArrayIndex].center;
-    center.x += totalWidth/powf(2,depth);
-    center.y += totalWidth/powf(2,depth);
-    center.z += totalWidth/powf(2,depth);
+    float widthOfNode = totalWidth/powf(2,depth);
+    center.x += (widthOfNode/2);
+    center.y += (widthOfNode/2);
+    center.z += (widthOfNode/2);
     uniqueNodes[globalID].center = center;
+    int currentFinestChildIndex = 0x77777777;
     for(int i = 0; i < 8; ++i){
       uniqueNodes[globalID].numPoints += nodeArrayD[nodeArrayIndex + i].numPoints;
       uniqueNodes[globalID].children[i] = nodeArrayIndex + i;
+      uniqueNodes[globalID].numFinestChildren += nodeArrayD[nodeArrayIndex + i].numFinestChildren;
+      nodeArrayD[globalID + i].width = widthOfNode;
+      if(currentFinestChildIndex > nodeArrayD[nodeArrayIndex + i].finestChildIndex && -1 != nodeArrayD[nodeArrayIndex + i].finestChildIndex){
+        uniqueNodes[globalID].finestChildIndex = nodeArrayD[nodeArrayIndex + i].finestChildIndex;//no need to update due to them being the finest
+      }
     }
   }
 }
@@ -308,14 +326,18 @@ __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depth
       //  nodeArray[blockID].neighbors[threadIdx.x] = -1;
       //}
     }
-    __syncthreads();
+    __syncthreads();//index updates
+    //doing this mostly to prevent memcpy overhead
     if(childDepthIndex != -1 && threadIdx.x < 8){
       nodeArray[blockID + depthIndex].children[threadIdx.x] += childDepthIndex;
     }
-    if(nodeArray[blockID + depthIndex].parent != -1){
+    if(nodeArray[blockID + depthIndex].parent != -1 && threadIdx.x == 0){
       nodeArray[blockID + depthIndex].parent += (depthIndex + numNodes);
     }
+    else if(threadIdx.x == 0){//this means you are at root
+      nodeArray[blockID + depthIndex].width = 2*nodeArray[nodeArray[blockID + depthIndex].children[0]].width;
 
+    }
   }
 }
 
@@ -531,7 +553,7 @@ Octree::Octree(){
 }
 
 Octree::~Octree(){
-
+  //TODO add deletes and cudaFrees here
 }
 
 /*
@@ -841,7 +863,7 @@ void Octree::compactData(){
   printf("octree unique_by_key took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 
 }
-void Octree::fillUniqueNodesAtFinestLevel(){
+void Octree::fillUniqueNodesAtFinestLevel(){//only fills with base information
   this->uniqueNodesAtFinestLevel = new Node[this->numFinestUniqueNodes];
   for(int i = 0; i < this->numFinestUniqueNodes; ++i){
     Node currentNode;
@@ -853,7 +875,7 @@ void Octree::fillUniqueNodesAtFinestLevel(){
       currentNode.numPoints = this->finestNodePointIndexes[i + 1] - this->finestNodePointIndexes[i];
     }
     else{
-      currentNode.numPoints = this->numPoints - this->finestNodePointIndexes[i] - 1;
+      currentNode.numPoints = this->numPoints - this->finestNodePointIndexes[i];
     }
 
     this->uniqueNodesAtFinestLevel[i] = currentNode;
@@ -1182,8 +1204,23 @@ void Octree::checkForGeneralNodeErrors(){
       //exit(-1);
       nodesThatCantFindChildren++;
     }
+    if(this->finalNodeArray[i].depth == 9 && this->finalNodeArray[i].numFinestChildren == 0){
+      //cout<<"FINEST NODES ARE NOT BEING COUNTED IN PARENTS"<<endl;
+      //exit(-1);
+    }
     if(checkForChildren == 8){
       nodesWithOutChildren++;
+    }
+    if(this->finalNodeArray[i].depth == 0){
+      if(this->finalNodeArray[i].numFinestChildren < this->numFinestUniqueNodes){
+        cout<<"DEPTH 0 DOES NOT INCLUDE ALL FINEST UNIQUE NODES "<<this->finalNodeArray[i].numFinestChildren<<",";
+        cout<<this->numFinestUniqueNodes<<", NUM FULL FINEST NODES SHOULD BE "<<this->depthIndex[1]<<endl;
+        exit(-1);
+      }
+      if(this->finalNodeArray[i].numPoints != this->numPoints){
+        cout<<"DEPTH 0 DOES NOT CONTAIN ALL POINTS "<<this->finalNodeArray[i].numPoints<<","<<this->numPoints<<endl;
+        exit(-1);
+      }
     }
   }
   if(numFuckedNodes > 0){

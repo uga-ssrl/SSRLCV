@@ -5,7 +5,7 @@ LINK := nvcc
 NVCC  := nvcc
 
 # Includes
-INCLUDES = -I. -I/usr/local/cuda/include
+INCLUDES = -I. -I/usr/local/cuda/include 
 
 # Common flags
 COMMONFLAGS += ${INCLUDES}

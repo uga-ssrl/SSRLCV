@@ -74,9 +74,13 @@ struct Face{
 struct Node{
   int pointIndex;
   float3 center;
+  float width;
   int key;
   int numPoints;
   int depth;
+  //TODO check this as it is set in generateParents 
+  int numFinestChildren;
+  int finestChildIndex;
 
   int parent;
   int children[8];
