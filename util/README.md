@@ -13,14 +13,26 @@ This folder is used for storing unit tests, examples (such as prototyping math o
 these scripts, for testing this accuracy, are located in the `io` folder.
 
 **THIS PART SHOULD AREADY BE DONE** and only needs to be done on new installs.
->  first you need to make sure pip is installed:
+
+## MacOS
+... also this part only works on mac right now
+
+you need to have brew installed. run: `ruby -e "$(curl -fsSL https://raw.github.com/mxcl/homebrew/go)"` if you don't
+
+> Add this line to your `~/.bashrc` or `~/.zshrc` file:
+>
+> `export PATH=/usr/local/bin:$PATH`
+>
+> first you need to make sure pip is installed:
 >
 > `curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py`
 >
 > `sudo python get-pip.py`
 >
-> `sudo `
+> `sudo pip install numpy`
 >
+> `sudo pip install plyfile`
 >
+
 
 ### Steps for MOPS when prepping for Cloud Compare
