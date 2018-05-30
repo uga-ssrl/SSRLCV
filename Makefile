@@ -45,5 +45,8 @@ clean:
 	rm -f src/*~
 	rm -f util/*~
 	rm -f util/*.o
+	rm -f util/io/*~
+	rm -f util/examples/*~
+	rm -f uril/CI/*~
 	rm -f .DS_Store
 	rm -f *._*
