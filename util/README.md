@@ -11,3 +11,16 @@ This folder is used for storing unit tests, examples (such as prototyping math o
 # Use in testing Accuracy of the reprojection stage
 
 these scripts, for testing this accuracy, are located in the `io` folder.
+
+**THIS PART SHOULD AREADY BE DONE** and only needs to be done on new installs.
+>  first you need to make sure pip is installed:
+>
+> `curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py`
+>
+> `sudo python get-pip.py`
+>
+> `sudo `
+>
+>
+
+### Steps for MOPS when prepping for Cloud Compare
