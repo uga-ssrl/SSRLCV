@@ -52,7 +52,7 @@ int main(int argc, char *argv[]){
       /*
       RECONTRUCTION PREP HAS COMPLETED NOW ONTO POISSON RECONSTRUCTION
       */
-      Poisson poisson = Poisson(octree);
+      Poisson poisson = Poisson(&octree);
 
       //poisson.computeLaplacianMatrix();
       //poisson.computeDivergenceVector();

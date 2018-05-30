@@ -341,7 +341,7 @@ __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depth
   }
 }
 
-
+//TODO ensure that ordering of vertices is correct
 __global__ void findVertexOwners(Node* nodeArray, int numNodes, int depthIndex, int* vertexLUT, int* numVertices, int* ownerInidices, int* vertexPlacement){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
@@ -395,7 +395,7 @@ __global__ void fillUniqueVertexArray(Node* nodeArray, Vertex* vertexArray, int 
   }
 }
 
-
+//TODO ensure that ordering of edges is correct
 __global__ void findEdgeOwners(Node* nodeArray, int numNodes, int depthIndex, int* edgeLUT, int* numEdges, int* ownerInidices, int* edgePlacement){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
@@ -467,7 +467,7 @@ __global__ void fillUniqueEdgeArray(Node* nodeArray, Edge* edgeArray, int numEdg
   }
 }
 
-
+//TODO ensure that ordering of faces is correct
 __global__ void findFaceOwners(Node* nodeArray, int numNodes, int depthIndex, int* faceLUT, int* numFaces, int* ownerInidices, int* facePlacement){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
