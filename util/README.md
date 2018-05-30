@@ -22,6 +22,11 @@ you need to have brew installed. run: `ruby -e "$(curl -fsSL https://raw.github.
 > Add this line to your `~/.bashrc` or `~/.zshrc` file:
 >
 > `export PATH=/usr/local/bin:$PATH`
+> `export PATH=/usr/local/share/python:$PATH`
+>
+> `brew install python`
+>
+> `. ~/.bashrc` or `. ~/.zshrc`
 >
 > first you need to make sure pip is installed:
 >
@@ -34,5 +39,6 @@ you need to have brew installed. run: `ruby -e "$(curl -fsSL https://raw.github.
 > `sudo pip install plyfile`
 >
 
-
 ### Steps for MOPS when prepping for Cloud Compare
+
+you **MUST** be on the utilities branch. type: `git checkout utilities`
