@@ -22,12 +22,18 @@ you need to have brew installed. run: `ruby -e "$(curl -fsSL https://raw.github.
 > Add this line to your `~/.bashrc` or `~/.zshrc` file:
 >
 > `export PATH=/usr/local/bin:$PATH`
+>
 > `export PATH=/usr/local/share/python:$PATH`
 >
 > `brew install python`
 >
 > `. ~/.bashrc` or `. ~/.zshrc`
 >
+
+now if you type `python -V` it should return at least Python 2.7.15
+
+if you don't see at least that version number, try `brew remove python@2 --ignore-dependencies` then `brew install python@2` and then type `. ~/.bashrc`
+
 > first you need to make sure pip is installed:
 >
 > `curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py`
