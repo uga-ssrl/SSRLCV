@@ -185,15 +185,16 @@ unsigned short camera_count;
 // TODO (some of) this stuff should be set by camera calibration
 // TODO have this stuff sent in with camera parameter files
 // This was for the test cases only
-__constant__ int   d_res  = 1024;
-__constant__ float d_foc  = 0.035;
-__constant__ float d_fov  = 0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
-__constant__ float d_PI   = 3.1415926535;
-__constant__ float d_dpix = 0.00003124996;//0.00002831538; //(d_foc*tan(d_fov/2))/(d_res/2);
+__constant__ int   d_res      = 2000;
+__constant__ float d_foc      = 0.035;
+__constant__ float d_fov      = 0.0593412; //3.4 degrees to match the blender sim //0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
+__constant__ float d_PI       = 3.1415926535;
+__constant__ float d_dpix     = 0.00000103877;// 0.00003124996;//0.00002831538; //(d_foc*tan(d_fov/2))/(d_res/2);
+__constant__ float d_stepsize = 0.000001; // the step size of the iterative solution
 
-unsigned int   res  = 1024;
+unsigned int   res  = 2000;
 float          foc  = 0.035;
-float          fov  = 0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
+float          fov  = 0.0593412; //3.4 degrees to match the blender sim //0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
 float          PI   = 3.1415926535;
 float          dpix = (foc*tan(fov/2))/(res/2); //float          dpix = 0.00002831538; //(foc*tan(fov/2))/(res/2)
 
@@ -354,7 +355,7 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
     //=   brute force     =//
     //=                   =//
     //=====================//
-    for (float t = 0.0f; t < 8000.0f; t += 0.001){
+    for (float t = 0.0f; t < 8000.0f; t += d_stepsize){
       t_holder = t;
 
       p0[0] = points0[3] + (v0[0]*t);
