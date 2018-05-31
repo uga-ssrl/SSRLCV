@@ -169,12 +169,16 @@ void printDeviceProperties() {
 
 // == GLOBAL VARIABLES == //
 bool   verbose = 1;
-bool   debug   = 0;
+bool   debug   = 1;
 bool   simple  = 0;
 int    gpu_acc = 1; // is GPU accellerated?
 
-__constant__ bool   d_debug         = 0;
-__constant__ bool   d_least_squares = 0;
+__constant__ bool   d_debug             = 1;
+__constant__ bool   d_verbose           = 0;
+
+// only one of these should be active at a time
+__constant__ bool   d_line_intersection = 1;
+__constant__ bool   d_least_squares     = 0;
 
 string cameras_path;
 string matches_path;
@@ -185,16 +189,16 @@ unsigned short camera_count;
 // TODO (some of) this stuff should be set by camera calibration
 // TODO have this stuff sent in with camera parameter files
 // This was for the test cases only
-__constant__ int   d_res      = 2000;
+__constant__ int   d_res      = 1024;
 __constant__ float d_foc      = 0.035;
-__constant__ float d_fov      = 0.0593412; //3.4 degrees to match the blender sim //0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
+__constant__ float d_fov      = 0.8575553107;//0.0593412; //3.4 degrees to match the blender sim //0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
 __constant__ float d_PI       = 3.1415926535;
-__constant__ float d_dpix     = 0.00000103877;// 0.00003124996;//0.00002831538; //(d_foc*tan(d_fov/2))/(d_res/2);
-__constant__ float d_stepsize = 0.000001; // the step size of the iterative solution
+__constant__ float d_dpix     = 0.00003124996;//0.00000103877;// 0.00003124996;///(d_foc*tan(d_fov/2))/(d_res/2);
+__constant__ float d_stepsize = 0.005; // the step size of the iterative solution
 
-unsigned int   res  = 2000;
+unsigned int   res  = 1024;
 float          foc  = 0.035;
-float          fov  = 0.0593412; //3.4 degrees to match the blender sim //0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
+float          fov  = 0.8575553107;//0.0593412; //3.4 degrees to match the blender sim //0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
 float          PI   = 3.1415926535;
 float          dpix = (foc*tan(fov/2))/(res/2); //float          dpix = 0.00002831538; //(foc*tan(fov/2))/(res/2)
 
@@ -269,11 +273,43 @@ __device__ void rotate_projection_z(float *v, float angle){
   float x_n = cosf(angle)*v[0] + -1*sinf(angle)*v[1];
   float y_n = sinf(angle)*v[0] + cosf(angle)*v[1];
   float z_n = v[2];
-  // float w[3] = {x_n,y_n,z_n};
-  // return w;
   v[0] = x_n;
   v[1] = y_n;
   v[2] = z_n;
+}
+
+// returns the cross product of 3x1 vectors
+__device__ void cross_product(float *a, float *b, float *n){
+  n[0] = a[1]*b[2] - a[2]*b[1];
+  n[1] = a[2]*b[0] - a[0]*b[2];
+  n[2] = a[0]*b[1] - a[1]*b[0];
+}
+
+// subtract 2 3x1 vectors
+__device__ void sub(float *a, float *b, float *n){
+  n[0] = a[0] - b[0];
+  n[1] = a[1] - b[1];
+  n[2] = a[2] - b[2];
+}
+
+// subtract 2 3x1 vectors
+__device__ void add(float *a, float *b, float *n){
+  n[0] = a[0] + b[0];
+  n[1] = a[1] + b[1];
+  n[2] = a[2] + b[2];
+}
+
+// multiplies a by 3x1 vector b
+__device__ void mul(float a, float *b, float *n){
+  n[0] = a * b[0];
+  n[1] = a * b[1];
+  n[2] = a * b[2];
+}
+
+__device__ void zero3(float*n){
+  n[0] = 0.0;
+  n[1] = 0.0;
+  n[2] = 0.0;
 }
 
 __device__ float squared(float x){
@@ -283,6 +319,14 @@ __device__ float squared(float x){
 __device__ float euclid(float p1[3], float p2[3]){
   return sqrtf(((p2[0] - p1[0])*(p2[0] - p1[0])) + ((p2[1] - p1[1])*(p2[1] - p1[1])) + ((p2[2] - p1[2])*(p2[2] - p1[2])));
   //return sqrtf((squared));
+}
+
+// normalize a vector
+__device__ void normalize(float *v){
+  float len = sqrtf(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+  v[0] /= len;
+  v[1] /= len;
+  v[2] /= len;
 }
 
 //
@@ -348,6 +392,89 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
     //=                   =//
     //=====================//
 
+  } else if (d_line_intersection){
+    //=====================//
+    //=                   =//
+    //=    Here be an     =//
+    //=   algibra dudes   =//
+    //=                   =//
+    //=====================//
+    // https://en.wikipedia.org/wiki/Skew_lines#Nearest_Points
+    float temp[3];
+    float solution0[3];
+    float solution1[3];
+    //normalize(v0);
+    //normalize(v1);
+    zero3(temp);
+    zero3(solution0);
+    zero3(solution1);
+    // starting points
+    p0[0] = points0[3];
+    p0[1] = points0[4];
+    p0[2] = points0[5];
+    p1[0] = points1[3];
+    p1[1] = points1[4];
+    p1[2] = points1[5];
+    // the crossy dudes
+    float n0[3];
+
+    float n1[3];
+    float n2[3];
+
+    zero3(n0);
+    zero3(n1);
+    zero3(n2);
+
+    cross_product(v0,v1,n0);
+    cross_product(v1,n0,n1);
+    // calculate the points
+    // calculate the numorator
+    sub(p1,p0,temp);
+    float numor0 = dot_product(temp,n1,3);
+    float denom0 = dot_product(v0,n1,3);
+    float frac0  = numor0/denom0;
+    // // clear temp
+    zero3(temp);
+    // // calculate solution
+    mul(frac0,v0,temp);
+    add(p0,temp,solution0);
+
+    // // do that again!
+
+    zero3(temp);
+    cross_product(v1,v0,temp);
+    cross_product(v0,temp,n2);
+    //
+    zero3(temp);
+    sub(p0,p1,temp);
+    float numor1 = dot_product(temp,n2,3);
+    float denom1 = dot_product(v1,n2,3);
+    float frac1  = numor1/denom1;
+    // // clear temp
+    zero3(temp);
+    // // calculate solution
+    mul(frac1,v1,temp);
+    add(p1,temp,solution1);
+    //
+    // // we found the solutions! now, find their midpoint
+    point[0] = solution0[0];//(solution0[0]+solution1[0])/2.0;
+    point[1] = solution0[1];//(solution0[1]+solution1[1])/2.0;
+    point[2] = solution0[2];//(solution0[2]+solution1[2])/2.0;
+
+    // supposed to be perp
+    float d[3];
+    d[0] = solution0[0] - solution1[0];
+    d[1] = solution0[1] - solution1[1];
+    d[2] = solution0[2] - solution1[2];
+
+    float dot0 = dot_product(v0,d,3);
+    float dot1 = dot_product(v1,d,3);
+    if (d_debug){
+      float threshold = 0.000001;
+      if (!(dot0 <= threshold)) printf("ASS0 %f",dot0);
+      if (!(dot1 <= threshold)) printf("ASS1 %f",dot1);
+    }
+
   } else {
     //=====================//
     //=                   =//
@@ -355,7 +482,7 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
     //=   brute force     =//
     //=                   =//
     //=====================//
-    for (float t = 0.0f; t < 8000.0f; t += d_stepsize){
+    for (float t = 0.0f; t < 250000.0f; t += d_stepsize){
       t_holder = t;
 
       p0[0] = points0[3] + (v0[0]*t);
@@ -839,6 +966,7 @@ void two_view_reproject_gpu(){
     THREAD_COUNT.x = POINT_CLOUD_SIZE/3;
   }
   if (debug) cout << "THREAD COUNT: " << THREAD_COUNT.x << endl << "BLOCK COUNT: " << BLOCK_COUNT.x << endl << "Point Cloud Size: " << POINT_CLOUD_SIZE << endl;
+  if (verbose) cout << "Reprojecting..." << endl;
   two_view_reproject<<<BLOCK_COUNT,THREAD_COUNT>>>(d_in_m,d_in_c,d_out_p);
   CudaCheckError();
 

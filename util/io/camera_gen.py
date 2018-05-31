@@ -4,7 +4,7 @@ from sympy.solvers import solve
 from sympy import *
 import numpy
 import scipy.misc
-import pylab
+#import pylab
 import gc
 
 def pan():
