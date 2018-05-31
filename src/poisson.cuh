@@ -4,62 +4,63 @@
 #include "common_includes.h"
 #include "octree.cuh"
 
+__device__ __host__ float3 operator+(const float3 &a, const float3 &b);
+__device__ __host__ float3 operator-(const float3 &a, const float3 &b);
+__device__ __host__ float3 operator/(const float3 &a, const float3 &b);
+__device__ __host__ float3 operator*(const float3 &a, const float3 &b);
+__device__ __host__ float dotProduct(const float3 &a, const float3 &b);
+__device__ __host__ float3 operator+(const float3 &a, const float &b);
+__device__ __host__ float3 operator-(const float3 &a, const float &b);
+__device__ __host__ float3 operator/(const float3 &a, const float &b);
+__device__ __host__ float3 operator*(const float3 &a, const float &b);
+__device__ __host__ float3 operator+(const float &a, const float3 &b);
+__device__ __host__ float3 operator-(const float &a, const float3 &b);
+__device__ __host__ float3 operator/(const float &a, const float3 &b);
+__device__ __host__ float3 operator*(const float &a, const float3 &b);
+
+__device__ __host__ float3 blender(const float3 &a, const float3 &b, const float &bw);
+__device__ __host__ float3 blenderPrime(const float3 &a, const float3 &b, const float &bw);
+__device__ __host__ float3 blenderPrimePrime(const float3 &a, const float3 &b, const float &bw);
+
 /*
-HELPER STACK DATA STRUCTURE
+DIVERGENCE VECTOR KERNELS
 */
-struct stack_uint{
-  std::vector<uint> data;
-  int maxSize;
-
-  stack_uint();
-  stack_uint(uint maxSize);
-  int pop();
-  void push(uint i);
-};
-
-__device__ float3 operator+(const float3 &a, const float3 &b);
-__device__ float3 operator-(const float3 &a, const float3 &b);
-__device__ float3 operator/(const float3 &a, const float3 &b);
-__device__ float3 operator*(const float3 &a, const float3 &b);
-__device__ float dotProduct(const float3 &a, const float3 &b);
-__device__ float3 operator+(const float3 &a, const float &b);
-__device__ float3 operator-(const float3 &a, const float &b);
-__device__ float3 operator/(const float3 &a, const float &b);
-__device__ float3 operator*(const float3 &a, const float &b);
-__device__ float3 operator+(const float &a, const float3 &b);
-__device__ float3 operator-(const float &a, const float3 &b);
-__device__ float3 operator/(const float &a, const float3 &b);
-__device__ float3 operator*(const float &a, const float3 &b);
-/*
-CUDA KERNELS
-*/
-
-__global__ void computeVectorFeild(Node* nodeArray, int numFinestNodes, float3* vectorField, float nodeWidth, int* fLUT, int* fPrimePrimeLUT, float3* normals, float3* points);
-__global__ void computeDivergenceFine(Node* nodeArray, int numNodes, int depthIndex, float3* vectorField, float* divCoeff, int* fPrimeLUT);
+__global__ void computeVectorFeild(Node* nodeArray, int numFinestNodes, float3* vectorField, float3* normals, float3* points);
+__global__ void computeDivergenceFine(Node* nodeArray, int numNodes, int depthIndex, float3* vectorField, float* divCoeff, float* fPrimeLUT);
 __global__ void findRelatedChildren(Node* nodeArray, int numNodes, int depthIndex, int2* relativityIndicators);
-__global__ void computeDivergenceCoarse(Node* nodeArray, int2* relativityIndicators, int currentNode, float3* vectorField, float* divCoeff, int* fPrimeLUT);
+__global__ void computeDivergenceCoarse(Node* nodeArray, int2* relativityIndicators, int currentNode, float3* vectorField, float* divCoeff, float* fPrimeLUT);
 
 /*
-POISSON RECONSTRUCTION METHODS
+MULTIGRID SOLVER
 */
+__global__ void updateDivergence(Node* nodeArray, int numNodes, int depthIndex, float* divCoeff, float* fLUT, float* fPrimePrimeLUT, float* nodeImplicit);
 
 struct Poisson{
 
   Octree* octree;
-  int* fLUT;
-  int* fPrimeLUT;
-  int* fPrimePrimeLUT;
-  float3* vectorField;
-  float* divCoeff;
+
+  //TODO make sure that these are indeed supposed to be floats
+  //TODO make these constant cuda variables
+  //Look up tables
+  float* fLUT;
+  float* fLUTDevice;
+  float* fPrimeLUT;
+  float* fPrimeLUTDevice;
+  float* fPrimePrimeLUT;
+  float* fPrimePrimeLUTDevice;
+
+  //Major variables (do not need host versions other than for error checking)
+  float* divergenceVectorDevice;
+  float* nodeImplicitDevice;
 
   Poisson(Octree* octree);
   ~Poisson();
 
-  void computeLaplacianMatrix();
+  void computeLUTs();
   void computeDivergenceVector();
+  void multiGridSolver();
   void computeImplicitFunction();
   void marchingCubes();
-  void isosurfaceExtraction();
 
 };
 

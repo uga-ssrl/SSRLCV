@@ -3,7 +3,7 @@
 #include "poisson.cuh"
 using namespace std;
 
-
+//TODO across octree and poisson determine if you really need to instantiate all device array values
 
 int main(int argc, char *argv[]){
   try{
@@ -30,6 +30,7 @@ int main(int argc, char *argv[]){
       octree.freePrereqArrays();
 
       octree.fillLUTs();
+      //octree.printLUTs();
       octree.fillNeighborhoods();
 
       octree.checkForGeneralNodeErrors();
@@ -41,7 +42,6 @@ int main(int argc, char *argv[]){
       partialTimer = clock() - partialTimer;
       printf("\nOCTREE BUILD TOOK %f seconds.\n\n",((float) partialTimer)/CLOCKS_PER_SEC);
       partialTimer = clock();
-
       /*
       OCTREE HAS BEEN GENERATED NOW ONTO NORMAL COMPUTATION
       //TODO implement this as right now it is read in through the ply
@@ -52,17 +52,21 @@ int main(int argc, char *argv[]){
       /*
       RECONTRUCTION PREP HAS COMPLETED NOW ONTO POISSON RECONSTRUCTION
       */
+      //TODO figure out if you want to free octree device data during poisson or leave until full delete octree
       Poisson poisson = Poisson(&octree);
 
-      //poisson.computeLaplacianMatrix();
-      //poisson.computeDivergenceVector();
+      poisson.computeLUTs();
+      poisson.computeDivergenceVector();
       //poisson.computeImplicitFunction();
       //poisson.marchingCubes();
       //poisson.isosurfaceExtraction();
 
-      cudaDeviceReset();
+      //cudaDeviceReset();
+      partialTimer = clock() - partialTimer;
+      printf("POISSON RECONSTRUCTION TOOK %f seconds.\n\n",((float) partialTimer)/CLOCKS_PER_SEC);
+
       totalTimer = clock() - totalTimer;
-      printf("POISSON RECONSTRUCTION TOOK %f seconds.\n\n",((float) totalTimer)/CLOCKS_PER_SEC);
+      printf("TOTAL TIME = %f seconds.\n\n",((float) totalTimer)/CLOCKS_PER_SEC);
 
       return 0;
     }

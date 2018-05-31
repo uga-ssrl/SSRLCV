@@ -78,7 +78,7 @@ struct Node{
   int key;
   int numPoints;
   int depth;
-  //TODO check this as it is set in generateParents 
+  //TODO check this as it is set in generateParents
   int numFinestChildren;
   int finestChildIndex;
 
@@ -177,6 +177,7 @@ struct Octree{
   EDGE ARRAY, and FACE ARRAY GENERATION (indirect pointers)
   ***device versions destroyed after being used***
   TODO make these constant cuda variables as they are never written to
+  TODO just make these flat to start with
   */
   int parentLUT[8][27];
   int* parentLUTDevice;

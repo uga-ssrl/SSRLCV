@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <array>
 #include <vector>
+#include <queue>
 #include <algorithm>
 #include <fstream>
 #include <cmath>
