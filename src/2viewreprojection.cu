@@ -177,7 +177,7 @@ __constant__ bool   d_debug             = 1;
 __constant__ bool   d_verbose           = 0;
 
 // only one of these should be active at a time
-__constant__ bool   d_line_intersection = 1;
+__constant__ bool   d_line_intersection = 0;
 __constant__ bool   d_least_squares     = 0;
 
 string cameras_path;
@@ -494,7 +494,7 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
       p1[2] = points1[5] + (v1[2]*t);
 
       //float dist = euclid(p0,p1);
-      float dist = norm3df((p0[0]-p1[0]),(p0[1]-p1[1]),(p0[2]-p0[2]));
+      float dist = norm3df((p0[0]-p1[0]),(p0[1]-p1[1]),(p0[2]-p1[2]));
       if (dist <= smallest){
         smallest = dist;
         point[0] = (p0[0]+p1[0])/2.0;
