@@ -40,7 +40,7 @@ def rot():
         u_y = float(cos((dt-1) * d_theta))
         u_z = 0.0
         # there were issues w floats being v inaccurate at small values:
-        if (abs(u_x) < 0.000p1):
+        if (abs(u_x) < 0.0001):
             u_x = 0.0
         if (abs(u_y) < 0.0001):
             u_y = 0.0
