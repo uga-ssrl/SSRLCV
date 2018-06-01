@@ -28,7 +28,7 @@ DIVERGENCE VECTOR KERNELS
 __global__ void computeVectorFeild(Node* nodeArray, int numFinestNodes, float3* vectorField, float3* normals, float3* points);
 __global__ void computeDivergenceFine(Node* nodeArray, int numNodes, int depthIndex, float3* vectorField, float* divCoeff, float* fPrimeLUT);
 __global__ void findRelatedChildren(Node* nodeArray, int numNodes, int depthIndex, int2* relativityIndicators);
-__global__ void computeDivergenceCoarse(Node* nodeArray, int2* relativityIndicators, int currentNode, float3* vectorField, float* divCoeff, float* fPrimeLUT);
+__global__ void computeDivergenceCoarse(Node* nodeArray, int2* relativityIndicators, int currentNode, int depthIndex, float3* vectorField, float* divCoeff, float* fPrimeLUT);
 
 /*
 MULTIGRID SOLVER

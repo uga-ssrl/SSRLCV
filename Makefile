@@ -5,12 +5,12 @@ LINK := nvcc
 NVCC  := nvcc
 
 # Includes
-INCLUDES = -I. -I/usr/local/cuda/include 
+INCLUDES = -I. -I/usr/local/cuda/include
 
 # Common flags
 COMMONFLAGS += ${INCLUDES}
 CXXFLAGS += ${COMMONFLAGS}
-CXXFLAGS += -Wall -g -std=c++11 -Iinclude -lcublas
+CXXFLAGS += -Wall -std=c++11 -Iinclude -lcublas
 # compute_<#> and sm_<#> will need to change depending on the device
 # if this is not done you will receive a no kernel image is availabe error
 NVCCFLAGS += ${COMMONFLAGS}

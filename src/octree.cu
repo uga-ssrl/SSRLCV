@@ -32,7 +32,7 @@ inline void __cudaCheckError(const char *file, const int line) {
 
   // More careful checking. However, this will affect performance.
   // Comment away if needed.
-  err = cudaDeviceSynchronize();
+  //err = cudaDeviceSynchronize();
   if (cudaSuccess != err) {
     fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
     file, line, cudaGetErrorString(err));
@@ -111,19 +111,17 @@ struct is_not_neg{
 HELPER METHODS AND CUDA KERNELS
 */
 __device__ __host__ void printBits(size_t const size, void const * const ptr){
-    unsigned char *b = (unsigned char*) ptr;
-    unsigned char byte;
-    int i, j;
-    printf("bits - ");
-    for (i=size-1;i>=0;i--)
-    {
-        for (j=7;j>=0;j--)
-        {
-            byte = (b[i] >> j) & 1;
-            printf("%u", byte);
-        }
+  unsigned char *b = (unsigned char*) ptr;
+  unsigned char byte;
+  int i, j;
+  printf("bits - ");
+  for (i=size-1;i>=0;i--){
+    for (j=7;j>=0;j--){
+      byte = (b[i] >> j) & 1;
+      printf("%u", byte);
     }
-    printf("\n");
+  }
+  printf("\n");
 }
 __global__ void getNodeKeys(float3* points, float3* nodeCenters, int* nodeKeys, float3 c, float W, int numPoints, int D){
   int tx = threadIdx.x;
@@ -579,7 +577,6 @@ void Octree::parsePLY(string pathToFile){
       float3 normal;
       uchar3 color;
       bool lineIsDone = false;
-      int numPoints= 0;
       while(getMyFloats >> value){
         switch(index){
           case 0:
@@ -610,7 +607,6 @@ void Octree::parsePLY(string pathToFile){
             color.z = 255;//will have value once normal is removed after testing
             break;
           default:
-            numPoints++;
             lineIsDone = true;
             points.push_back(point);
             normals.push_back(normal);//only for testing
@@ -622,7 +618,6 @@ void Octree::parsePLY(string pathToFile){
       }
 		}
 
-    cout<<numPoints<<endl;
     this->min = {minX,minY,minZ};
     this->max = {maxX,maxY,maxZ};
 

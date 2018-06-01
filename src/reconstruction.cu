@@ -61,12 +61,12 @@ int main(int argc, char *argv[]){
       //poisson.marchingCubes();
       //poisson.isosurfaceExtraction();
 
-      //cudaDeviceReset();
       partialTimer = clock() - partialTimer;
       printf("POISSON RECONSTRUCTION TOOK %f seconds.\n\n",((float) partialTimer)/CLOCKS_PER_SEC);
 
       totalTimer = clock() - totalTimer;
       printf("TOTAL TIME = %f seconds.\n\n",((float) totalTimer)/CLOCKS_PER_SEC);
+      cudaDeviceReset();
 
       return 0;
     }
