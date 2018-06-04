@@ -3,7 +3,11 @@
 #include "poisson.cuh"
 using namespace std;
 
-//TODO across octree and poisson determine if you really need to instantiate all device array values
+
+//TODO across all methods in octree and poisson use const __restrict__ to enable
+//https://stackoverflow.com/questions/31344454/can-a-const-restrict-increase-cuda-register-usage
+
+//TODO use __local__ memory when possible for predefined arrays like thread specific LUTs
 
 int main(int argc, char *argv[]){
   try{
@@ -20,6 +24,7 @@ int main(int argc, char *argv[]){
       THIS MEANS THAT NORMALS INSTANTIATION WILL NEED TO BE REMOVED FROM Octree::parsePLY
       AND COLOR WILL BE READ IN ITS PLACE
       */
+
 
       octree.init_octree_gpu();
       octree.generateKeys();
@@ -57,7 +62,7 @@ int main(int argc, char *argv[]){
 
       poisson.computeLUTs();
       poisson.computeDivergenceVector();
-      //poisson.computeImplicitFunction();
+      poisson.computeImplicitFunction();
       //poisson.marchingCubes();
       //poisson.isosurfaceExtraction();
 

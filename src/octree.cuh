@@ -133,11 +133,8 @@ struct Octree{
   //global variables
   bool simpleOctree;
   float3* points;
-  float3* pointsDevice;
   float3* normals;
-  float3* normalsDevice;
   uchar3* colors;
-  uchar3* colorsDevice;
   float3 center;
   int numPoints;
   float3 min;
@@ -147,36 +144,53 @@ struct Octree{
 
   //the rest of the variables are allocated in methods where they are first used
 
-  //prerequisite variables
+  //prerequisite variables - freed in freePrereqArrays()
   int numFinestUniqueNodes;
   float3* finestNodeCenters;
   int* finestNodePointIndexes;
   int* finestNodeKeys;
   Node* uniqueNodesAtFinestLevel;
+  //device prereq
   float3* finestNodeCentersDevice;
   int* finestNodePointIndexesDevice;
   int* finestNodeKeysDevice;
 
-  //final octree structures which are all allocated in array generation methods
   int totalNodes;
   Node* finalNodeArray;
-  Node* finalNodeArrayDevice;
+  Node* finalNodeArrayDevice;//most persistant device variable
+
   int* depthIndex;
   int* pointNodeIndex;
   int totalVertices;
   Vertex* vertexArray;
-  Vertex* vertexArrayDevice;
   int totalEdges;
   Edge* edgeArray;
-  Edge* edgeArrayDevice;
   int totalFaces;
   Face* faceArray;
+
+  /*
+  THESE ARE DEVICE VARIABLES THAT ARE FREED AND ALLOCATED IN THEIR COPY METHODS
+  */
+  bool pointNodeDeviceReady;
+  int* pointNodeIndexDevice;
+  bool vertexArrayDeviceReady;
+  Vertex* vertexArrayDevice;
+  bool edgeArrayDeviceReady;
+  Edge* edgeArrayDevice;
+  bool faceArrayDeviceReady;
   Face* faceArrayDevice;
+  bool pointsDeviceReady;
+  float3* pointsDevice;
+  bool normalsDeviceReady;
+  float3* normalsDevice;
+  bool colorsDeviceReady;
+  uchar3* colorsDevice;
 
   /*
   THESE ARE THE LOOK UP TABLES USED IN NEIGHBORHOOD, VERTEX ARRAY,
   EDGE ARRAY, and FACE ARRAY GENERATION (indirect pointers)
   ***device versions destroyed after being used***
+  (only needed once)
   TODO make these constant cuda variables as they are never written to
   TODO just make these flat to start with
   */
@@ -242,6 +256,7 @@ struct Octree{
   */
   void copyNodesToDevice();
   void copyNodesToHost();
+
   void copyPointNodeIndexesToDevice();
   void copyPointNodeIndexesToHost();
   void copyVerticesToDevice();

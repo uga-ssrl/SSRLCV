@@ -134,8 +134,6 @@ __device__ __host__ int3 splitCrunchBits3(const unsigned int &size, const int &k
   return xyz;
 }
 
-__constant__ int d_MAX_POSSIBLE_DEPTH = 10;//TODO need to find a way around using this
-
 __global__ void computeVectorFeild(Node* nodeArray, int numFinestNodes, float3* vectorField, float3* normals, float3* points){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numFinestNodes){
@@ -167,7 +165,7 @@ __global__ void computeVectorFeild(Node* nodeArray, int numFinestNodes, float3* 
     else vectorField[blockID] = vec;
   }
 }
-__global__ void computeDivergenceFine(Node* nodeArray, int numNodes, int depthIndex, float3* vectorField, float* divCoeff, float* fPrimeLUT){
+__global__ void computeDivergenceFine(int depthOfOctree, Node* nodeArray, int numNodes, int depthIndex, float3* vectorField, float* divCoeff, float* fPrimeLUT){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
     __shared__ float coeff;
@@ -177,10 +175,10 @@ __global__ void computeDivergenceFine(Node* nodeArray, int numNodes, int depthIn
       int finestChildIndex = nodeArray[neighborIndex].finestChildIndex;
       int3 xyz1;
       int3 xyz2;
-      xyz1 = splitCrunchBits3(d_MAX_POSSIBLE_DEPTH*3, nodeArray[blockID + depthIndex].key);
-      int mult = pow(2,d_MAX_POSSIBLE_DEPTH + 1) - 1;
+      xyz1 = splitCrunchBits3(depthOfOctree*3, nodeArray[blockID + depthIndex].key);
+      int mult = pow(2,depthOfOctree + 1) - 1;
       for(int i = finestChildIndex; i < finestChildIndex + numFinestChildren; ++i){
-        xyz2 = splitCrunchBits3(d_MAX_POSSIBLE_DEPTH*3, nodeArray[i].key);
+        xyz2 = splitCrunchBits3(depthOfOctree*3, nodeArray[i].key);
         atomicAdd(&coeff, dotProduct(vectorField[i], {fPrimeLUT[xyz1.x*mult + xyz2.x],fPrimeLUT[xyz1.y*mult + xyz2.y],fPrimeLUT[xyz1.z*mult + xyz2.z]}));
       }
       __syncthreads();
@@ -212,15 +210,15 @@ __global__ void findRelatedChildren(Node* nodeArray, int numNodes, int depthInde
     relativityIndicators[blockID].y = numRelativeChildren;
   }
 }
-__global__ void computeDivergenceCoarse(Node* nodeArray, int2* relativityIndicators, int currentNode, int depthIndex, float3* vectorField, float* divCoeff, float* fPrimeLUT){
+__global__ void computeDivergenceCoarse(int depthOfOctree, Node* nodeArray, int2* relativityIndicators, int currentNode, int depthIndex, float3* vectorField, float* divCoeff, float* fPrimeLUT){
   int globalID = blockIdx.x *blockDim.x + threadIdx.x;
   if(globalID < relativityIndicators[currentNode].y){
     globalID += relativityIndicators[currentNode].x;
     int3 xyz1;
     int3 xyz2;
-    xyz1 = splitCrunchBits3(d_MAX_POSSIBLE_DEPTH*3, nodeArray[currentNode + depthIndex].key);
-    xyz2 = splitCrunchBits3(d_MAX_POSSIBLE_DEPTH*3, nodeArray[globalID].key);
-    int mult = pow(2,d_MAX_POSSIBLE_DEPTH + 1) - 1;
+    xyz1 = splitCrunchBits3(depthOfOctree*3, nodeArray[currentNode + depthIndex].key);
+    xyz2 = splitCrunchBits3(depthOfOctree*3, nodeArray[globalID].key);
+    int mult = pow(2,depthOfOctree + 1) - 1;
     //TODO try and find a way to optimize this so that it is not using atomics and global memory
     float fx,fy,fz;
     fx = fPrimeLUT[xyz1.x*mult + xyz2.x];
@@ -231,7 +229,38 @@ __global__ void computeDivergenceCoarse(Node* nodeArray, int2* relativityIndicat
   }
 }
 
-__global__ void updateDivergence(Node* nodeArray, int numNodes, int depthIndex, float* divCoeff, float* fLUT, float* fPrimePrimeLUT, float* nodeImplicit){
+__global__ void computeLd(Node* nodeArray, int numNodes, int depthIndex, int depthOfOctree, float* Ld, int* LdIndex, int* numNonZeroEntries, int* totalNonZeros, float* fLUT, float* fPrimePrimeLUT){
+  int blockID = blockIdx.y * gridDim.x + blockIdx.x;
+  if(blockID < numNodes){
+    __shared__ int numNonZero;
+    numNonZero = 0;
+    __syncthreads();
+    int neighborIndex = nodeArray[blockID + depthIndex].neighbors[threadIdx.x];
+    if(neighborIndex != -1){
+      int3 xyz1;
+      int3 xyz2;
+      xyz1 = splitCrunchBits3(depthOfOctree*3, nodeArray[blockID + depthIndex].key);
+      xyz2 = splitCrunchBits3(depthOfOctree*3, nodeArray[neighborIndex].key);
+      int mult = pow(2,depthOfOctree + 1) - 1;
+      float laplacianValue = (fPrimePrimeLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+(fLUT[xyz1.x*mult + xyz2.x]*fPrimePrimeLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+(fLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fPrimePrimeLUT[xyz1.z*mult + xyz2.z]);
+      if(laplacianValue != 0.0f){
+        atomicAdd(&numNonZero, 1);
+        Ld[threadIdx.x] = laplacianValue;
+        LdIndex[threadIdx.x] = blockID*27 + threadIdx.x;
+      }
+      else{
+        LdIndex[threadIdx.x] = -1;
+      }
+    }
+    else{
+      LdIndex[threadIdx.x] = -1;
+    }
+    __syncthreads();
+    numNonZeroEntries[blockID] = numNonZero;
+  }
+}
+
+__global__ void updateDivergence(int depthOfOctree, Node* nodeArray, int numNodes, int depthIndex, float* divCoeff, float* fLUT, float* fPrimePrimeLUT, float* nodeImplicit){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
     int parent = nodeArray[blockID + depthIndex].parent;
@@ -240,9 +269,9 @@ __global__ void updateDivergence(Node* nodeArray, int numNodes, int depthIndex, 
       float nodeImplicitValue = nodeImplicit[parentNeighbor];
       int3 xyz1;
       int3 xyz2;
-      xyz1 = splitCrunchBits3(d_MAX_POSSIBLE_DEPTH*3, nodeArray[blockID + depthIndex].key);
-      xyz2 = splitCrunchBits3(d_MAX_POSSIBLE_DEPTH*3, nodeArray[parentNeighbor].key);
-      int mult = pow(2,d_MAX_POSSIBLE_DEPTH + 1) - 1;
+      xyz1 = splitCrunchBits3(depthOfOctree*3, nodeArray[blockID + depthIndex].key);
+      xyz2 = splitCrunchBits3(depthOfOctree*3, nodeArray[parentNeighbor].key);
+      int mult = pow(2,depthOfOctree + 1) - 1;
       float laplacianValue = (fPrimePrimeLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+(fLUT[xyz1.x*mult + xyz2.x]*fPrimePrimeLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+(fLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fPrimePrimeLUT[xyz1.z*mult + xyz2.z]);
       atomicAdd(&divCoeff[blockID + depthIndex], -1.0f*laplacianValue*nodeImplicitValue);
     }
@@ -257,7 +286,8 @@ Poisson::Poisson(Octree* octree){
   }
   CudaSafeCall(cudaMalloc((void**)&this->divergenceVectorDevice, this->octree->totalNodes*sizeof(float)));
   CudaSafeCall(cudaMemcpy(this->divergenceVectorDevice, divergenceVector, this->octree->totalNodes*sizeof(float), cudaMemcpyHostToDevice));
-
+  this->octree->copyPointsToDevice();
+  this->octree->copyNormalsToDevice();
 }
 
 Poisson::~Poisson(){
@@ -354,7 +384,7 @@ void Poisson::computeDivergenceVector(){
   CudaSafeCall(cudaMalloc((void**)&vectorFieldDevice, numNodesAtDepth*sizeof(float3)));
   CudaSafeCall(cudaMemcpy(vectorFieldDevice, vectorField, numNodesAtDepth*sizeof(float3), cudaMemcpyHostToDevice));
   computeVectorFeild<<<grid,block>>>(this->octree->finalNodeArrayDevice, numNodesAtDepth, vectorFieldDevice, this->octree->normalsDevice, this->octree->pointsDevice);
-  cudaDeviceSynchronize();
+  cudaDeviceSynchronize();//force this to finish as it is necessary for next kernels
   CudaCheckError();
   /*
   CudaSafeCall(cudaMemcpy(vectorField, vectorFieldDevice, numNodesAtDepth*sizeof(float3), cudaMemcpyDeviceToHost));
@@ -401,7 +431,7 @@ void Poisson::computeDivergenceVector(){
       }
     }
     if(d <= 5){//evaluate divergence coefficients at finer depths
-      computeDivergenceFine<<<grid, block>>>(this->octree->finalNodeArrayDevice, numNodesAtDepth, this->octree->depthIndex[d], vectorFieldDevice, this->divergenceVectorDevice, this->fPrimeLUTDevice);
+      computeDivergenceFine<<<grid, block>>>(this->octree->depth, this->octree->finalNodeArrayDevice, numNodesAtDepth, this->octree->depthIndex[d], vectorFieldDevice, this->divergenceVectorDevice, this->fPrimeLUTDevice);
       CudaCheckError();
     }
     else{//evaluate divergence coefficients at coarser depths
@@ -433,7 +463,7 @@ void Poisson::computeDivergenceVector(){
             }
           }
         }
-        computeDivergenceCoarse<<<grid, block>>>(this->octree->finalNodeArrayDevice, relativityIndicatorsDevice, currentNode, this->octree->depthIndex[d], vectorFieldDevice, this->divergenceVectorDevice, this->fPrimeLUTDevice);
+        computeDivergenceCoarse<<<grid, block>>>(this->octree->depth, this->octree->finalNodeArrayDevice, relativityIndicatorsDevice, currentNode, this->octree->depthIndex[d], vectorFieldDevice, this->divergenceVectorDevice, this->fPrimeLUTDevice);
         CudaCheckError();
       }
       CudaSafeCall(cudaFree(relativityIndicatorsDevice));
@@ -449,6 +479,9 @@ void Poisson::computeDivergenceVector(){
 }
 
 void Poisson::computeImplicitFunction(){
+  clock_t cudatimer;
+  cudatimer = clock();
+
   unsigned int size = (pow(2, this->octree->depth + 1) - 1);
   float* nodeImplicit = new float[this->octree->totalNodes];
   for(int i = 0; i < this->octree->totalNodes; ++i){
@@ -468,7 +501,7 @@ void Poisson::computeImplicitFunction(){
     dim3 grid = {1,1,1};
     dim3 block = {27,1,1};
     if(d != this->octree->depth){
-      numNodesAtDepth = this->octree->depthIndex[this->octree->depth - d] - this->octree->depthIndex[(this->octree->depth - d) + 1];
+      numNodesAtDepth = this->octree->depthIndex[d + 1] - this->octree->depthIndex[d];
       if(numNodesAtDepth < 65535) grid.x = (unsigned int) numNodesAtDepth;
       else{
         grid.x = 65535;
@@ -482,16 +515,75 @@ void Poisson::computeImplicitFunction(){
           ++grid.x;
         }
       }
+      block.x = 27;
       for(int dcoarse = d + 1; dcoarse <= this->octree->depth; ++dcoarse){
-        updateDivergence<<<grid, block>>>(this->octree->finalNodeArrayDevice, numNodesAtDepth,
-          this->octree->depthIndex[this->octree->depth - d], this->divergenceVectorDevice,
+        updateDivergence<<<grid, block>>>(this->octree->depth, this->octree->finalNodeArrayDevice, numNodesAtDepth,
+          this->octree->depthIndex[d], this->divergenceVectorDevice,
           this->fLUTDevice, this->fPrimePrimeLUTDevice, this->nodeImplicitDevice);
         CudaCheckError();
       }
     }
 
     //multigridsolver for that depth
-    //TODO implement or use library for sparse matrices
+
+    float* temp = new float[numNodesAtDepth*27];
+    int* numNonZeroEntries = new int[numNodesAtDepth];
+    for(int i = 0; i < numNodesAtDepth*27; ++i){
+      temp[i] = 0;
+      if(i + 1 % 27 == 0){
+        numNonZeroEntries[i] = 0;
+      }
+    }
+    float* nonZeroEntriesDevice;
+    int* nonZeroColumnIndicesDevice;
+    int* numNonZeroEntriesDevice;
+    int* totalNonZerosDevice;
+    int totalNonZeros = 0;
+    CudaSafeCall(cudaMalloc((void**)&nonZeroEntriesDevice, numNodesAtDepth*27*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&nonZeroColumnIndicesDevice, numNodesAtDepth*27*sizeof(int)));
+    CudaSafeCall(cudaMalloc((void**)&numNonZeroEntriesDevice, numNodesAtDepth*sizeof(int)));
+    CudaSafeCall(cudaMalloc((void**)&totalNonZerosDevice, sizeof(int)));
+    CudaSafeCall(cudaMemcpy(nonZeroEntriesDevice, temp, numNodesAtDepth*27*sizeof(float), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(nonZeroColumnIndicesDevice, temp, numNodesAtDepth*27*sizeof(int), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(numNonZeroEntriesDevice, numNonZeroEntries, numNodesAtDepth*sizeof(int), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(totalNonZerosDevice, &totalNonZeros, sizeof(int), cudaMemcpyHostToDevice));
+    computeLd<<<grid, block>>>(this->octree->finalNodeArrayDevice, numNodesAtDepth, this->octree->depthIndex[d],
+      this->octree->depth, nonZeroEntriesDevice, nonZeroColumnIndicesDevice, numNonZeroEntriesDevice, totalNonZerosDevice,
+      this->fLUTDevice, this->fPrimePrimeLUTDevice);
+    CudaCheckError();
+    CudaSafeCall(cudaMemcpy(&totalNonZeros, totalNonZerosDevice, sizeof(int), cudaMemcpyDeviceToHost));
+    delete[] numNonZeroEntries;
+    delete[] temp;
+    CudaSafeCall(cudaFree(totalNonZerosDevice));
+
+    float* compactedLDValues = new float[totalNonZeros];
+    int* compactedLDIndices = new int[totalNonZeros];
+    float* compactedLDValuesDevice;
+    int* compactedLDIndicesDevice;
+
+    for(int i = 0; i < totalNonZeros; ++i){
+      compactedLDValues[i] = 0.0f;
+      compactedLDIndices[i] = 0;
+    }
+
+    int* entryAddressesDevice;
+    CudaSafeCall(cudaMalloc((void**)&entryAddressesDevice, totalNonZeros*sizeof(int)));
+    CudaSafeCall(cudaMemcpy(entryAddressesDevice, compactedLDIndices, totalNonZeros*sizeof(int), cudaMemcpyHostToDevice));
+    thrust::device_ptr<int> nN(numNonZeroEntriesDevice);
+    thrust::device_ptr<int> nA(entryAddressesDevice);
+    thrust::inclusive_scan(nN, nN + totalNonZeros, nA);
+    //this will result in an array with addresses to the next rows first index
+
+    CudaSafeCall(cudaFree(numNonZeroEntriesDevice));
+
+    CudaSafeCall(cudaMalloc((void**)&compactedLDValuesDevice, totalNonZeros*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&compactedLDIndicesDevice, totalNonZeros*sizeof(int)));
+    CudaSafeCall(cudaMemcpy(compactedLDValuesDevice, compactedLDValues, totalNonZeros*sizeof(float), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(compactedLDIndicesDevice, compactedLDIndices, totalNonZeros*sizeof(int), cudaMemcpyHostToDevice));
+
+
+    //continue with multigridsolver
+
 
   }
 
@@ -500,8 +592,11 @@ void Poisson::computeImplicitFunction(){
   CudaSafeCall(cudaFree(this->fPrimePrimeLUTDevice));
   delete[] this->fLUT;
   delete[] this->fPrimePrimeLUT;
-
+  cudatimer = clock() - cudatimer;
+  printf("Node Implicit f(n) generation kernel took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 }
-void Poisson::marchingCubes(){
 
+void Poisson::marchingCubes(){
+  this->octree->copyPointsToDevice();
+  this->octree->copyNormalsToDevice();
 }
