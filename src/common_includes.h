@@ -13,6 +13,7 @@
 #include <array>
 #include <vector>
 #include <queue>
+#include <stack>
 #include <algorithm>
 #include <fstream>
 #include <cmath>

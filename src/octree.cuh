@@ -131,6 +131,7 @@ __global__ void fillUniqueFaceArray(Node* nodeArray, Face* faceArray, int numFac
 struct Octree{
 
   //global variables
+  bool simpleOctree;
   float3* points;
   float3* pointsDevice;
   float3* normals;
@@ -241,6 +242,8 @@ struct Octree{
   */
   void copyNodesToDevice();
   void copyNodesToHost();
+  void copyPointNodeIndexesToDevice();
+  void copyPointNodeIndexesToHost();
   void copyVerticesToDevice();
   void copyVerticesToHost();
   void copyEdgesToDevice();

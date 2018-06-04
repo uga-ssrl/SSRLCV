@@ -2,7 +2,7 @@
 
 using namespace std;
 
-#define MAX_POSSIBLE_DEPTH = 10
+#define MAX_POSSIBLE_DEPTH = 10//TODO need to find a way around using this
 // Define this to turn on error checking
 #define CUDA_ERROR_CHECK
 
@@ -43,7 +43,7 @@ inline void __cudaCheckError(const char *file, const int line) {
   return;
 }
 
-__constant__ int d_MAX_POSSIBLE_DEPTH = 10;
+__constant__ int d_MAX_POSSIBLE_DEPTH = 10;//TODO need to find a way around using this
 
 __device__ __host__ Vertex::Vertex(){
   for(int i = 0; i < 8; ++i){
@@ -547,7 +547,7 @@ __global__ void fillUniqueFaceArray(Node* nodeArray, Face* faceArray, int numFac
 OCTREE CLASS FUNCTIONS
 */
 Octree::Octree(){
-
+  this->simpleOctree = true;
 }
 
 Octree::~Octree(){
@@ -666,6 +666,7 @@ void Octree::parsePLY(string pathToFile){
 Octree::Octree(string pathToFile, int depth){
   this->parsePLY(pathToFile);
   this->depth = depth;
+  this->simpleOctree = false;
 }
 
 void Octree::init_octree_gpu(){
@@ -938,10 +939,10 @@ void Octree::createFinalNodeArray(){
     if(this->depth == d){
       int* pointNodeIndexDevice;
       CudaSafeCall(cudaMalloc((void**)&pointNodeIndexDevice, this->numPoints * sizeof(int)));
-      CudaSafeCall(cudaMemcpy(this->pointNodeIndex, pointNodeIndexDevice, this->numPoints * sizeof(int), cudaMemcpyDeviceToHost));
+      CudaSafeCall(cudaMemcpy(pointNodeIndexDevice, this->pointNodeIndex, this->numPoints * sizeof(int), cudaMemcpyHostToDevice));
       fillFinestNodeArrayWithUniques<<<grid,block>>>(uniqueNodesDevice, nodeAddressesDevice,nodeArray2D[this->depth - d], numUniqueNodes, pointNodeIndexDevice);
       CudaCheckError();
-      CudaSafeCall(cudaMemcpy(pointNodeIndexDevice, this->pointNodeIndex, this->numPoints * sizeof(int), cudaMemcpyHostToDevice));
+      CudaSafeCall(cudaMemcpy(this->pointNodeIndex, pointNodeIndexDevice, this->numPoints * sizeof(int), cudaMemcpyDeviceToHost));
       CudaSafeCall(cudaFree(pointNodeIndexDevice));
     }
     else{

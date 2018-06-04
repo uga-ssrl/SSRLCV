@@ -134,7 +134,7 @@ __device__ __host__ int3 splitCrunchBits3(const unsigned int &size, const int &k
   return xyz;
 }
 
-__constant__ int d_MAX_POSSIBLE_DEPTH = 10;
+__constant__ int d_MAX_POSSIBLE_DEPTH = 10;//TODO need to find a way around using this
 
 __global__ void computeVectorFeild(Node* nodeArray, int numFinestNodes, float3* vectorField, float3* normals, float3* points){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
