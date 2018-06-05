@@ -177,7 +177,7 @@ __constant__ bool   d_debug             = 1;
 __constant__ bool   d_verbose           = 0;
 
 // only one of these should be active at a time
-__constant__ bool   d_line_intersection = 0;
+__constant__ bool   d_line_intersection = 1;
 __constant__ bool   d_least_squares     = 0;
 
 string cameras_path;
@@ -194,7 +194,7 @@ __constant__ float d_foc      = 0.035;
 __constant__ float d_fov      = 0.8575553107;//0.0593412; //3.4 degrees to match the blender sim //0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
 __constant__ float d_PI       = 3.1415926535;
 __constant__ float d_dpix     = 0.00003124996;//0.00000103877;// 0.00003124996;///(d_foc*tan(d_fov/2))/(d_res/2);
-__constant__ float d_stepsize = 0.005; // the step size of the iterative solution
+__constant__ float d_stepsize = 0.1; // the step size of the iterative solution
 
 unsigned int   res  = 1024;
 float          foc  = 0.035;
@@ -251,6 +251,19 @@ __device__ float get_vector_x_angle(float cam[6]){
   float angle = acosf(fract);
   // check to see if outside of second quad
   //if (cam[4] < 0.0) angle = 2 * d_PI - angle;
+  return angle;
+}
+
+/////////////////////////////////////////////////////////////////
+//returns the angle between the input vector and the z unit vector
+__device__ float get_vector_z_angle(float cam[6]){
+  float w[3] = {0.0,0.0,1.0};
+  float v[3] = {cam[3],cam[4],cam[5]};
+  // dot product
+  float dot_v_w = dot_product(v,w,3);
+  float v_mag = dot_product(v,v,3);
+  float fract = (dot_v_w)/(sqrtf(v_mag));
+  float angle = acosf(fract);
   return angle;
 }
 
@@ -353,14 +366,16 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
   float kp1[3] = {x1,y1,0.0};
 
   // get the camera angles
-  float r0 = get_vector_x_angle(camera0);
-  float r1 = get_vector_x_angle(camera1);
-
+  float r0x = get_vector_x_angle(camera0);
+  float r1x = get_vector_x_angle(camera1);
+  float r0z = get_vector_z_angle(camera0);
+  float r1z = get_vector_z_angle(camera1);
+  
   rotate_projection_x(kp0,d_PI/2.0); // was d_PI/2.0
   rotate_projection_x(kp1,d_PI/2.0);
 
-  rotate_projection_z(kp0,r0 + d_PI/2.0); // + d_PI/2.0
-  rotate_projection_z(kp1,r1 + d_PI/2.0); // + d_PI/2.0
+  rotate_projection_z(kp0,r0x + d_PI/2.0); // + d_PI/2.0
+  rotate_projection_z(kp1,r1x + d_PI/2.0); // + d_PI/2.0
 
   // adjust the kp's location in a plane
   kp0[0] = camera0[0] - (kp0[0] + (camera0[3] * d_foc));
@@ -457,9 +472,9 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
     add(p1,temp,solution1);
     //
     // // we found the solutions! now, find their midpoint
-    point[0] = solution0[0];//(solution0[0]+solution1[0])/2.0;
-    point[1] = solution0[1];//(solution0[1]+solution1[1])/2.0;
-    point[2] = solution0[2];//(solution0[2]+solution1[2])/2.0;
+    point[0] = (solution0[0]+solution1[0])/2.0;
+    point[1] = (solution0[1]+solution1[1])/2.0;
+    point[2] = (solution0[2]+solution1[2])/2.0;
 
     // supposed to be perp
     float d[3];
@@ -482,7 +497,7 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
     //=   brute force     =//
     //=                   =//
     //=====================//
-    for (float t = 0.0f; t < 250000.0f; t += d_stepsize){
+    for (float t = 0.0f; t < 8000.0f; t += d_stepsize){
       t_holder = t;
 
       p0[0] = points0[3] + (v0[0]*t);
@@ -494,7 +509,7 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
       p1[2] = points1[5] + (v1[2]*t);
 
       //float dist = euclid(p0,p1);
-      float dist = norm3df((p0[0]-p1[0]),(p0[1]-p1[1]),(p0[2]-p1[2]));
+      float dist = norm3df((p0[0]-p1[0]),(p0[1]-p1[1]),(p0[2]-p0[2]));
       if (dist <= smallest){
         smallest = dist;
         point[0] = (p0[0]+p1[0])/2.0;
@@ -850,7 +865,7 @@ void two_view_reproject_cpu(){
     float p2[3]; //= {0.0,0.0,0.0};
     float point[4];
     int asdf_counter = 0;
-    for (float j = 0.0; j < 8000.0; j += 0.001){
+    for (float j = 0.0; j < 8000.0; j += 0.00001){ // was 0.001
       p1[0] = points1[3] + v1[0]*j; // points1[0]
       p1[1] = points1[4] + v1[1]*j;
       p1[2] = points1[5] + v1[2]*j;
