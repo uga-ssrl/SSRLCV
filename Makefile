@@ -6,32 +6,28 @@ LINK := nvcc
 NVCC  := nvcc
 
 # compilers configuration for sift-cpu
-S_CC = gcc
-S_OFLAGS = -g -O3
-S_LIBS = -L/usr/local/lib -lpng -lm
-S_CFLAGS = -Wall -Wno-write-strings  -pedantic -std=c99 -D_POSIX_C_SOURCE=200809L
+CC = gcc
+OFLAGS = -g -O3
+LIBS = -L/usr/local/lib -lpng -lm
+CFLAGS = -Wall -Wno-write-strings  -pedantic -std=c99 -D_POSIX_C_SOURCE=200809L
 
 # Source files with executables.
-S_SRC_ALGO = sift_cli
-S_SRC_MATCH = match_cli
+SRC_ALGO = sift_cli
+SRC_MATCH = match_cli
 
 S_SRC=sift-cpu
 
-SRCa = $(S_SRC)/lib_sift.c \
-	   $(S_SRC)/lib_sift_anatomy.c \
-	   $(S_SRC)/lib_scalespace.c \
-	   $(S_SRC)/lib_description.c \
-       $(S_SRC)/lib_discrete.c \
-	   $(S_SRC)/lib_keypoint.c \
-	   $(S_SRC)/lib_util.c
+SRCa = lib_sift.c \
+	   lib_sift_anatomy.c \
+	   lib_scalespace.c \
+	   lib_description.c \
+       lib_discrete.c \
+	   lib_keypoint.c \
+	   lib_util.c
 
-SRCb = $(S_SRC)/lib_io_scalespace.c
+SRCb = lib_io_scalespace.c
 
-SRCc = $(S_SRC)/lib_matching.c
-
-# S_SRCDIR = src
-# S_OBJDIR = src
-# S_BINDIR = bin
+SRCc = lib_matching.c
 
 # Includes
 INCLUDES = -I. -I/usr/local/cuda/include
@@ -70,13 +66,14 @@ BINDEMO = $(addprefix $(BINDIR)/,$(SRC_DEMO))
 sift= $(BIN)
 match= $(BINMATCH)
 demo= $(BINDEMO)
-default: $(OBJDIR) $(BINDIR) $(sift) $(match) $(demo)
+
+all: $(OBJDIR) $(BINDIR) $(sift) $(match) $(demo) ${BINDIR}/${TARGET}
 
 #---------------------------------------------------------------
 #  SIFT CLI
 #
 
-$(BIN) : $(BINDIR)/% : $(SRCDIR)/%.c $(OBJDIR)/lib_sift_anatomy.o  $(OBJDIR)/lib_keypoint.o $(OBJDIR)/lib_scalespace.o $(OBJDIR)/lib_description.o   $(OBJDIR)/lib_discrete.o  $(OBJDIR)/lib_io_scalespace.o  $(OBJDIR)/lib_util.o   $(OBJDIR)/io_png.o $(OBJDIR)/lib_sift.o
+$(BIN) : $(BINDIR)/% : $(SRCDIR)/$(S_SRC)/%.c $(OBJDIR)/lib_sift_anatomy.o  $(OBJDIR)/lib_keypoint.o $(OBJDIR)/lib_scalespace.o $(OBJDIR)/lib_description.o   $(OBJDIR)/lib_discrete.o  $(OBJDIR)/lib_io_scalespace.o  $(OBJDIR)/lib_util.o   $(OBJDIR)/io_png.o $(OBJDIR)/lib_sift.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 $(OBJDIR):
@@ -88,44 +85,44 @@ $(BINDIR):
 #---------------------------------------------------------------
 #  LIB_SIFT
 #
-$(OBJDIR)/lib_sift.o : $(SRCDIR)/lib_sift.c $(OBJDIR)/lib_sift_anatomy.o $(OBJDIR)/lib_keypoint.o $(OBJDIR)/lib_util.o
+$(OBJDIR)/lib_sift.o : $(SRCDIR)/$(S_SRC)/lib_sift.c $(OBJDIR)/lib_sift_anatomy.o $(OBJDIR)/lib_keypoint.o $(OBJDIR)/lib_util.o
 	$(CC) $(CFLAGS) $(OFLAGS) -c -o $@ $<
 
-$(OBJDIR)/lib_scalespace.o : $(SRCDIR)/lib_scalespace.c $(OBJDIR)/lib_discrete.o  $(OBJDIR)/lib_util.o
+$(OBJDIR)/lib_scalespace.o : $(SRCDIR)/$(S_SRC)/lib_scalespace.c $(OBJDIR)/lib_discrete.o  $(OBJDIR)/lib_util.o
 	$(CC) $(CFLAGS) $(OFLAGS) -c -o $@ $<
 
-$(OBJDIR)/lib_discrete.o : $(SRCDIR)/lib_discrete.c $(OBJDIR)/lib_util.o
+$(OBJDIR)/lib_discrete.o : $(SRCDIR)/$(S_SRC)/lib_discrete.c $(OBJDIR)/lib_util.o
 	$(CC) $(CFLAGS) $(OFLAGS) -c -o $@ $<
 
-$(OBJDIR)/lib_description.o : $(SRCDIR)/lib_description.c $(OBJDIR)/lib_discrete.o $(OBJDIR)/lib_keypoint.o $(OBJDIR)/lib_util.o
+$(OBJDIR)/lib_description.o : $(SRCDIR)/$(S_SRC)/lib_description.c $(OBJDIR)/lib_discrete.o $(OBJDIR)/lib_keypoint.o $(OBJDIR)/lib_util.o
 	$(CC) $(CFLAGS) $(OFLAGS) -c -o $@ $<
 
-$(OBJDIR)/lib_keypoint.o : $(SRCDIR)/lib_keypoint.c $(OBJDIR)/lib_util.o
+$(OBJDIR)/lib_keypoint.o : $(SRCDIR)/$(S_SRC)/lib_keypoint.c $(OBJDIR)/lib_util.o
 	$(CC) $(CFLAGS) $(OFLAGS) -c -o $@ $<
 
-$(OBJDIR)/lib_sift_anatomy.o : $(SRCDIR)/lib_sift_anatomy.c $(OBJDIR)/lib_keypoint.o $(OBJDIR)/lib_discrete.o $(OBJDIR)/lib_scalespace.o $(OBJDIR)/lib_util.o
+$(OBJDIR)/lib_sift_anatomy.o : $(SRCDIR)/$(S_SRC)/lib_sift_anatomy.c $(OBJDIR)/lib_keypoint.o $(OBJDIR)/lib_discrete.o $(OBJDIR)/lib_scalespace.o $(OBJDIR)/lib_util.o
 	$(CC) $(CFLAGS) $(OFLAGS) -c -o $@ $<
 
-$(OBJDIR)/lib_util.o : $(SRCDIR)/lib_util.c
+$(OBJDIR)/lib_util.o : $(SRCDIR)/$(S_SRC)/lib_util.c
 	$(CC) $(CFLAGS) $(OFLAGS) -c -o $@ $<
 
 #--------------------------------------------------------------
 #   IN (image) and OUT (scalespace)
 #
-$(OBJDIR)/io_png.o : $(SRCDIR)/io_png.c
+$(OBJDIR)/io_png.o : $(SRCDIR)/$(S_SRC)/io_png.c
 	$(CC) $(CFLAGS) $(OFLAGS) -c -o $@ $<
 
-$(OBJDIR)/lib_io_scalespace.o : $(SRCDIR)/lib_io_scalespace.c $(OBJDIR)/io_png.o  $(OBJDIR)/lib_scalespace.o $(OBJDIR)/lib_util.o
+$(OBJDIR)/lib_io_scalespace.o : $(SRCDIR)/$(S_SRC)/lib_io_scalespace.c $(OBJDIR)/io_png.o  $(OBJDIR)/lib_scalespace.o $(OBJDIR)/lib_util.o
 	$(CC) $(CFLAGS) $(OFLAGS) -c -o $@ $<
 
 
 #-------------------------------------------------------------
 #   Matching algorithm
 #
-$(OBJDIR)/lib_matching.o : $(SRCDIR)/lib_matching.c $(OBJDIR)/lib_keypoint.o $(OBJDIR)/lib_util.o
+$(OBJDIR)/lib_matching.o : $(SRCDIR)/$(S_SRC)/lib_matching.c $(OBJDIR)/lib_keypoint.o $(OBJDIR)/lib_util.o
 	$(CC) $(CFLAGS) $(OFLAGS) -c -o $@ $<
 
-$(BINMATCH) : $(SRCDIR)/match_cli.c $(OBJDIR)/lib_keypoint.o $(OBJDIR)/lib_matching.o   $(OBJDIR)/lib_util.o
+$(BINMATCH) : $(SRCDIR)/$(S_SRC)/match_cli.c $(OBJDIR)/lib_keypoint.o $(OBJDIR)/lib_matching.o   $(OBJDIR)/lib_util.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS) -lm
 
 #-------------------------------------------------------------
