@@ -156,3 +156,5 @@ clean:
 	rm -f .DS_Store
 	rm -f *._*
 	rm -f *.~
+	rm -f *.kp
+	rm -f *.txt
