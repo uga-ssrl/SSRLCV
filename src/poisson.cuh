@@ -3,6 +3,7 @@
 
 #include "common_includes.h"
 #include "octree.cuh"
+#include "cusolverSp.h"
 
 __device__ __host__ float3 operator+(const float3 &a, const float3 &b);
 __device__ __host__ float3 operator-(const float3 &a, const float3 &b);
@@ -33,7 +34,7 @@ __global__ void computeDivergenceCoarse(Node* nodeArray, int2* relativityIndicat
 /*
 MULTIGRID SOLVER
 */
-__global__ void computeLd(Node* nodeArray, int numNodes, int depthIndex, float* Ld, int* LdIndex, int* numNonZeroEntries, int* totalNonZeros, float* fLUT, float* fPrimePrimeLUT);
+__global__ void computeLd(int depthOfOctree, Node* nodeArray, int numNodes, int depthIndex, float* offDiagonal, int* offDiagonalIndex, float* diagonals, int* numNonZeroEntries,float* fLUT, float* fPrimePrimeLUT);
 __global__ void updateDivergence(Node* nodeArray, int numNodes, int depthIndex, float* divCoeff, float* fLUT, float* fPrimePrimeLUT, float* nodeImplicit);
 
 struct Poisson{

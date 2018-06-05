@@ -229,7 +229,7 @@ __global__ void computeDivergenceCoarse(int depthOfOctree, Node* nodeArray, int2
   }
 }
 
-__global__ void computeLd(Node* nodeArray, int numNodes, int depthIndex, int depthOfOctree, float* Ld, int* LdIndex, int* numNonZeroEntries, int* totalNonZeros, float* fLUT, float* fPrimePrimeLUT){
+__global__ void computeLd(int depthOfOctree, Node* nodeArray, int numNodes, int depthIndex, float* offDiagonal, int* offDiagonalIndex, float* diagonals, int* numNonZeroEntries,float* fLUT, float* fPrimePrimeLUT){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
     __shared__ int numNonZero;
@@ -244,16 +244,22 @@ __global__ void computeLd(Node* nodeArray, int numNodes, int depthIndex, int dep
       int mult = pow(2,depthOfOctree + 1) - 1;
       float laplacianValue = (fPrimePrimeLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+(fLUT[xyz1.x*mult + xyz2.x]*fPrimePrimeLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+(fLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fPrimePrimeLUT[xyz1.z*mult + xyz2.z]);
       if(laplacianValue != 0.0f){
-        atomicAdd(&numNonZero, 1);
-        Ld[threadIdx.x] = laplacianValue;
-        LdIndex[threadIdx.x] = blockID*27 + threadIdx.x;
+        if(threadIdx.x == 13){
+          diagonals[blockID] = laplacianValue;
+        }
+        else{
+          atomicAdd(&numNonZero, 1);
+          offDiagonal[blockID*26 + (threadIdx.x > 13 ? threadIdx.x - 1 : threadIdx.x)] = laplacianValue;
+          offDiagonalIndex[blockID*26 + (threadIdx.x > 13 ? threadIdx.x - 1 : threadIdx.x)] = neighborIndex;
+        }
+
       }
       else{
-        LdIndex[threadIdx.x] = -1;
+        offDiagonalIndex[threadIdx.x] = -1;
       }
     }
     else{
-      LdIndex[threadIdx.x] = -1;
+      offDiagonalIndex[threadIdx.x] = -1;
     }
     __syncthreads();
     numNonZeroEntries[blockID] = numNonZero;
@@ -478,6 +484,7 @@ void Poisson::computeDivergenceVector(){
   printf("Divergence vector generation kernel took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 }
 
+//TODO separate diagonals and non diagonals
 void Poisson::computeImplicitFunction(){
   clock_t cudatimer;
   cudatimer = clock();
@@ -495,11 +502,20 @@ void Poisson::computeImplicitFunction(){
   CudaSafeCall(cudaMemcpy(this->nodeImplicitDevice, nodeImplicit, this->octree->totalNodes*sizeof(float), cudaMemcpyHostToDevice));
 
   int numNodesAtDepth = 0;
+  float* diagonalsDevice;
+  float* offDiagonalsDevice;
+  int* offDiagonalIndicesDevice;
+  int* numOffDiagonalsDevice;
+  float* temp;
+  int* numNonZeroEntries;
+
+  dim3 grid;
+  dim3 block;
 
   for(int d = this->octree->depth; d >= 0; --d){
     //update divergence coefficients based on solutions at coarser depths
-    dim3 grid = {1,1,1};
-    dim3 block = {27,1,1};
+    grid = {1,1,1};
+    block = {27,1,1};
     if(d != this->octree->depth){
       numNodesAtDepth = this->octree->depthIndex[d + 1] - this->octree->depthIndex[d];
       if(numNodesAtDepth < 65535) grid.x = (unsigned int) numNodesAtDepth;
@@ -515,7 +531,6 @@ void Poisson::computeImplicitFunction(){
           ++grid.x;
         }
       }
-      block.x = 27;
       for(int dcoarse = d + 1; dcoarse <= this->octree->depth; ++dcoarse){
         updateDivergence<<<grid, block>>>(this->octree->depth, this->octree->finalNodeArrayDevice, numNodesAtDepth,
           this->octree->depthIndex[d], this->divergenceVectorDevice,
@@ -524,66 +539,41 @@ void Poisson::computeImplicitFunction(){
       }
     }
 
-    //multigridsolver for that depth
+    /*
+    MULTIGRID SOLVER
+    */
 
-    float* temp = new float[numNodesAtDepth*27];
-    int* numNonZeroEntries = new int[numNodesAtDepth];
-    for(int i = 0; i < numNodesAtDepth*27; ++i){
+    temp = new float[numNodesAtDepth*numNodesAtDepth];
+    numNonZeroEntries = new int[numNodesAtDepth];
+    for(int i = 0; i < numNodesAtDepth*26; ++i){
       temp[i] = 0;
-      if(i + 1 % 27 == 0){
-        numNonZeroEntries[i] = 0;
+      if(i % 26 == 0){
+        numNonZeroEntries[i/26] = 0;
       }
     }
-    float* nonZeroEntriesDevice;
-    int* nonZeroColumnIndicesDevice;
-    int* numNonZeroEntriesDevice;
-    int* totalNonZerosDevice;
-    int totalNonZeros = 0;
-    CudaSafeCall(cudaMalloc((void**)&nonZeroEntriesDevice, numNodesAtDepth*27*sizeof(float)));
-    CudaSafeCall(cudaMalloc((void**)&nonZeroColumnIndicesDevice, numNodesAtDepth*27*sizeof(int)));
-    CudaSafeCall(cudaMalloc((void**)&numNonZeroEntriesDevice, numNodesAtDepth*sizeof(int)));
-    CudaSafeCall(cudaMalloc((void**)&totalNonZerosDevice, sizeof(int)));
-    CudaSafeCall(cudaMemcpy(nonZeroEntriesDevice, temp, numNodesAtDepth*27*sizeof(float), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(nonZeroColumnIndicesDevice, temp, numNodesAtDepth*27*sizeof(int), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(numNonZeroEntriesDevice, numNonZeroEntries, numNodesAtDepth*sizeof(int), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(totalNonZerosDevice, &totalNonZeros, sizeof(int), cudaMemcpyHostToDevice));
-    computeLd<<<grid, block>>>(this->octree->finalNodeArrayDevice, numNodesAtDepth, this->octree->depthIndex[d],
-      this->octree->depth, nonZeroEntriesDevice, nonZeroColumnIndicesDevice, numNonZeroEntriesDevice, totalNonZerosDevice,
+
+    CudaSafeCall(cudaMalloc((void**)&diagonalsDevice, numNodesAtDepth*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&offDiagonalsDevice, numNodesAtDepth*26*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&offDiagonalIndicesDevice, numNodesAtDepth*26*sizeof(int)));
+    CudaSafeCall(cudaMalloc((void**)&numOffDiagonalsDevice, numNodesAtDepth*sizeof(int)));
+    CudaSafeCall(cudaMemcpy(diagonalsDevice, numNonZeroEntries, numNodesAtDepth*sizeof(float), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(offDiagonalsDevice, temp, numNodesAtDepth*26*sizeof(float), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(offDiagonalIndicesDevice, temp, numNodesAtDepth*26*sizeof(int), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(numOffDiagonalsDevice, numNonZeroEntries, numNodesAtDepth*sizeof(int), cudaMemcpyHostToDevice));
+    computeLd<<<grid, block>>>(this->octree->depth, this->octree->finalNodeArrayDevice, numNodesAtDepth, this->octree->depthIndex[d],
+      offDiagonalsDevice, offDiagonalIndicesDevice, diagonalsDevice, numOffDiagonalsDevice,
       this->fLUTDevice, this->fPrimePrimeLUTDevice);
     CudaCheckError();
-    CudaSafeCall(cudaMemcpy(&totalNonZeros, totalNonZerosDevice, sizeof(int), cudaMemcpyDeviceToHost));
+
     delete[] numNonZeroEntries;
     delete[] temp;
-    CudaSafeCall(cudaFree(totalNonZerosDevice));
-
-    float* compactedLDValues = new float[totalNonZeros];
-    int* compactedLDIndices = new int[totalNonZeros];
-    float* compactedLDValuesDevice;
-    int* compactedLDIndicesDevice;
-
-    for(int i = 0; i < totalNonZeros; ++i){
-      compactedLDValues[i] = 0.0f;
-      compactedLDIndices[i] = 0;
-    }
-
-    int* entryAddressesDevice;
-    CudaSafeCall(cudaMalloc((void**)&entryAddressesDevice, totalNonZeros*sizeof(int)));
-    CudaSafeCall(cudaMemcpy(entryAddressesDevice, compactedLDIndices, totalNonZeros*sizeof(int), cudaMemcpyHostToDevice));
-    thrust::device_ptr<int> nN(numNonZeroEntriesDevice);
-    thrust::device_ptr<int> nA(entryAddressesDevice);
-    thrust::inclusive_scan(nN, nN + totalNonZeros, nA);
-    //this will result in an array with addresses to the next rows first index
-
-    CudaSafeCall(cudaFree(numNonZeroEntriesDevice));
-
-    CudaSafeCall(cudaMalloc((void**)&compactedLDValuesDevice, totalNonZeros*sizeof(float)));
-    CudaSafeCall(cudaMalloc((void**)&compactedLDIndicesDevice, totalNonZeros*sizeof(int)));
-    CudaSafeCall(cudaMemcpy(compactedLDValuesDevice, compactedLDValues, totalNonZeros*sizeof(float), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(compactedLDIndicesDevice, compactedLDIndices, totalNonZeros*sizeof(int), cudaMemcpyHostToDevice));
-
 
     //continue with multigridsolver
 
+    CudaSafeCall(cudaFree(diagonalsDevice));
+    CudaSafeCall(cudaFree(offDiagonalsDevice));
+    CudaSafeCall(cudaFree(offDiagonalIndicesDevice));
+    CudaSafeCall(cudaFree(numOffDiagonalsDevice));
 
   }
 
