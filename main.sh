@@ -53,7 +53,7 @@ run_sift_cpu() {
 
 run_reprojection(){
   echo "running reprojection ..."
-  ./bin/2viewreprojection.x $CAMF matches.txt
+  ./bin/2viewreprojection.x $CAMF matches.txt 0
 }
 
 clean_up(){
