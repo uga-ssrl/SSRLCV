@@ -61,7 +61,7 @@ S_OBJb = $(addprefix $(OBJDIR)/,$(SRCb:.c=.o))
 S_OBJc = $(addprefix $(OBJDIR)/,$(SRCc:.c=.o))
 S_OBJ = $(OBJa) $(OBJb) $(OBJc)
 
-TARGET1 = 2viewreprojection.x
+TARGET1 = 2viewreprojection.exe
 LINKLINE1 = ${LINK} -o ${BINDIR}/${TARGET1} ${OBJS1} ${LIB_CUDA}
 
 TARGET2 = reconstruction.exe
