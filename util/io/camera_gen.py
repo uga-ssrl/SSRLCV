@@ -16,10 +16,7 @@ def pan():
     d_pix = (foc*tan(fov/2))/(res/2)
     step = 0.02
     start = -1.0 #meters
-
-    cameras = []
-    for x in range (1,101):
-        camera = [x, start + x*step, 0.5, 0.0, 1.0, 0.0, 0.0]
+l
         cameras.append(camera)
 
     f = open('carl_pan_cameras.txt', 'w')
