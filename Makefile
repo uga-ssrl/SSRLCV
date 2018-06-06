@@ -14,7 +14,7 @@ CXXFLAGS += -Wall -std=c++11 -Iinclude -lcublas
 # compute_<#> and sm_<#> will need to change depending on the device
 # if this is not done you will receive a no kernel image is availabe error
 NVCCFLAGS += ${COMMONFLAGS}
-NVCCFLAGS += -std=c++11 -gencode=arch=compute_61,code=sm_61 -Iinclude -lcublas -lthrust -lcusolve
+NVCCFLAGS += -std=c++11 -gencode=arch=compute_61,code=sm_61 -Iinclude -lcublas -lthrust
 
 LIB_CUDA :=  -gencode=arch=compute_61,code=sm_61 -L/usr/local/cuda-9.1/lib64 -lcudart -lcublas
 
