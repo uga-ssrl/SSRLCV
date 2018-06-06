@@ -173,8 +173,14 @@ bool   debug   = 0;
 bool   simple  = 0;
 int    gpu_acc = 1; // is GPU accellerated?
 
-__constant__ bool   d_debug         = 0;
-__constant__ bool   d_least_squares = 0;
+bool line_intersection = 1;
+
+__constant__ bool   d_debug             = 0;
+__constant__ bool   d_verbose           = 0;
+
+// only one of these should be active at a time
+__constant__ bool   d_line_intersection = 1;
+__constant__ bool   d_least_squares     = 0;
 
 string cameras_path;
 string matches_path;
@@ -185,15 +191,19 @@ unsigned short camera_count;
 // TODO (some of) this stuff should be set by camera calibration
 // TODO have this stuff sent in with camera parameter files
 // This was for the test cases only
-__constant__ int   d_res  = 1024;
-__constant__ float d_foc  = 0.035;
-__constant__ float d_fov  = 0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
-__constant__ float d_PI   = 3.1415926535;
-__constant__ float d_dpix = 0.00003124996;//0.00002831538; //(d_foc*tan(d_fov/2))/(d_res/2);
+__constant__ int   d_res      = 1024;
+__constant__ float d_foc      = 0.035;
+__constant__ float d_fov      = 0.8575553107;//0.0593412; //3.4 degrees to match the blender sim //0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
+__constant__ float d_PI       = 3.1415926535;
+__constant__ float d_dpix     = 0.00003124996;//0.00000103877;// 0.00003124996;///(d_foc*tan(d_fov/2))/(d_res/2);
+__constant__ float d_stepsize = 0.1; // the step size of the iterative solution
+__device__ float d_max_angle = -1000.0;
+__device__ float d_min_angle = 1000.0;
+
 
 unsigned int   res  = 1024;
 float          foc  = 0.035;
-float          fov  = 0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
+float          fov  = 0.8575553107;//0.0593412; //3.4 degrees to match the blender sim //0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
 float          PI   = 3.1415926535;
 float          dpix = (foc*tan(fov/2))/(res/2); //float          dpix = 0.00002831538; //(foc*tan(fov/2))/(res/2)
 
@@ -245,7 +255,22 @@ __device__ float get_vector_x_angle(float cam[6]){
   // find the angle
   float angle = acosf(fract);
   // check to see if outside of second quad
-  //if (cam[4] < 0.0) angle = 2 * d_PI - angle;
+  if (cam[4] < 0.0) angle = 2 * d_PI - angle;
+  if (angle > d_max_angle) d_max_angle = angle;
+  if (angle < d_min_angle) d_min_angle = angle;
+  return angle;
+}
+
+/////////////////////////////////////////////////////////////////
+//returns the angle between the input vector and the z unit vector
+__device__ float get_vector_z_angle(float cam[6]){
+  float w[3] = {0.0,0.0,1.0};
+  float v[3] = {cam[3],cam[4],cam[5]};
+  // dot product
+  float dot_v_w = dot_product(v,w,3);
+  float v_mag = dot_product(v,v,3);
+  float fract = (dot_v_w)/(sqrtf(v_mag));
+  float angle = acosf(fract);
   return angle;
 }
 
@@ -268,11 +293,43 @@ __device__ void rotate_projection_z(float *v, float angle){
   float x_n = cosf(angle)*v[0] + -1*sinf(angle)*v[1];
   float y_n = sinf(angle)*v[0] + cosf(angle)*v[1];
   float z_n = v[2];
-  // float w[3] = {x_n,y_n,z_n};
-  // return w;
   v[0] = x_n;
   v[1] = y_n;
   v[2] = z_n;
+}
+
+// returns the cross product of 3x1 vectors
+__device__ void cross_product(float *a, float *b, float *n){
+  n[0] = a[1]*b[2] - a[2]*b[1];
+  n[1] = a[2]*b[0] - a[0]*b[2];
+  n[2] = a[0]*b[1] - a[1]*b[0];
+}
+
+// subtract 2 3x1 vectors
+__device__ void sub(float *a, float *b, float *n){
+  n[0] = a[0] - b[0];
+  n[1] = a[1] - b[1];
+  n[2] = a[2] - b[2];
+}
+
+// subtract 2 3x1 vectors
+__device__ void add(float *a, float *b, float *n){
+  n[0] = a[0] + b[0];
+  n[1] = a[1] + b[1];
+  n[2] = a[2] + b[2];
+}
+
+// multiplies a by 3x1 vector b
+__device__ void mul(float a, float *b, float *n){
+  n[0] = a * b[0];
+  n[1] = a * b[1];
+  n[2] = a * b[2];
+}
+
+__device__ void zero3(float*n){
+  n[0] = 0.0;
+  n[1] = 0.0;
+  n[2] = 0.0;
 }
 
 __device__ float squared(float x){
@@ -282,6 +339,14 @@ __device__ float squared(float x){
 __device__ float euclid(float p1[3], float p2[3]){
   return sqrtf(((p2[0] - p1[0])*(p2[0] - p1[0])) + ((p2[1] - p1[1])*(p2[1] - p1[1])) + ((p2[2] - p1[2])*(p2[2] - p1[2])));
   //return sqrtf((squared));
+}
+
+// normalize a vector
+__device__ void normalize(float *v){
+  float len = sqrtf(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+  v[0] /= len;
+  v[1] /= len;
+  v[2] /= len;
 }
 
 //
@@ -307,15 +372,17 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
   float kp0[3] = {x0,y0,0.0};
   float kp1[3] = {x1,y1,0.0};
 
+
   // get the camera angles
-  float r0 = get_vector_x_angle(camera0);
-  float r1 = get_vector_x_angle(camera1);
+  float r0x = get_vector_x_angle(camera0);
+  float r1x = get_vector_x_angle(camera1);
 
   rotate_projection_x(kp0,d_PI/2.0); // was d_PI/2.0
   rotate_projection_x(kp1,d_PI/2.0);
 
-  rotate_projection_z(kp0,r0 + d_PI/2.0); // + d_PI/2.0
-  rotate_projection_z(kp1,r1 + d_PI/2.0); // + d_PI/2.0
+  rotate_projection_z(kp0,r0x + d_PI/2.0); // + d_PI/2.0
+  rotate_projection_z(kp1,r1x + d_PI/2.0); // + d_PI/2.0
+
 
   // adjust the kp's location in a plane
   kp0[0] = camera0[0] - (kp0[0] + (camera0[3] * d_foc));
@@ -324,12 +391,15 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
   kp1[0] = camera1[0] - (kp1[0] + (camera1[3] * d_foc));
   kp1[1] = camera1[1] - (kp1[1] + (camera1[4] * d_foc));
 
+
+
   float points0[6] = {camera0[0],camera0[1],camera0[2],kp0[0],kp0[1],kp0[2]};
   float points1[6] = {camera1[0],camera1[1],camera1[2],kp1[0],kp1[1],kp1[2]};
 
   // calculate the vectors
   float v0[3]    = {points0[3] - points0[0],points0[4] - points0[1],points0[5] - points0[2]};
   float v1[3]    = {points1[3] - points1[0],points1[4] - points1[1],points1[5] - points1[2]};
+
 
   // TODO here is where a better method could be used to find the closest
   // point of intescetion between the two lines
@@ -347,6 +417,92 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
     //=                   =//
     //=====================//
 
+  } else if (d_line_intersection){
+    //=====================//
+    //=                   =//
+    //=    Here be an     =//
+    //=   algibra dudes   =//
+    //=                   =//
+    //=====================//
+    // https://en.wikipedia.org/wiki/Skew_lines#Nearest_Points
+    float temp[3];
+    float solution0[3];
+    float solution1[3];
+    //normalize(v0);
+    //normalize(v1);
+    zero3(temp);
+    zero3(solution0);
+    zero3(solution1);
+    // starting points
+    p0[0] = points0[3];
+    p0[1] = points0[4];
+    p0[2] = points0[5];
+    p1[0] = points1[3];
+    p1[1] = points1[4];
+    p1[2] = points1[5];
+    // the crossy dudes
+    float n0[3];
+
+    float n1[3];
+    float n2[3];
+
+    zero3(n0);
+    zero3(n1);
+    zero3(n2);
+
+    cross_product(v0,v1,n0);
+    cross_product(v1,n0,n1);
+    // calculate the points
+    // calculate the numorator
+    sub(p1,p0,temp);
+    float numor0 = dot_product(temp,n1,3);
+    float denom0 = dot_product(v0,n1,3);
+    float frac0  = numor0/denom0;
+    // // clear temp
+    zero3(temp);
+    // // calculate solution
+    mul(frac0,v0,temp);
+    add(p0,temp,solution0);
+
+    // // do that again!
+
+    zero3(temp);
+    cross_product(v1,v0,temp);
+    cross_product(v0,temp,n2);
+
+    //
+    zero3(temp);
+    sub(p0,p1,temp);
+    float numor1 = dot_product(temp,n2,3);
+    float denom1 = dot_product(v1,n2,3);
+
+    float frac1  = numor1/denom1;
+    // // clear temp
+    zero3(temp);
+    // // calculate solution
+    mul(frac1,v1,temp);
+    add(p1,temp,solution1);
+
+    //
+    // // we found the solutions! now, find their midpoint
+    point[0] = (solution0[0]+solution1[0])/2.0;
+    point[1] = (solution0[1]+solution1[1])/2.0;
+    point[2] = (solution0[2]+solution1[2])/2.0;
+
+    // supposed to be perp
+    float d[3];
+    d[0] = solution0[0] - solution1[0];
+    d[1] = solution0[1] - solution1[1];
+    d[2] = solution0[2] - solution1[2];
+
+    float dot0 = dot_product(v0,d,3);
+    float dot1 = dot_product(v1,d,3);
+    if (d_debug){
+      float threshold = 0.000001;
+      if (!(dot0 <= threshold)) printf("ASS0 %f",dot0);
+      if (!(dot1 <= threshold)) printf("ASS1 %f",dot1);
+    }
+
   } else {
     //=====================//
     //=                   =//
@@ -354,7 +510,7 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
     //=   brute force     =//
     //=                   =//
     //=====================//
-    for (float t = 0.0f; t < 8000.0f; t += 0.001){
+    for (float t = 0.0f; t < 8000.0f; t += d_stepsize){
       t_holder = t;
 
       p0[0] = points0[3] + (v0[0]*t);
@@ -382,7 +538,7 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
   point_cloud[i_p+2] = point[2];
 
   if (d_debug){
-    printf("smallest: %f, t: [%f]\nv0: [%f,%f,%f]\nv1: [%f,%f,%f]\np0: [%f,%f,%f]\np1: [%f,%f,%f]\n",point[3],t_holder,v0[0],v0[1],v0[2],v1[0],v1[1],p1[2],p0[0],p0[1],p0[2],p1[0],p1[1],p1[2]);
+    //printf("smallest: %f, t: [%f]\nv0: [%f,%f,%f]\nv1: [%f,%f,%f]\np0: [%f,%f,%f]\np1: [%f,%f,%f]\n",point[3],t_holder,v0[0],v0[1],v0[2],v1[0],v1[1],p1[2],p0[0],p0[1],p0[2],p1[0],p1[1],p1[2]);
   } // for debugging
 
 }
@@ -412,7 +568,7 @@ void parse_comma_delem(string str, short flag, int m_p, int m_c, int c){
         match_points[m_p]   = stof(v[2]);
         match_points[m_p+1] = stof(v[3]);
         match_points[m_p+2] = stof(v[4]);
-        match_points[m_p+4] = stof(v[5]);
+        match_points[m_p+3] = stof(v[5]);
         // do the colors, alright chars i think
         // TODO make colors work, need to implement a method from 3 bytes -> 1 byte of chars
         //match_colors[m_c]   = v[6];
@@ -630,7 +786,7 @@ float get_angle(float cam[6], int flag){
   float angle = acos(fract);
   // check to see if outside of second quad
   if (cam[4] < 0.0) angle = 2 * PI - angle;
-  if (angle >max_angle) max_angle = angle;
+  if (angle > max_angle) max_angle = angle;
   if (angle < min_angle) min_angle = angle;
   return angle;
 }
@@ -642,6 +798,29 @@ float get_angle(float cam[6], int flag){
 //
 void two_view_reproject_pan(){
   cout << "depricated, do not use" << endl;
+}
+
+void cross_product_cpu(float a[3], float b[3], float (&crossed)[3]) {
+  crossed[0] = a[1]*b[2] - a[2]*b[1];
+  crossed[1] = a[2]*b[0] - a[0]*b[2];
+  crossed[2] = a[0]*b[1] - a[1]*b[0];
+}
+
+void add_cpu(float a[3], float b[3], float(&added)[3]) {
+  added[0] = a[0] + b[0];
+  added[1] = a[1] + b[1];
+  added[2] = a[2] + b[2];
+}
+
+
+void sub_cpu(float a[3], float b[3], float(&subtracted)[3]) {
+  subtracted[0] = a[0] - b[0];
+  subtracted[1] = a[1] - b[1];
+  subtracted[2] = a[2] - b[2];
+}
+
+float dot_product_cpu(float a[3], float b[3]) {
+  return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
 }
 
 //
@@ -668,10 +847,10 @@ void two_view_reproject_cpu(){
 
     // rotate the coords to be correct
     if (debug && 0){ // just set to not do this for now
-      cout << "camera1 unit vector: " << camera1[3] << "," << camera1[4] << "," << camera1[5] << endl;
-      cout << "rotation1: " << get_angle(camera1, 0) << endl;
-      cout << "camera2 unit vector: " << camera2[3] << "," << camera2[4] << "," << camera2[5] << endl;
-      cout << "rotation2: " << get_angle(camera2, 0) << endl;
+     cout << "camera1 unit vector: " << camera1[3] << "," << camera1[4] << "," << camera1[5] << endl;
+     cout << "rotation1: " << get_angle(camera1, 0) << endl;
+     cout << "camera2 unit vector: " << camera2[3] << "," << camera2[4] << "," << camera2[5] << endl;
+     cout << "rotation2: " << get_angle(camera2, 0) << endl;
     }
 
     // get the needed rotation
@@ -683,9 +862,12 @@ void two_view_reproject_cpu(){
     // for some reason it was not in the right plane?
     vector<float> k1 = rotate_projection_x(x1,y1,0.0,PI/2);
     vector<float> k2 = rotate_projection_x(x2,y2,0.0,PI/2);
+    printf("k0{%f,%f,%f}|k1{%f,%f,%f}\n", k1[0],k1[1],k1[2],k2[0],k2[1],k2[2]);
 
     vector<float> kp1 = rotate_projection_z(k1[0],k1[1],k1[2],r1 + PI/2.0); // + PI/2.0
     vector<float> kp2 = rotate_projection_z(k2[0],k2[1],k2[2],r2 + PI/2.0); // + PI/2.0
+    //printf("kp0{%f,%f,%f}|kp1{%f,%f,%f}\n", kp1[0],kp1[1],kp1[2],kp2[0],kp2[1],kp2[2]);
+
 
     // adjust the kp's location
     kp1[0] = camera1[0] - (kp1[0] + (camera1[3] * foc));
@@ -722,51 +904,105 @@ void two_view_reproject_cpu(){
     float p2[3]; //= {0.0,0.0,0.0};
     float point[4];
     int asdf_counter = 0;
-    for (float j = 0.0; j < 8000.0; j += 0.001){
-      p1[0] = points1[3] + v1[0]*j; // points1[0]
-      p1[1] = points1[4] + v1[1]*j;
-      p1[2] = points1[5] + v1[2]*j;
-      p2[0] = points2[3] + v2[0]*j;
-      p2[1] = points2[4] + v2[1]*j;
-      p2[2] = points2[5] + v2[2]*j;
-      // cout << j << endl;
-      float dist = euclid_dist(p1,p2);
-      //cout << dist << endl;
-      if (dist <= smallest){
-    	smallest = dist;
-    	point[0] = (p1[0]+p2[0])/2.0;
-    	point[1] = (p1[1]+p2[1])/2.0;
-    	point[2] = (p1[2]+p2[2])/2.0;
-    	point[3] = smallest;
-    	j_holder = j;
-      } else break;
-      if (debug && asdf_counter >= 30 && 0){ // don't do for now
-	asdf_counter = 0;
-	vector<float> v_t;
-	vector<int>   c_t;
-	vector<float> v_i;
-	vector<int>   c_i;
-	// TODO
-	// do something besides scaling the hell out of this rn
-	v_t.push_back(p1[0]);
-	v_t.push_back(p1[1]);
-	v_t.push_back(p1[2]);
-	c_t.push_back(255);
-	c_t.push_back(105);
-	c_t.push_back(180);
-	points.push_back(v_t);
-	colors.push_back(c_t);
-	v_i.push_back(p2[0]);
-	v_i.push_back(p2[1]);
-	v_i.push_back(p2[2]);
-	c_i.push_back(180);
-	c_i.push_back(105);
-	c_i.push_back(255);
-	points.push_back(v_i);
-	colors.push_back(c_i);
-      }
-      asdf_counter++;
+    // Which method will find the 3D point...
+    if(line_intersection) {
+      // The algebra way
+      //===============//
+      // https://en.wikipedia.org/wiki/Skew_lines#Nearest_Points
+      float temp[3]        = {0, 0, 0};
+      float solution1[3]   = {0, 0, 0};
+      float solution2[3]   = {0, 0, 0};
+      // starting points
+      p1[0] = points1[3];
+      p1[1] = points1[4];
+      p1[2] = points1[5];
+      p2[0] = points2[3];
+      p2[1] = points2[4];
+      p2[2] = points2[5];
+      // cross products
+      float n0[3] = {0, 0, 0};
+      float n1[3] = {0, 0, 0};
+      float n2[3] = {0, 0, 0};
+      cross_product_cpu(v1, v2, n0);
+      cross_product_cpu(v2, n0, n1);
+      // build the fraction
+      sub_cpu(p2, p1, temp);
+      float numer1 = dot_product_cpu(temp, n1);
+      float denom1 = dot_product_cpu(v1, n1);
+      float fract1 = numer1/denom1;
+      temp[0] = fract1*v1[0];
+      temp[1] = fract1*v1[1];
+      temp[2] = fract1*v1[2];
+      add_cpu(p1, temp, solution1);
+
+      // repeat to find second intersection point
+      cross_product_cpu(v2, v1, temp);
+      cross_product_cpu(v1, temp, n2);
+      sub_cpu(p1, p2, temp);
+      float numer2 = dot_product_cpu(temp, n2);
+      float denom2 = dot_product_cpu(v2, n2);
+      float fract2 = numer2/denom2;
+      temp[0] = fract2*v2[0];
+      temp[1] = fract2*v2[1];
+      temp[2] = fract2*v2[2];
+      add_cpu(p2, temp, solution2);
+
+      // get the midpoint of the two intersection points
+      point[0] = (solution1[0] + solution2[0])/2;
+      point[1] = (solution1[1] + solution2[1])/2;
+      point[2] = (solution1[2] + solution2[2])/2;
+
+	//////////////////////////////////************************************************************
     }
+    else {
+      // The barbarian way
+      //=================//
+      for (float j = 0.0; j < 8000.0; j += 0.001){
+	p1[0] = points1[3] + v1[0]*j; // points1[0]
+	p1[1] = points1[4] + v1[1]*j;
+	p1[2] = points1[5] + v1[2]*j;
+	p2[0] = points2[3] + v2[0]*j;
+	p2[1] = points2[4] + v2[1]*j;
+	p2[2] = points2[5] + v2[2]*j;
+	// cout << j << endl;
+	float dist = euclid_dist(p1,p2);
+	//cout << dist << endl;
+	if (dist <= smallest){
+	  smallest = dist;
+	  point[0] = (p1[0]+p2[0])/2.0;
+	  point[1] = (p1[1]+p2[1])/2.0;
+	  point[2] = (p1[2]+p2[2])/2.0;
+	  point[3] = smallest;
+	  j_holder = j;
+	} else break;
+	if (debug && asdf_counter >= 30 && 0){ // don't do for now
+	  asdf_counter = 0;
+	  vector<float> v_t;
+	  vector<int>   c_t;
+	  vector<float> v_i;
+	  vector<int>   c_i;
+	  // TODO
+	  // do something besides scaling the hell out of this rn
+	  v_t.push_back(p1[0]);
+	  v_t.push_back(p1[1]);
+	  v_t.push_back(p1[2]);
+	  c_t.push_back(255);
+	  c_t.push_back(105);
+	  c_t.push_back(180);
+	  points.push_back(v_t);
+	  colors.push_back(c_t);
+	  v_i.push_back(p2[0]);
+	  v_i.push_back(p2[1]);
+	  v_i.push_back(p2[2]);
+	  c_i.push_back(180);
+	  c_i.push_back(105);
+	  c_i.push_back(255);
+	  points.push_back(v_i);
+	  colors.push_back(c_i);
+	}
+	asdf_counter++;
+      }
+    } // end brute force method
     if (debug) cout << "smallest: " << smallest << ", j: [" << j_holder << "]" << endl;
     // print v bc wtf
     if (debug){
@@ -838,6 +1074,7 @@ void two_view_reproject_gpu(){
     THREAD_COUNT.x = POINT_CLOUD_SIZE/3;
   }
   if (debug) cout << "THREAD COUNT: " << THREAD_COUNT.x << endl << "BLOCK COUNT: " << BLOCK_COUNT.x << endl << "Point Cloud Size: " << POINT_CLOUD_SIZE << endl;
+  if (verbose) cout << "Reprojecting..." << endl;
   two_view_reproject<<<BLOCK_COUNT,THREAD_COUNT>>>(d_in_m,d_in_c,d_out_p);
   CudaCheckError();
 
