@@ -169,13 +169,13 @@ void printDeviceProperties() {
 
 // == GLOBAL VARIABLES == //
 bool   verbose = 1;
-bool   debug   = 0;
+bool   debug   = 1;
 bool   simple  = 0;
 int    gpu_acc = 1; // is GPU accellerated?
 
 bool line_intersection = 1;
 
-__constant__ bool   d_debug             = 0;
+__constant__ bool   d_debug             = 1;
 __constant__ bool   d_verbose           = 0;
 
 // only one of these should be active at a time
@@ -197,9 +197,6 @@ __constant__ float d_fov      = 0.8575553107;//0.0593412; //3.4 degrees to match
 __constant__ float d_PI       = 3.1415926535;
 __constant__ float d_dpix     = 0.00003124996;//0.00000103877;// 0.00003124996;///(d_foc*tan(d_fov/2))/(d_res/2);
 __constant__ float d_stepsize = 0.1; // the step size of the iterative solution
-__device__ float d_max_angle = -1000.0;
-__device__ float d_min_angle = 1000.0;
-
 
 unsigned int   res  = 1024;
 float          foc  = 0.035;
@@ -225,7 +222,7 @@ int MATCH_COLORS_SIZE;
 int CAMERA_DATA_SIZE;
 
 float         *match_points;
-unsigned char *match_colors;
+int           *match_colors;
 float         *camera_data;
 float         *point_cloud;
 
@@ -255,9 +252,7 @@ __device__ float get_vector_x_angle(float cam[6]){
   // find the angle
   float angle = acosf(fract);
   // check to see if outside of second quad
-  if (cam[4] < 0.0) angle = 2 * d_PI - angle;
-  if (angle > d_max_angle) d_max_angle = angle;
-  if (angle < d_min_angle) d_min_angle = angle;
+  //if (cam[4] < 0.0) angle = 2 * d_PI - angle;
   return angle;
 }
 
@@ -372,17 +367,17 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
   float kp0[3] = {x0,y0,0.0};
   float kp1[3] = {x1,y1,0.0};
 
-
   // get the camera angles
   float r0x = get_vector_x_angle(camera0);
   float r1x = get_vector_x_angle(camera1);
+  float r0z = get_vector_z_angle(camera0);
+  float r1z = get_vector_z_angle(camera1);
 
   rotate_projection_x(kp0,d_PI/2.0); // was d_PI/2.0
   rotate_projection_x(kp1,d_PI/2.0);
 
   rotate_projection_z(kp0,r0x + d_PI/2.0); // + d_PI/2.0
   rotate_projection_z(kp1,r1x + d_PI/2.0); // + d_PI/2.0
-
 
   // adjust the kp's location in a plane
   kp0[0] = camera0[0] - (kp0[0] + (camera0[3] * d_foc));
@@ -391,15 +386,12 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
   kp1[0] = camera1[0] - (kp1[0] + (camera1[3] * d_foc));
   kp1[1] = camera1[1] - (kp1[1] + (camera1[4] * d_foc));
 
-
-
   float points0[6] = {camera0[0],camera0[1],camera0[2],kp0[0],kp0[1],kp0[2]};
   float points1[6] = {camera1[0],camera1[1],camera1[2],kp1[0],kp1[1],kp1[2]};
 
   // calculate the vectors
   float v0[3]    = {points0[3] - points0[0],points0[4] - points0[1],points0[5] - points0[2]};
   float v1[3]    = {points1[3] - points1[0],points1[4] - points1[1],points1[5] - points1[2]};
-
 
   // TODO here is where a better method could be used to find the closest
   // point of intescetion between the two lines
@@ -469,20 +461,17 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
     zero3(temp);
     cross_product(v1,v0,temp);
     cross_product(v0,temp,n2);
-
     //
     zero3(temp);
     sub(p0,p1,temp);
     float numor1 = dot_product(temp,n2,3);
     float denom1 = dot_product(v1,n2,3);
-
     float frac1  = numor1/denom1;
     // // clear temp
     zero3(temp);
     // // calculate solution
     mul(frac1,v1,temp);
     add(p1,temp,solution1);
-
     //
     // // we found the solutions! now, find their midpoint
     point[0] = (solution0[0]+solution1[0])/2.0;
@@ -538,7 +527,7 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
   point_cloud[i_p+2] = point[2];
 
   if (d_debug){
-    //printf("smallest: %f, t: [%f]\nv0: [%f,%f,%f]\nv1: [%f,%f,%f]\np0: [%f,%f,%f]\np1: [%f,%f,%f]\n",point[3],t_holder,v0[0],v0[1],v0[2],v1[0],v1[1],p1[2],p0[0],p0[1],p0[2],p1[0],p1[1],p1[2]);
+    printf("smallest: %f, t: [%f]\nv0: [%f,%f,%f]\nv1: [%f,%f,%f]\np0: [%f,%f,%f]\np1: [%f,%f,%f]\n",point[3],t_holder,v0[0],v0[1],v0[2],v1[0],v1[1],p1[2],p0[0],p0[1],p0[2],p1[0],p1[1],p1[2]);
   } // for debugging
 
 }
@@ -571,9 +560,9 @@ void parse_comma_delem(string str, short flag, int m_p, int m_c, int c){
         match_points[m_p+3] = stof(v[5]);
         // do the colors, alright chars i think
         // TODO make colors work, need to implement a method from 3 bytes -> 1 byte of chars
-        //match_colors[m_c]   = v[6];
-        //match_colors[m_c+1] = v[7];
-        //match_colors[m_c+2] = v[8];
+        match_colors[m_c]   = stoi(v[6]);
+        match_colors[m_c+1] = stoi(v[7]);
+        match_colors[m_c+2] = stoi(v[8]);
       } else {
         matches.push_back(v);
       }
@@ -620,7 +609,7 @@ void load_matches(){
           // TODO potentially average the colors instead of just picking the first image?
           if (debug) cout << "DYNAMICALLY ALLOCATING ON HOST... " << endl << "read: " << stoi(line) << ", genrating: " << (3*stoi(line)) << endl;
           MATCH_COLORS_SIZE = 3*(stoi(line)+1);
-          match_colors      = new (nothrow) unsigned char[MATCH_COLORS_SIZE];
+          match_colors      = new (nothrow) int[MATCH_COLORS_SIZE];
         }
       } else{
         parse_comma_delem(line, 1, index_p, index_c, -1);
@@ -786,7 +775,7 @@ float get_angle(float cam[6], int flag){
   float angle = acos(fract);
   // check to see if outside of second quad
   if (cam[4] < 0.0) angle = 2 * PI - angle;
-  if (angle > max_angle) max_angle = angle;
+  if (angle >max_angle) max_angle = angle;
   if (angle < min_angle) min_angle = angle;
   return angle;
 }
@@ -847,10 +836,10 @@ void two_view_reproject_cpu(){
 
     // rotate the coords to be correct
     if (debug && 0){ // just set to not do this for now
-     cout << "camera1 unit vector: " << camera1[3] << "," << camera1[4] << "," << camera1[5] << endl;
-     cout << "rotation1: " << get_angle(camera1, 0) << endl;
-     cout << "camera2 unit vector: " << camera2[3] << "," << camera2[4] << "," << camera2[5] << endl;
-     cout << "rotation2: " << get_angle(camera2, 0) << endl;
+      cout << "camera1 unit vector: " << camera1[3] << "," << camera1[4] << "," << camera1[5] << endl;
+      cout << "rotation1: " << get_angle(camera1, 0) << endl;
+      cout << "camera2 unit vector: " << camera2[3] << "," << camera2[4] << "," << camera2[5] << endl;
+      cout << "rotation2: " << get_angle(camera2, 0) << endl;
     }
 
     // get the needed rotation
@@ -862,12 +851,9 @@ void two_view_reproject_cpu(){
     // for some reason it was not in the right plane?
     vector<float> k1 = rotate_projection_x(x1,y1,0.0,PI/2);
     vector<float> k2 = rotate_projection_x(x2,y2,0.0,PI/2);
-    printf("k0{%f,%f,%f}|k1{%f,%f,%f}\n", k1[0],k1[1],k1[2],k2[0],k2[1],k2[2]);
 
     vector<float> kp1 = rotate_projection_z(k1[0],k1[1],k1[2],r1 + PI/2.0); // + PI/2.0
     vector<float> kp2 = rotate_projection_z(k2[0],k2[1],k2[2],r2 + PI/2.0); // + PI/2.0
-    //printf("kp0{%f,%f,%f}|kp1{%f,%f,%f}\n", kp1[0],kp1[1],kp1[2],kp2[0],kp2[1],kp2[2]);
-
 
     // adjust the kp's location
     kp1[0] = camera1[0] - (kp1[0] + (camera1[3] * foc));
@@ -952,6 +938,7 @@ void two_view_reproject_cpu(){
       point[1] = (solution1[1] + solution2[1])/2;
       point[2] = (solution1[2] + solution2[2])/2;
 
+      cout << "We in here boys" << endl;
 	//////////////////////////////////************************************************************
     }
     else {
@@ -1095,7 +1082,8 @@ void save_ply(){
     outputFile1 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
     outputFile1 << "end_header\n";
     for(int i = 0; i < point_cloud_size*3; i+=3){
-      outputFile1 << point_cloud[i] << " " << point_cloud[i+1] << " " << point_cloud[i+2] << " " << 0 << " " << 255 << " " << 0 << "\n";
+      outputFile1 << point_cloud[i] << " " << point_cloud[i+1] << " " << point_cloud[i+2] << " " << match_colors[i] << " " << match_colors[i+1] << " " << match_colors[i+2] << "\n";
+      //<< match_colors[i] << " " << match_colors[i+1] << " " << match_colors[i+2] << "\n";
     }
     if (debug){
       cout << "POINT CLOUD DEBUG:" << endl;
@@ -1195,3 +1183,4 @@ int main(int argc, char* argv[]){
 
   return 0;
 }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
