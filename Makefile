@@ -62,7 +62,7 @@ S_OBJc = $(addprefix $(OBJDIR)/,$(SRCc:.c=.o))
 S_OBJ = $(OBJa) $(OBJb) $(OBJc)
 
 TARGET1 = 2viewreprojection.x
-LINKLINE1 = ${LINK} -o ${BINDIR}/${TARGET} ${OBJS} ${LIB_CUDA}
+LINKLINE1 = ${LINK} -o ${BINDIR}/${TARGET1} ${OBJS1} ${LIB_CUDA}
 
 TARGET2 = reconstruction.exe
 LINKLINE2 = ${LINK} -o ${BINDIR}/${TARGET2} ${OBJS2} ${LIB_CUDA}
@@ -138,8 +138,9 @@ $(BINMATCH) : $(SRCDIR)/$(S_SRC)/match_cli.c $(OBJDIR)/lib_keypoint.o $(OBJDIR)/
 $(BINDEMO) : $(BINDIR)/% :	 $(SRCDIR)/demo_extract_patch.c  $(OBJDIR)/lib_discrete.o $(OBJDIR)/io_png.o $(OBJDIR)/lib_util.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
-#CUDA STUFF
-
+#-------------------------------------------------------------
+#  Cuda Reprojection and Cuda Reconstruction
+#
 ${OBJDIR}/%.cu.o: ${SRCDIR}/%.cu
 	${NVCC} ${NVCCFLAGS} -c $< -o $@
 

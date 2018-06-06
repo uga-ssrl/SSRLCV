@@ -543,13 +543,14 @@ void Poisson::computeImplicitFunction(){
     MULTIGRID SOLVER
     */
 
-    temp = new float[numNodesAtDepth*numNodesAtDepth];
+    temp = new float[numNodesAtDepth*26];
     numNonZeroEntries = new int[numNodesAtDepth];
     for(int i = 0; i < numNodesAtDepth*26; ++i){
       temp[i] = 0;
       if(i % 26 == 0){
         numNonZeroEntries[i/26] = 0;
       }
+      temp[i] = 0.0f;
     }
 
     CudaSafeCall(cudaMalloc((void**)&diagonalsDevice, numNodesAtDepth*sizeof(float)));
@@ -577,11 +578,11 @@ void Poisson::computeImplicitFunction(){
 
   }
 
-
   CudaSafeCall(cudaFree(this->fLUTDevice));
   CudaSafeCall(cudaFree(this->fPrimePrimeLUTDevice));
   delete[] this->fLUT;
   delete[] this->fPrimePrimeLUT;
+  delete[] nodeImplicit;
   cudatimer = clock() - cudatimer;
   printf("Node Implicit f(n) generation kernel took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 }
