@@ -1,4 +1,4 @@
-# Tegra SfM
+# ~ Tegra SfM ~
 
 ## Dependencies
 * libpng
