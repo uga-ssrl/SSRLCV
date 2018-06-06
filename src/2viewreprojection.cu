@@ -173,6 +173,9 @@ bool   debug   = 1;
 bool   simple  = 0;
 int    gpu_acc = 1; // is GPU accellerated?
 
+bool line_intersection = 1;
+
+
 __constant__ bool   d_debug             = 1;
 __constant__ bool   d_verbose           = 0;
 
@@ -787,6 +790,29 @@ void two_view_reproject_pan(){
   cout << "depricated, do not use" << endl;
 }
 
+void cross_product_cpu(float a[3], float b[3], float (&crossed)[3]) {
+  crossed[0] = a[1]*b[2] - a[2]*b[1];
+  crossed[1] = a[2]*b[0] - a[0]*b[2];
+  crossed[2] = a[0]*b[1] - a[1]*b[0];
+}
+
+void add_cpu(float a[3], float b[3], float(&added)[3]) {
+  added[0] = a[0] + b[0];
+  added[1] = a[1] + b[1];
+  added[2] = a[2] + b[2];
+}
+
+
+void sub_cpu(float a[3], float b[3], float(&subtracted)[3]) {
+  subtracted[0] = a[0] - b[0];
+  subtracted[1] = a[1] - b[1];
+  subtracted[2] = a[2] - b[2];
+}
+
+float dot_product_cpu(float a[3], float b[3]) {
+  return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+}
+
 //
 // loads cameras from a camera.txt file
 // this assumes that the camera is constrained to a plane
@@ -865,6 +891,58 @@ void two_view_reproject_cpu(){
     float p2[3]; //= {0.0,0.0,0.0};
     float point[4];
     int asdf_counter = 0;
+<<<<<<< src/2viewreprojection.cu
+    // Which method will find the 3D point...
+    if(line_intersection) {
+      // The algebra way
+      //===============//
+      // https://en.wikipedia.org/wiki/Skew_lines#Nearest_Points
+      float temp[3]        = {0, 0, 0};
+      float solution1[3]   = {0, 0, 0};
+      float solution2[3]   = {0, 0, 0};
+      // starting points
+      p1[0] = points1[3];
+      p1[1] = points1[4];
+      p1[2] = points1[5];
+      p2[0] = points2[3];
+      p2[1] = points2[4];
+      p2[2] = points2[5];
+      // cross products
+      float n0[3] = {0, 0, 0};
+      float n1[3] = {0, 0, 0};
+      float n2[3] = {0, 0, 0};
+      cross_product_cpu(v1, v2, n0);
+      cross_product_cpu(v2, n0, n1);
+      // build the fraction
+      sub_cpu(p2, p1, temp);
+      float numer1 = dot_product_cpu(temp, n1);
+      float denom1 = dot_product_cpu(v1, n1);
+      float fract1 = numer1/denom1;
+      temp[0] = fract1*v1[0];
+      temp[1] = fract1*v1[1];
+      temp[2] = fract1*v1[2];
+      add_cpu(p1, temp, solution1);
+
+      // repeat to find second intersection point
+      cross_product_cpu(v2, v1, temp);
+      cross_product_cpu(v1, temp, n2);
+      sub_cpu(p1, p2, temp);
+      float numer2 = dot_product_cpu(temp, n2);
+      float denom2 = dot_product_cpu(v2, n2);
+      float fract2 = numer2/denom2;
+      temp[0] = fract2*v2[0];
+      temp[1] = fract2*v2[1];
+      temp[2] = fract2*v2[2];
+      add_cpu(p2, temp, solution2);
+
+      // get the midpoint of the two intersection points
+      point[0] = (solution1[0] + solution2[0])/2;
+      point[1] = (solution1[1] + solution2[1])/2;
+      point[2] = (solution1[2] + solution2[2])/2;
+
+      cout << "We in here boys" << endl;
+	//////////////////////////////////************************************************************
+=======
     for (float j = 0.0; j < 8000.0; j += 0.00001){ // was 0.001
       p1[0] = points1[3] + v1[0]*j; // points1[0]
       p1[1] = points1[4] + v1[1]*j;
@@ -909,7 +987,57 @@ void two_view_reproject_cpu(){
 	colors.push_back(c_i);
       }
       asdf_counter++;
+>>>>>>> src/2viewreprojection.cu
     }
+    else {
+      // The barbarian way
+      //=================//
+      for (float j = 0.0; j < 8000.0; j += 0.001){
+	p1[0] = points1[3] + v1[0]*j; // points1[0]
+	p1[1] = points1[4] + v1[1]*j;
+	p1[2] = points1[5] + v1[2]*j;
+	p2[0] = points2[3] + v2[0]*j;
+	p2[1] = points2[4] + v2[1]*j;
+	p2[2] = points2[5] + v2[2]*j;
+	// cout << j << endl;
+	float dist = euclid_dist(p1,p2);
+	//cout << dist << endl;
+	if (dist <= smallest){
+	  smallest = dist;
+	  point[0] = (p1[0]+p2[0])/2.0;
+	  point[1] = (p1[1]+p2[1])/2.0;
+	  point[2] = (p1[2]+p2[2])/2.0;
+	  point[3] = smallest;
+	  j_holder = j;
+	} else break;
+	if (debug && asdf_counter >= 30 && 0){ // don't do for now
+	  asdf_counter = 0;
+	  vector<float> v_t;
+	  vector<int>   c_t;
+	  vector<float> v_i;
+	  vector<int>   c_i;
+	  // TODO
+	  // do something besides scaling the hell out of this rn
+	  v_t.push_back(p1[0]);
+	  v_t.push_back(p1[1]);
+	  v_t.push_back(p1[2]);
+	  c_t.push_back(255);
+	  c_t.push_back(105);
+	  c_t.push_back(180);
+	  points.push_back(v_t);
+	  colors.push_back(c_t);
+	  v_i.push_back(p2[0]);
+	  v_i.push_back(p2[1]);
+	  v_i.push_back(p2[2]);
+	  c_i.push_back(180);
+	  c_i.push_back(105);
+	  c_i.push_back(255);
+	  points.push_back(v_i);
+	  colors.push_back(c_i);
+	}
+	asdf_counter++;
+      }
+    } // end brute force method
     if (debug) cout << "smallest: " << smallest << ", j: [" << j_holder << "]" << endl;
     // print v bc wtf
     if (debug){
