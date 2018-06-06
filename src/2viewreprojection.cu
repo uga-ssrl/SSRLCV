@@ -175,7 +175,6 @@ int    gpu_acc = 1; // is GPU accellerated?
 
 bool line_intersection = 1;
 
-
 __constant__ bool   d_debug             = 1;
 __constant__ bool   d_verbose           = 0;
 
@@ -373,7 +372,7 @@ __global__ void two_view_reproject(float *r2points, float *r3cameras,float *poin
   float r1x = get_vector_x_angle(camera1);
   float r0z = get_vector_z_angle(camera0);
   float r1z = get_vector_z_angle(camera1);
-  
+
   rotate_projection_x(kp0,d_PI/2.0); // was d_PI/2.0
   rotate_projection_x(kp1,d_PI/2.0);
 
@@ -891,7 +890,6 @@ void two_view_reproject_cpu(){
     float p2[3]; //= {0.0,0.0,0.0};
     float point[4];
     int asdf_counter = 0;
-<<<<<<< src/2viewreprojection.cu
     // Which method will find the 3D point...
     if(line_intersection) {
       // The algebra way
@@ -942,52 +940,6 @@ void two_view_reproject_cpu(){
 
       cout << "We in here boys" << endl;
 	//////////////////////////////////************************************************************
-=======
-    for (float j = 0.0; j < 8000.0; j += 0.00001){ // was 0.001
-      p1[0] = points1[3] + v1[0]*j; // points1[0]
-      p1[1] = points1[4] + v1[1]*j;
-      p1[2] = points1[5] + v1[2]*j;
-      p2[0] = points2[3] + v2[0]*j;
-      p2[1] = points2[4] + v2[1]*j;
-      p2[2] = points2[5] + v2[2]*j;
-      // cout << j << endl;
-      float dist = euclid_dist(p1,p2);
-      //cout << dist << endl;
-      if (dist <= smallest){
-    	smallest = dist;
-    	point[0] = (p1[0]+p2[0])/2.0;
-    	point[1] = (p1[1]+p2[1])/2.0;
-    	point[2] = (p1[2]+p2[2])/2.0;
-    	point[3] = smallest;
-    	j_holder = j;
-      } else break;
-      if (debug && asdf_counter >= 30 && 0){ // don't do for now
-	asdf_counter = 0;
-	vector<float> v_t;
-	vector<int>   c_t;
-	vector<float> v_i;
-	vector<int>   c_i;
-	// TODO
-	// do something besides scaling the hell out of this rn
-	v_t.push_back(p1[0]);
-	v_t.push_back(p1[1]);
-	v_t.push_back(p1[2]);
-	c_t.push_back(255);
-	c_t.push_back(105);
-	c_t.push_back(180);
-	points.push_back(v_t);
-	colors.push_back(c_t);
-	v_i.push_back(p2[0]);
-	v_i.push_back(p2[1]);
-	v_i.push_back(p2[2]);
-	c_i.push_back(180);
-	c_i.push_back(105);
-	c_i.push_back(255);
-	points.push_back(v_i);
-	colors.push_back(c_i);
-      }
-      asdf_counter++;
->>>>>>> src/2viewreprojection.cu
     }
     else {
       // The barbarian way
