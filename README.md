@@ -8,6 +8,14 @@ bin, data, obj, out, src, util
 If a file has CUDA in it of any sort -> .cu and its header -> .cuh.
 All other files can be .cpp and .h
 
+## Dependencies
+* libpng
+* g++
+* gcc
+* nvcc
+* CUDA 9.0
+* python 2.7.15
+
 ## Compilation
 
 If you are running this for the first time you need to make a `bin` folder in the root of this repo.
@@ -18,12 +26,34 @@ Depending on how cuda are installed on your system you make have to change the f
 lines in the Makefile to specify the location of the library.
 
 ## Running
+### Full Pipeline
 
-The executables for `.cpp` programs are placed in the `bin` folder with the extension `.x`
+Currently, the fully pipeline can be run from the `main.sh` script located in the root folder.
 
-To run the reprojection from the root folder of this repo: `./bin/reprojection.x path/to/cameras.txt path/to/matches.txt 0/1`
+### SIFT
 
-where '0' represents a reprojection constrained to a plane and '1' represents a projection constrained to a line.
+information on SIFT can be learned here: [Anatomy of SIFT](http://gitlab.smallsat.uga.edu/Caleb/anatomy-of-sift/blob/master/Anatomy%20of%20SIFT.pdf), this isn't Lowe's original thing but it explains it way better.
+
+##### CPU
+two SIFT executables are generated in the `bin` directory during the make, `sift_cli` and `match_cli`. The first of witch produces SIFT keypoints with descriptors and the latter of which matches those keypoints. There is a python script in the `util/io` folder that converts the raw match output into our format (specified below)
+
+These executables return raw output, which is meant to be piped to a file.
+
+`./bin/sift_cli path/to/image.png > keypoints.kp` would generate a keypoint file
+
+`./bin/match_cli keypoints1.kp keypoints2.kp > raw_matches.txt` would generate a raw matches file
+
+`python /util/io/raw_matches_to_matches.py` converts the `raw_matches.txt` file in root to a `matches.txt` file to be used by reprojection
+
+##### GPU
+not yet implemented
+
+### reprojection
+The executables for `.cpp` and `.cu` programs are placed in the `bin` folder with the extension `.x`
+
+To run the reprojection from the root folder of this repo: `./bin/reprojection.x path/to/cameras.txt path/to/matches.txt`
+
+Additionally, a `1` or a `0` can be placed at the end of the statement. A `0` makes it so that the program runs on the CPU with a CPU implementation. Be careful, this is super slow.
 
 ## Source
 
