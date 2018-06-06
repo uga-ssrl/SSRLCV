@@ -14,3 +14,7 @@ data/img/carl_pan/.DS_Store
 data/img/spongebob_pan/.DS_Store
 data/img/everest_40d_untextured
 util/bolbi.jpg.temp.jpg
+._*
+data/._*
+util/._*
+util/io/._*
