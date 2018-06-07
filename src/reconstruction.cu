@@ -11,20 +11,22 @@ using namespace std;
 
 int main(int argc, char *argv[]){
   try{
-    if(argc == 2){
+    if(argc > 1 && argc < 4){
       string filePath = argv[1];
+      int depth = 10;
+
+      if(argc == 2) depth = 9;
+      if(argc == 3) depth = stoi(argv[2]);
       clock_t totalTimer = clock();
       clock_t partialTimer = clock();
 
       //if we want further depth than 10 our nodeKeys will need to then be long or long long
-      int depth = 10;
       Octree octree = Octree(filePath, depth);
       /*
       KEEP IN MIND THAT NORMALS ARE CURRENTLY READ FROM A PLY AND ARE INWARD FACING
       THIS MEANS THAT NORMALS INSTANTIATION WILL NEED TO BE REMOVED FROM Octree::parsePLY
       AND COLOR WILL BE READ IN ITS PLACE
       */
-
 
       octree.init_octree_gpu();
       octree.generateKeys();

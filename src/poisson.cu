@@ -84,41 +84,57 @@ __device__ __host__ float3 operator*(const float &a, const float3 &b) {
   return {a*b.x, a*b.y, a*b.z};
 }
 
+//TODO maybe get the third convolution to get closer to gausian filter
 __device__ __host__ float3 blender(const float3 &a, const float3 &b, const float &bw){
-  float3 t = (a-b)/bw;
-  if((t.x > 0.0f && t.x <= 1.5) && (t.x > 0.0f && t.x <= 1.5) && (t.x > 0.0f && t.x <= 1.5)){
-    return ((0.5*t*t*t) + (2.5*t*t) + (4.0f*t) + 2.0f)/(bw*bw*bw);
+  float t[3] = {(a.x-b.x)/bw,(a.y-b.y)/bw,(a.z-b.z)/bw};
+  float result[3] = {0.0f};
+  for(int i = 0; i < 3; ++i){
+    if(t[i] > 0.5 && t[i] <= 1.5){
+      result[i] = (t[i]-1.5)*(t[i]-1.5)/(bw*bw*bw);
+    }
+    else if(t[i] < -0.5 && t[i] >= -1.5){
+      result[i] = (t[i]+1.5)*(t[i]+1.5)/(bw*bw*bw);
+    }
+    else if(t[i] <= 0.5 && t[i] >= -0.5){
+      result[i] = (1.5-(t[i]*t[i]))/(2.0f*bw*bw*bw);
+    }
+    else return {0.0f,0.0f,0.0f};
   }
-  else if((t.x <= 0.0f && t.x >= -1.5) && (t.x <= 0.0f && t.x >= -1.5) && (t.x <= 0.0f && t.x >= -1.5)){
-    return ((-0.5*t*t*t) + (2.5*t*t) + (-4.0f*t) + 2.0f)/(bw*bw*bw);
-  }
-  else{
-    return {0.0f,0.0f,0.0f};
-  }
+  return {result[0],result[1],result[2]};
 }
 __device__ __host__ float3 blenderPrime(const float3 &a, const float3 &b, const float &bw){
-  float3 t = (a-b)/bw;
-  if((t.x > 0.0f && t.x <= 1.5) && (t.x > 0.0f && t.x <= 1.5) && (t.x > 0.0f && t.x <= 1.5)){
-    return ((1.5*t*t) + (5.0f*t) + 4.0f)/(bw*bw*bw);
+  float t[3] = {(a.x-b.x)/bw,(a.y-b.y)/bw,(a.z-b.z)/bw};
+  float result[3] = {0.0f};
+  for(int i = 0; i < 3; ++i){
+    if(t[i] > 0.5 && t[i] <= 1.5){
+      result[i] = (2.0f*t[i] + 3.0f)/(bw*bw*bw);
+    }
+    else if(t[i] < -0.5 && t[i] >= -1.5){
+      result[i] = (2.0f*t[i] - 3.0f)/(bw*bw*bw);
+    }
+    else if(t[i] <= 0.5 && t[i] >= -0.5){
+      result[i] = (-2.0f*t[i])/(2.0f*bw*bw*bw);
+    }
+    else return {0.0f,0.0f,0.0f};
   }
-  else if((t.x <= 0.0f && t.x >= -1.5) && (t.x <= 0.0f && t.x >= -1.5) && (t.x <= 0.0f && t.x >= -1.5)){
-    return ((-1.5*t*t) + (5.0f*t) - 4.0f)/(bw*bw*bw);
-  }
-  else{
-    return {0.0f,0.0f,0.0f};
-  }
+  return {result[0],result[1],result[2]};
 }
 __device__ __host__ float3 blenderPrimePrime(const float3 &a, const float3 &b, const float &bw){
-  float3 t = (a-b)/bw;
-  if((t.x > 0.0f && t.x <= 1.5) && (t.x > 0.0f && t.x <= 1.5) && (t.x > 0.0f && t.x <= 1.5)){
-    return ((3.0f*t) + 5.0f)/(bw*bw*bw);
+  float t[3] = {(a.x-b.x)/bw,(a.y-b.y)/bw,(a.z-b.z)/bw};
+  float result[3] = {0.0f};
+  for(int i = 0; i < 3; ++i){
+    if(t[i] > 0.5 && t[i] <= 1.5){
+      result[i] = 2.0f/(bw*bw*bw);
+    }
+    else if(t[i] < -0.5 && t[i] >= -1.5){
+      result[i] = 2.0f/(bw*bw*bw);
+    }
+    else if(t[i] <= 0.5 && t[i] >= -0.5){
+      result[i] = -1.0f/(bw*bw*bw);
+    }
+    else return {0.0f,0.0f,0.0f};
   }
-  else if((t.x <= 0.0f && t.x >= -1.5) && (t.x <= 0.0f && t.x >= -1.5) && (t.x <= 0.0f && t.x >= -1.5)){
-    return ((-3.0f*t) + 5.0f)/(bw*bw*bw);
-  }
-  else{
-    return {0.0f,0.0f,0.0f};
-  }
+  return {result[0],result[1],result[2]};
 }
 
 __device__ __host__ int3 splitCrunchBits3(const unsigned int &size, const int &key){
@@ -229,6 +245,7 @@ __global__ void computeDivergenceCoarse(int depthOfOctree, Node* nodeArray, int2
   }
 }
 
+//TODO find out why most laplacians are 0
 __global__ void computeLd(int depthOfOctree, Node* nodeArray, int numNodes, int depthIndex, float* offDiagonal, int* offDiagonalIndex, float* diagonals, int* numNonZeroEntries,float* fLUT, float* fPrimePrimeLUT){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
@@ -242,7 +259,9 @@ __global__ void computeLd(int depthOfOctree, Node* nodeArray, int numNodes, int 
       xyz1 = splitCrunchBits3(depthOfOctree*3, nodeArray[blockID + depthIndex].key);
       xyz2 = splitCrunchBits3(depthOfOctree*3, nodeArray[neighborIndex].key);
       int mult = pow(2,depthOfOctree + 1) - 1;
-      float laplacianValue = (fPrimePrimeLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+(fLUT[xyz1.x*mult + xyz2.x]*fPrimePrimeLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+(fLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fPrimePrimeLUT[xyz1.z*mult + xyz2.z]);
+      float laplacianValue = (fPrimePrimeLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+
+      (fLUT[xyz1.x*mult + xyz2.x]*fPrimePrimeLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+
+      (fLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fPrimePrimeLUT[xyz1.z*mult + xyz2.z]);
       if(laplacianValue != 0.0f){
         if(threadIdx.x == 13){
           diagonals[blockID] = laplacianValue;
@@ -252,7 +271,7 @@ __global__ void computeLd(int depthOfOctree, Node* nodeArray, int numNodes, int 
           offDiagonal[blockID*26 + (threadIdx.x > 13 ? threadIdx.x - 1 : threadIdx.x)] = laplacianValue;
           offDiagonalIndex[blockID*26 + (threadIdx.x > 13 ? threadIdx.x - 1 : threadIdx.x)] = neighborIndex;
         }
-
+        //printf("%d,%d -> laplacian = %.9f\n",blockID + depthIndex,neighborIndex, laplacianValue);
       }
       else{
         offDiagonalIndex[threadIdx.x] = -1;
@@ -300,15 +319,10 @@ Poisson::~Poisson(){
   //TODO delete octree;
 }
 
-//TODO make sure this is correct and put some part of it on gpu (too slow)
+//TODO OPTMIZE THIS YOU FUCK TARD
 void Poisson::computeLUTs(){
   clock_t timer;
   timer = clock();
-
-  unsigned int size = (pow(2, this->octree->depth + 1) - 1);
-  this->fLUT = new float[size*size];
-  this->fPrimeLUT = new float[size*size];
-  this->fPrimePrimeLUT = new float[size*size];
 
   float currentWidth = this->octree->width;
   float3 currentCenter = this->octree->center;
@@ -328,6 +342,18 @@ void Poisson::computeLUTs(){
     currentWidth /= 2;
     pow2 *= 2;
   }
+  int numCenters = centers.size();
+  printf("numCenters absolute unique centers = %d\n",numCenters);
+
+  unsigned int size = (pow(2, this->octree->depth + 1) - 1);
+  float** f = new float*[size];
+  float** ff = new float*[size];
+  float** fff = new float*[size];
+  for(int i = 0; i < size; ++i){
+    f[i] = new float[size];
+    ff[i] = new float[size];
+    fff[i] = new float[size];
+  }
 
   float totalWidth = this->octree->width;
   int pow2i = 1;
@@ -341,14 +367,24 @@ void Poisson::computeLUTs(){
       offsetj = pow2j - 1;
       for(int k = offseti; k < offseti + pow2i; ++k){
         for(int l = offsetj; l < offsetj + pow2j; ++l){
-          this->fLUT[k*pow2j] = dotProduct(blender(centers[l],centers[k],totalWidth/pow2i),blender(centers[k],centers[l],totalWidth/pow2j));
-          this->fPrimeLUT[k*pow2j] = dotProduct(blender(centers[l],centers[k],totalWidth/pow2i),blenderPrime(centers[k],centers[l],totalWidth/pow2j));
-          this->fPrimePrimeLUT[k*pow2j] = dotProduct(blender(centers[l],centers[k],totalWidth/pow2i),blenderPrimePrime(centers[k],centers[l],totalWidth/pow2j));
+          f[k][l] = dotProduct(blender(centers[l],centers[k],totalWidth/pow2i),blender(centers[k],centers[l],totalWidth/pow2j));
+          ff[k][l] = dotProduct(blender(centers[l],centers[k],totalWidth/pow2i),blenderPrime(centers[k],centers[l],totalWidth/pow2j));
+          fff[k][l] = dotProduct(blender(centers[l],centers[k],totalWidth/pow2i),blenderPrimePrime(centers[k],centers[l],totalWidth/pow2j));
         }
       }
       pow2j *= 2;
     }
     pow2i *= 2;
+  }
+  this->fLUT = new float[size*size];
+  this->fPrimeLUT = new float[size*size];
+  this->fPrimePrimeLUT = new float[size*size];
+  for(int i = 0; i < size; ++i){
+    for(int j = 0; j < size; ++j){
+      this->fLUT[i*size + j] = f[i][j];
+      this->fPrimeLUT[i*size + j] = ff[i][j];
+      this->fPrimePrimeLUT[i*size + j] = fff[i][j];
+    }
   }
   timer = clock() - timer;
   printf("blending LUT generation took %f seconds fully on the CPU.\n\n",((float) timer)/CLOCKS_PER_SEC);
@@ -508,6 +544,7 @@ void Poisson::computeImplicitFunction(){
   int* numOffDiagonalsDevice;
   float* temp;
   int* numNonZeroEntries;
+  float* diag;
 
   dim3 grid;
   dim3 block;
@@ -543,12 +580,16 @@ void Poisson::computeImplicitFunction(){
     MULTIGRID SOLVER
     */
 
+    //setup
+
     temp = new float[numNodesAtDepth*26];
+    diag = new float[numNodesAtDepth];
     numNonZeroEntries = new int[numNodesAtDepth];
     for(int i = 0; i < numNodesAtDepth*26; ++i){
       temp[i] = 0;
       if(i % 26 == 0){
-        numNonZeroEntries[i/26] = 0;
+        numNonZeroEntries[i/26] = -1;
+        diag[i/26] = 0.0f;
       }
       temp[i] = 0.0f;
     }
@@ -557,7 +598,7 @@ void Poisson::computeImplicitFunction(){
     CudaSafeCall(cudaMalloc((void**)&offDiagonalsDevice, numNodesAtDepth*26*sizeof(float)));
     CudaSafeCall(cudaMalloc((void**)&offDiagonalIndicesDevice, numNodesAtDepth*26*sizeof(int)));
     CudaSafeCall(cudaMalloc((void**)&numOffDiagonalsDevice, numNodesAtDepth*sizeof(int)));
-    CudaSafeCall(cudaMemcpy(diagonalsDevice, numNonZeroEntries, numNodesAtDepth*sizeof(float), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(diagonalsDevice, diag, numNodesAtDepth*sizeof(float), cudaMemcpyHostToDevice));
     CudaSafeCall(cudaMemcpy(offDiagonalsDevice, temp, numNodesAtDepth*26*sizeof(float), cudaMemcpyHostToDevice));
     CudaSafeCall(cudaMemcpy(offDiagonalIndicesDevice, temp, numNodesAtDepth*26*sizeof(int), cudaMemcpyHostToDevice));
     CudaSafeCall(cudaMemcpy(numOffDiagonalsDevice, numNonZeroEntries, numNodesAtDepth*sizeof(int), cudaMemcpyHostToDevice));
@@ -566,10 +607,13 @@ void Poisson::computeImplicitFunction(){
       this->fLUTDevice, this->fPrimePrimeLUTDevice);
     CudaCheckError();
 
+    delete[] diag;
     delete[] numNonZeroEntries;
     delete[] temp;
 
-    //continue with multigridsolver
+
+    //multiplication???
+
 
     CudaSafeCall(cudaFree(diagonalsDevice));
     CudaSafeCall(cudaFree(offDiagonalsDevice));
