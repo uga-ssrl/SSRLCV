@@ -17,11 +17,19 @@
 \usepackage{biblatex}
 \usepackage{titling}
 \usepackage{amssymb}
+\usepackage[margin=1.5cm]{geometry}
 %
 % stuff relating to the title
 %
+\pretitle{%
+  \begin{center}
+  \LARGE
+  \includegraphics[width=8cm, height=8cm]{MOCI}\\[\bigskipamount]
+}
 \title{Multiview Onboard Computaional Imager \\
-\large Algorithm Theoretical Basis Document Version 0.1}
+  \large Algorithm Theoretical Basis Document Version
+  \newline
+}
 \author{
   Caleb, Adams\\
   \texttt{CalebAshmoreAdams@gmail.com}
@@ -32,12 +40,10 @@
   LastName3, FirstName3\\
   \texttt{first3.last3@xxxxx.com}
 }
-\pretitle{%
-  \begin{center}
-  \LARGE
-  \includegraphics[width=8cm, height=8cm]{MOCI}\\[\bigskipamount]
+\posttitle{
+  %\includegraphics[width=8cm]{ssrl}
+  \end{center}
 }
-\posttitle{\end{center}}
 %
 %
 \addbibresource{sources.bib}
