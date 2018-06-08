@@ -1,0 +1,19 @@
+\chapter{Two View Reprojection}
+
+\section{Overview}
+
+\section{Moing into R3}
+The reprojection program includes an option to perform a 2-view reprojection.
+The 2-view reprojection takes the matched points between 2 images and places them into $\mathbb{R}^{3}$.
+To place each set of points into $\mathbb{R}^{3}$ some trigonometry and and matrix transformations need to take place.
+The first step to moving a keypoint into $\mathbb{R}^{3}$ is to place it onto a plane in $\mathbb{R}^{2}$.
+the coordinates $(x', y')$ in $\mathbb{R}^{2}$ require the size of a pixel $dpix$, the location of the keypoint $(x, y)$,
+and the resolution of the image $(xres, yres)$ to yield:
+
+\[
+x' = dpix(x - \frac{xres}{2}), y' = dpix(y - \frac{yres}{2}) 
+\]
+
+\section{Minimum Distance With Skew Lines}
+
+\section{Least Square Approximation for Two Lines}
