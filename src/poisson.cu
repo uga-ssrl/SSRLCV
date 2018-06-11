@@ -31,7 +31,7 @@ inline void __cudaCheckError(const char *file, const int line) {
 
   // More careful checking. However, this will affect performance.
   // Comment away if needed.
-  //err = cudaDeviceSynchronize();
+  err = cudaDeviceSynchronize();
   if (cudaSuccess != err) {
     fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
     file, line, cudaGetErrorString(err));
@@ -343,7 +343,7 @@ void Poisson::computeLUTs(){
     pow2 *= 2;
   }
   int numCenters = centers.size();
-  printf("numCenters absolute unique centers = %d\n",numCenters);
+  printf("number of absolute unique centers = %d\n\n",numCenters);
 
   unsigned int size = (pow(2, this->octree->depth + 1) - 1);
   float** f = new float*[size];

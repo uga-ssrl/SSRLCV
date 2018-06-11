@@ -48,6 +48,7 @@ __device__ __host__ Vertex::Vertex(){
   }
   this->depth = -1;
   this->coord = {0.0f,0.0f,0.0f};
+  this->color = {0,0,0};
 }
 
 __device__ __host__ Edge::Edge(){
@@ -55,8 +56,9 @@ __device__ __host__ Edge::Edge(){
     this->nodes[i] = -1;
   }
   this->depth = -1;
-  this->p1 = {0.0f,0.0f,0.0f};
-  this->p2 = {0.0f,0.0f,0.0f};
+  this->v1 = -1;
+  this->v2 = -1;
+  this->color = {0,0,0};
 
 }
 
@@ -64,16 +66,18 @@ __device__ __host__ Face::Face(){
   this->nodes[0] = -1;
   this->nodes[1] = -1;
   this->depth = -1;
-  this->p1 = {0.0f,0.0f,0.0f};
-  this->p2 = {0.0f,0.0f,0.0f};
-  this->p3 = {0.0f,0.0f,0.0f};
-  this->p4 = {0.0f,0.0f,0.0f};
+  this->e1 = -1;
+  this->e2 = -1;
+  this->e3 = -1;
+  this->e4 = -1;
+  this->color = {0,0,0};
 
 }
 
 __device__ __host__ Node::Node(){
   this->pointIndex = -1;
   this->center = {0.0f,0.0f,0.0f};
+  this->color = {0,0,0};
   this->key = 0;
   this->width = 0.0f;
   this->numPoints = 0;
@@ -211,10 +215,12 @@ __global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeNumbers, int* nod
   int address = 0;
   if(globalID < numUniqueNodes && (globalID == 0 || nodeNumbers[globalID] == 8)){
     int siblingKey = uniqueNodes[globalID].key;
+    uchar3 color = uniqueNodes[globalID].color;
     siblingKey &= 0xfffffff8;//will clear last 3 bits
     for(int i = 0; i < 8; ++i){
       address = nodeAddresses[globalID] + i;
       outputNodeArray[address] = Node();
+      outputNodeArray[address].color = color;
       outputNodeArray[address].depth = currentDepth;
       outputNodeArray[address].key = siblingKey + i;
     }
@@ -235,6 +241,7 @@ __global__ void fillFinestNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddre
     outputNodeArray[address].key = uniqueNodes[globalID].key;
     outputNodeArray[address].depth = uniqueNodes[globalID].depth;
     outputNodeArray[address].center = uniqueNodes[globalID].center;
+    outputNodeArray[address].color = uniqueNodes[globalID].color;
     outputNodeArray[address].pointIndex = uniqueNodes[globalID].pointIndex;
     outputNodeArray[address].numPoints = uniqueNodes[globalID].numPoints;
     outputNodeArray[address].finestChildIndex = address;//itself
@@ -257,6 +264,7 @@ __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, 
     outputNodeArray[address].key = uniqueNodes[globalID].key;
     outputNodeArray[address].depth = uniqueNodes[globalID].depth;
     outputNodeArray[address].center = uniqueNodes[globalID].center;
+    outputNodeArray[address].color = uniqueNodes[globalID].color;
     outputNodeArray[address].pointIndex = uniqueNodes[globalID].pointIndex;
     outputNodeArray[address].numPoints = uniqueNodes[globalID].numPoints;
     outputNodeArray[address].finestChildIndex = uniqueNodes[globalID].finestChildIndex;
@@ -277,24 +285,31 @@ __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD,
     int depth =  nodeArrayD[nodeArrayIndex].depth;
     uniqueNodes[globalID].depth = depth - 1;
     float3 center = nodeArrayD[nodeArrayIndex].center;
+    //should be the lowest index on the lowest child
+    uniqueNodes[globalID].finestChildIndex = nodeArrayD[nodeArrayIndex].finestChildIndex;
+
+
     float widthOfNode = totalWidth/powf(2,depth);
     center.x += (widthOfNode/2);
     center.y += (widthOfNode/2);
     center.z += (widthOfNode/2);
     uniqueNodes[globalID].center = center;
-    int currentFinestChildIndex = 0x77777777;
+    int3 color = {0,0,0};
     for(int i = 0; i < 8; ++i){
+      color.x += nodeArrayD[nodeArrayIndex + i].color.x;
+      color.y += nodeArrayD[nodeArrayIndex + i].color.y;
+      color.z += nodeArrayD[nodeArrayIndex + i].color.z;
       uniqueNodes[globalID].numPoints += nodeArrayD[nodeArrayIndex + i].numPoints;
       uniqueNodes[globalID].children[i] = nodeArrayIndex + i;
       uniqueNodes[globalID].numFinestChildren += nodeArrayD[nodeArrayIndex + i].numFinestChildren;
       nodeArrayD[globalID + i].width = widthOfNode;
-      if(currentFinestChildIndex > nodeArrayD[nodeArrayIndex + i].finestChildIndex && -1 != nodeArrayD[nodeArrayIndex + i].finestChildIndex){
-        uniqueNodes[globalID].finestChildIndex = nodeArrayD[nodeArrayIndex + i].finestChildIndex;//no need to update due to them being the finest
-      }
     }
+    color.x /= 8;
+    color.y /= 8;
+    color.z /= 8;
+    uniqueNodes[globalID].color = {(unsigned char)color.x,(unsigned char)color.y,(unsigned char)color.z};
   }
 }
-
 
 __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depthIndex,int* parentLUT, int* childLUT, int* numNeighbors, int childDepthIndex){
 
@@ -304,9 +319,6 @@ __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depth
     nodeArray[blockID + depthIndex].neighbors[13] = blockID + depthIndex;
     __syncthreads();//threads wait until all other threads have finished above operations
     if(nodeArray[blockID + depthIndex].parent != -1){
-      if(depthIndex == 820008){
-        //printf("THIS IS YOUR PARENTAL INDEX %d, \n",nodeArray[blockID].parent);
-      }
       int parentIndex = nodeArray[blockID + depthIndex].parent + depthIndex + numNodes;
       int depthKey = nodeArray[blockID + depthIndex].key&(0x00000007);//will clear all but last 3 bits
       int lutIndexHelper = (depthKey*27) + threadIdx.x;
@@ -317,9 +329,6 @@ __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depth
         atomicAdd(numNeighbors, 1);
         nodeArray[blockID + depthIndex].neighbors[threadIdx.x] = nodeArray[neighborParentIndex].children[childLUTIndex];
       }
-      //else{//already instantiated as -1
-      //  nodeArray[blockID].neighbors[threadIdx.x] = -1;
-      //}
     }
     __syncthreads();//index updates
     //doing this mostly to prevent memcpy overhead
@@ -341,17 +350,16 @@ __global__ void findVertexOwners(Node* nodeArray, int numNodes, int depthIndex, 
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
     int vertexID = (blockID*8) + threadIdx.x;
-    blockID += depthIndex;
     int sharesVertex = -1;
     for(int i = 0; i < 7; ++i){//iterate through neighbors that share vertex
       sharesVertex = vertexLUT[(threadIdx.x*7) + i];
-      if(nodeArray[blockID].neighbors[sharesVertex] != -1 && sharesVertex < 13){//less than itself
+      if(nodeArray[blockID + depthIndex].neighbors[sharesVertex] != -1 && sharesVertex < 13){//less than itself
         return;
       }
     }
     //if thread reaches this point, that means that this vertex is owned by the current node
     //also means owner == current node
-    ownerInidices[vertexID] = blockID;
+    ownerInidices[vertexID] = blockID + depthIndex;
     vertexPlacement[vertexID] = threadIdx.x;
     atomicAdd(numVertices, 1);
   }
@@ -364,27 +372,23 @@ __global__ void fillUniqueVertexArray(Node* nodeArray, Vertex* vertexArray, int 
 
     int ownerNodeIndex = ownerInidices[globalID];
     int ownedIndex = vertexPlacement[globalID];
-    int3 vertexCoordIdentity[8];
-    vertexCoordIdentity[0] = {-1,-1,-1};
-    vertexCoordIdentity[1] = {-1,1,-1};
-    vertexCoordIdentity[2] = {1,-1,-1};
-    vertexCoordIdentity[3] = {1,1,-1};
-    vertexCoordIdentity[4] = {-1,-1,1};
-    vertexCoordIdentity[5] = {-1,1,1};
-    vertexCoordIdentity[6] = {1,-1,1};
-    vertexCoordIdentity[7] = {1,1,1};
+
+    nodeArray[ownerNodeIndex].vertices[ownedIndex] = globalID + vertexIndex;
 
     float depthHalfWidth = width/powf(2, depth + 1);
     Vertex vertex = Vertex();
-    vertex.coord.x = nodeArray[ownerNodeIndex].center.x + depthHalfWidth*vertexCoordIdentity[ownedIndex].x;
-    vertex.coord.y = nodeArray[ownerNodeIndex].center.y + depthHalfWidth*vertexCoordIdentity[ownedIndex].y;
-    vertex.coord.z = nodeArray[ownerNodeIndex].center.z + depthHalfWidth*vertexCoordIdentity[ownedIndex].z;
+    vertex.coord.x = nodeArray[ownerNodeIndex].center.x + depthHalfWidth*coordPlacementIdentity[ownedIndex].x;
+    vertex.coord.y = nodeArray[ownerNodeIndex].center.y + depthHalfWidth*coordPlacementIdentity[ownedIndex].y;
+    vertex.coord.z = nodeArray[ownerNodeIndex].center.z + depthHalfWidth*coordPlacementIdentity[ownedIndex].z;
+    vertex.color = nodeArray[ownerNodeIndex].color;
     vertex.depth = depth;
+    vertex.nodes[0] = ownerNodeIndex;
     int neighborSharingVertex = -1;
-    for(int i = ownedIndex*7; i < ownedIndex + 7; ++i){
-      neighborSharingVertex = nodeArray[ownerNodeIndex].neighbors[vertexLUT[i]];
-      vertex.nodes[i - (ownedIndex*7)] =  neighborSharingVertex;
-      if(neighborSharingVertex != -1) nodeArray[neighborSharingVertex].vertices[7 - (i - (ownedIndex*7))] = globalID + vertexIndex;
+    for(int i = 0; i < 7; ++i){
+      neighborSharingVertex = nodeArray[ownerNodeIndex].neighbors[vertexLUT[(ownedIndex*7) + i]];
+      vertex.nodes[i + 1] =  neighborSharingVertex;
+      if(neighborSharingVertex == -1) continue;
+      nodeArray[neighborSharingVertex].vertices[6 - i] = globalID + vertexIndex;
     }
     vertexArray[globalID] = vertex;
   }
@@ -417,46 +421,32 @@ __global__ void fillUniqueEdgeArray(Node* nodeArray, Edge* edgeArray, int numEdg
   if(globalID < numEdges){
     int ownerNodeIndex = ownerInidices[globalID];
     int ownedIndex = edgePlacement[globalID];
-    int2 vertexEdgeIdentity[12];
-    vertexEdgeIdentity[0] = {0,1};
-    vertexEdgeIdentity[1] = {0,2};
-    vertexEdgeIdentity[2] = {1,3};
-    vertexEdgeIdentity[3] = {2,3};
-    vertexEdgeIdentity[4] = {0,4};
-    vertexEdgeIdentity[5] = {1,5};
-    vertexEdgeIdentity[6] = {2,6};
-    vertexEdgeIdentity[7] = {3,7};
-    vertexEdgeIdentity[8] = {4,5};
-    vertexEdgeIdentity[9] = {4,6};
-    vertexEdgeIdentity[10] = {5,7};
-    vertexEdgeIdentity[11] = {6,7};
 
-    int3 edgeCoordIdentity[8];
-    edgeCoordIdentity[0] = {-1,-1,-1};
-    edgeCoordIdentity[1] = {-1,1,-1};
-    edgeCoordIdentity[2] = {1,-1,-1};
-    edgeCoordIdentity[3] = {1,1,-1};
-    edgeCoordIdentity[4] = {-1,-1,1};
-    edgeCoordIdentity[5] = {-1,1,1};
-    edgeCoordIdentity[6] = {1,-1,1};
-    edgeCoordIdentity[7] = {1,1,1};
+    nodeArray[ownerNodeIndex].edges[ownedIndex] = globalID + edgeIndex;
 
     float depthHalfWidth = width/powf(2, depth + 1);
     Edge edge = Edge();
-
-    edge.p1.x = nodeArray[ownerNodeIndex].center.x + depthHalfWidth*edgeCoordIdentity[vertexEdgeIdentity[ownedIndex].x].x;
-    edge.p1.y = nodeArray[ownerNodeIndex].center.y + depthHalfWidth*edgeCoordIdentity[vertexEdgeIdentity[ownedIndex].x].y;
-    edge.p1.z = nodeArray[ownerNodeIndex].center.z + depthHalfWidth*edgeCoordIdentity[vertexEdgeIdentity[ownedIndex].x].z;
-    edge.p2.x = nodeArray[ownerNodeIndex].center.x + depthHalfWidth*edgeCoordIdentity[vertexEdgeIdentity[ownedIndex].y].x;
-    edge.p2.y = nodeArray[ownerNodeIndex].center.y + depthHalfWidth*edgeCoordIdentity[vertexEdgeIdentity[ownedIndex].y].y;
-    edge.p2.z = nodeArray[ownerNodeIndex].center.z + depthHalfWidth*edgeCoordIdentity[vertexEdgeIdentity[ownedIndex].y].z;
+    edge.v1 = nodeArray[ownerNodeIndex].vertices[vertexEdgeIdentity[ownedIndex].x];
+    edge.v2 = nodeArray[ownerNodeIndex].vertices[vertexEdgeIdentity[ownedIndex].y];
+    edge.color = nodeArray[ownerNodeIndex].color;
     edge.depth = depth;
-
+    edge.nodes[0] = ownerNodeIndex;
     int neighborSharingEdge = -1;
-    for(int i = ownedIndex*3; i < ownedIndex + 3; ++i){
-      neighborSharingEdge = nodeArray[ownerNodeIndex].neighbors[edgeLUT[i]];
-      edge.nodes[i - (ownedIndex*3)] =  neighborSharingEdge;
-      if(neighborSharingEdge != -1) nodeArray[neighborSharingEdge].edges[11 - (i - (ownedIndex*3))] = globalID + edgeIndex;
+    int placement = 0;
+    int neighborPlacement = 0;
+    for(int i = 0; i < 3; ++i){
+      neighborPlacement = edgeLUT[(ownedIndex*3) + i];
+      neighborSharingEdge = nodeArray[ownerNodeIndex].neighbors[neighborPlacement];
+      edge.nodes[i + 1] =  neighborSharingEdge;
+      if(neighborSharingEdge == -1) continue;
+      placement = ownedIndex + 13 - neighborPlacement;
+      if(neighborPlacement < 9){
+        --placement;
+      }
+      else if(neighborPlacement > 17){
+        ++placement;
+      }
+      nodeArray[neighborSharingEdge].edges[placement] = globalID + edgeIndex;
     }
     edgeArray[globalID] = edge;
   }
@@ -489,51 +479,23 @@ __global__ void fillUniqueFaceArray(Node* nodeArray, Face* faceArray, int numFac
 
     int ownerNodeIndex = ownerInidices[globalID];
     int ownedIndex = facePlacement[globalID];
-    int4 vertexFaceIdentity[6];
-    vertexFaceIdentity[0] = {0,1,2,3};
-    vertexFaceIdentity[1] = {0,1,4,5};
-    vertexFaceIdentity[2] = {0,2,4,6};
-    vertexFaceIdentity[3] = {1,3,5,7};
-    vertexFaceIdentity[4] = {2,3,6,7};
-    vertexFaceIdentity[5] = {4,5,6,7};
 
-    int3 faceCoordIdentity[8];
-    faceCoordIdentity[0] = {-1,-1,-1};
-    faceCoordIdentity[1] = {-1,1,-1};
-    faceCoordIdentity[2] = {1,-1,-1};
-    faceCoordIdentity[3] = {1,1,-1};
-    faceCoordIdentity[4] = {-1,-1,1};
-    faceCoordIdentity[5] = {-1,1,1};
-    faceCoordIdentity[6] = {1,-1,1};
-    faceCoordIdentity[7] = {1,1,1};
+    nodeArray[ownerNodeIndex].faces[ownedIndex] = globalID + faceIndex;
 
     float depthHalfWidth = width/powf(2, depth + 1);
     Face face = Face();
 
-    face.p1.x = nodeArray[ownerNodeIndex].center.x + depthHalfWidth*faceCoordIdentity[vertexFaceIdentity[ownedIndex].x].x;
-    face.p1.y = nodeArray[ownerNodeIndex].center.y + depthHalfWidth*faceCoordIdentity[vertexFaceIdentity[ownedIndex].x].y;
-    face.p1.z = nodeArray[ownerNodeIndex].center.z + depthHalfWidth*faceCoordIdentity[vertexFaceIdentity[ownedIndex].x].z;
-    face.p2.x = nodeArray[ownerNodeIndex].center.x + depthHalfWidth*faceCoordIdentity[vertexFaceIdentity[ownedIndex].y].x;
-    face.p2.y = nodeArray[ownerNodeIndex].center.y + depthHalfWidth*faceCoordIdentity[vertexFaceIdentity[ownedIndex].y].y;
-    face.p2.z = nodeArray[ownerNodeIndex].center.z + depthHalfWidth*faceCoordIdentity[vertexFaceIdentity[ownedIndex].y].z;
-    face.p3.x = nodeArray[ownerNodeIndex].center.x + depthHalfWidth*faceCoordIdentity[vertexFaceIdentity[ownedIndex].z].x;
-    face.p3.y = nodeArray[ownerNodeIndex].center.y + depthHalfWidth*faceCoordIdentity[vertexFaceIdentity[ownedIndex].z].y;
-    face.p3.z = nodeArray[ownerNodeIndex].center.z + depthHalfWidth*faceCoordIdentity[vertexFaceIdentity[ownedIndex].z].z;
-    face.p4.x = nodeArray[ownerNodeIndex].center.x + depthHalfWidth*faceCoordIdentity[vertexFaceIdentity[ownedIndex].w].x;
-    face.p4.y = nodeArray[ownerNodeIndex].center.y + depthHalfWidth*faceCoordIdentity[vertexFaceIdentity[ownedIndex].w].y;
-    face.p4.z = nodeArray[ownerNodeIndex].center.z + depthHalfWidth*faceCoordIdentity[vertexFaceIdentity[ownedIndex].w].z;
+    face.e1 = nodeArray[ownerNodeIndex].edges[edgeFaceIdentity[ownedIndex].x];
+    face.e2 = nodeArray[ownerNodeIndex].edges[edgeFaceIdentity[ownedIndex].y];;
+    face.e3 = nodeArray[ownerNodeIndex].edges[edgeFaceIdentity[ownedIndex].z];;
+    face.e4 = nodeArray[ownerNodeIndex].edges[edgeFaceIdentity[ownedIndex].w];;
     face.depth = depth;
+    face.color = nodeArray[ownerNodeIndex].color;
+    face.nodes[0] = ownerNodeIndex;
     int neighborSharingFace = -1;
-
-
-
     neighborSharingFace = nodeArray[ownerNodeIndex].neighbors[faceLUT[ownedIndex]];
-
-    face.nodes[5 - ownedIndex] =  neighborSharingFace;
-
-    if(neighborSharingFace != -1) nodeArray[neighborSharingFace].faces[5 - ownedIndex] = globalID + faceIndex;
-
-
+    face.nodes[1] =  neighborSharingFace;
+    if(neighborSharingFace != -1)nodeArray[neighborSharingFace].faces[5 - ownedIndex] = globalID + faceIndex;
     faceArray[globalID] = face;
 
   }
@@ -557,62 +519,113 @@ normals will be determined after the octree has be built
 
 TODO also optimize memory usage with colors added, illegal memory access occurs when not freeing enough
 */
-void Octree::parsePLY(string pathToFile){
-  cout<<pathToFile + "'s data to be transfered to an empty octree."<<endl;
-	ifstream plystream(pathToFile);
+void Octree::parsePLY(){
+  cout<<this->pathToFile + " is being used as the ply"<<endl;
+	ifstream plystream(this->pathToFile);
 	string currentLine;
-  vector<float3> points;
-  vector<float3> normals;//this will not be used in here once normal determination is done
-  vector<uchar3> colors;
   float minX = 0, minY = 0, minZ = 0, maxX = 0, maxY = 0, maxZ = 0;
+  string temp = "";
+  bool headerIsDone = false;
+  int currentPoint = 0;
+  this->hasColor = false;
+  this->normalsComputed = false;
 	if (plystream.is_open()) {
 		while (getline(plystream, currentLine)) {
-      stringstream getMyFloats = stringstream(currentLine);
+      istringstream stringBuffer = istringstream(currentLine);
+      if(!headerIsDone){
+        if(currentLine.find("element vertex") != string::npos){
+          stringBuffer >> temp;
+          stringBuffer >> temp;
+          stringBuffer >> this->numPoints;
+          this->points = new float3[this->numPoints];
+          this->normals = new float3[this->numPoints];
+          this->colors = new uchar3[this->numPoints];
+          this->finestNodeCenters = new float3[this->numPoints];
+          this->finestNodePointIndexes = new int[this->numPoints];
+          this->finestNodeKeys = new int[this->numPoints];
+          this->pointNodeIndex = new int[this->numPoints];
+        }
+        else if(currentLine.find("nx") != string::npos){
+          this->normalsComputed = true;
+        }
+        else if(currentLine.find("blue") != string::npos){
+          this->hasColor = true;
+        }
+        else if(currentLine.find("end_header") != string::npos){
+          headerIsDone = true;
+        }
+        continue;
+      }
+      else if(currentPoint >= this->numPoints) break;
+
       float value = 0.0;
       int index = 0;
       float3 point;
       float3 normal;
       uchar3 color;
       bool lineIsDone = false;
-      while(getMyFloats >> value){
+
+      while(stringBuffer >> value){
         switch(index){
           case 0:
             point.x = value;
             if(value > maxX) maxX = value;
             if(value < minX) minX = value;
+            ++index;
             break;
           case 1:
             point.y = value;
             if(value > maxY) maxY = value;
             if(value < minY) minY = value;
+            ++index;
             break;
           case 2:
             point.z = value;
             if(value > maxZ) maxZ = value;
             if(value < minZ) minZ = value;
+            ++index;
             break;
           case 3:
-            normal.x = (value*-1);
-            color.x = 255;//will have value once normal is removed after testing
+            if(this->normalsComputed) normal.x = value;
+            else if(this->hasColor) color.x = value;
+            ++index;
             break;
           case 4:
-            normal.y = (value*-1);
-            color.y = 255;//will have value once normal is removed after testing
+            if(this->normalsComputed) normal.y = value;
+            else if(this->hasColor) color.y = value;
+            ++index;
             break;
           case 5:
-            normal.z = (value*-1);
-            color.z = 255;//will have value once normal is removed after testing
+            if(this->normalsComputed) normal.z = value;
+            else if(this->hasColor) color.z = value;
+            ++index;
+            break;
+          case 6:
+            if(this->normalsComputed && this->hasColor) color.x = value;
+            ++index;
+            break;
+          case 7:
+            if(this->normalsComputed && this->hasColor) color.y = value;
+            ++index;
+            break;
+          case 8:
+            if(this->normalsComputed && this->hasColor) color.z = value;
+            ++index;
             break;
           default:
             lineIsDone = true;
-            points.push_back(point);
-            normals.push_back(normal);//only for testing
-            colors.push_back(color);
+            this->points[currentPoint] = point;
+            this->normals[currentPoint] = normal;
+            this->colors[currentPoint] = color;
+            this->finestNodePointIndexes[currentPoint] = currentPoint;
+            this->finestNodeCenters[currentPoint] = {0.0f,0.0f,0.0f};
+            this->finestNodeKeys[currentPoint] = 0;
+            this->pointNodeIndex[currentPoint] = -1;
             break;
         }
         if(lineIsDone) break;
-        ++index;
       }
+      ++currentPoint;
 		}
 
     this->min = {minX,minY,minZ};
@@ -626,44 +639,118 @@ void Octree::parsePLY(string pathToFile){
     if(this->width < maxY - minY) this->width = maxY - minY;
     if(this->width < maxZ - minZ) this->width = maxZ - minZ;
 
-    this->numPoints = (int) points.size();
-    this->points = new float3[this->numPoints];
-    this->normals = new float3[this->numPoints];
-    this->colors = new uchar3[this->numPoints];
-    this->finestNodeCenters = new float3[this->numPoints];
-    this->finestNodePointIndexes = new int[this->numPoints];
-    this->finestNodeKeys = new int[this->numPoints];
-    this->pointNodeIndex = new int[this->numPoints];
     this->totalNodes = 0;
     this->numFinestUniqueNodes = 0;
 
-    for(int i = 0; i < points.size(); ++i){
-      this->points[i] = points[i];
-      this->normals[i] = normals[i];
-      this->colors[i] = colors[i];
-      this->finestNodeCenters[i] = {0.0f,0.0f,0.0f};
-      this->finestNodeKeys[i] = 0;
-      this->pointNodeIndex[i] = -1;
-      //initializing here even though points are not sorted yet
-      this->finestNodePointIndexes[i] = i;
-    }
     printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
     printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
     printf("bounding box width = %f\n", this->width);
     printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
     printf("number of points = %d\n\n", this->numPoints);
-    cout<<pathToFile + "'s data has been transfered to an initialized octree.\n"<<endl;
+    cout<<this->pathToFile + "'s data has been transfered to an initialized octree.\n"<<endl;
 	}
 	else{
-    cout << "Unable to open: " + pathToFile<< endl;
+    cout << "Unable to open: " + this->pathToFile<< endl;
     exit(1);
   }
 }
 
 Octree::Octree(string pathToFile, int depth){
-  this->parsePLY(pathToFile);
+  this->pathToFile = pathToFile;
+  this->parsePLY();
   this->depth = depth;
   this->simpleOctree = false;
+}
+
+void Octree::writeNormalPLY(){
+  string newFile = this->pathToFile.substr(0, this->pathToFile.length() - 4) + "_normals.ply";
+	ofstream plystream(newFile);
+	if (plystream.is_open()) {
+    ostringstream stringBuffer = ostringstream("");
+    stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
+    stringBuffer << "element vertex ";
+    stringBuffer << this->numPoints;
+    stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
+    stringBuffer << "property float nx\nproperty float ny\nproperty float nz\n";
+    stringBuffer << "end_header\n";
+    plystream << stringBuffer.str();
+    for(int i = 0; i < this->numPoints; ++i){
+      stringBuffer = ostringstream("");
+      stringBuffer << this->points[i].x;
+      stringBuffer << " ";
+      stringBuffer << this->points[i].y;
+      stringBuffer << " ";
+      stringBuffer << this->points[i].z;
+      stringBuffer << " ";
+      stringBuffer << this->normals[i].x;
+      stringBuffer << " ";
+      stringBuffer << this->normals[i].y;
+      stringBuffer << " ";
+      stringBuffer << this->normals[i].z;
+      stringBuffer << "\n";
+      plystream << stringBuffer.str();
+    }
+    cout<<newFile + " has been created.\n"<<endl;
+	}
+	else{
+    cout << "Unable to open: " + newFile<< endl;
+    exit(1);
+  }
+}
+
+void Octree::writeEdgePLY(){
+  string newFile = this->pathToFile.substr(0, this->pathToFile.length() - 4) + "_edges.ply";
+  ofstream plystream(newFile);
+  if (plystream.is_open()) {
+    ostringstream stringBuffer = ostringstream("");
+    stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
+    stringBuffer << "element vertex ";
+    stringBuffer <<  this->totalVertices;
+    stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
+    stringBuffer << "property uchar red\nproperty uchar green\nproperty uchar blue\n";
+    stringBuffer << "element edge ";
+    stringBuffer <<  this->totalEdges;
+    stringBuffer << "\nproperty int vertex1\nproperty int vertex2\n";
+    stringBuffer << "property uchar red\nproperty uchar green\nproperty uchar blue\n";
+    stringBuffer << "end_header\n";
+    plystream << stringBuffer.str();
+    for(int i = 0; i < this->totalVertices; ++i){
+      stringBuffer = ostringstream("");
+      stringBuffer << this->vertexArray[i].coord.x;
+      stringBuffer << " ";
+      stringBuffer << this->vertexArray[i].coord.y;
+      stringBuffer << " ";
+      stringBuffer << this->vertexArray[i].coord.z;
+      stringBuffer << " ";
+      stringBuffer << (int) this->vertexArray[i].color.x;
+      stringBuffer << " ";
+      stringBuffer << (int) this->vertexArray[i].color.y;
+      stringBuffer << " ";
+      stringBuffer << (int) this->vertexArray[i].color.z;
+      stringBuffer << "\n";
+      plystream << stringBuffer.str();
+    }
+    for(int i = 0; i < this->totalEdges; ++i){
+      stringBuffer = ostringstream("");
+      printf("%d,%d\n",this->edgeArray[i].v1,this->edgeArray[i].v2);
+      stringBuffer << this->edgeArray[i].v1;
+      stringBuffer << " ";
+      stringBuffer << this->edgeArray[i].v2;
+      stringBuffer << " ";
+      stringBuffer << (int) this->edgeArray[i].color.x;
+      stringBuffer << " ";
+      stringBuffer << (int) this->edgeArray[i].color.y;
+      stringBuffer << " ";
+      stringBuffer << (int) this->edgeArray[i].color.z;
+      stringBuffer << "\n";
+      plystream << stringBuffer.str();
+    }
+    cout<<newFile + " has been created.\n"<<endl;
+  }
+  else{
+    cout << "Unable to open: " + newFile<< endl;
+    exit(1);
+  }
 }
 
 void Octree::init_octree_gpu(){
@@ -908,20 +995,36 @@ void Octree::compactData(){
   printf("octree unique_by_key took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
 
 }
-void Octree::fillUniqueNodesAtFinestLevel(){//only fills with base information
+void Octree::fillUniqueNodesAtFinestLevel(){
   this->uniqueNodesAtFinestLevel = new Node[this->numFinestUniqueNodes];
   for(int i = 0; i < this->numFinestUniqueNodes; ++i){
     Node currentNode;
     currentNode.key = this->finestNodeKeys[i];
     currentNode.center = this->finestNodeCenters[i];
     currentNode.pointIndex = this->finestNodePointIndexes[i];
+    if(i < 300){
+      //printf("%d, %d\n",currentNode.pointIndex, currentNode.key);
+    }
     currentNode.depth = this->depth;
     if(i + 1 != this->numFinestUniqueNodes){
       currentNode.numPoints = this->finestNodePointIndexes[i + 1] - this->finestNodePointIndexes[i];
     }
     else{
       currentNode.numPoints = this->numPoints - this->finestNodePointIndexes[i];
+
     }
+    int3 colorHolder = {0,0,0};
+    for(int p = currentNode.pointIndex; p < currentNode.pointIndex + currentNode.numPoints; ++p){
+      colorHolder.x += this->colors[p].x;
+      colorHolder.y += this->colors[p].y;
+      colorHolder.z += this->colors[p].z;
+    }
+    uchar3 color;
+    colorHolder.x /= currentNode.numPoints;
+    colorHolder.y /= currentNode.numPoints;
+    colorHolder.z /= currentNode.numPoints;
+    color = {(unsigned char) colorHolder.x,(unsigned char) colorHolder.y,(unsigned char) colorHolder.z};
+    currentNode.color = {color.x,color.y,color.z};
     this->uniqueNodesAtFinestLevel[i] = currentNode;
   }
 }
@@ -1126,26 +1229,15 @@ void Octree::fillLUTs(){
   int flatVertexLUT[56];
   int flatCounter = 0;
   int flatVertexCounter = 0;
-  int vertexCounter = 0;
   int edgeCounter = 0;
   for(int row = 0; row < 12; ++row){
-    vertexCounter = 0;
     for(int col = 0; col < 27; ++col){
       if(row < 8){
         flatParentLUT[flatCounter] = this->parentLUT[row][col];
-        if(col == 0){
-          this->vertexLUT[row][vertexCounter] = this->parentLUT[row][col];
-          flatVertexLUT[flatVertexCounter] = this->parentLUT[row][col];
-          vertexCounter++;
+        if(col < 7){
+          flatVertexLUT[flatVertexCounter] = this->vertexLUT[row][col];
           flatVertexCounter++;
         }
-        else if(this->parentLUT[row][col] > this->vertexLUT[row][vertexCounter - 1] && flatParentLUT[flatCounter] != 13){
-          this->vertexLUT[row][vertexCounter] = flatParentLUT[flatCounter];
-          flatVertexLUT[flatVertexCounter] = this->parentLUT[row][col];
-          vertexCounter++;
-          flatVertexCounter++;
-        }
-
         flatChildLUT[flatCounter] = this->childLUT[row][col];
         flatCounter++;
       }
@@ -1233,6 +1325,9 @@ void Octree::checkForGeneralNodeErrors(){
       if(this->finalNodeArray[i].children[c] == -1){
         checkForChildren++;
       }
+      if(this->finalNodeArray[i].children[c] == 0 && this->finalNodeArray[i].depth != this->depth - 1){
+        cout<<"NODE THAT IS NOT AT 2nd TO FINEST DEPTH HAS A CHILD WITH INDEX 0 IN FINEST DEPTH"<<endl;
+      }
     }
     if(this->finalNodeArray[i].numPoints == 0){
       noPoints++;
@@ -1317,7 +1412,6 @@ void Octree::computeVertexArray(){
       }
       while(grid.x*grid.y > numNodesAtDepth){
         --grid.x;
-
       }
       if(grid.x*grid.y < numNodesAtDepth){
         ++grid.x;
@@ -1335,7 +1429,8 @@ void Octree::computeVertexArray(){
 
     prevCount = numVertices;
     vertexIndex[i] = numVertices;
-    block.x = 8;//reset previously allocated resources
+    //reset previously allocated resources
+    block.x = 8;
     findVertexOwners<<<grid, block>>>(this->finalNodeArrayDevice, numNodesAtDepth,
       this->depthIndex[i], this->vertexLUTDevice, atomicCounter, ownerInidicesDevice, vertexPlacementDevice);
     CudaCheckError();
@@ -1380,7 +1475,9 @@ void Octree::computeVertexArray(){
     delete[] compactedOwnerArray;
     */
 
-    grid.y = 1;//reset and allocated resources
+    //reset and allocated resources
+    grid.y = 1;
+    block.x = 1;
     if(numVertices - prevCount < 65535) grid.x = (unsigned int) numVertices - prevCount;
     else{
       grid.x = 65535;
@@ -1397,7 +1494,7 @@ void Octree::computeVertexArray(){
     }
 
     fillUniqueVertexArray<<<grid, block>>>(this->finalNodeArrayDevice, vertexArray2D[i],
-      numVertices - prevCount, numVertices,this->depthIndex[i], this->depth - i,
+      numVertices - prevCount, vertexIndex[i], this->depthIndex[i], this->depth - i,
       this->width, this->vertexLUTDevice, compactedOwnerArrayDevice, compactedVertexPlacementDevice);
     CudaCheckError();
     CudaSafeCall(cudaFree(compactedOwnerArrayDevice));
@@ -1422,6 +1519,18 @@ void Octree::computeVertexArray(){
   this->copyVerticesToHost();
   CudaSafeCall(cudaFree(this->vertexLUTDevice));
   CudaSafeCall(cudaFree(vertexArray2DDevice));
+  delete[] vertexIndex;
+  this->copyNodesToHost();
+  int vertexNotFound = 0;
+  for(int i = 0; i < this->totalNodes; ++i){
+    for(int v = 0; v < 8; ++v){
+      if(this->finalNodeArray[i].vertices[v] == -1){
+        printf("AT DEPTH %d, %d node's %d vertex is -1\n",this->finalNodeArray[i].depth,i,v);
+        vertexNotFound++;
+      }
+    }
+    if(vertexNotFound > 100) exit(-1);
+  }
 }
 void Octree::computeEdgeArray(){
   int numNodesAtDepth = 0;

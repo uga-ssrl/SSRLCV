@@ -154,6 +154,8 @@ ${BINDIR}/${TARGET2}: ${OBJS2} Makefile
 	${LINKLINE2}
 
 clean:
+	rm -f data/*_normals.ply
+	rm -f data/*_edges.ply
 	rm -f bin/*
 	rm -f out/*
 	rm -f src/*~

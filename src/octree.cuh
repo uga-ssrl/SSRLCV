@@ -12,9 +12,57 @@
 #include <thrust/device_ptr.h>
 #include <thrust/copy.h>
 
-//TODO current max depth is 10 -> enable finer if desired
+//TODO current max depth is 10 -> enable finer if desired by making key a long
 
+//TODO CHECK THESE IDENTITIES
+
+__constant__ int3 coordPlacementIdentity[8] = {
+  {-1,-1,-1},
+  {-1,1,-1},
+  {1,-1,-1},
+  {1,1,-1},
+  {-1,-1,1},
+  {-1,1,1},
+  {1,-1,1},
+  {1,1,1}
+};
+
+__constant__ int2 vertexEdgeIdentity[12] = {
+  {0,1},
+  {0,2},
+  {1,3},
+  {2,3},
+  {0,4},
+  {1,5},
+  {2,6},
+  {3,7},
+  {4,5},
+  {4,6},
+  {5,7},
+  {6,7}
+};
+
+__constant__ int4 vertexFaceIdentity[6] = {
+  {0,1,2,3},
+  {0,1,4,5},
+  {0,2,4,6},
+  {1,3,5,7},
+  {2,3,6,7},
+  {4,5,6,7}
+};
+
+__constant__ int4 edgeFaceIdentity[6] = {
+  {0,1,2,3},
+  {0,4,5,8},
+  {1,4,6,9},
+  {2,5,7,10},
+  {3,6,7,11},
+  {8,9,10,11}
+};
+
+//TODO need to find a way to set color
 struct Vertex{
+  uchar3 color;
   float3 coord;
   int nodes[8];
   int depth;
@@ -23,25 +71,10 @@ struct Vertex{
 
 };
 
-/*
-edge = [vertex1, vertex2]
-  0 = [0,1]
-  1 = [0,2]
-  2 = [1,3]
-  3 = [2,3]
-  //the following ordering was assumed, may need to be revised
-  4 = [0,4]
-  5 = [1,5]
-  6 = [2,6]
-  7 = [3,7]
-  8 = [4,5]
-  9 = [4,6]
-  10 = [5,7]
-  11 = [6,7]
-*/
 struct Edge{
-  float3 p1;
-  float3 p2;
+  uchar3 color;
+  int v1;
+  int v2;
   int depth;
   int nodes[4];
 
@@ -49,21 +82,12 @@ struct Edge{
 
 };
 
-/*
-face = [vertex1, vertex2, vertex3, vertex4]
-  0 = [0,1,2,3]
-  //the following ordering was assumed, may need to be revised
-  1 = [0,1,4,5]
-  2 = [0,2,4,6]
-  3 = [1,3,5,7]
-  4 = [2,3,6,7]
-  5 = [4,5,6,7]
-*/
 struct Face{
-  float3 p1;
-  float3 p2;
-  float3 p3;
-  float3 p4;
+  uchar3 color;
+  int e1;
+  int e2;
+  int e3;
+  int e4;
   int depth;
   int nodes[2];
 
@@ -72,6 +96,7 @@ struct Face{
 };
 
 struct Node{
+  uchar3 color;
   int pointIndex;
   float3 center;
   float width;
@@ -131,6 +156,9 @@ __global__ void fillUniqueFaceArray(Node* nodeArray, Face* faceArray, int numFac
 struct Octree{
 
   //global variables
+  std::string pathToFile;
+  bool normalsComputed;
+  bool hasColor;
   bool simpleOctree;
   float3* points;
   float3* normals;
@@ -200,7 +228,16 @@ struct Octree{
   int* childLUTDevice;
   //these LUTS do not include neighbor 13 (nodes relation to itself)
   //all indirect pointers calculated by hand
-  int vertexLUT[8][7];
+  int vertexLUT[8][7]{
+    {0,1,3,4,9,10,12},
+    {1,2,4,5,10,11,14},
+    {3,4,6,7,12,15,16},
+    {4,5,7,8,14,16,17},
+    {9,10,12,18,19,21,22},
+    {10,11,14,19,20,22,23},
+    {12,15,16,21,22,24,25},
+    {14,16,17,22,23,25,26}
+  };
   int* vertexLUTDevice;
   int edgeLUT[12][3]{
     {1,4,10},
@@ -224,10 +261,11 @@ struct Octree{
   Octree();
   ~Octree();
 
-  //TODO remove normals as they will be calculated
-  void parsePLY(std::string pathToFile);
-
+  void parsePLY();
   Octree(std::string pathToFile, int depth);
+
+  void writeEdgePLY();
+  void writeNormalPLY();
 
   /*
   MEMORY OPERATIONS OF GLOBAL OCTREE VARIABLES (deleted when octree is destroyed)
