@@ -109,10 +109,10 @@ representing orientation $(u_x,u_y,u_z)$, and focal length $f$:
 \]
 
 The above process should happen for both points that have been matched.
-This should result in 2 homogeneous points that we will call $\begin{bmatrix}x_0 & y_0 & z_0 & 1 \end{bmatrix}$
-and $\begin{bmatrix}x_1 & y_1 & z_1 & 1 \end{bmatrix}$. Each point has a corresponding camera vector,
-which is already known thanks to the camera coordinates, $\begin{bmatrix}C_{x0} & C_{y0} & C_{z0} & 1 \end{bmatrix}$
-and $\begin{bmatrix}C_{x1} & C_{y1} & C_{z1} & 1 \end{bmatrix}$. From this we can make parametic lines $L_0$ and $L_1$
+This should result in 2 homogeneous points that we will call $\begin{bmatrix}x_0 & y_0 & z_0 & 1 \end{bmatrix}^T$
+and $\begin{bmatrix}x_1 & y_1 & z_1 & 1 \end{bmatrix}^T$. Each point has a corresponding camera vector,
+which is already known thanks to the camera coordinates, $\begin{bmatrix}C_{x0} & C_{y0} & C_{z0} & 1 \end{bmatrix}^T$
+and $\begin{bmatrix}C_{x1} & C_{y1} & C_{z1} & 1 \end{bmatrix}^T$. From this we can make parametic lines $L_0$ and $L_1$
 with the parametic variables $t_0$ and $t_1$:
 
 \[
@@ -154,6 +154,51 @@ L_1 =
   C_{z1}
 \end{bmatrix}
 \]
+
+the sudocode for a parallelized approach of such operations is as follows:
+
+% one pf the algs
+\begin{algorithm}
+\caption{Host Preparation}\label{Line Generation Host}
+\begin{algorithmic}[1]
+  %inside alg
+  \Procedure{Host Prep}{}
+
+  \EndProcedure
+
+\end{algorithmic}
+\end{algorithm}
+
+% the other alg
+
+For the Kernel, we must insure that we have a few global variables about the camera data/parameters
+availible to the GPU. These variables are the focal length $foc$, the feild of view $fov$, and the
+resolution of the imager $res$. This assumes that the cameras are in the $xy$ plane, which can only
+be assumed for this special 2-view case. It may be helpful to read the section on file formats, which
+is after the main introduction.
+
+\begin{algorithm}
+\caption{Device Kernel}\label{Line Generation Device}
+\begin{algorithmic}[1]
+  %inside alg
+  \State Let: $dpix = foc * \tan{\frac{fov/2}{res/2}}$
+  \State Let: $i = blockIdx.x * blockDim.x + threadIdx.x$
+  \Procedure{GenerateLines(R2points, R3cameras)}{}
+    \State $c_0[6] = (R3cameras[0],R3cameras[1],R3cameras[2],R3cameras[3],R3cameras[4],R3cameras[5])$
+    \State $c_1[6] = (R3cameras[6],R3cameras[7],R3cameras[8],R3cameras[9],R3cameras[10],R3cameras[11])$
+    \State $x_0 = (R2points[i] - res/2.0)$
+    \State $y_0 = (-R2points[i+1]) + res/2.0)$
+    \State $x_1 = (R2points[i+2] - res/2.0)$
+    \State $y_1 = (-R2points[i+3]) + res/2.0)$
+    \State $kp0 = [x_0,y_0,0.0]$
+    \State $kp1 = [x_1,y_1,0.0]$
+    \State $\theta_{x0} = \cos^{-1}(\frac{kp0 \cdot \begin{bmatrix}1 & 0 & 0\end{bmatrix}^{T}}{\sqrt{\|kp_0\|}})$
+    \State $\theta_{x1} = \cos^{-1}(\frac{kp1 \cdot \begin{bmatrix}1 & 0 & 0\end{bmatrix}^{T}}{\sqrt{\|kp_1\|}})$
+    \State $\theta_{z0} = \cos^{-1}(\frac{kp0 \cdot \begin{bmatrix}0 & 0 & 1\end{bmatrix}^{T}}{\sqrt{\|kp_0\|}})$
+    \State $\theta_{z1} = \cos^{-1}(\frac{kp1 \cdot \begin{bmatrix}0 & 0 & 1\end{bmatrix}^{T}}{\sqrt{\|kp_1\|}})$
+  \EndProcedure
+\end{algorithmic}
+\end{algorithm}
 
 \section{Minimum Distance Between Skew Lines}
 Now that we have lines $L_0$ and $L_1$, the challenge is to find the points $s_0$ and $s_1$ of
