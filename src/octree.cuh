@@ -6,6 +6,7 @@
 #include <thrust/pair.h>
 #include <thrust/unique.h>
 #include <thrust/gather.h>
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 #include <thrust/scan.h>
@@ -133,7 +134,7 @@ __global__ void getNodeKeys(float3* points, float3* nodeCenters,int* nodeKeys, f
 //following methods are used to fill in the node array in a top down manor
 __global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, Node* uniqueNodes);
 void calculateNodeAddresses(dim3 grid, dim3 block,int numUniqueNodes, Node* uniqueNodes, int* nodeAddressesDevice, int* nodeNumbersDevice);
-__global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeNumbers, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int currentDepth);
+__global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeNumbers, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int currentDepth, float totalWidth);
 __global__ void fillFinestNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int* pointNodeIndex);
 __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, Node* childNodeArray ,int numUniqueNodes);
 __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD, int numNodesAtDepth, float totalWidth);
@@ -264,7 +265,10 @@ struct Octree{
   void parsePLY();
   Octree(std::string pathToFile, int depth);
 
+  void writeFinestPLY();
+  void writeVertexPLY();
   void writeEdgePLY();
+  void writeCenterPLY();
   void writeNormalPLY();
 
   /*
@@ -308,9 +312,7 @@ struct Octree{
   OCTREE GENERATION PREREQUISITE FUNCTIONS
   */
   void generateKeys();
-  void sortByKey();
-  void compactData();//also instantiates nodeNumbers and nodeAddresses
-  void fillUniqueNodesAtFinestLevel();
+  void prepareFinestUniquNodes();
 
   /*
   FILL OCTREE METHODS
@@ -319,10 +321,11 @@ struct Octree{
   void printLUTs();
   void fillLUTs();//aslo allocates the device versions
   void fillNeighborhoods();
-  void checkForGeneralNodeErrors();
   void computeVertexArray();
   void computeEdgeArray();
   void computeFaceArray();
+
+  void checkForGeneralNodeErrors();
 
   /*
   NORMAL CALCULATION METHODS

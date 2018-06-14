@@ -18,7 +18,7 @@ __device__ __host__ float3 operator+(const float &a, const float3 &b);
 __device__ __host__ float3 operator-(const float &a, const float3 &b);
 __device__ __host__ float3 operator/(const float &a, const float3 &b);
 __device__ __host__ float3 operator*(const float &a, const float3 &b);
-
+__device__ __host__ bool operator==(const float3 &a, const float3 &b);
 __device__ __host__ float3 blender(const float3 &a, const float3 &b, const float &bw);
 __device__ __host__ float3 blenderPrime(const float3 &a, const float3 &b, const float &bw);
 __device__ __host__ float3 blenderPrimePrime(const float3 &a, const float3 &b, const float &bw);

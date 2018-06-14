@@ -29,18 +29,17 @@ int main(int argc, char *argv[]){
       Octree octree = Octree(filePath, depth);
       octree.init_octree_gpu();
       octree.generateKeys();
-      octree.sortByKey();
-      octree.compactData();
-      octree.fillUniqueNodesAtFinestLevel();
+      octree.prepareFinestUniquNodes();
+      octree.writeFinestPLY();//here becuase it uses a prereq array
       octree.createFinalNodeArray();
       octree.freePrereqArrays();
       octree.fillLUTs();
-      octree.printLUTs();
+      //octree.printLUTs();
       octree.fillNeighborhoods();
-      octree.checkForGeneralNodeErrors();
       octree.computeVertexArray();
       octree.computeEdgeArray();
       octree.computeFaceArray();
+      octree.checkForGeneralNodeErrors();
       partialTimer = clock() - partialTimer;
       printf("OCTREE BUILD TOOK %f seconds.\n",((float) partialTimer)/CLOCKS_PER_SEC);
       cout<<"---------------------------------------------------"<<endl<<endl;
@@ -68,10 +67,12 @@ int main(int argc, char *argv[]){
       partialTimer = clock();
 
       cout<<"WRITING DERIVED PLY FILES\n"<<endl;
+      octree.writeVertexPLY();
+      octree.writeEdgePLY();
+      octree.writeCenterPLY();
       octree.writeNormalPLY();
-      //octree.writeEdgePLY();
       partialTimer = clock() - partialTimer;
-      printf("\nWRITING PLY FILES TOOK %f seconds.\n",((float) partialTimer)/CLOCKS_PER_SEC);
+      printf("WRITING PLY FILES TOOK %f seconds.\n",((float) partialTimer)/CLOCKS_PER_SEC);
       cout<<"---------------------------------------------------"<<endl<<endl;
 
       totalTimer = clock() - totalTimer;

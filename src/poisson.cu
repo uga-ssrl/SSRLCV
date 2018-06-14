@@ -62,11 +62,9 @@ __device__ __host__ float3 operator+(const float3 &a, const float &b){
 }
 __device__ __host__ float3 operator-(const float3 &a, const float &b){
   return {a.x-b, a.y-b, a.z-b};
-
 }
 __device__ __host__ float3 operator/(const float3 &a, const float &b){
   return {a.x/b, a.y/b, a.z/b};
-
 }
 __device__ __host__ float3 operator*(const float3 &a, const float &b){
   return {a.x*b, a.y*b, a.z*b};
@@ -82,6 +80,9 @@ __device__ __host__ float3 operator/(const float &a, const float3 &b) {
 }
 __device__ __host__ float3 operator*(const float &a, const float3 &b) {
   return {a*b.x, a*b.y, a*b.z};
+}
+__device__ __host__ bool operator==(const float3 &a, const float3 &b){
+  return (a.x==b.x)&&(a.y==b.y)&&(a.z==b.z);
 }
 
 //TODO maybe get the third convolution to get closer to gausian filter
