@@ -11,7 +11,7 @@ using namespace std;
 
 //TODO remove all namespace std and use std:: on relavent methods
 
-//TODO to have further depth make octree node keys 64 bit instead of current 32 bit int
+//TODO to have further depth make octree node keys a long
 
 //TODO think of a better way to spread out color
 

@@ -351,7 +351,6 @@ __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depth
   }
 }
 
-//TODO ensure that ordering of vertices is correct
 __global__ void findVertexOwners(Node* nodeArray, int numNodes, int depthIndex, int* vertexLUT, int* numVertices, int* ownerInidices, int* vertexPlacement){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
@@ -444,10 +443,10 @@ __global__ void fillUniqueEdgeArray(Node* nodeArray, Edge* edgeArray, int numEdg
       edge.nodes[i + 1] =  neighborSharingEdge;
       if(neighborSharingEdge == -1) continue;
       placement = ownedIndex + 13 - neighborPlacement;
-      if(neighborPlacement < 9){
+      if(neighborPlacement <= 8 || ((ownedIndex == 4 || ownedIndex == 5) && neighborPlacement < 12)){
         --placement;
       }
-      else if(neighborPlacement > 17){
+      else if(neighborPlacement >= 18 || ((ownedIndex == 6 || ownedIndex == 7) && neighborPlacement > 14)){
         ++placement;
       }
       nodeArray[neighborSharingEdge].edges[placement] = globalID + edgeIndex;
@@ -1998,7 +1997,7 @@ void Octree::checkForGeneralNodeErrors(){
     cout<<"ERROR "<<numFacesMissing<<" FACES MISSING"<<endl;
     error = true;
   }
-  //if(error) exit(-1);
+  if(error) exit(-1);
   else cout<<"NO ERRORS DETECTED IN OCTREE"<<endl;
   cout<<"NODES WITHOUT POINTS = "<<noPoints<<endl;
   cout<<"NODES WITH POINTS = "<<this->totalNodes - noPoints<<endl<<endl;
