@@ -7,13 +7,22 @@ using namespace std;
 //TODO across all methods in octree and poisson use const __restrict__ to enable
 //https://stackoverflow.com/questions/31344454/can-a-const-restrict-increase-cuda-register-usage
 
-//TODO use __local__ memory when possible for predefined arrays like thread specific LUTs
-
 //TODO remove all namespace std and use std:: on relavent methods
 
 //TODO to have further depth make octree node keys a long
 
 //TODO think of a better way to spread out color
+
+//TODO convert as many LUTs to be constant as possible, use __local__, __constant__, and __shared__
+
+//TODO add timers to copy methods?
+
+//TODO make method for getting grid and block dimensions
+
+//TODO use overload operators for cuda vector arithmetic in octree.cu
+
+//TODO implement octree.computeNormals()
+
 
 int main(int argc, char *argv[]){
   try{
@@ -25,7 +34,9 @@ int main(int argc, char *argv[]){
       if(argc == 3) depth = stoi(argv[2]);
       clock_t totalTimer = clock();
       clock_t partialTimer = clock();
+      cout<<"---------------------------------------------------"<<endl;
       cout<<"COMPUTING OCTREE\n"<<endl;
+
       Octree octree = Octree(filePath, depth);
       octree.init_octree_gpu();
       octree.generateKeys();
@@ -33,51 +44,54 @@ int main(int argc, char *argv[]){
       octree.createFinalNodeArray();
       octree.freePrereqArrays();
       octree.fillLUTs();
-      //octree.printLUTs();
       octree.fillNeighborhoods();
       octree.computeVertexArray();
       octree.computeEdgeArray();
       octree.computeFaceArray();
-      octree.checkForGeneralNodeErrors();
+
       partialTimer = clock() - partialTimer;
       printf("OCTREE BUILD TOOK %f seconds.\n",((float) partialTimer)/CLOCKS_PER_SEC);
-      cout<<"---------------------------------------------------"<<endl<<endl;
+      cout<<"---------------------------------------------------"<<endl;
       partialTimer = clock();
 
       if(!octree.normalsComputed){
         cout<<"COMPUTING NORMALS"<<endl<<endl;
+
         octree.computeNormals();
+
         partialTimer = clock() - partialTimer;
         printf("COMPUTING NORMALS TOOK %f seconds.\n",((float) partialTimer)/CLOCKS_PER_SEC);
-        cout<<"---------------------------------------------------"<<endl<<endl;
+        cout<<"---------------------------------------------------"<<endl;
         partialTimer = clock();
       }
 
-      cout<<"PERFORMING POISSON RECONSTRUCTION WITH OCTREE"<<endl;
-      Poisson poisson = Poisson(&octree);
-      //poisson.computeLUTs();
-      //poisson.computeDivergenceVector();
-      //poisson.computeImplicitFunction();
-      //poisson.marchingCubes();
-      //poisson.isosurfaceExtraction();
-      partialTimer = clock() - partialTimer;
-      printf("\nPOISSON RECONSTRUCTION TOOK %f seconds.\n",((float) partialTimer)/CLOCKS_PER_SEC);
-      cout<<"---------------------------------------------------"<<endl<<endl;
-      partialTimer = clock();
+      // cout<<"PERFORMING POISSON RECONSTRUCTION WITH OCTREE"<<endl;
+      //
+      // Poisson poisson = Poisson(&octree);
+      // poisson.computeLUTs();
+      // poisson.computeDivergenceVector();
+      // poisson.computeImplicitFunction();
+      // poisson.marchingCubes();
+      //
+      // partialTimer = clock() - partialTimer;
+      // printf("\nPOISSON RECONSTRUCTION TOOK %f seconds.\n",((float) partialTimer)/CLOCKS_PER_SEC);
+      // cout<<"---------------------------------------------------"<<endl;
+      // partialTimer = clock();
 
       cout<<"WRITING DERIVED PLY FILES\n"<<endl;
+
+      octree.copyNodesToHost();//this is only necessary for writeCenterPLY
       octree.writeVertexPLY();
       octree.writeEdgePLY();
       octree.writeCenterPLY();
       octree.writeNormalPLY();
+
       partialTimer = clock() - partialTimer;
       printf("WRITING PLY FILES TOOK %f seconds.\n",((float) partialTimer)/CLOCKS_PER_SEC);
-      cout<<"---------------------------------------------------"<<endl<<endl;
+      cout<<"---------------------------------------------------"<<endl;
 
       totalTimer = clock() - totalTimer;
       printf("\nTOTAL TIME = %f seconds.\n\n",((float) totalTimer)/CLOCKS_PER_SEC);
-
-      cudaDeviceReset();
 
       return 0;
     }

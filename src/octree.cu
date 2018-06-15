@@ -42,9 +42,6 @@ inline void __cudaCheckError(const char *file, const int line) {
   return;
 }
 
-//TODO use these, recently added
-
-
 __device__ __host__ Vertex::Vertex(){
   for(int i = 0; i < 8; ++i){
     this->nodes[i] = -1;
@@ -111,10 +108,6 @@ struct is_not_neg{
   }
 };
 
-
-/*
-HELPER METHODS AND CUDA KERNELS
-*/
 __device__ __host__ void printBits(size_t const size, void const * const ptr){
   unsigned char *b = (unsigned char*) ptr;
   unsigned char byte;
@@ -172,7 +165,7 @@ __global__ void getNodeKeys(float3* points, float3* nodeCenters, int* nodeKeys, 
   }
 }
 
-
+//createFinalNodeArray kernels
 __global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, Node* uniqueNodes){
   int tx = threadIdx.x;
   int bx = blockIdx.x;
@@ -204,7 +197,6 @@ void calculateNodeAddresses(dim3 grid, dim3 block, int numUniqueNodes, Node* uni
   thrust::inclusive_scan(nN, nN + numUniqueNodes, nA);
 
 }
-//TODO maybe optimize this center determination in fill Blank node array
 __global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeNumbers, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int currentDepth, float totalWidth){
   int tx = threadIdx.x;
   int bx = blockIdx.x;
@@ -316,7 +308,6 @@ __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD,
     }
   }
 }
-
 __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depthIndex,int* parentLUT, int* childLUT, int* numNeighbors, int childDepthIndex){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
@@ -351,6 +342,7 @@ __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depth
   }
 }
 
+//vertex edge and face array kernels
 __global__ void findVertexOwners(Node* nodeArray, int numNodes, int depthIndex, int* vertexLUT, int* numVertices, int* ownerInidices, int* vertexPlacement){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
@@ -398,8 +390,6 @@ __global__ void fillUniqueVertexArray(Node* nodeArray, Vertex* vertexArray, int 
     vertexArray[globalID] = vertex;
   }
 }
-
-//TODO ensure that ordering of edges is correct
 __global__ void findEdgeOwners(Node* nodeArray, int numNodes, int depthIndex, int* edgeLUT, int* numEdges, int* ownerInidices, int* edgePlacement){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
@@ -454,8 +444,6 @@ __global__ void fillUniqueEdgeArray(Node* nodeArray, Edge* edgeArray, int numEdg
     edgeArray[globalID] = edge;
   }
 }
-
-//TODO ensure that ordering of faces is correct
 __global__ void findFaceOwners(Node* nodeArray, int numNodes, int depthIndex, int* faceLUT, int* numFaces, int* ownerInidices, int* facePlacement){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
@@ -503,24 +491,39 @@ __global__ void fillUniqueFaceArray(Node* nodeArray, Face* faceArray, int numFac
   }
 }
 
-
-/*
-OCTREE CLASS FUNCTIONS
-*/
 Octree::Octree(){
   this->simpleOctree = true;
+  this->depth = 1;
+  this->pointNodeDeviceReady = false;
+  this->vertexArrayDeviceReady = false;
+  this->edgeArrayDeviceReady = false;
+  this->faceArrayDeviceReady = false;
+  this->pointsDeviceReady = false;
+  this->normalsDeviceReady = false;
+  this->colorsDeviceReady = false;
 }
 
 Octree::~Octree(){
-  //TODO add deletes and cudaFrees here
+  delete[] this->finalNodeArray;
+  delete[] this->vertexArray;
+  delete[] this->edgeArray;
+  delete[] this->faceArray;
+  delete[] this->points;
+  delete[] this->normals;
+  delete[] this->colors;
+  delete[] this->depthIndex;
+  delete[] this->pointNodeIndex;
+  CudaSafeCall(cudaFree(this->finalNodeArrayDevice));
+  if(this->pointNodeDeviceReady) CudaSafeCall(cudaFree(this->pointNodeIndexDevice));
+  if(this->vertexArrayDeviceReady) CudaSafeCall(cudaFree(this->vertexArrayDevice));
+  if(this->edgeArrayDeviceReady) CudaSafeCall(cudaFree(this->edgeArrayDevice));
+  if(this->faceArrayDeviceReady) CudaSafeCall(cudaFree(this->faceArrayDevice));
+  if(this->pointsDeviceReady) CudaSafeCall(cudaFree(this->pointsDevice));
+  if(this->normalsDeviceReady) CudaSafeCall(cudaFree(this->normalsDevice));
+  if(this->colorsDeviceReady) CudaSafeCall(cudaFree(this->colorsDevice));
+
 }
 
-/*
-TODO remove normal reading from this and replace it with colors
-normals will be determined after the octree has be built
-
-TODO also optimize memory usage with colors added, illegal memory access occurs when not freeing enough
-*/
 void Octree::parsePLY(){
   cout<<this->pathToFile + " is being used as the ply"<<endl;
 	ifstream plystream(this->pathToFile);
@@ -529,8 +532,6 @@ void Octree::parsePLY(){
   string temp = "";
   bool headerIsDone = false;
   int currentPoint = 0;
-  this->hasColor = false;
-  this->normalsComputed = false;
 	if (plystream.is_open()) {
 		while (getline(plystream, currentLine)) {
       istringstream stringBuffer = istringstream(currentLine);
@@ -690,7 +691,6 @@ void Octree::parsePLY(){
     printf("bounding box width = %f\n", this->width);
     printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
     printf("number of points = %d\n\n", this->numPoints);
-    cout<<this->pathToFile + "'s data has been transfered to an initialized octree.\n"<<endl;
 	}
 	else{
     cout << "Unable to open: " + this->pathToFile<< endl;
@@ -700,173 +700,11 @@ void Octree::parsePLY(){
 
 Octree::Octree(string pathToFile, int depth){
   this->pathToFile = pathToFile;
+  this->hasColor = false;
+  this->normalsComputed = false;
   this->parsePLY();
   this->depth = depth;
   this->simpleOctree = false;
-}
-
-void Octree::writeVertexPLY(){
-  string newFile = this->pathToFile.substr(0, this->pathToFile.length() - 4) + "_vertices.ply";
-  ofstream plystream(newFile);
-  if (plystream.is_open()) {
-    ostringstream stringBuffer = ostringstream("");
-    stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
-    stringBuffer << "element vertex ";
-    stringBuffer <<  this->totalVertices;
-    stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
-    stringBuffer << "property uchar red\nproperty uchar green\nproperty uchar blue\n";
-    stringBuffer << "end_header\n";
-    plystream << stringBuffer.str();
-    for(int i = 0; i < this->totalVertices; ++i){
-      stringBuffer = ostringstream("");
-      stringBuffer << this->vertexArray[i].coord.x;
-      stringBuffer << " ";
-      stringBuffer << this->vertexArray[i].coord.y;
-      stringBuffer << " ";
-      stringBuffer << this->vertexArray[i].coord.z;
-      stringBuffer << " ";
-      stringBuffer << (int) this->vertexArray[i].color.x;
-      stringBuffer << " ";
-      stringBuffer << (int) this->vertexArray[i].color.y;
-      stringBuffer << " ";
-      stringBuffer << (int) this->vertexArray[i].color.z;
-      stringBuffer << "\n";
-      plystream << stringBuffer.str();
-    }
-    cout<<newFile + " has been created.\n"<<endl;
-  }
-  else{
-    cout << "Unable to open: " + newFile<< endl;
-    exit(1);
-  }
-}
-void Octree::writeEdgePLY(){
-  string newFile = this->pathToFile.substr(0, this->pathToFile.length() - 4) + "_edges.ply";
-  ofstream plystream(newFile);
-  if (plystream.is_open()) {
-    ostringstream stringBuffer = ostringstream("");
-    stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
-    stringBuffer << "element vertex ";
-    stringBuffer <<  this->totalVertices;
-    stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
-    stringBuffer << "property uchar red\nproperty uchar green\nproperty uchar blue\n";
-    stringBuffer << "element edge ";
-    stringBuffer <<  this->totalEdges;
-    stringBuffer << "\nproperty int vertex1\nproperty int vertex2\n";
-    stringBuffer << "property uchar red\nproperty uchar green\nproperty uchar blue\n";
-    stringBuffer << "end_header\n";
-    plystream << stringBuffer.str();
-    for(int i = 0; i < this->totalVertices; ++i){
-      stringBuffer = ostringstream("");
-      stringBuffer << this->vertexArray[i].coord.x;
-      stringBuffer << " ";
-      stringBuffer << this->vertexArray[i].coord.y;
-      stringBuffer << " ";
-      stringBuffer << this->vertexArray[i].coord.z;
-      stringBuffer << " ";
-      stringBuffer << (int) this->vertexArray[i].color.x;
-      stringBuffer << " ";
-      stringBuffer << (int) this->vertexArray[i].color.y;
-      stringBuffer << " ";
-      stringBuffer << (int) this->vertexArray[i].color.z;
-      stringBuffer << "\n";
-      plystream << stringBuffer.str();
-    }
-    for(int i = 0; i < this->totalEdges; ++i){
-      stringBuffer = ostringstream("");
-      stringBuffer << this->edgeArray[i].v1;
-      stringBuffer << " ";
-      stringBuffer << this->edgeArray[i].v2;
-      stringBuffer << " ";
-      stringBuffer << (int) this->edgeArray[i].color.x;
-      stringBuffer << " ";
-      stringBuffer << (int) this->edgeArray[i].color.y;
-      stringBuffer << " ";
-      stringBuffer << (int) this->edgeArray[i].color.z;
-      stringBuffer << "\n";
-      plystream << stringBuffer.str();
-    }
-    cout<<newFile + " has been created.\n"<<endl;
-  }
-  else{
-    cout << "Unable to open: " + newFile<< endl;
-    exit(1);
-  }
-}
-void Octree::writeCenterPLY(){
-  string newFile = this->pathToFile.substr(0, this->pathToFile.length() - 4) + "_centers.ply";
-  ofstream plystream(newFile);
-  if (plystream.is_open()) {
-    ostringstream stringBuffer = ostringstream("");
-    stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
-    stringBuffer << "element vertex ";
-    stringBuffer <<  this->totalNodes;
-    stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
-    stringBuffer << "property uchar red\nproperty uchar green\nproperty uchar blue\n";
-    stringBuffer << "end_header\n";
-    plystream << stringBuffer.str();
-    for(int i = 0; i < this->totalNodes; ++i){
-      stringBuffer = ostringstream("");
-      stringBuffer << this->finalNodeArray[i].center.x;
-      stringBuffer << " ";
-      stringBuffer << this->finalNodeArray[i].center.y;
-      stringBuffer << " ";
-      stringBuffer << this->finalNodeArray[i].center.z;
-      stringBuffer << " ";
-      stringBuffer << (int) this->finalNodeArray[i].color.x;
-      stringBuffer << " ";
-      stringBuffer << (int) this->finalNodeArray[i].color.y;
-      stringBuffer << " ";
-      stringBuffer << (int) this->finalNodeArray[i].color.z;
-      stringBuffer << "\n";
-      plystream << stringBuffer.str();
-    }
-    cout<<newFile + " has been created.\n"<<endl;
-  }
-  else{
-    cout << "Unable to open: " + newFile<< endl;
-    exit(1);
-  }
-}
-void Octree::writeNormalPLY(){
-  string newFile = this->pathToFile.substr(0, this->pathToFile.length() - 4) + "_normals.ply";
-	ofstream plystream(newFile);
-	if (plystream.is_open()) {
-    ostringstream stringBuffer = ostringstream("");
-    stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
-    stringBuffer << "element vertex ";
-    stringBuffer << this->numPoints;
-    stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
-    stringBuffer << "property float nx\nproperty float ny\nproperty float nz\n";
-    stringBuffer << "end_header\n";
-    plystream << stringBuffer.str();
-    for(int i = 0; i < this->numPoints; ++i){
-      stringBuffer = ostringstream("");
-      stringBuffer << this->points[i].x;
-      stringBuffer << " ";
-      stringBuffer << this->points[i].y;
-      stringBuffer << " ";
-      stringBuffer << this->points[i].z;
-      stringBuffer << " ";
-      stringBuffer << this->normals[i].x;
-      stringBuffer << " ";
-      stringBuffer << this->normals[i].y;
-      stringBuffer << " ";
-      stringBuffer << this->normals[i].z;
-      stringBuffer << "\n";
-      plystream << stringBuffer.str();
-    }
-    cout<<newFile + " has been created.\n"<<endl;
-	}
-	else{
-    cout << "Unable to open: " + newFile<< endl;
-    exit(1);
-  }
-}
-
-void Octree::init_octree_gpu(){
-  clock_t cudatimer;
-  cudatimer = clock();
   this->pointNodeDeviceReady = false;
   this->vertexArrayDeviceReady = false;
   this->edgeArrayDeviceReady = false;
@@ -874,6 +712,11 @@ void Octree::init_octree_gpu(){
   this->pointsDeviceReady = false;
   this->normalsDeviceReady = false;
   this->colorsDeviceReady = false;
+}
+
+void Octree::init_octree_gpu(){
+  clock_t cudatimer;
+  cudatimer = clock();
 
   CudaSafeCall(cudaMalloc((void**)&this->finestNodeCentersDevice, this->numPoints * sizeof(float3)));
   CudaSafeCall(cudaMalloc((void**)&this->finestNodeKeysDevice, this->numPoints * sizeof(int)));
@@ -886,14 +729,8 @@ void Octree::init_octree_gpu(){
   this->copyColorsToDevice();
 
   cudatimer = clock() - cudatimer;
-  printf("initial allocation & base variable copy took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
+  printf("octree initial allocation & base variable copy took %f seconds.\n",((float) cudatimer)/CLOCKS_PER_SEC);
 }
-
-/*TODO
-determine if you want to make memory methods include frees and cudaMalloc
-if you do not then you need to decide which variables are most important to keep
-on the device
-*/
 
 void Octree::copyPointsToDevice(){
   this->pointsDeviceReady = true;
@@ -901,9 +738,14 @@ void Octree::copyPointsToDevice(){
   CudaSafeCall(cudaMemcpy(this->pointsDevice, this->points, this->numPoints * sizeof(float3), cudaMemcpyHostToDevice));
 }
 void Octree::copyPointsToHost(){
-  this->pointsDeviceReady = false;
-  CudaSafeCall(cudaMemcpy(this->points, this->pointsDevice, this->numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
-  CudaSafeCall(cudaFree(this->pointsDevice));
+  if(this->pointsDeviceReady){
+    this->pointsDeviceReady = false;
+    CudaSafeCall(cudaMemcpy(this->points, this->pointsDevice, this->numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaFree(this->pointsDevice));
+  }
+  else{
+    cout<<"WARNING - points already on host"<<endl;
+  }
 }
 void Octree::copyNormalsToDevice(){
   this->normalsDeviceReady = true;
@@ -911,9 +753,14 @@ void Octree::copyNormalsToDevice(){
   CudaSafeCall(cudaMemcpy(this->normalsDevice, this->normals, this->numPoints * sizeof(float3), cudaMemcpyHostToDevice));
 }
 void Octree::copyNormalsToHost(){
-  this->normalsDeviceReady = false;
-  CudaSafeCall(cudaMemcpy(this->normals, this->normalsDevice, this->numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
-  CudaSafeCall(cudaFree(this->normalsDevice));
+  if(this->normalsDeviceReady){
+    this->normalsDeviceReady = false;
+    CudaSafeCall(cudaMemcpy(this->normals, this->normalsDevice, this->numPoints * sizeof(float3), cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaFree(this->normalsDevice));
+  }
+  else{
+    cout<<"WARNING - normals already on host"<<endl;
+  }
 }
 void Octree::copyColorsToDevice(){
   this->colorsDeviceReady = true;
@@ -921,9 +768,14 @@ void Octree::copyColorsToDevice(){
   CudaSafeCall(cudaMemcpy(this->colorsDevice, this->colors, this->numPoints * sizeof(uchar3), cudaMemcpyHostToDevice));
 }
 void Octree::copyColorsToHost(){
-  this->colorsDeviceReady = false;
-  CudaSafeCall(cudaMemcpy(this->colors, this->colorsDevice, this->numPoints * sizeof(uchar3), cudaMemcpyDeviceToHost));
-  CudaSafeCall(cudaFree(this->colorsDevice));
+  if(this->colorsDeviceReady){
+    this->colorsDeviceReady = false;
+    CudaSafeCall(cudaMemcpy(this->colors, this->colorsDevice, this->numPoints * sizeof(uchar3), cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaFree(this->colorsDevice));
+  }
+  else{
+    cout<<"WARNING - colors already on host"<<endl;
+  }
 }
 
 void Octree::copyFinestNodeCentersToDevice(){
@@ -946,6 +798,9 @@ void Octree::copyFinestNodePointIndexesToHost(){
   CudaSafeCall(cudaMemcpy(this->finestNodePointIndexes, this->finestNodePointIndexesDevice, this->numPoints * sizeof(int), cudaMemcpyDeviceToHost));
 }
 void Octree::freePrereqArrays(){
+  clock_t cudatimer;
+  cudatimer = clock();
+
   delete[] this->finestNodeCenters;
   delete[] this->finestNodePointIndexes;
   delete[] this->finestNodeKeys;
@@ -953,7 +808,9 @@ void Octree::freePrereqArrays(){
   CudaSafeCall(cudaFree(this->finestNodeCentersDevice));
   CudaSafeCall(cudaFree(this->finestNodePointIndexesDevice));
   CudaSafeCall(cudaFree(this->finestNodeKeysDevice));
-  cout<<"PREREQUISITE/FINEST DEPTH ARRAYS HAVE BEEN DELETED"<<endl;
+
+  cudatimer = clock() - cudatimer;
+  printf("octree freePrereqArrays took %f seconds.\n",((float) cudatimer)/CLOCKS_PER_SEC);
 }
 
 void Octree::copyNodesToDevice(){
@@ -965,51 +822,63 @@ void Octree::copyNodesToHost(){
 
 void Octree::copyPointNodeIndexesToDevice(){
   this->pointNodeDeviceReady = true;
-
   CudaSafeCall(cudaMalloc((void**)&pointNodeIndexDevice, this->numPoints * sizeof(int)));
   CudaSafeCall(cudaMemcpy(this->pointNodeIndexDevice, this->pointNodeIndex, this->numPoints * sizeof(int), cudaMemcpyHostToDevice));
 }
 void Octree::copyPointNodeIndexesToHost(){
-  this->pointNodeDeviceReady = false;
-
-  CudaSafeCall(cudaMemcpy(this->pointNodeIndex, this->pointNodeIndexDevice, this->numPoints * sizeof(int), cudaMemcpyDeviceToHost));
-  CudaSafeCall(cudaFree(this->pointNodeIndexDevice));
+  if(this->pointNodeDeviceReady){
+    this->pointNodeDeviceReady = false;
+    CudaSafeCall(cudaMemcpy(this->pointNodeIndex, this->pointNodeIndexDevice, this->numPoints * sizeof(int), cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaFree(this->pointNodeIndexDevice));
+  }
+  else{
+    cout<<"WARNING - pointNodeIndices already on host"<<endl;
+  }
 }
 void Octree::copyVerticesToDevice(){
   this->vertexArrayDeviceReady = true;
-
   CudaSafeCall(cudaMalloc((void**)&this->vertexArrayDevice, this->totalVertices*sizeof(Vertex)));
   CudaSafeCall(cudaMemcpy(this->vertexArrayDevice, this->vertexArray, this->totalVertices * sizeof(Vertex), cudaMemcpyHostToDevice));
 }
 void Octree::copyVerticesToHost(){
-  this->vertexArrayDeviceReady = false;
-
-  CudaSafeCall(cudaMemcpy(this->vertexArray, this->vertexArrayDevice, this->totalVertices * sizeof(Vertex), cudaMemcpyDeviceToHost));
-  CudaSafeCall(cudaFree(this->vertexArrayDevice));
+  if(this->vertexArrayDeviceReady){
+    this->vertexArrayDeviceReady = false;
+    CudaSafeCall(cudaMemcpy(this->vertexArray, this->vertexArrayDevice, this->totalVertices * sizeof(Vertex), cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaFree(this->vertexArrayDevice));
+  }
+  else{
+    cout<<"WARNING - vertexArray already on host"<<endl;
+  }
 }
 void Octree::copyEdgesToDevice(){
   this->edgeArrayDeviceReady = true;
-
   CudaSafeCall(cudaMalloc((void**)&this->edgeArrayDevice, this->totalEdges*sizeof(Edge)));
   CudaSafeCall(cudaMemcpy(this->edgeArrayDevice, this->edgeArray, this->totalEdges * sizeof(Edge), cudaMemcpyHostToDevice));
 }
 void Octree::copyEdgesToHost(){
-  this->edgeArrayDeviceReady = false;
-
-  CudaSafeCall(cudaMemcpy(this->edgeArray, this->edgeArrayDevice, this->totalEdges * sizeof(Edge), cudaMemcpyDeviceToHost));
-  CudaSafeCall(cudaFree(this->edgeArrayDevice));
+  if(this->edgeArrayDeviceReady){
+    this->edgeArrayDeviceReady = false;
+    CudaSafeCall(cudaMemcpy(this->edgeArray, this->edgeArrayDevice, this->totalEdges * sizeof(Edge), cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaFree(this->edgeArrayDevice));
+  }
+  else{
+    cout<<"WARNING - edgeArray already on host"<<endl;
+  }
 }
 void Octree::copyFacesToDevice(){
   this->faceArrayDeviceReady = true;
-
   CudaSafeCall(cudaMalloc((void**)&this->faceArrayDevice, this->totalFaces*sizeof(Face)));
   CudaSafeCall(cudaMemcpy(this->faceArrayDevice, this->faceArray, this->totalFaces * sizeof(Face), cudaMemcpyHostToDevice));
 }
 void Octree::copyFacesToHost(){
-  this->faceArrayDeviceReady = false;
-
-  CudaSafeCall(cudaMemcpy(this->faceArray, this->faceArrayDevice, this->totalFaces * sizeof(Face), cudaMemcpyDeviceToHost));
-  CudaSafeCall(cudaFree(this->faceArrayDevice));
+  if(this->faceArrayDeviceReady){
+    this->faceArrayDeviceReady = false;
+    CudaSafeCall(cudaMemcpy(this->faceArray, this->faceArrayDevice, this->totalFaces * sizeof(Face), cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaFree(this->faceArrayDevice));
+  }
+  else{
+    cout<<"WARNING - faceArray already on host"<<endl;
+  }
 }
 
 void Octree::generateKeys(){
@@ -1036,7 +905,7 @@ void Octree::generateKeys(){
   getNodeKeys<<<grid,block>>>(this->pointsDevice, this->finestNodeCentersDevice, this->finestNodeKeysDevice, this->center, this->width, this->numPoints, this->depth);
   CudaCheckError();
   cudatimer = clock() - cudatimer;
-  printf("getnodeKeys kernel took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
+  printf("octree generateNodeKeys took %f seconds.\n",((float) cudatimer)/CLOCKS_PER_SEC);
 }
 void Octree::prepareFinestUniquNodes(){
   clock_t cudatimer;
@@ -1138,10 +1007,12 @@ void Octree::prepareFinestUniquNodes(){
     this->uniqueNodesAtFinestLevel[i] = currentNode;
   }
   cudatimer = clock() - cudatimer;
-  printf("octree prepareFinestUniquNodes took %f seconds.\n\n", ((float) cudatimer)/CLOCKS_PER_SEC);
+  printf("octree prepareFinestUniquNodes took %f seconds.\n", ((float) cudatimer)/CLOCKS_PER_SEC);
 }
 
 void Octree::createFinalNodeArray(){
+  clock_t cudatimer;
+  cudatimer = clock();
 
   Node* uniqueNodesDevice;
   CudaSafeCall(cudaMalloc((void**)&uniqueNodesDevice, this->numFinestUniqueNodes*sizeof(Node)));
@@ -1149,8 +1020,6 @@ void Octree::createFinalNodeArray(){
   Node** nodeArray2DDevice;
   CudaSafeCall(cudaMalloc((void**)&nodeArray2DDevice, (this->depth + 1)*sizeof(Node*)));
   Node** nodeArray2D = new Node*[this->depth + 1];
-  //is this necessary? does not seem to be doing anything
-  CudaSafeCall(cudaMemcpy(nodeArray2D, nodeArray2DDevice, (this->depth + 1)*sizeof(Node*), cudaMemcpyDeviceToHost));
 
   int* nodeAddressesDevice;
   int* nodeNumbersDevice;
@@ -1191,7 +1060,7 @@ void Octree::createFinalNodeArray(){
     CudaSafeCall(cudaMemcpy(nodeAddressesHost, nodeAddressesDevice, numUniqueNodes* sizeof(int), cudaMemcpyDeviceToHost));
 
     int numNodesAtDepth = (d > 0) ? nodeAddressesHost[numUniqueNodes - 1] + 8: 1;
-    cout<<"NUM NODES|UNIQUE NODES AT DEPTH "<<d<<" = "<<numNodesAtDepth<<"|"<<numUniqueNodes;
+    //cout<<"NUM NODES|UNIQUE NODES AT DEPTH "<<d<<" = "<<numNodesAtDepth<<"|"<<numUniqueNodes<<endl;
     delete[] nodeAddressesHost;
 
     CudaSafeCall(cudaMalloc((void**)&nodeArray2D[this->depth - d], numNodesAtDepth* sizeof(Node)));
@@ -1237,10 +1106,8 @@ void Octree::createFinalNodeArray(){
       CudaCheckError();
     }
     this->depthIndex[this->depth - d] = this->totalNodes;
-    cout<<" - DEPTH INDEX = "<<this->totalNodes<<endl;
     this->totalNodes += numNodesAtDepth;
   }
-  cout<<"2D NODE ARRAY COMPLETED\n"<<endl;
   this->finalNodeArray = new Node[this->totalNodes];
   CudaSafeCall(cudaMalloc((void**)&this->finalNodeArrayDevice, this->totalNodes*sizeof(Node)));
   for(int i = 0; i <= this->depth; ++i){
@@ -1255,7 +1122,8 @@ void Octree::createFinalNodeArray(){
   delete[] nodeArray2D;
   CudaSafeCall(cudaFree(nodeArray2DDevice));
 
-  cout<<"NODE ARRAY FLATTENED AND COMPLETED"<<endl;
+  cudatimer = clock() - cudatimer;
+  printf("octree buildFinalNodeArray took %f seconds.\n\n", ((float) cudatimer)/CLOCKS_PER_SEC);
   printf("TOTAL NODES = %d\n\n",this->totalNodes);
 
 }
@@ -1296,6 +1164,9 @@ void Octree::printLUTs(){
   cout<<endl<<endl;
 }
 void Octree::fillLUTs(){
+  clock_t cudatimer;
+  cudatimer = clock();
+
   int c[6][6][6];
   int p[6][6][6];
 
@@ -1369,8 +1240,14 @@ void Octree::fillLUTs(){
   CudaSafeCall(cudaMemcpy(this->parentLUTDevice, flatParentLUT, 216*sizeof(int), cudaMemcpyHostToDevice));
   CudaSafeCall(cudaMemcpy(this->vertexLUTDevice, flatVertexLUT, 56*sizeof(int), cudaMemcpyHostToDevice));
   CudaSafeCall(cudaMemcpy(this->childLUTDevice, flatChildLUT, 216*sizeof(int), cudaMemcpyHostToDevice));
+
+  cudatimer = clock() - cudatimer;
+  printf("octree fillLUTs took %f seconds.\n", ((float) cudatimer)/CLOCKS_PER_SEC);
 }
+
 void Octree::fillNeighborhoods(){
+  clock_t cudatimer;
+  cudatimer = clock();
 
   //need to use highest number of nodes in a depth instead of totalNodes
   dim3 grid = {1,1,1};
@@ -1409,17 +1286,20 @@ void Octree::fillNeighborhoods(){
     computeNeighboringNodes<<<grid, block>>>(this->finalNodeArrayDevice, numNodesAtDepth, depthStartingIndex, this->parentLUTDevice, this->childLUTDevice, atomicCounterDevice, childDepthIndex);
     CudaCheckError();
     CudaSafeCall(cudaMemcpy(&atomicCounter, atomicCounterDevice, sizeof(int), cudaMemcpyDeviceToHost));
-    cout<<"COMPUTED NEIGHBORHOOD ON DEPTH "<<this->depth - i<<" NUM NEIGHBORS = "<<atomicCounter<<endl;
     atomicCounter = 0;
   }
-  cout<<endl;
-  this->copyNodesToHost();
+
+  CudaSafeCall(cudaFree(atomicCounterDevice));
   CudaSafeCall(cudaFree(this->childLUTDevice));
   CudaSafeCall(cudaFree(this->parentLUTDevice));
 
+  cudatimer = clock() - cudatimer;
+  printf("octree findAllNeighbors took %f seconds.\n", ((float) cudatimer)/CLOCKS_PER_SEC);
 }
-
 void Octree::computeVertexArray(){
+  clock_t cudatimer;
+  cudatimer = clock();
+
   int numNodesAtDepth = 0;
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
@@ -1430,8 +1310,6 @@ void Octree::computeVertexArray(){
   Vertex** vertexArray2DDevice;
   CudaSafeCall(cudaMalloc((void**)&vertexArray2DDevice, (this->depth + 1)*sizeof(Vertex*)));
   Vertex** vertexArray2D = new Vertex*[this->depth + 1];
-  //no idea why this is a thing - first instance of this operation is in createFinalNodeArray
-  CudaSafeCall(cudaMemcpy(vertexArray2D, vertexArray2DDevice, (this->depth + 1)*sizeof(Vertex*), cudaMemcpyDeviceToHost));
 
   int* vertexIndex = new int[this->depth + 1];
 
@@ -1442,6 +1320,9 @@ void Octree::computeVertexArray(){
   int* compactedOwnerArrayDevice;
   int* compactedVertexPlacementDevice;
   for(int i = 0; i <= this->depth; ++i){
+    //reset previously allocated resources
+    grid.y = 1;
+    block.x = 8;
     if(i == this->depth){
       numNodesAtDepth = 1;
     }
@@ -1473,8 +1354,7 @@ void Octree::computeVertexArray(){
 
     prevCount = numVertices;
     vertexIndex[i] = numVertices;
-    //reset previously allocated resources
-    block.x = 8;
+
     findVertexOwners<<<grid, block>>>(this->finalNodeArrayDevice, numNodesAtDepth,
       this->depthIndex[i], this->vertexLUTDevice, atomicCounter, ownerInidicesDevice, vertexPlacementDevice);
     CudaCheckError();
@@ -1483,11 +1363,8 @@ void Octree::computeVertexArray(){
       cout<<"ERROR GENERATING VERTICES, vertices at depth 0 != 8 -> "<<numVertices - prevCount<<endl;
       exit(-1);
     }
+
     CudaSafeCall(cudaMalloc((void**)&vertexArray2D[i], (numVertices - prevCount)*sizeof(Vertex)));
-    cout<<numVertices - prevCount<<" VERTICES AT DEPTH "<<this->depth - i<<" - ";
-    cout<<"TOTAL VERTICES = "<<numVertices<<endl;
-
-
     CudaSafeCall(cudaMalloc((void**)&compactedOwnerArrayDevice,(numVertices - prevCount)*sizeof(int)));
     CudaSafeCall(cudaMalloc((void**)&compactedVertexPlacementDevice,(numVertices - prevCount)*sizeof(int)));
 
@@ -1503,21 +1380,6 @@ void Octree::computeVertexArray(){
 
     CudaSafeCall(cudaFree(ownerInidicesDevice));
     CudaSafeCall(cudaFree(vertexPlacementDevice));
-
-    //uncomment this if you want to check vertex array
-    /*
-    int* compactedOwnerArray = new int[numVertices - prevCount];
-    CudaSafeCall(cudaMemcpy(compactedOwnerArray, compactedOwnerArrayDevice, (numVertices - prevCount)*sizeof(int), cudaMemcpyDeviceToHost));
-    if(i == 0){
-      for(int a = 0; a < numVertices - prevCount; ++a){
-        if(compactedOwnerArray[a] == -1){
-          cout<<"ERROR IN COMPACTING VERTEX IDENTIFIER ARRAY"<<endl;
-          exit(-1);
-        }
-      }
-    }
-    delete[] compactedOwnerArray;
-    */
 
     //reset and allocated resources
     grid.y = 1;
@@ -1546,7 +1408,6 @@ void Octree::computeVertexArray(){
 
   }
   this->totalVertices = numVertices;
-  cout<<"CREATING FULL VERTEX ARRAY"<<endl;
   this->vertexArray = new Vertex[numVertices];
   for(int i = 0; i < numVertices; ++i) this->vertexArray[i] = Vertex();//might not be necessary
   this->copyVerticesToDevice();
@@ -1559,14 +1420,19 @@ void Octree::computeVertexArray(){
     }
     CudaSafeCall(cudaFree(vertexArray2D[i]));
   }
-  cout<<"VERTEX ARRAY COMPLETED"<<endl<<endl;
   this->copyVerticesToHost();
   CudaSafeCall(cudaFree(this->vertexLUTDevice));
   CudaSafeCall(cudaFree(vertexArray2DDevice));
   delete[] vertexIndex;
 
+  cudatimer = clock() - cudatimer;
+  printf("octree createVertexArray took %f seconds.\n\n", ((float) cudatimer)/CLOCKS_PER_SEC);
+  printf("TOTAL VERTICES = %d\n\n",this->totalVertices);
 }
 void Octree::computeEdgeArray(){
+  clock_t cudatimer;
+  cudatimer = clock();
+
   int numNodesAtDepth = 0;
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
@@ -1577,8 +1443,6 @@ void Octree::computeEdgeArray(){
   Edge** edgeArray2DDevice;
   CudaSafeCall(cudaMalloc((void**)&edgeArray2DDevice, (this->depth + 1)*sizeof(Edge*)));
   Edge** edgeArray2D = new Edge*[this->depth + 1];
-  //no idea why this is a thing - first instance of this operation is in createFinalNodeArray
-  CudaSafeCall(cudaMemcpy(edgeArray2D, edgeArray2DDevice, (this->depth + 1)*sizeof(Edge*), cudaMemcpyDeviceToHost));
 
   int* edgeIndex = new int[this->depth + 1];
 
@@ -1589,6 +1453,9 @@ void Octree::computeEdgeArray(){
   int* compactedOwnerArrayDevice;
   int* compactedEdgePlacementDevice;
   for(int i = 0; i <= this->depth; ++i){
+    //reset previously allocated resources
+    grid.y = 1;
+    block.x = 12;
     if(i == this->depth){
       numNodesAtDepth = 1;
     }
@@ -1621,7 +1488,6 @@ void Octree::computeEdgeArray(){
 
     prevCount = numEdges;
     edgeIndex[i] = numEdges;
-    block.x = 12;//reset previously allocated resources
     findEdgeOwners<<<grid, block>>>(this->finalNodeArrayDevice, numNodesAtDepth,
       this->depthIndex[i], this->edgeLUTDevice, atomicCounter, ownerInidicesDevice, edgePlacementDevice);
     CudaCheckError();
@@ -1630,11 +1496,8 @@ void Octree::computeEdgeArray(){
       cout<<"ERROR GENERATING EDGES, edges at depth 0 != 12 -> "<<numEdges - prevCount<<endl;
       exit(-1);
     }
+
     CudaSafeCall(cudaMalloc((void**)&edgeArray2D[i], (numEdges - prevCount)*sizeof(Edge)));
-    cout<<numEdges - prevCount<<" EDGES AT DEPTH "<<this->depth - i<<" - ";
-    cout<<"TOTAL EDGES = "<<numEdges<<endl;
-
-
     CudaSafeCall(cudaMalloc((void**)&compactedOwnerArrayDevice,(numEdges - prevCount)*sizeof(int)));
     CudaSafeCall(cudaMalloc((void**)&compactedEdgePlacementDevice,(numEdges - prevCount)*sizeof(int)));
 
@@ -1651,22 +1514,8 @@ void Octree::computeEdgeArray(){
     CudaSafeCall(cudaFree(ownerInidicesDevice));
     CudaSafeCall(cudaFree(edgePlacementDevice));
 
-    //uncomment this if you want to check edge array
-    /*
-    int* compactedOwnerArray = new int[numEdges - prevCount];
-    CudaSafeCall(cudaMemcpy(compactedOwnerArray, compactedOwnerArrayDevice, (numEdges - prevCount)*sizeof(int), cudaMemcpyDeviceToHost));
-    if(i == 0){
-      for(int a = 0; a < numEdges - prevCount; ++a){
-        if(compactedOwnerArray[a] == -1){
-          cout<<a<<" ERROR IN COMPACTING EDGE IDENTIFIER ARRAY"<<endl;
-          exit(-1);
-        }
-      }
-    }
-    delete[] compactedOwnerArray;
-    */
-
-    grid.y = 1;//reset and allocated resources
+    //reset and allocated resources
+    grid.y = 1;
     block.x = 1;
     if(numEdges - prevCount < 65535) grid.x = (unsigned int) numEdges - prevCount;
     else{
@@ -1692,7 +1541,6 @@ void Octree::computeEdgeArray(){
 
   }
   this->totalEdges = numEdges;
-  cout<<"CREATING FULL EDGE ARRAY"<<endl;
   this->edgeArray = new Edge[numEdges];
   for(int i = 0; i < numEdges; ++i) this->edgeArray[i] = Edge();//might not be necessary
   this->copyEdgesToDevice();
@@ -1705,12 +1553,19 @@ void Octree::computeEdgeArray(){
     }
     CudaSafeCall(cudaFree(edgeArray2D[i]));
   }
-  cout<<"EDGE ARRAY COMPLETED"<<endl<<endl;
   this->copyEdgesToHost();
   CudaSafeCall(cudaFree(this->edgeLUTDevice));
   CudaSafeCall(cudaFree(edgeArray2DDevice));
+  delete[] edgeIndex;
+
+  cudatimer = clock() - cudatimer;
+  printf("octree createEdgeArray took %f seconds.\n\n", ((float) cudatimer)/CLOCKS_PER_SEC);
+  printf("TOTAL EDGES = %d\n\n",this->totalEdges);
 }
 void Octree::computeFaceArray(){
+  clock_t cudatimer;
+  cudatimer = clock();
+
   int numNodesAtDepth = 0;
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
@@ -1721,8 +1576,6 @@ void Octree::computeFaceArray(){
   Face** faceArray2DDevice;
   CudaSafeCall(cudaMalloc((void**)&faceArray2DDevice, (this->depth + 1)*sizeof(Face*)));
   Face** faceArray2D = new Face*[this->depth + 1];
-  //no idea why this is a thing - first instance of this operation is in createFinalNodeArray
-  CudaSafeCall(cudaMemcpy(faceArray2D, faceArray2DDevice, (this->depth + 1)*sizeof(Face*), cudaMemcpyDeviceToHost));
 
   int* faceIndex = new int[this->depth + 1];
 
@@ -1733,6 +1586,9 @@ void Octree::computeFaceArray(){
   int* compactedOwnerArrayDevice;
   int* compactedFacePlacementDevice;
   for(int i = 0; i <= this->depth; ++i){
+    //reset previously allocated resources
+    grid.y = 1;
+    block.x = 6;
     if(i == this->depth){
       numNodesAtDepth = 1;
     }
@@ -1765,7 +1621,6 @@ void Octree::computeFaceArray(){
 
     prevCount = numFaces;
     faceIndex[i] = numFaces;
-    block.x = 6;//reset previously allocated resources
     findFaceOwners<<<grid, block>>>(this->finalNodeArrayDevice, numNodesAtDepth,
       this->depthIndex[i], this->faceLUTDevice, atomicCounter, ownerInidicesDevice, facePlacementDevice);
     CudaCheckError();
@@ -1774,11 +1629,8 @@ void Octree::computeFaceArray(){
       cout<<"ERROR GENERATING FACES, faces at depth 0 != 6 -> "<<numFaces - prevCount<<endl;
       exit(-1);
     }
+
     CudaSafeCall(cudaMalloc((void**)&faceArray2D[i], (numFaces - prevCount)*sizeof(Face)));
-    cout<<numFaces - prevCount<<" FACES AT DEPTH "<<this->depth - i<<" - ";
-    cout<<"TOTAL FACES = "<<numFaces<<endl;
-
-
     CudaSafeCall(cudaMalloc((void**)&compactedOwnerArrayDevice,(numFaces - prevCount)*sizeof(int)));
     CudaSafeCall(cudaMalloc((void**)&compactedFacePlacementDevice,(numFaces - prevCount)*sizeof(int)));
 
@@ -1795,22 +1647,9 @@ void Octree::computeFaceArray(){
     CudaSafeCall(cudaFree(ownerInidicesDevice));
     CudaSafeCall(cudaFree(facePlacementDevice));
 
-    //if you want to check face array uncomment
-    /*
-    int* compactedOwnerArray = new int[numFaces - prevCount];
-    CudaSafeCall(cudaMemcpy(compactedOwnerArray, compactedOwnerArrayDevice, (numFaces - prevCount)*sizeof(int), cudaMemcpyDeviceToHost));
-    if(i == 0){
-      for(int a = 0; a < numFaces - prevCount; ++a){
-        if(compactedOwnerArray[a] == -1){
-          cout<<"ERROR IN COMPACTING FACE IDENTIFIER ARRAY"<<endl;
-          exit(-1);
-        }
-      }
-    }
-    delete[] compactedOwnerArray;
-    */
-
-    grid.y = 1;//reset and allocated resources
+    //reset and allocated resources
+    grid.y = 1;
+    block.x = 1;
     if(numFaces - prevCount < 65535) grid.x = (unsigned int) numFaces - prevCount;
     else{
       grid.x = 65535;
@@ -1835,7 +1674,6 @@ void Octree::computeFaceArray(){
 
   }
   this->totalFaces = numFaces;
-  cout<<"CREATING FULL FACE ARRAY"<<endl;
   this->faceArray = new Face[numFaces];
   for(int i = 0; i < numFaces; ++i) this->faceArray[i] = Face();//might not be necessary
   this->copyFacesToDevice();
@@ -1848,13 +1686,19 @@ void Octree::computeFaceArray(){
     }
     CudaSafeCall(cudaFree(faceArray2D[i]));
   }
-  cout<<"FACE ARRAY COMPLETED"<<endl<<endl;
   this->copyFacesToHost();
   CudaSafeCall(cudaFree(this->faceLUTDevice));
   CudaSafeCall(cudaFree(faceArray2DDevice));
+  delete[] faceIndex;
+
+  cudatimer = clock() - cudatimer;
+  printf("octree createFaceArray took %f seconds.\n\n", ((float) cudatimer)/CLOCKS_PER_SEC);
+  printf("TOTAL FACES = %d\n\n",this->totalFaces);
 }
 
 void Octree::checkForGeneralNodeErrors(){
+  clock_t cudatimer;
+  cudatimer = clock();
   this->copyNodesToHost();
   float regionOfError = this->width/pow(2,depth + 1);
   bool error = false;
@@ -2001,11 +1845,170 @@ void Octree::checkForGeneralNodeErrors(){
   else cout<<"NO ERRORS DETECTED IN OCTREE"<<endl;
   cout<<"NODES WITHOUT POINTS = "<<noPoints<<endl;
   cout<<"NODES WITH POINTS = "<<this->totalNodes - noPoints<<endl<<endl;
+
+  cudatimer = clock() - cudatimer;
+  printf("octree checkForErrors took %f seconds.\n\n", ((float) cudatimer)/CLOCKS_PER_SEC);
 }
 
-
-
-//TODO implement!
 void Octree::computeNormals(){
 
+}
+
+void Octree::writeVertexPLY(){
+  string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_vertices.ply";
+  ofstream plystream(newFile);
+  if (plystream.is_open()) {
+    ostringstream stringBuffer = ostringstream("");
+    stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
+    stringBuffer << "element vertex ";
+    stringBuffer <<  this->totalVertices;
+    stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
+    stringBuffer << "property uchar red\nproperty uchar green\nproperty uchar blue\n";
+    stringBuffer << "end_header\n";
+    plystream << stringBuffer.str();
+    for(int i = 0; i < this->totalVertices; ++i){
+      stringBuffer = ostringstream("");
+      stringBuffer << this->vertexArray[i].coord.x;
+      stringBuffer << " ";
+      stringBuffer << this->vertexArray[i].coord.y;
+      stringBuffer << " ";
+      stringBuffer << this->vertexArray[i].coord.z;
+      stringBuffer << " ";
+      stringBuffer << (int) this->vertexArray[i].color.x;
+      stringBuffer << " ";
+      stringBuffer << (int) this->vertexArray[i].color.y;
+      stringBuffer << " ";
+      stringBuffer << (int) this->vertexArray[i].color.z;
+      stringBuffer << "\n";
+      plystream << stringBuffer.str();
+    }
+    cout<<newFile + " has been created.\n"<<endl;
+  }
+  else{
+    cout << "Unable to open: " + newFile<< endl;
+    exit(1);
+  }
+}
+void Octree::writeEdgePLY(){
+  string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_edges.ply";
+  ofstream plystream(newFile);
+  if (plystream.is_open()) {
+    ostringstream stringBuffer = ostringstream("");
+    stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
+    stringBuffer << "element vertex ";
+    stringBuffer <<  this->totalVertices;
+    stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
+    stringBuffer << "property uchar red\nproperty uchar green\nproperty uchar blue\n";
+    stringBuffer << "element edge ";
+    stringBuffer <<  this->totalEdges;
+    stringBuffer << "\nproperty int vertex1\nproperty int vertex2\n";
+    stringBuffer << "property uchar red\nproperty uchar green\nproperty uchar blue\n";
+    stringBuffer << "end_header\n";
+    plystream << stringBuffer.str();
+    for(int i = 0; i < this->totalVertices; ++i){
+      stringBuffer = ostringstream("");
+      stringBuffer << this->vertexArray[i].coord.x;
+      stringBuffer << " ";
+      stringBuffer << this->vertexArray[i].coord.y;
+      stringBuffer << " ";
+      stringBuffer << this->vertexArray[i].coord.z;
+      stringBuffer << " ";
+      stringBuffer << (int) this->vertexArray[i].color.x;
+      stringBuffer << " ";
+      stringBuffer << (int) this->vertexArray[i].color.y;
+      stringBuffer << " ";
+      stringBuffer << (int) this->vertexArray[i].color.z;
+      stringBuffer << "\n";
+      plystream << stringBuffer.str();
+    }
+    for(int i = 0; i < this->totalEdges; ++i){
+      stringBuffer = ostringstream("");
+      stringBuffer << this->edgeArray[i].v1;
+      stringBuffer << " ";
+      stringBuffer << this->edgeArray[i].v2;
+      stringBuffer << " ";
+      stringBuffer << (int) this->edgeArray[i].color.x;
+      stringBuffer << " ";
+      stringBuffer << (int) this->edgeArray[i].color.y;
+      stringBuffer << " ";
+      stringBuffer << (int) this->edgeArray[i].color.z;
+      stringBuffer << "\n";
+      plystream << stringBuffer.str();
+    }
+    cout<<newFile + " has been created.\n"<<endl;
+  }
+  else{
+    cout << "Unable to open: " + newFile<< endl;
+    exit(1);
+  }
+}
+void Octree::writeCenterPLY(){
+  string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_centers.ply";
+  ofstream plystream(newFile);
+  if (plystream.is_open()) {
+    ostringstream stringBuffer = ostringstream("");
+    stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
+    stringBuffer << "element vertex ";
+    stringBuffer <<  this->totalNodes;
+    stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
+    stringBuffer << "property uchar red\nproperty uchar green\nproperty uchar blue\n";
+    stringBuffer << "end_header\n";
+    plystream << stringBuffer.str();
+    for(int i = 0; i < this->totalNodes; ++i){
+      stringBuffer = ostringstream("");
+      stringBuffer << this->finalNodeArray[i].center.x;
+      stringBuffer << " ";
+      stringBuffer << this->finalNodeArray[i].center.y;
+      stringBuffer << " ";
+      stringBuffer << this->finalNodeArray[i].center.z;
+      stringBuffer << " ";
+      stringBuffer << (int) this->finalNodeArray[i].color.x;
+      stringBuffer << " ";
+      stringBuffer << (int) this->finalNodeArray[i].color.y;
+      stringBuffer << " ";
+      stringBuffer << (int) this->finalNodeArray[i].color.z;
+      stringBuffer << "\n";
+      plystream << stringBuffer.str();
+    }
+    cout<<newFile + " has been created.\n"<<endl;
+  }
+  else{
+    cout << "Unable to open: " + newFile<< endl;
+    exit(1);
+  }
+}
+void Octree::writeNormalPLY(){
+  string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_normals.ply";
+	ofstream plystream(newFile);
+	if (plystream.is_open()) {
+    ostringstream stringBuffer = ostringstream("");
+    stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
+    stringBuffer << "element vertex ";
+    stringBuffer << this->numPoints;
+    stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
+    stringBuffer << "property float nx\nproperty float ny\nproperty float nz\n";
+    stringBuffer << "end_header\n";
+    plystream << stringBuffer.str();
+    for(int i = 0; i < this->numPoints; ++i){
+      stringBuffer = ostringstream("");
+      stringBuffer << this->points[i].x;
+      stringBuffer << " ";
+      stringBuffer << this->points[i].y;
+      stringBuffer << " ";
+      stringBuffer << this->points[i].z;
+      stringBuffer << " ";
+      stringBuffer << this->normals[i].x;
+      stringBuffer << " ";
+      stringBuffer << this->normals[i].y;
+      stringBuffer << " ";
+      stringBuffer << this->normals[i].z;
+      stringBuffer << "\n";
+      plystream << stringBuffer.str();
+    }
+    cout<<newFile + " has been created.\n"<<endl;
+	}
+	else{
+    cout << "Unable to open: " + newFile<< endl;
+    exit(1);
+  }
 }

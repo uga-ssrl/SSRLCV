@@ -8,14 +8,9 @@
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
 #include <thrust/scan.h>
 #include <thrust/device_ptr.h>
 #include <thrust/copy.h>
-
-//TODO current max depth is 10 -> enable finer if desired by making key a long
-
-//TODO CHECK THESE IDENTITIES
 
 __constant__ int3 coordPlacementIdentity[8] = {
   {-1,-1,-1},
@@ -61,7 +56,6 @@ __constant__ int4 edgeFaceIdentity[6] = {
   {8,9,10,11}
 };
 
-//TODO need to find a way to set color
 struct Vertex{
   uchar3 color;
   float3 coord;
@@ -138,19 +132,12 @@ __global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeNumbers, int* nod
 __global__ void fillFinestNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int* pointNodeIndex);
 __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, Node* childNodeArray ,int numUniqueNodes);
 __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD, int numNodesAtDepth, float totalWidth);
-
-//finds all of the neighbors of each node in a bottom up manor
 __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depthIndex, int* parentLUT, int* childLUT, int* numNeighbors, int childDepthIndex);
 
-//fills in the vertex array
 __global__ void findVertexOwners(Node* nodeArray, int numNodes, int depthIndex, int* vertexLUT, int* numVertices, int* ownerInidices, int* vertexPlacement);
 __global__ void fillUniqueVertexArray(Node* nodeArray, Vertex* vertexArray, int numVertices, int vertexIndex,int depthIndex, int depth, float width, int* vertexLUT, int* ownerInidices, int* vertexPlacement);
-
-//fills in the edge array
 __global__ void findEdgeOwners(Node* nodeArray, int numNodes, int depthIndex, int* edgeLUT, int* numEdges, int* ownerInidices, int* edgePlacement);
 __global__ void fillUniqueEdgeArray(Node* nodeArray, Edge* edgeArray, int numEdges, int edgeIndex,int depthIndex, int depth, float width, int* edgeLUT, int* ownerInidices, int* edgePlacement);
-
-//fills in the face array
 __global__ void findFaceOwners(Node* nodeArray, int numNodes, int depthIndex, int* faceLUT, int* numFaces, int* ownerInidices, int* facePlacement);
 __global__ void fillUniqueFaceArray(Node* nodeArray, Face* faceArray, int numFaces, int faceIndex,int depthIndex, int depth, float width, int* faceLUT, int* ownerInidices, int* facePlacement);
 
@@ -179,14 +166,13 @@ struct Octree{
   int* finestNodePointIndexes;
   int* finestNodeKeys;
   Node* uniqueNodesAtFinestLevel;
-  //device prereq
   float3* finestNodeCentersDevice;
   int* finestNodePointIndexesDevice;
   int* finestNodeKeysDevice;
 
   int totalNodes;
   Node* finalNodeArray;
-  Node* finalNodeArrayDevice;//most persistant device variable
+  Node* finalNodeArrayDevice;
 
   int* depthIndex;
   int* pointNodeIndex;
@@ -227,8 +213,6 @@ struct Octree{
   int* parentLUTDevice;
   int childLUT[8][27];
   int* childLUTDevice;
-  //these LUTS do not include neighbor 13 (nodes relation to itself)
-  //all indirect pointers calculated by hand
   int vertexLUT[8][7]{
     {0,1,3,4,9,10,12},
     {1,2,4,5,10,11,14},
@@ -258,17 +242,11 @@ struct Octree{
   int faceLUT[6] = {4,10,12,14,16,22};
   int* faceLUTDevice;
 
-  //TODO put something in these methods, atleast memory freeing in ~Octree()
   Octree();
   ~Octree();
 
   void parsePLY();
   Octree(std::string pathToFile, int depth);
-
-  void writeVertexPLY();
-  void writeEdgePLY();
-  void writeCenterPLY();
-  void writeNormalPLY();
 
   /*
   MEMORY OPERATIONS OF GLOBAL OCTREE VARIABLES (deleted when octree is destroyed)
@@ -333,6 +311,10 @@ struct Octree{
   //currently using plys that have normals
   void computeNormals();
 
-  };
+  void writeVertexPLY();
+  void writeEdgePLY();
+  void writeCenterPLY();
+  void writeNormalPLY();
 
+};
 #endif /* OCTREE_CUH */

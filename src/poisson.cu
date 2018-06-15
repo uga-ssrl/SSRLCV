@@ -31,7 +31,7 @@ inline void __cudaCheckError(const char *file, const int line) {
 
   // More careful checking. However, this will affect performance.
   // Comment away if needed.
-  err = cudaDeviceSynchronize();
+  //err = cudaDeviceSynchronize();
   if (cudaSuccess != err) {
     fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
     file, line, cudaGetErrorString(err));
@@ -317,7 +317,7 @@ Poisson::Poisson(Octree* octree){
 }
 
 Poisson::~Poisson(){
-  //TODO delete octree;
+
 }
 
 //TODO OPTMIZE THIS YOU FUCK TARD
@@ -608,6 +608,11 @@ void Poisson::computeImplicitFunction(){
       this->fLUTDevice, this->fPrimePrimeLUTDevice);
     CudaCheckError();
 
+    CudaSafeCall(cudaMemcpy(diag, diagonalsDevice, numNodesAtDepth*sizeof(float), cudaMemcpyDeviceToHost));
+    // for(int i = 0; i < numNodesAtDepth; ++i){
+    //   cout<<i<<"-"<<diag[i]<<endl;
+    // }
+
     delete[] diag;
     delete[] numNonZeroEntries;
     delete[] temp;
@@ -625,6 +630,7 @@ void Poisson::computeImplicitFunction(){
 
   CudaSafeCall(cudaFree(this->fLUTDevice));
   CudaSafeCall(cudaFree(this->fPrimePrimeLUTDevice));
+  CudaSafeCall(cudaFree(this->divergenceVectorDevice));
   delete[] this->fLUT;
   delete[] this->fPrimePrimeLUT;
   delete[] nodeImplicit;
@@ -635,4 +641,6 @@ void Poisson::computeImplicitFunction(){
 void Poisson::marchingCubes(){
   this->octree->copyPointsToDevice();
   this->octree->copyNormalsToDevice();
+
+  CudaSafeCall(cudaFree(this->nodeImplicitDevice));
 }
