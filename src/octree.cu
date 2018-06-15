@@ -296,9 +296,9 @@ __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD,
 
     float3 center = {0.0f,0.0f,0.0f};
     float widthOfNode = totalWidth/powf(2,depth);
-    // center.x = nodeArrayD[nodeArrayIndex + firstUniqueChild].center.x - (widthOfNode*0.5*coordPlacementIdentity[firstUniqueChild].x);
-    // center.y = nodeArrayD[nodeArrayIndex + firstUniqueChild].center.y - (widthOfNode*0.5*coordPlacementIdentity[firstUniqueChild].y);
-    // center.z = nodeArrayD[nodeArrayIndex + firstUniqueChild].center.z - (widthOfNode*0.5*coordPlacementIdentity[firstUniqueChild].z);
+    center.x = nodeArrayD[nodeArrayIndex + firstUniqueChild].center.x - (widthOfNode*0.5*coordPlacementIdentity[firstUniqueChild].x);
+    center.y = nodeArrayD[nodeArrayIndex + firstUniqueChild].center.y - (widthOfNode*0.5*coordPlacementIdentity[firstUniqueChild].y);
+    center.z = nodeArrayD[nodeArrayIndex + firstUniqueChild].center.z - (widthOfNode*0.5*coordPlacementIdentity[firstUniqueChild].z);
     uniqueNodes[globalID].center = center;
 
     for(int i = 0; i < 8; ++i){
@@ -307,9 +307,9 @@ __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD,
         uniqueNodes[globalID].numFinestChildren += nodeArrayD[nodeArrayIndex + i].numFinestChildren;
       }
       else{
-        // nodeArrayD[nodeArrayIndex + i].center.x = center.x + (widthOfNode*0.5*coordPlacementIdentity[i].x);
-        // nodeArrayD[nodeArrayIndex + i].center.y = center.y + (widthOfNode*0.5*coordPlacementIdentity[i].y);
-        // nodeArrayD[nodeArrayIndex + i].center.z = center.z + (widthOfNode*0.5*coordPlacementIdentity[i].z);
+        nodeArrayD[nodeArrayIndex + i].center.x = center.x + (widthOfNode*0.5*coordPlacementIdentity[i].x);
+        nodeArrayD[nodeArrayIndex + i].center.y = center.y + (widthOfNode*0.5*coordPlacementIdentity[i].y);
+        nodeArrayD[nodeArrayIndex + i].center.z = center.z + (widthOfNode*0.5*coordPlacementIdentity[i].z);
       }
       uniqueNodes[globalID].children[i] = nodeArrayIndex + i;
       nodeArrayD[nodeArrayIndex + i].width = widthOfNode;
@@ -666,10 +666,6 @@ void Octree::parsePLY(){
       }
       ++currentPoint;
 		}
-
-    this->min = {minX,minY,minZ};
-    this->max = {maxX,maxY,maxZ};
-
     this->center.x = (maxX + minX)/2.0f;
     this->center.y = (maxY + minY)/2.0f;
     this->center.z = (maxZ + minZ)/2.0f;
@@ -678,6 +674,15 @@ void Octree::parsePLY(){
     if(this->width < maxY - minY) this->width = maxY - minY;
     if(this->width < maxZ - minZ) this->width = maxZ - minZ;
 
+    minX = this->center.x - (this->width/2.0f);
+    minY = this->center.y - (this->width/2.0f);
+    minZ = this->center.z - (this->width/2.0f);
+    maxX = this->center.x + (this->width/2.0f);
+    maxY = this->center.y + (this->width/2.0f);
+    maxZ = this->center.z + (this->width/2.0f);
+
+    this->min = {minX,minY,minZ};
+    this->max = {maxX,maxY,maxZ};
     this->totalNodes = 0;
     this->numFinestUniqueNodes = 0;
 
@@ -701,35 +706,6 @@ Octree::Octree(string pathToFile, int depth){
   this->simpleOctree = false;
 }
 
-void Octree::writeFinestPLY(){
-  this->copyFinestNodeCentersToHost();
-  string newFile = this->pathToFile.substr(0, this->pathToFile.length() - 4) + "_finest.ply";
-  ofstream plystream(newFile);
-  if (plystream.is_open()) {
-    ostringstream stringBuffer = ostringstream("");
-    stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
-    stringBuffer << "element vertex ";
-    stringBuffer <<  this->numPoints;
-    stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
-    stringBuffer << "end_header\n";
-    plystream << stringBuffer.str();
-    for(int i = 0; i < this->numPoints; ++i){
-      stringBuffer = ostringstream("");
-      stringBuffer << this->finestNodeCenters[i].x;
-      stringBuffer << " ";
-      stringBuffer << this->finestNodeCenters[i].y;
-      stringBuffer << " ";
-      stringBuffer << this->finestNodeCenters[i].z;
-      stringBuffer << "\n";
-      plystream << stringBuffer.str();
-    }
-    cout<<newFile + " has been created.\n"<<endl;
-  }
-  else{
-    cout << "Unable to open: " + newFile<< endl;
-    exit(1);
-  }
-}
 void Octree::writeVertexPLY(){
   string newFile = this->pathToFile.substr(0, this->pathToFile.length() - 4) + "_vertices.ply";
   ofstream plystream(newFile);
@@ -1973,12 +1949,12 @@ void Octree::checkForGeneralNodeErrors(){
     if(childNeighbor){
       ++numChildNeighbors;
     }
-    if((this->finalNodeArray[i].center.x < this->min.x - regionOfError ||
-    this->finalNodeArray[i].center.y < this->min.y - regionOfError ||
-    this->finalNodeArray[i].center.z < this->min.z - regionOfError||
-    this->finalNodeArray[i].center.x > this->max.x + regionOfError||
-    this->finalNodeArray[i].center.y > this->max.y + regionOfError||
-    this->finalNodeArray[i].center.z > this->max.z + regionOfError)){
+    if((this->finalNodeArray[i].center.x < this->min.x ||
+    this->finalNodeArray[i].center.y < this->min.y ||
+    this->finalNodeArray[i].center.z < this->min.z ||
+    this->finalNodeArray[i].center.x > this->max.x ||
+    this->finalNodeArray[i].center.y > this->max.y ||
+    this->finalNodeArray[i].center.z > this->max.z )){
       ++numCentersOUTSIDE;
     }
   }

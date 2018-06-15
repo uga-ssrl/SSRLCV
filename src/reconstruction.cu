@@ -30,7 +30,6 @@ int main(int argc, char *argv[]){
       octree.init_octree_gpu();
       octree.generateKeys();
       octree.prepareFinestUniquNodes();
-      octree.writeFinestPLY();//here becuase it uses a prereq array
       octree.createFinalNodeArray();
       octree.freePrereqArrays();
       octree.fillLUTs();

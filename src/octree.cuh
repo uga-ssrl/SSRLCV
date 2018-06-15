@@ -19,12 +19,12 @@
 
 __constant__ int3 coordPlacementIdentity[8] = {
   {-1,-1,-1},
-  {-1,1,-1},
-  {1,-1,-1},
-  {1,1,-1},
   {-1,-1,1},
+  {-1,1,-1},
   {-1,1,1},
+  {1,-1,-1},
   {1,-1,1},
+  {1,1,-1},
   {1,1,1}
 };
 
@@ -265,7 +265,6 @@ struct Octree{
   void parsePLY();
   Octree(std::string pathToFile, int depth);
 
-  void writeFinestPLY();
   void writeVertexPLY();
   void writeEdgePLY();
   void writeCenterPLY();
