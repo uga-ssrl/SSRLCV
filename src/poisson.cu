@@ -246,13 +246,9 @@ __global__ void computeDivergenceCoarse(int depthOfOctree, Node* nodeArray, int2
   }
 }
 
-//TODO find out why most laplacians are 0
-__global__ void computeLd(int depthOfOctree, Node* nodeArray, int numNodes, int depthIndex, float* offDiagonal, int* offDiagonalIndex, float* diagonals, int* numNonZeroEntries,float* fLUT, float* fPrimePrimeLUT){
+__global__ void computeLd(int depthOfOctree, Node* nodeArray, int numNodes, int depthIndex, float* laplacianValues, int* laplacianIndices, float* fLUT, float* fPrimePrimeLUT){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
-    __shared__ int numNonZero;
-    numNonZero = 0;
-    __syncthreads();
     int neighborIndex = nodeArray[blockID + depthIndex].neighbors[threadIdx.x];
     if(neighborIndex != -1){
       int3 xyz1;
@@ -264,28 +260,18 @@ __global__ void computeLd(int depthOfOctree, Node* nodeArray, int numNodes, int 
       (fLUT[xyz1.x*mult + xyz2.x]*fPrimePrimeLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+
       (fLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fPrimePrimeLUT[xyz1.z*mult + xyz2.z]);
       if(laplacianValue != 0.0f){
-        if(threadIdx.x == 13){
-          diagonals[blockID] = laplacianValue;
-        }
-        else{
-          atomicAdd(&numNonZero, 1);
-          offDiagonal[blockID*26 + (threadIdx.x > 13 ? threadIdx.x - 1 : threadIdx.x)] = laplacianValue;
-          offDiagonalIndex[blockID*26 + (threadIdx.x > 13 ? threadIdx.x - 1 : threadIdx.x)] = neighborIndex;
-        }
-        //printf("%d,%d -> laplacian = %.9f\n",blockID + depthIndex,neighborIndex, laplacianValue);
+        laplacianValues[blockID*27 + threadIdx.x] = laplacianValue;
+        laplacianIndices[blockID*27 + threadIdx.x] = neighborIndex - depthIndex;
       }
       else{
-        offDiagonalIndex[threadIdx.x] = -1;
+        laplacianIndices[blockID*27 + threadIdx.x] = -1;
       }
     }
     else{
-      offDiagonalIndex[threadIdx.x] = -1;
+      laplacianIndices[blockID*27 + threadIdx.x] = -1;
     }
-    __syncthreads();
-    numNonZeroEntries[blockID] = numNonZero;
   }
 }
-
 __global__ void updateDivergence(int depthOfOctree, Node* nodeArray, int numNodes, int depthIndex, float* divCoeff, float* fLUT, float* fPrimePrimeLUT, float* nodeImplicit){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
@@ -303,6 +289,89 @@ __global__ void updateDivergence(int depthOfOctree, Node* nodeArray, int numNode
     }
   }
 }
+
+__global__ void multiplyLdAnd1D(int numNodesAtDepth, float* laplacianValues, int* laplacianIndices, float* matrix1D, float* result){
+  int blockID = blockIdx.y * gridDim.x + blockIdx.x;
+  if(blockID < numNodesAtDepth){
+    __shared__ float resultElement;
+    // may need to do the following
+    // resultElement = 0.0f;
+    // __syncthreads();
+    int laplacianIndex = laplacianIndices[blockID*27 + threadIdx.x];
+    if(laplacianIndex != -1){
+      atomicAdd(&resultElement, laplacianValues[blockID*27 + threadIdx.x]*matrix1D[laplacianIndex]);
+    }else return;
+    __syncthreads();
+    if(threadIdx.x == 0) atomicAdd(&result[blockID], resultElement);
+  }
+}
+__global__ void computeAlpha(int numNodesAtDepth, float* r, float* pTL, float* p, float* numerator, float* denominator){
+  *numerator = 0.0f;
+  *denominator = 0.0f;
+  __syncthreads();
+  int globalID = blockIdx.x *blockDim.x + threadIdx.x;
+  if(globalID < numNodesAtDepth){
+    __shared__ float numeratorPartial;
+    __shared__ float denominatorPartial;
+    numeratorPartial = 0.0f;
+    denominatorPartial = 0.0f;
+    __syncthreads();
+    //atomicAdd(&numeratorPartial, r[globalID]*r[globalID]);
+    //atomicAdd(&denominatorPartial, pTL[globalID]*p[globalID]);
+    __syncthreads();
+    if(threadIdx.x == 0){
+      atomicAdd(numerator, numeratorPartial);
+      atomicAdd(denominator, denominatorPartial);
+    }
+  }
+}
+__global__ void updateX(int numNodesAtDepth, int depthIndex, float* x, float alpha, float* p){
+  int globalID = blockIdx.x *blockDim.x + threadIdx.x;
+  if(globalID < numNodesAtDepth){
+    x[globalID + depthIndex] = alpha*p[globalID] + x[globalID + depthIndex];
+  }
+}
+__global__ void computeRNew(int numNodesAtDepth, float* r, float alpha, float* temp, bool* converged){
+  *converged = true;
+  __syncthreads();
+  int globalID = blockIdx.x *blockDim.x + threadIdx.x;
+  if(globalID < numNodesAtDepth){
+    float registerPlaceHolder = 0.0f;
+    registerPlaceHolder = -1.0f*alpha*temp[globalID] + r[globalID];
+    if(registerPlaceHolder != 0.0f) *converged = false;
+    else return;
+    temp[globalID] = registerPlaceHolder;
+
+  }
+}
+__global__ void computeBeta(int numNodesAtDepth, float* r, float* rNew, float* numerator, float* denominator){
+  *numerator = 0.0f;
+  *denominator = 0.0f;
+  __syncthreads();
+  int globalID = blockIdx.x *blockDim.x + threadIdx.x;
+  if(globalID < numNodesAtDepth){
+    __shared__ float numeratorPartial;
+    __shared__ float denominatorPartial;
+    numeratorPartial = 0.0f;
+    denominatorPartial = 0.0f;
+    __syncthreads();
+    atomicAdd(&numeratorPartial, rNew[globalID]*rNew[globalID]);
+    atomicAdd(&denominatorPartial, r[globalID]*r[globalID]);
+    __syncthreads();
+    if(threadIdx.x == 0){
+      atomicAdd(numerator, numeratorPartial);
+      atomicAdd(denominator, denominatorPartial);
+    }
+  }
+}
+__global__ void updateP(int numNodesAtDepth, float* rNew, float beta, float* p){
+  int globalID = blockIdx.x *blockDim.x + threadIdx.x;
+  if(globalID < numNodesAtDepth){
+    p[globalID] = beta*p[globalID] + rNew[globalID];
+  }
+}
+
+
 
 Poisson::Poisson(Octree* octree){
   this->octree = octree;
@@ -344,7 +413,7 @@ void Poisson::computeLUTs(){
     pow2 *= 2;
   }
   int numCenters = centers.size();
-  printf("number of absolute unique centers = %d\n\n",numCenters);
+  //printf("number of absolute unique centers = %d\n\n",numCenters);
 
   unsigned int size = (pow(2, this->octree->depth + 1) - 1);
   float** f = new float*[size];
@@ -388,7 +457,7 @@ void Poisson::computeLUTs(){
     }
   }
   timer = clock() - timer;
-  printf("blending LUT generation took %f seconds fully on the CPU.\n\n",((float) timer)/CLOCKS_PER_SEC);
+  printf("blending LUT generation took %f seconds fully on the CPU.\n",((float) timer)/CLOCKS_PER_SEC);
 }
 
 //TODO should optimize computeDivergenceCoarse
@@ -439,7 +508,7 @@ void Poisson::computeDivergenceVector(){
   */
   delete[] vectorField;
   cudatimer = clock() - cudatimer;
-  printf("Vector field generation kernel took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
+  printf("Vector field generation kernel took %f seconds.\n",((float) cudatimer)/CLOCKS_PER_SEC);
   cudatimer = clock();
   /*
   NOW COMPUTE DIVERGENCE VECTOR AFTER FINDING VECTOR FIELD
@@ -518,11 +587,12 @@ void Poisson::computeDivergenceVector(){
   delete[] this->fPrimeLUT;
 
   cudatimer = clock() - cudatimer;
-  printf("Divergence vector generation kernel took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
+  printf("Divergence vector generation kernel took %f seconds.\n",((float) cudatimer)/CLOCKS_PER_SEC);
 }
 
-//TODO separate diagonals and non diagonals
 void Poisson::computeImplicitFunction(){
+  clock_t timer;
+  timer = clock();
   clock_t cudatimer;
   cudatimer = clock();
 
@@ -531,24 +601,39 @@ void Poisson::computeImplicitFunction(){
   for(int i = 0; i < this->octree->totalNodes; ++i){
     nodeImplicit[i] = 0.0f;
   }
+
+  int numNodesAtDepth = 0;
+  float* temp;
+  int* tempInt;
+  float* laplacianValuesDevice;
+  int* laplacianIndicesDevice;
+  float* rDevice;
+  float* pDevice;
+  float* temp1DDevice;
+  bool gradientSolverConverged = true;
+  dim3 grid;
+  dim3 block;
+  dim3 grid1D;
+  dim3 block1D;
+  float alpha = 0.0f;
+  float beta = 0.0f;
+  float* numeratorDevice;
+  float* denominatorDevice;
+  float denominator = 0.0f;
+  bool* convergenceCheckerDevice;
+  CudaSafeCall(cudaMalloc((void**)&convergenceCheckerDevice, sizeof(bool)));
+  CudaSafeCall(cudaMalloc((void**)&numeratorDevice, sizeof(float)));
+  CudaSafeCall(cudaMalloc((void**)&denominatorDevice, sizeof(float)));
   CudaSafeCall(cudaMalloc((void**)&this->fLUTDevice, size*size*sizeof(float)));
   CudaSafeCall(cudaMalloc((void**)&this->fPrimePrimeLUTDevice, size*size*sizeof(float)));
   CudaSafeCall(cudaMalloc((void**)&this->nodeImplicitDevice, this->octree->totalNodes*sizeof(float)));
+  CudaSafeCall(cudaMemcpy(convergenceCheckerDevice, &gradientSolverConverged, sizeof(bool), cudaMemcpyHostToDevice));
+  CudaSafeCall(cudaMemcpy(numeratorDevice, &alpha, sizeof(float), cudaMemcpyHostToDevice));
+  CudaSafeCall(cudaMemcpy(denominatorDevice, &alpha, sizeof(float), cudaMemcpyHostToDevice));
   CudaSafeCall(cudaMemcpy(this->fLUTDevice, this->fLUT, size*size*sizeof(float), cudaMemcpyHostToDevice));
   CudaSafeCall(cudaMemcpy(this->fPrimePrimeLUTDevice, this->fPrimePrimeLUT, size*size*sizeof(float), cudaMemcpyHostToDevice));
   CudaSafeCall(cudaMemcpy(this->nodeImplicitDevice, nodeImplicit, this->octree->totalNodes*sizeof(float), cudaMemcpyHostToDevice));
 
-  int numNodesAtDepth = 0;
-  float* diagonalsDevice;
-  float* offDiagonalsDevice;
-  int* offDiagonalIndicesDevice;
-  int* numOffDiagonalsDevice;
-  float* temp;
-  int* numNonZeroEntries;
-  float* diag;
-
-  dim3 grid;
-  dim3 block;
 
   for(int d = this->octree->depth; d >= 0; --d){
     //update divergence coefficients based on solutions at coarser depths
@@ -576,66 +661,108 @@ void Poisson::computeImplicitFunction(){
         CudaCheckError();
       }
     }
-
-    /*
-    MULTIGRID SOLVER
-    */
-
-    //setup
-
-    temp = new float[numNodesAtDepth*26];
-    diag = new float[numNodesAtDepth];
-    numNonZeroEntries = new int[numNodesAtDepth];
-    for(int i = 0; i < numNodesAtDepth*26; ++i){
-      temp[i] = 0;
-      if(i % 26 == 0){
-        numNonZeroEntries[i/26] = -1;
-        diag[i/26] = 0.0f;
-      }
-      temp[i] = 0.0f;
+    else{
+      numNodesAtDepth = 1;
     }
 
-    CudaSafeCall(cudaMalloc((void**)&diagonalsDevice, numNodesAtDepth*sizeof(float)));
-    CudaSafeCall(cudaMalloc((void**)&offDiagonalsDevice, numNodesAtDepth*26*sizeof(float)));
-    CudaSafeCall(cudaMalloc((void**)&offDiagonalIndicesDevice, numNodesAtDepth*26*sizeof(int)));
-    CudaSafeCall(cudaMalloc((void**)&numOffDiagonalsDevice, numNodesAtDepth*sizeof(int)));
-    CudaSafeCall(cudaMemcpy(diagonalsDevice, diag, numNodesAtDepth*sizeof(float), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(offDiagonalsDevice, temp, numNodesAtDepth*26*sizeof(float), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(offDiagonalIndicesDevice, temp, numNodesAtDepth*26*sizeof(int), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(numOffDiagonalsDevice, numNonZeroEntries, numNodesAtDepth*sizeof(int), cudaMemcpyHostToDevice));
+    temp = new float[numNodesAtDepth*27];
+    tempInt = new int[numNodesAtDepth*27];
+    for(int i = 0; i < numNodesAtDepth*27; ++i){
+      temp[i] = 0.0f;
+      tempInt[i] = -1;
+    }
+
+    CudaSafeCall(cudaMalloc((void**)&laplacianValuesDevice, numNodesAtDepth*27*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&laplacianIndicesDevice, numNodesAtDepth*27*sizeof(int)));
+    CudaSafeCall(cudaMemcpy(laplacianValuesDevice, temp, numNodesAtDepth*27*sizeof(float), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(laplacianIndicesDevice, tempInt, numNodesAtDepth*27*sizeof(int), cudaMemcpyHostToDevice));
     computeLd<<<grid, block>>>(this->octree->depth, this->octree->finalNodeArrayDevice, numNodesAtDepth, this->octree->depthIndex[d],
-      offDiagonalsDevice, offDiagonalIndicesDevice, diagonalsDevice, numOffDiagonalsDevice,
-      this->fLUTDevice, this->fPrimePrimeLUTDevice);
+      laplacianValuesDevice, laplacianIndicesDevice, this->fLUTDevice, this->fPrimePrimeLUTDevice);
     CudaCheckError();
 
-    CudaSafeCall(cudaMemcpy(diag, diagonalsDevice, numNodesAtDepth*sizeof(float), cudaMemcpyDeviceToHost));
-    // for(int i = 0; i < numNodesAtDepth; ++i){
-    //   cout<<i<<"-"<<diag[i]<<endl;
-    // }
+    CudaSafeCall(cudaMalloc((void**)&temp1DDevice, numNodesAtDepth*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&pDevice, numNodesAtDepth*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&rDevice, numNodesAtDepth*sizeof(float)));
+    CudaSafeCall(cudaMemcpy(temp1DDevice, temp, numNodesAtDepth*sizeof(float),cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(rDevice, this->divergenceVectorDevice, numNodesAtDepth*sizeof(float),cudaMemcpyDeviceToDevice));
+    CudaSafeCall(cudaMemcpy(pDevice, this->divergenceVectorDevice, numNodesAtDepth*sizeof(float),cudaMemcpyDeviceToDevice));
 
-    delete[] diag;
-    delete[] numNonZeroEntries;
     delete[] temp;
+    delete[] tempInt;
 
+    gradientSolverConverged = false;
+    //gradient solver r = b - Lx
+    //r is instantiated as b
+    //will converge in n iterations
+    grid1D = {1,1,1};
+    block1D = {1,1,1};
+    //this will allow for at most ~67,000,000 numNodesAtDepth
+    if(numNodesAtDepth < 65535) grid.x = (unsigned int) numNodesAtDepth;
+    else{
+      grid1D.x = 65535;
+      while(grid1D.x*block1D.x < numNodesAtDepth){
+        ++block1D.x;
+      }
+      while(grid1D.x*block1D.x > numNodesAtDepth){
+        --grid1D.x;
+      }
+      if(grid1D.x*block1D.x < numNodesAtDepth){
+        ++grid1D.x;
+      }
+    }
+    //1.temp = pT * Ld
+    //2.alpha = dot(r,r)/dot(temp,p)
+    //3.x = x + alpha*p
+    //4.temp = Ld * p
+    //5.temp = r - alpha*temp
+    //6.if(rValues == 0.0f) gradientSolverConverged = true, break
+    //7.p = temp + (dot(temp,temp)/dot(r,r))*p
+    //STEPS 1 and 4 MAY RESULT IN THE SAME THING
 
-    //multiplication???
-
-
-    CudaSafeCall(cudaFree(diagonalsDevice));
-    CudaSafeCall(cudaFree(offDiagonalsDevice));
-    CudaSafeCall(cudaFree(offDiagonalIndicesDevice));
-    CudaSafeCall(cudaFree(numOffDiagonalsDevice));
-
+    // for(int i = 0; i < numNodesAtDepth; ++i){
+    //   multiplyLdAnd1D<<<grid, block>>>(numNodesAtDepth, laplacianValuesDevice, laplacianIndicesDevice, pDevice, temp1DDevice);
+    //   CudaCheckError();
+    //   cudaDeviceSynchronize();
+    //   computeAlpha<<<grid1D, block1D>>>(numNodesAtDepth, rDevice, temp1DDevice, pDevice, numeratorDevice, denominatorDevice);
+    //   CudaCheckError();
+    //   CudaSafeCall(cudaMemcpy(&alpha, numeratorDevice, sizeof(float), cudaMemcpyDeviceToHost));
+    //   CudaSafeCall(cudaMemcpy(&denominator, denominatorDevice, sizeof(float), cudaMemcpyDeviceToHost));
+    //   alpha /= denominator;
+    //   updateX<<<grid1D, block1D>>>(numNodesAtDepth, this->octree->depthIndex[d], this->nodeImplicitDevice, alpha, pDevice);
+    //   CudaCheckError();
+    //   computeRNew<<<grid1D, block1D>>>(numNodesAtDepth, rDevice, alpha, temp1DDevice, convergenceCheckerDevice);
+    //   CudaCheckError();
+    //   CudaSafeCall(cudaMemcpy(&gradientSolverConverged, convergenceCheckerDevice, sizeof(bool), cudaMemcpyDeviceToHost));
+    //   if(gradientSolverConverged) break;
+    //   computeBeta<<<grid1D, block1D>>>(numNodesAtDepth, rDevice, temp1DDevice, numeratorDevice, denominatorDevice);
+    //   CudaCheckError();
+    //   CudaSafeCall(cudaMemcpy(&beta, numeratorDevice, sizeof(float), cudaMemcpyDeviceToHost));
+    //   CudaSafeCall(cudaMemcpy(&denominator, denominatorDevice, sizeof(float), cudaMemcpyDeviceToHost));
+    //   beta /= denominator;
+    //   updateP<<<grid1D, block1D>>>(numNodesAtDepth, rDevice, beta, pDevice);
+    //   CudaCheckError();
+    //   CudaSafeCall(cudaMemcpy(rDevice, temp1DDevice, numNodesAtDepth*sizeof(float), cudaMemcpyDeviceToDevice));
+    // }
+    CudaSafeCall(cudaFree(laplacianValuesDevice));
+    CudaSafeCall(cudaFree(laplacianIndicesDevice));
+    CudaSafeCall(cudaFree(temp1DDevice));
+    CudaSafeCall(cudaFree(rDevice));
+    CudaSafeCall(cudaFree(pDevice));
+    cudatimer = clock() - cudatimer;
+    printf("Node Implicit computation for depth %d took %f seconds w/%d nodes.\n", d,((float) cudatimer)/CLOCKS_PER_SEC, numNodesAtDepth);
+    cudatimer = clock();
   }
-
+  CudaSafeCall(cudaFree(convergenceCheckerDevice));
+  CudaSafeCall(cudaFree(numeratorDevice));
+  CudaSafeCall(cudaFree(denominatorDevice));
   CudaSafeCall(cudaFree(this->fLUTDevice));
   CudaSafeCall(cudaFree(this->fPrimePrimeLUTDevice));
   CudaSafeCall(cudaFree(this->divergenceVectorDevice));
   delete[] this->fLUT;
   delete[] this->fPrimePrimeLUT;
   delete[] nodeImplicit;
-  cudatimer = clock() - cudatimer;
-  printf("Node Implicit f(n) generation kernel took %f seconds.\n\n",((float) cudatimer)/CLOCKS_PER_SEC);
+  timer = clock() - timer;
+  printf("Node Implicit compuation took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
 }
 
 void Poisson::marchingCubes(){

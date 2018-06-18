@@ -23,6 +23,8 @@ using namespace std;
 
 //TODO implement octree.computeNormals()
 
+//TODO make octree a class not a struct
+
 
 int main(int argc, char *argv[]){
   try{
@@ -55,7 +57,7 @@ int main(int argc, char *argv[]){
       partialTimer = clock();
 
       if(!octree.normalsComputed){
-        cout<<"COMPUTING NORMALS"<<endl<<endl;
+        cout<<"COMPUTING NORMALS\n"<<endl;
 
         octree.computeNormals();
 
@@ -65,30 +67,30 @@ int main(int argc, char *argv[]){
         partialTimer = clock();
       }
 
-      // cout<<"PERFORMING POISSON RECONSTRUCTION WITH OCTREE"<<endl;
+      // cout<<"PERFORMING POISSON RECONSTRUCTION WITH OCTREE\n"<<endl;
       //
       // Poisson poisson = Poisson(&octree);
       // poisson.computeLUTs();
       // poisson.computeDivergenceVector();
       // poisson.computeImplicitFunction();
-      // poisson.marchingCubes();
+      // // poisson.marchingCubes();
       //
       // partialTimer = clock() - partialTimer;
-      // printf("\nPOISSON RECONSTRUCTION TOOK %f seconds.\n",((float) partialTimer)/CLOCKS_PER_SEC);
+      // printf("POISSON RECONSTRUCTION TOOK %f seconds.\n",((float) partialTimer)/CLOCKS_PER_SEC);
       // cout<<"---------------------------------------------------"<<endl;
       // partialTimer = clock();
 
-      cout<<"WRITING DERIVED PLY FILES\n"<<endl;
-
-      octree.copyNodesToHost();//this is only necessary for writeCenterPLY
-      octree.writeVertexPLY();
-      octree.writeEdgePLY();
-      octree.writeCenterPLY();
-      octree.writeNormalPLY();
-
-      partialTimer = clock() - partialTimer;
-      printf("WRITING PLY FILES TOOK %f seconds.\n",((float) partialTimer)/CLOCKS_PER_SEC);
-      cout<<"---------------------------------------------------"<<endl;
+      // cout<<"WRITING DERIVED PLY FILES\n"<<endl;
+      //
+      // octree.copyNodesToHost();//this is only necessary for writeCenterPLY
+      // octree.writeVertexPLY();
+      // octree.writeEdgePLY();
+      // octree.writeCenterPLY();
+      // octree.writeNormalPLY();
+      //
+      // partialTimer = clock() - partialTimer;
+      // printf("WRITING PLY FILES TOOK %f seconds.\n",((float) partialTimer)/CLOCKS_PER_SEC);
+      // cout<<"---------------------------------------------------"<<endl;
 
       totalTimer = clock() - totalTimer;
       printf("\nTOTAL TIME = %f seconds.\n\n",((float) totalTimer)/CLOCKS_PER_SEC);
