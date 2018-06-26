@@ -122,9 +122,7 @@ __device__ __host__ void printBits(size_t const size, void const * const ptr){
   printf("\n");
 }
 __global__ void getNodeKeys(float3* points, float3* nodeCenters, int* nodeKeys, float3 c, float W, int numPoints, int D){
-  int tx = threadIdx.x;
-  int bx = blockIdx.x;
-  int globalID = bx * blockDim.x + tx;
+  int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   if(globalID < numPoints){
     float x = points[globalID].x;
     float y = points[globalID].y;
@@ -167,9 +165,7 @@ __global__ void getNodeKeys(float3* points, float3* nodeCenters, int* nodeKeys, 
 
 //createFinalNodeArray kernels
 __global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, Node* uniqueNodes){
-  int tx = threadIdx.x;
-  int bx = blockIdx.x;
-  int globalID = bx * blockDim.x + tx;
+  int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   int tempCurrentKey = 0;
   int tempPrevKey = 0;
   if(globalID < numUniqueNodes){
@@ -198,9 +194,7 @@ void calculateNodeAddresses(dim3 grid, dim3 block, int numUniqueNodes, Node* uni
 
 }
 __global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeNumbers, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int currentDepth, float totalWidth){
-  int tx = threadIdx.x;
-  int bx = blockIdx.x;
-  int globalID = bx * blockDim.x + tx;
+  int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   int address = 0;
   if(globalID < numUniqueNodes && (globalID == 0 || nodeNumbers[globalID] == 8)){
     int siblingKey = uniqueNodes[globalID].key;
@@ -216,9 +210,7 @@ __global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeNumbers, int* nod
   }
 }
 __global__ void fillFinestNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int* pointNodeIndex){
-  int tx = threadIdx.x;
-  int bx = blockIdx.x;
-  int globalID = bx * blockDim.x + tx;
+  int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   int address = 0;
   int currentDKey = 0;
   if(globalID < numUniqueNodes){
@@ -238,9 +230,7 @@ __global__ void fillFinestNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddre
   }
 }
 __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, Node* childNodeArray,int numUniqueNodes){
-  int tx = threadIdx.x;
-  int bx = blockIdx.x;
-  int globalID = bx * blockDim.x + tx;
+  int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   int address = 0;
   int currentDKey = 0;
   if(globalID < numUniqueNodes){
@@ -263,9 +253,7 @@ __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, 
 //TODO try and optimize
 __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD, int numNodesAtDepth, float totalWidth){
   int numUniqueNodesAtParentDepth = numNodesAtDepth / 8;
-  int tx = threadIdx.x;
-  int bx = blockIdx.x;
-  int globalID = bx * blockDim.x + tx;
+  int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   int nodeArrayIndex = globalID*8;
   if(globalID < numUniqueNodesAtParentDepth){
     uniqueNodes[globalID] = Node();//may not be necessary
@@ -342,6 +330,13 @@ __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depth
   }
 }
 
+__global__ void findNormalNeighbors(int numPoints, float3* points, Node* nodeArray, float* cMatrix){
+
+}
+__global__ void estimateNormal(int currentPoint, int numNeighbors, float* s, float* vt, float3* normals){
+
+}
+
 //vertex edge and face array kernels
 __global__ void findVertexOwners(Node* nodeArray, int numNodes, int depthIndex, int* vertexLUT, int* numVertices, int* ownerInidices, int* vertexPlacement){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
@@ -362,9 +357,7 @@ __global__ void findVertexOwners(Node* nodeArray, int numNodes, int depthIndex, 
   }
 }
 __global__ void fillUniqueVertexArray(Node* nodeArray, Vertex* vertexArray, int numVertices, int vertexIndex,int depthIndex, int depth, float width, int* vertexLUT, int* ownerInidices, int* vertexPlacement){
-  int tx = threadIdx.x;
-  int bx = blockIdx.x;
-  int globalID = bx * blockDim.x + tx;
+  int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   if(globalID < numVertices){
 
     int ownerNodeIndex = ownerInidices[globalID];
@@ -409,9 +402,7 @@ __global__ void findEdgeOwners(Node* nodeArray, int numNodes, int depthIndex, in
   }
 }
 __global__ void fillUniqueEdgeArray(Node* nodeArray, Edge* edgeArray, int numEdges, int edgeIndex, int depthIndex, int depth, float width, int* edgeLUT, int* ownerInidices, int* edgePlacement){
-  int tx = threadIdx.x;
-  int bx = blockIdx.x;
-  int globalID = bx * blockDim.x + tx;
+  int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   if(globalID < numEdges){
     int ownerNodeIndex = ownerInidices[globalID];
     int ownedIndex = edgePlacement[globalID];
@@ -462,9 +453,7 @@ __global__ void findFaceOwners(Node* nodeArray, int numNodes, int depthIndex, in
 
 }
 __global__ void fillUniqueFaceArray(Node* nodeArray, Face* faceArray, int numFaces, int faceIndex, int depthIndex, int depth, float width, int* faceLUT, int* ownerInidices, int* facePlacement){
-  int tx = threadIdx.x;
-  int bx = blockIdx.x;
-  int globalID = bx * blockDim.x + tx;
+  int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   if(globalID < numFaces){
 
     int ownerNodeIndex = ownerInidices[globalID];
@@ -563,9 +552,9 @@ void Octree::parsePLY(){
 
       float value = 0.0;
       int index = 0;
-      float3 point;
-      float3 normal;
-      uchar3 color;
+      float3 point = {0.0f, 0.0f, 0.0f};
+      float3 normal = {0.0f, 0.0f, 0.0f};
+      uchar3 color = {255, 255, 255};
       bool lineIsDone = false;
 
       while(stringBuffer >> value){
@@ -728,8 +717,7 @@ void Octree::init_octree_gpu(){
   this->copyNormalsToDevice();
   this->copyColorsToDevice();
 
-  cudatimer = clock() - cudatimer;
-  printf("octree initial allocation & base variable copy took %f seconds.\n",((float) cudatimer)/CLOCKS_PER_SEC);
+  printf("octree initial allocation & base variable copy took %f seconds.\n",((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
 void Octree::copyPointsToDevice(){
@@ -809,8 +797,7 @@ void Octree::freePrereqArrays(){
   CudaSafeCall(cudaFree(this->finestNodePointIndexesDevice));
   CudaSafeCall(cudaFree(this->finestNodeKeysDevice));
 
-  cudatimer = clock() - cudatimer;
-  printf("octree freePrereqArrays took %f seconds.\n",((float) cudatimer)/CLOCKS_PER_SEC);
+  printf("octree freePrereqArrays took %f seconds.\n",((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
 void Octree::copyNodesToDevice(){
@@ -904,8 +891,8 @@ void Octree::generateKeys(){
 
   getNodeKeys<<<grid,block>>>(this->pointsDevice, this->finestNodeCentersDevice, this->finestNodeKeysDevice, this->center, this->width, this->numPoints, this->depth);
   CudaCheckError();
-  cudatimer = clock() - cudatimer;
-  printf("octree generateNodeKeys took %f seconds.\n",((float) cudatimer)/CLOCKS_PER_SEC);
+
+  printf("octree generateNodeKeys took %f seconds.\n",((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 void Octree::prepareFinestUniquNodes(){
   clock_t cudatimer;
@@ -961,7 +948,7 @@ void Octree::prepareFinestUniquNodes(){
 
   thrust::pair<int*, int*> new_end;//the last value of these node arrays
 
-  new_end = thrust::unique_by_key(thrust::host, this->finestNodeKeys, this->finestNodeKeys + this->numPoints, this->finestNodePointIndexes);
+  new_end = thrust::unique_by_key(this->finestNodeKeys, this->finestNodeKeys + this->numPoints, this->finestNodePointIndexes);
 
   bool foundFirst = false;
   int numUniqueNodes = 0;
@@ -1006,8 +993,8 @@ void Octree::prepareFinestUniquNodes(){
     currentNode.color = {color.x,color.y,color.z};
     this->uniqueNodesAtFinestLevel[i] = currentNode;
   }
-  cudatimer = clock() - cudatimer;
-  printf("octree prepareFinestUniquNodes took %f seconds.\n", ((float) cudatimer)/CLOCKS_PER_SEC);
+
+  printf("octree prepareFinestUniquNodes took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
 void Octree::createFinalNodeArray(){
@@ -1017,8 +1004,6 @@ void Octree::createFinalNodeArray(){
   Node* uniqueNodesDevice;
   CudaSafeCall(cudaMalloc((void**)&uniqueNodesDevice, this->numFinestUniqueNodes*sizeof(Node)));
   CudaSafeCall(cudaMemcpy(uniqueNodesDevice, this->uniqueNodesAtFinestLevel, this->numFinestUniqueNodes*sizeof(Node), cudaMemcpyHostToDevice));
-  Node** nodeArray2DDevice;
-  CudaSafeCall(cudaMalloc((void**)&nodeArray2DDevice, (this->depth + 1)*sizeof(Node*)));
   Node** nodeArray2D = new Node*[this->depth + 1];
 
   int* nodeAddressesDevice;
@@ -1120,10 +1105,8 @@ void Octree::createFinalNodeArray(){
     CudaSafeCall(cudaFree(nodeArray2D[i]));
   }
   delete[] nodeArray2D;
-  CudaSafeCall(cudaFree(nodeArray2DDevice));
 
-  cudatimer = clock() - cudatimer;
-  printf("octree buildFinalNodeArray took %f seconds.\n\n", ((float) cudatimer)/CLOCKS_PER_SEC);
+  printf("octree buildFinalNodeArray took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
   printf("TOTAL NODES = %d\n\n",this->totalNodes);
 
 }
@@ -1241,8 +1224,7 @@ void Octree::fillLUTs(){
   CudaSafeCall(cudaMemcpy(this->vertexLUTDevice, flatVertexLUT, 56*sizeof(int), cudaMemcpyHostToDevice));
   CudaSafeCall(cudaMemcpy(this->childLUTDevice, flatChildLUT, 216*sizeof(int), cudaMemcpyHostToDevice));
 
-  cudatimer = clock() - cudatimer;
-  printf("octree fillLUTs took %f seconds.\n", ((float) cudatimer)/CLOCKS_PER_SEC);
+  printf("octree fillLUTs took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
 void Octree::fillNeighborhoods(){
@@ -1293,8 +1275,7 @@ void Octree::fillNeighborhoods(){
   CudaSafeCall(cudaFree(this->childLUTDevice));
   CudaSafeCall(cudaFree(this->parentLUTDevice));
 
-  cudatimer = clock() - cudatimer;
-  printf("octree findAllNeighbors took %f seconds.\n", ((float) cudatimer)/CLOCKS_PER_SEC);
+  printf("octree findAllNeighbors took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 void Octree::computeVertexArray(){
   clock_t cudatimer;
@@ -1425,9 +1406,7 @@ void Octree::computeVertexArray(){
   CudaSafeCall(cudaFree(vertexArray2DDevice));
   delete[] vertexIndex;
 
-  cudatimer = clock() - cudatimer;
-  printf("octree createVertexArray took %f seconds.\n\n", ((float) cudatimer)/CLOCKS_PER_SEC);
-  printf("TOTAL VERTICES = %d\n\n",this->totalVertices);
+  printf("octree createVertexArray took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 void Octree::computeEdgeArray(){
   clock_t cudatimer;
@@ -1558,9 +1537,7 @@ void Octree::computeEdgeArray(){
   CudaSafeCall(cudaFree(edgeArray2DDevice));
   delete[] edgeIndex;
 
-  cudatimer = clock() - cudatimer;
-  printf("octree createEdgeArray took %f seconds.\n\n", ((float) cudatimer)/CLOCKS_PER_SEC);
-  printf("TOTAL EDGES = %d\n\n",this->totalEdges);
+  printf("octree createEdgeArray took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 void Octree::computeFaceArray(){
   clock_t cudatimer;
@@ -1691,9 +1668,7 @@ void Octree::computeFaceArray(){
   CudaSafeCall(cudaFree(faceArray2DDevice));
   delete[] faceIndex;
 
-  cudatimer = clock() - cudatimer;
-  printf("octree createFaceArray took %f seconds.\n\n", ((float) cudatimer)/CLOCKS_PER_SEC);
-  printf("TOTAL FACES = %d\n\n",this->totalFaces);
+  printf("octree createFaceArray took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
 void Octree::checkForGeneralNodeErrors(){
@@ -1846,12 +1821,65 @@ void Octree::checkForGeneralNodeErrors(){
   cout<<"NODES WITHOUT POINTS = "<<noPoints<<endl;
   cout<<"NODES WITH POINTS = "<<this->totalNodes - noPoints<<endl<<endl;
 
-  cudatimer = clock() - cudatimer;
-  printf("octree checkForErrors took %f seconds.\n\n", ((float) cudatimer)/CLOCKS_PER_SEC);
+  printf("octree checkForErrors took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
-void Octree::computeNormals(){
+void Octree::computeNormals(float neighborDistance, int numNeighbors){
+  clock_t cudatimer;
+  cudatimer = clock();
+  /*north korean mountain range camera parameters*/
+  const float3 position1 = {0.0f,5.0f, 0.0f};
+  const float3 position2 = {0.868240888335,4.92403876506, 0.0f};
+  const float3 direction1 = {0.0f,1.0f, 0.0f};
+  const float3 direction2 = {0.173648177667,0.984807753012, 0.0f};
 
+  if(!this->pointsDeviceReady) this->copyPointsToDevice();
+
+  uint size = this->numPoints*numNeighbors;
+  float* cMatrixDevice;
+  CudaSafeCall(cudaMalloc((void**)&cMatrixDevice, size*sizeof(float)));
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+
+  findNormalNeighbors<<<grid, block>>>(this->numPoints, this->pointsDevice, this->finalNodeArrayDevice, cMatrixDevice);
+  CudaCheckError();
+
+  this->copyNormalsToDevice();
+
+  float* singleCMatrixDevice;
+  CudaSafeCall(cudaMalloc((void**)&singleCMatrixDevice, numNeighbors*sizeof(float)));
+  for(int p = 0; p < this->numPoints; ++p){
+    CudaSafeCall(cudaMemcpy(singleCMatrixDevice, cMatrixDevice + (p*numNeighbors), numNeighbors*sizeof(float), cudaMemcpyDeviceToDevice));
+    //CUSOLVER SVD
+
+    //FIND 2 ROWS OF S WITH HEIGHEST VALUES
+    //TAKE THOSE ROWS IN VT AND GET CROSS PRODUCT = NORMALS ESTIMATE
+    //estimateNormal<<<grid, block>>>(p, numNeighbors, d_s, d_vt, this->normalsDevice);
+  }
+
+  //THEN CHECK FOR AMBIGUITY
+  /*
+  AMBIGUOUS if(dot((position1 - pi), ni) < 0 && (!dot((position2 - pi), ni) < 0))
+  */
+
+  //FOR AMBIGUOUS NORMALS
+  /*
+  orient based on neighboring non abiguous by making sure dot(ni,mi) > 0
+  if ambiguous normal does not have non ambiguous neighbor normal it is not oriented this iteration
+  */
+  bool ambiguityExists = true;
+
+  while(ambiguityExists){
+
+    ambiguityExists = false;
+  }
+
+  CudaSafeCall(cudaFree(cMatrixDevice));
+  this->copyPointsToHost();
+  this->copyNormalsToHost();
+  this->normalsComputed = true;
+  printf("octree computeNormals took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
 void Octree::writeVertexPLY(){

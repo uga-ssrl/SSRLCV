@@ -23,7 +23,11 @@ using namespace std;
 
 //TODO implement octree.computeNormals()
 
-//TODO make octree a class not a struct
+//TODO make octree a class not a struct with private members and functions
+
+//TODO optimize atomics with cooperative_groups (warp aggregated)
+
+//TODO find all temporary device result arrays and remove redundant initial cudaMemcpyHostToDevice
 
 
 int main(int argc, char *argv[]){
@@ -34,8 +38,9 @@ int main(int argc, char *argv[]){
 
       if(argc == 2) depth = 9;
       if(argc == 3) depth = stoi(argv[2]);
+
       clock_t totalTimer = clock();
-      clock_t partialTimer = clock();
+
       cout<<"---------------------------------------------------"<<endl;
       cout<<"COMPUTING OCTREE\n"<<endl;
 
@@ -47,39 +52,25 @@ int main(int argc, char *argv[]){
       octree.freePrereqArrays();
       octree.fillLUTs();
       octree.fillNeighborhoods();
+      if(!octree.normalsComputed){
+        octree.computeNormals(0.1*octree.width, 100);
+      }
       octree.computeVertexArray();
       octree.computeEdgeArray();
       octree.computeFaceArray();
-
-      partialTimer = clock() - partialTimer;
-      printf("OCTREE BUILD TOOK %f seconds.\n",((float) partialTimer)/CLOCKS_PER_SEC);
       cout<<"---------------------------------------------------"<<endl;
-      partialTimer = clock();
-
-      if(!octree.normalsComputed){
-        cout<<"COMPUTING NORMALS\n"<<endl;
-
-        octree.computeNormals();
-
-        partialTimer = clock() - partialTimer;
-        printf("COMPUTING NORMALS TOOK %f seconds.\n",((float) partialTimer)/CLOCKS_PER_SEC);
-        cout<<"---------------------------------------------------"<<endl;
-        partialTimer = clock();
-      }
 
       // cout<<"PERFORMING POISSON RECONSTRUCTION WITH OCTREE\n"<<endl;
-      //
+      // partialTimer = clock();
       // Poisson poisson = Poisson(&octree);
       // poisson.computeLUTs();
       // poisson.computeDivergenceVector();
-      // poisson.computeImplicitFunction();
-      // // poisson.marchingCubes();
-      //
-      // partialTimer = clock() - partialTimer;
-      // printf("POISSON RECONSTRUCTION TOOK %f seconds.\n",((float) partialTimer)/CLOCKS_PER_SEC);
+      // //poisson.computeImplicitFunction();
+      // //poisson.computeImplicitMagma();
+      // //poisson.computeImplicitCuSPSolver();
+      // //poisson.marchingCubes();
       // cout<<"---------------------------------------------------"<<endl;
-      // partialTimer = clock();
-
+      //
       // cout<<"WRITING DERIVED PLY FILES\n"<<endl;
       //
       // octree.copyNodesToHost();//this is only necessary for writeCenterPLY
@@ -87,13 +78,10 @@ int main(int argc, char *argv[]){
       // octree.writeEdgePLY();
       // octree.writeCenterPLY();
       // octree.writeNormalPLY();
-      //
-      // partialTimer = clock() - partialTimer;
-      // printf("WRITING PLY FILES TOOK %f seconds.\n",((float) partialTimer)/CLOCKS_PER_SEC);
       // cout<<"---------------------------------------------------"<<endl;
-
-      totalTimer = clock() - totalTimer;
-      printf("\nTOTAL TIME = %f seconds.\n\n",((float) totalTimer)/CLOCKS_PER_SEC);
+      //
+      // totalTimer = clock() - totalTimer;
+      // printf("\nTOTAL TIME = %f seconds.\n\n",((float) totalTimer)/CLOCKS_PER_SEC);
 
       return 0;
     }

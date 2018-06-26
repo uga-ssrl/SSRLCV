@@ -11,6 +11,8 @@
 #include <thrust/scan.h>
 #include <thrust/device_ptr.h>
 #include <thrust/copy.h>
+#include <cublas_v2.h>
+#include <cusolverDn.h>
 
 __constant__ int3 coordPlacementIdentity[8] = {
   {-1,-1,-1},
@@ -133,6 +135,9 @@ __global__ void fillFinestNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddre
 __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, Node* childNodeArray ,int numUniqueNodes);
 __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD, int numNodesAtDepth, float totalWidth);
 __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depthIndex, int* parentLUT, int* childLUT, int* numNeighbors, int childDepthIndex);
+
+__global__ void findNormalNeighbors(int numPoints, float3* points, Node* nodeArray, float* cMatrix);
+__global__ void estimateNormal(int currentPoint, int numNeighbors, float* s, float* vt, float3* normals);
 
 __global__ void findVertexOwners(Node* nodeArray, int numNodes, int depthIndex, int* vertexLUT, int* numVertices, int* ownerInidices, int* vertexPlacement);
 __global__ void fillUniqueVertexArray(Node* nodeArray, Vertex* vertexArray, int numVertices, int vertexIndex,int depthIndex, int depth, float width, int* vertexLUT, int* ownerInidices, int* vertexPlacement);
@@ -309,7 +314,7 @@ struct Octree{
   */
   //TODO implement this part of the pipeline
   //currently using plys that have normals
-  void computeNormals();
+  void computeNormals(float neighborDistance, int numNeighbors);
 
   void writeVertexPLY();
   void writeEdgePLY();

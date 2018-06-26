@@ -30,7 +30,7 @@ SRCb = lib_io_scalespace.c
 SRCc = lib_matching.c
 
 # Includes
-INCLUDES = -I. -I/usr/local/cuda/include
+INCLUDES = -I. -I/usr/local/cuda/include -I/usr/local/magma/include
 
 # Common flags
 COMMONFLAGS += ${INCLUDES}
@@ -39,9 +39,12 @@ CXXFLAGS += -Wall -std=c++11 -Iinclude -lcublas
 # compute_<#> and sm_<#> will need to change depending on the device
 # if this is not done you will receive a no kernel image is availabe error
 NVCCFLAGS += ${COMMONFLAGS}
-NVCCFLAGS += -std=c++11 -gencode=arch=compute_61,code=sm_61 -Iinclude -lcublas -lthrust
+NVCCFLAGS += -std=c++11 -gencode=arch=compute_61,code=sm_61 -Iinclude
 
-LIB_CUDA :=  -gencode=arch=compute_61,code=sm_61 -L/usr/local/cuda-9.1/lib64 -lcudart -lcublas
+LIB_CUDA :=  -L/usr/local/magma/lib -lmagma_sparse -lmagma \
+             -L/usr/local/cuda/lib64 -lcublas -lcudart -lcusparse \
+             -L/opt/openblas/lib -lopenblas
+
 
 SRCDIR = ./src
 OBJDIR = ./obj
