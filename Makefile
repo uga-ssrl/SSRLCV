@@ -42,7 +42,7 @@ NVCCFLAGS += ${COMMONFLAGS}
 NVCCFLAGS += -std=c++11 -gencode=arch=compute_61,code=sm_61 -Iinclude
 
 LIB_CUDA :=  -L/usr/local/magma/lib -lmagma_sparse -lmagma \
-             -L/usr/local/cuda/lib64 -lcublas -lcudart -lcusparse \
+             -L/usr/local/cuda/lib64 -lcublas -lcudart -lcusparse -lcusolver\
              -L/opt/openblas/lib -lopenblas
 
 

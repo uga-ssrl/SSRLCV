@@ -1,13 +1,10 @@
 #include "poisson.cuh"
 
-using namespace std;
-
 // Define this to turn on error checking
 #define CUDA_ERROR_CHECK
 
 #define CudaSafeCall( err ) __cudaSafeCall( err, __FILE__, __LINE__ )
 #define CudaCheckError()    __cudaCheckError( __FILE__, __LINE__ )
-
 
 inline void __cudaSafeCall(cudaError err, const char *file, const int line) {
 #ifdef CUDA_ERROR_CHECK
@@ -443,8 +440,8 @@ void Poisson::computeLUTs(){
   float3 currentCenter = this->octree->center;
   float3 tempCenter = {0.0f,0.0f,0.0f};
   int pow2 = 1;
-  vector<float3> centers;
-  queue<float3> centersTemp;
+  std::vector<float3> centers;
+  std::queue<float3> centersTemp;
   centersTemp.push(currentCenter);
   for(int d = 0; d <= this->octree->depth; ++d){
     for(int i = 0; i < pow2; ++i){
@@ -549,7 +546,7 @@ void Poisson::computeDivergenceVector(){
   CudaSafeCall(cudaMemcpy(vectorField, vectorFieldDevice, numNodesAtDepth*sizeof(float3), cudaMemcpyDeviceToHost));
   for(int i = 0; i < numNodesAtDepth; ++i){
     if(vectorField[i].x != 0.0f && vectorField[i].y != 0.0f && vectorField[i].z != 0.0f){
-      cout<<vectorField[i].x<<","<<vectorField[i].y<<","<<vectorField[i].z<<endl;
+      std::cout<<vectorField[i].x<<","<<vectorField[i].y<<","<<vectorField[i].z<<std::endl;
     }
   }
   */
@@ -782,7 +779,7 @@ void Poisson::computeImplicitFunction(){
       CudaSafeCall(cudaMemcpy(&denominator, denominatorDevice, sizeof(float), cudaMemcpyDeviceToHost));
 
       beta /= denominator;
-      //cout<<beta<<endl;
+      //std::cout<<beta<<std::endl;
       if(denominator == 0.0f || .01 > sqrtf(beta)){
         printf("CONVERGED AT %d\n",i);
         break;
@@ -1181,7 +1178,7 @@ void Poisson::computeImplicitCuSPSolver(){
 
     cublasSaxpy(cublasHandle, m, &alpham1, d_Ax, 1, partialDivergence, 1);
     cublasStatus = cublasSdot(cublasHandle, m, partialDivergence, 1, partialDivergence, 1, &r1);
-    cout<<r1<<endl;
+    std::cout<<r1<<std::endl;
 
     k = 1;
 

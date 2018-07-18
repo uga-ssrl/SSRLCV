@@ -120,7 +120,8 @@ HELPER METHODS AND CUDA KERNELS
 that do not have return types, they
 alter parameters
 */
-
+__device__ __forceinline__ int floatToOrderedInt(float floatVal);
+__device__ __forceinline__ float orderedIntToFloat(int intVal);
 //prints the bits of any data type
 __device__ __host__ void printBits(size_t const size, void const * const ptr);
 
@@ -136,8 +137,11 @@ __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, 
 __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD, int numNodesAtDepth, float totalWidth);
 __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depthIndex, int* parentLUT, int* childLUT, int* numNeighbors, int childDepthIndex);
 
-__global__ void findNormalNeighbors(int numPoints, float3* points, Node* nodeArray, float* cMatrix);
-__global__ void estimateNormal(int currentPoint, int numNeighbors, float* s, float* vt, float3* normals);
+__global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, float maxDistance, Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors);
+__global__ void transposeFloatMatrix(int m, int n, float* matrix);
+__global__ void estimateNormal(int currentPoint, float* s, float* vt, float3* normals);
+__global__ void checkForAbiguity(int numPoints, int numCameras, float3* normals, float3* points, float3* cameraPositions, bool* ambiguous);
+__global__ void reorient(int numPoints, int* numNeighbors, int maxNeighbors, float3* normals, int* neighborIndices, bool* ambiguous, bool* ambiguityExists);
 
 __global__ void findVertexOwners(Node* nodeArray, int numNodes, int depthIndex, int* vertexLUT, int* numVertices, int* ownerInidices, int* vertexPlacement);
 __global__ void fillUniqueVertexArray(Node* nodeArray, Vertex* vertexArray, int numVertices, int vertexIndex,int depthIndex, int depth, float width, int* vertexLUT, int* ownerInidices, int* vertexPlacement);
@@ -314,7 +318,7 @@ struct Octree{
   */
   //TODO implement this part of the pipeline
   //currently using plys that have normals
-  void computeNormals(float neighborDistance, int numNeighbors);
+  void computeNormals(float neighborDistance);
 
   void writeVertexPLY();
   void writeEdgePLY();

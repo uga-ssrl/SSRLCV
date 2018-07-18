@@ -1,7 +1,5 @@
 #include "octree.cuh"
 
-using namespace std;
-
 // Define this to turn on error checking
 #define CUDA_ERROR_CHECK
 
@@ -108,6 +106,13 @@ struct is_not_neg{
   }
 };
 
+__device__ __forceinline__ int floatToOrderedInt(float floatVal){
+ int intVal = __float_as_int( floatVal );
+ return (intVal >= 0 ) ? intVal : intVal ^ 0x7FFFFFFF;
+}
+__device__ __forceinline__ float orderedIntToFloat(int intVal){
+ return __int_as_float( (intVal >= 0) ? intVal : intVal ^ 0x7FFFFFFF);
+}
 __device__ __host__ void printBits(size_t const size, void const * const ptr){
   unsigned char *b = (unsigned char*) ptr;
   unsigned char byte;
@@ -330,11 +335,138 @@ __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depth
   }
 }
 
-__global__ void findNormalNeighbors(int numPoints, float3* points, Node* nodeArray, float* cMatrix){
-
+__global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, float maxDistance, Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors){
+  int blockID = blockIdx.y * gridDim.x + blockIdx.x;
+  if(blockID < numNodesAtDepth){
+    float3 centroid = {0.0f,0.0f,0.0f};
+    int n = 0;
+    int regDepthIndex = depthIndex;
+    int numPointsInNode = nodeArray[blockID + regDepthIndex].numPoints;
+    if(threadIdx.x < numPointsInNode){
+      int neighbor = -1;
+      int regPointIndex = nodeArray[blockID + regDepthIndex].pointIndex;
+      float3 coord = points[regPointIndex + threadIdx.x];
+      float3 neighborCoord;
+      float regDistanceSq = maxDistance*maxDistance;
+      for(int neigh = 0; neigh < 27; ++neigh){
+        neighbor = nodeArray[blockID + regDepthIndex].neighbors[neigh];
+        if(neighbor != -1){
+          int numPointsInNeighbor = nodeArray[neighbor].numPoints;
+          int regNNPointIndex = nodeArray[neighbor].pointIndex;
+          for(int p = 0; p < numPointsInNeighbor; ++p){
+            neighborCoord = points[regNNPointIndex + p];
+            if(regDistanceSq > ((coord.x - neighborCoord.x)*(coord.x - neighborCoord.x)) +
+            ((coord.y - neighborCoord.y)*(coord.y - neighborCoord.y)) +
+            ((coord.z - neighborCoord.z)*(coord.z - neighborCoord.z))){
+              neighborIndices[(regPointIndex + threadIdx.x)*maxNeighbors + n] = regNNPointIndex + p;
+              cMatrix[(regPointIndex + threadIdx.x)*maxNeighbors*3 + (n*3)] = neighborCoord.x;
+              cMatrix[(regPointIndex + threadIdx.x)*maxNeighbors*3 + (n*3 + 1)] = neighborCoord.y;
+              cMatrix[(regPointIndex + threadIdx.x)*maxNeighbors*3 + (n*3 + 2)] = neighborCoord.z;
+              //calculate centroid
+              centroid = {centroid.x + neighborCoord.x, centroid.y + neighborCoord.y, centroid.z + neighborCoord.z};
+              ++n;
+            }
+          }
+        }
+      }
+      numNeighbors[regPointIndex + threadIdx.x] = n;
+      centroid = {centroid.x/n, centroid.y/n, centroid.z/n};
+      for(int np = 0; np < n; ++np){
+        //calculate cMatrix
+        cMatrix[(regPointIndex + threadIdx.x)*maxNeighbors*3 + (np*3)] -= centroid.x;
+        cMatrix[(regPointIndex + threadIdx.x)*maxNeighbors*3 + (np*3 + 1)] -= centroid.y;
+        cMatrix[(regPointIndex + threadIdx.x)*maxNeighbors*3 + (np*3 + 2)] -= centroid.z;
+      }
+    }
+  }
 }
-__global__ void estimateNormal(int currentPoint, int numNeighbors, float* s, float* vt, float3* normals){
-
+__global__ void transposeFloatMatrix(int m, int n, float* matrix){
+  int globalID = blockIdx.x * blockDim.x + threadIdx.x;
+  if(globalID < m*n){
+    int2 regLocation = {globalID/n,globalID%n};
+    float regPastValue = matrix[globalID];
+    __syncthreads();
+    matrix[regLocation.y*m + regLocation.x] = regPastValue;
+  }
+}
+__global__ void estimateNormal(int currentPoint, float* vt, float3* normals){
+  int regCurrentPoint = currentPoint;
+  __shared__ float3 normal;
+  normal = {0.0f,0.0f,0.0f};
+  __syncthreads();
+  if(threadIdx.x == 0){
+    normal.x = vt[1]*vt[5] - vt[2]*vt[4];
+  }
+  else if(threadIdx.x == 1){
+    normal.y = vt[2]*vt[3] - vt[0]*vt[5];
+  }
+  else{
+    normal.z = vt[0]*vt[4] - vt[1]*vt[3];
+  }
+  __syncthreads();
+  normals[regCurrentPoint] = normal;
+}
+__global__ void checkForAbiguity(int numPoints, int numCameras, float3* normals, float3* points, float3* cameraPositions, bool* ambiguous){
+  int blockID = blockIdx.y * gridDim.x + blockIdx.x;
+  if(blockID < numPoints){
+    float3 regCameraPosition = cameraPositions[threadIdx.x];
+    float3 coord = points[blockID];
+    float3 norm = normals[blockID];
+    __shared__ int directionCheck;
+    directionCheck = 0;
+    __syncthreads();
+    coord = {regCameraPosition.x - coord.x,regCameraPosition.y - coord.y,regCameraPosition.z - coord.z};
+    float dot = (coord.x*norm.x) + (coord.y*norm.y) + (coord.z*norm.z);
+    if(dot < 0)directionCheck += -1;
+    else directionCheck += 1;
+    __syncthreads();
+    if(abs(directionCheck) == numCameras){
+      if(directionCheck > 0){
+        normals[blockID] = {-1.0f*norm.x,-1.0f*norm.y,-1.0f*norm.z};
+      }
+      ambiguous[blockID] = false;
+      printf("Hello\n");
+    }
+    else{
+      ambiguous[blockID] = true;
+    }
+  }
+}
+__global__ void reorient(int numPoints, int* numNeighbors, int maxNeighbors, float3* normals, int* neighborIndices, bool* ambiguous, bool* ambiguityExists){
+  int blockID = blockIdx.y * gridDim.x + blockIdx.x;
+  if(blockID < numPoints && ambiguous[blockID] && threadIdx.x < numNeighbors[blockID]){
+    __shared__ int2 directionCounter;
+    directionCounter = {0,0};
+    __syncthreads();
+    int regNumNeighbors = numNeighbors[blockID];
+    float3 norm = normals[blockID];
+    float3 neighNorm = {0.0f,0.0f,0.0f};
+    int regNeighborIndex = 0;
+    bool amb = true;
+    for(int np = threadIdx.x; np < regNumNeighbors; np += blockDim.x){
+      regNeighborIndex = neighborIndices[blockID*maxNeighbors + np];
+      //reorient based on neighbors that are oriented
+      if(ambiguous[regNeighborIndex]) continue;
+      else{
+        amb = false;
+        neighNorm = normals[regNeighborIndex];
+        if((norm.x*neighNorm.x)+(norm.y*neighNorm.y)+(norm.z*neighNorm.z) < 0){
+          ++directionCounter.x;
+        }
+        else{
+          ++directionCounter.y;
+        }
+      }
+    }
+    __syncthreads();
+    if(!amb){
+      ambiguous[blockID] = false;
+      if(directionCounter.x > directionCounter.y){
+        normals[blockID] = {-1.0f*norm.x,-1.0f*norm.y,-1.0f*norm.z};
+      }
+    }
+    else *ambiguityExists = true;
+  }
 }
 
 //vertex edge and face array kernels
@@ -514,18 +646,24 @@ Octree::~Octree(){
 }
 
 void Octree::parsePLY(){
-  cout<<this->pathToFile + " is being used as the ply"<<endl;
-	ifstream plystream(this->pathToFile);
-	string currentLine;
-  float minX = FLT_MAX, minY = FLT_MAX, minZ = FLT_MAX, maxX = -FLT_MAX, maxY = -FLT_MAX, maxZ = -FLT_MAX;
-  string temp = "";
+  std::cout<<this->pathToFile + " is being used as the ply"<<std::endl;
+	std::ifstream plystream(this->pathToFile);
+	std::string currentLine;
+  float minX = std::numeric_limits<float>::max(),
+  minY = std::numeric_limits<float>::max(),
+  minZ = std::numeric_limits<float>::max(),
+  maxX = std::numeric_limits<float>::min(),
+  maxY = std::numeric_limits<float>::min(),
+  maxZ = std::numeric_limits<float>::min();
+
+  std::string temp = "";
   bool headerIsDone = false;
   int currentPoint = 0;
 	if (plystream.is_open()) {
 		while (getline(plystream, currentLine)) {
-      istringstream stringBuffer = istringstream(currentLine);
+      std::istringstream stringBuffer = std::istringstream(currentLine);
       if(!headerIsDone){
-        if(currentLine.find("element vertex") != string::npos){
+        if(currentLine.find("element vertex") != std::string::npos){
           stringBuffer >> temp;
           stringBuffer >> temp;
           stringBuffer >> this->numPoints;
@@ -537,13 +675,14 @@ void Octree::parsePLY(){
           this->finestNodeKeys = new int[this->numPoints];
           this->pointNodeIndex = new int[this->numPoints];
         }
-        else if(currentLine.find("nx") != string::npos){
+        else if(currentLine.find("nx") != std::string::npos){
           this->normalsComputed = true;
+          std::cout<<"normals are precomputed"<<std::endl;
         }
-        else if(currentLine.find("blue") != string::npos){
+        else if(currentLine.find("blue") != std::string::npos){
           this->hasColor = true;
         }
-        else if(currentLine.find("end_header") != string::npos){
+        else if(currentLine.find("end_header") != std::string::npos){
           headerIsDone = true;
         }
         continue;
@@ -580,78 +719,59 @@ void Octree::parsePLY(){
           case 3:
             if(this->normalsComputed) normal.x = value;
             else if(this->hasColor) color.x = value;
+            else lineIsDone = true;
             ++index;
             break;
           case 4:
             if(this->normalsComputed) normal.y = value;
             else if(this->hasColor) color.y = value;
+            else lineIsDone = true;
             ++index;
             break;
           case 5:
             if(this->normalsComputed) normal.z = value;
-            else if(this->hasColor) color.z = value;
+            else if(this->hasColor){
+              color.z = value;
+              lineIsDone = true;
+            }
+            else lineIsDone = true;
             ++index;
             break;
           case 6:
             if(this->normalsComputed && this->hasColor){
               color.x = value;
             }
-            else{
-              lineIsDone = true;
-              this->points[currentPoint] = point;
-              this->normals[currentPoint] = normal;
-              this->colors[currentPoint] = color;
-              this->finestNodePointIndexes[currentPoint] = currentPoint;
-              this->finestNodeCenters[currentPoint] = {0.0f,0.0f,0.0f};
-              this->finestNodeKeys[currentPoint] = 0;
-              this->pointNodeIndex[currentPoint] = -1;
-            }
+            else lineIsDone = true;
             ++index;
             break;
           case 7:
             if(this->normalsComputed && this->hasColor){
                color.y = value;
-               ++index;
             }
-            else{
-              lineIsDone = true;
-              this->points[currentPoint] = point;
-              this->normals[currentPoint] = normal;
-              this->colors[currentPoint] = color;
-              this->finestNodePointIndexes[currentPoint] = currentPoint;
-              this->finestNodeCenters[currentPoint] = {0.0f,0.0f,0.0f};
-              this->finestNodeKeys[currentPoint] = 0;
-              this->pointNodeIndex[currentPoint] = -1;
-            }
+            else lineIsDone = true;
+            ++index;
             break;
           case 8:
             if(this->normalsComputed && this->hasColor){
               color.z = value;
-              ++index;
             }
-            else{
-              lineIsDone = true;
-              this->points[currentPoint] = point;
-              this->normals[currentPoint] = normal;
-              this->colors[currentPoint] = color;
-              this->finestNodePointIndexes[currentPoint] = currentPoint;
-              this->finestNodeCenters[currentPoint] = {0.0f,0.0f,0.0f};
-              this->finestNodeKeys[currentPoint] = 0;
-              this->pointNodeIndex[currentPoint] = -1;
-            }
+            lineIsDone = true;
+            ++index;
             break;
           default:
             lineIsDone = true;
-            this->points[currentPoint] = point;
-            this->normals[currentPoint] = normal;
-            this->colors[currentPoint] = color;
-            this->finestNodePointIndexes[currentPoint] = currentPoint;
-            this->finestNodeCenters[currentPoint] = {0.0f,0.0f,0.0f};
-            this->finestNodeKeys[currentPoint] = 0;
-            this->pointNodeIndex[currentPoint] = -1;
             break;
         }
-        if(lineIsDone) break;
+        if(lineIsDone){
+          this->points[currentPoint] = point;
+          this->normals[currentPoint] = normal;
+          this->colors[currentPoint] = color;
+          this->finestNodePointIndexes[currentPoint] = currentPoint;
+          this->finestNodeCenters[currentPoint] = {0.0f,0.0f,0.0f};
+          this->finestNodeKeys[currentPoint] = 0;
+          this->pointNodeIndex[currentPoint] = -1;
+          break;
+        }
       }
       ++currentPoint;
 		}
@@ -682,12 +802,12 @@ void Octree::parsePLY(){
     printf("number of points = %d\n\n", this->numPoints);
 	}
 	else{
-    cout << "Unable to open: " + this->pathToFile<< endl;
+    std::cout << "Unable to open: " + this->pathToFile<< std::endl;
     exit(1);
   }
 }
 
-Octree::Octree(string pathToFile, int depth){
+Octree::Octree(std::string pathToFile, int depth){
   this->pathToFile = pathToFile;
   this->hasColor = false;
   this->normalsComputed = false;
@@ -714,8 +834,9 @@ void Octree::init_octree_gpu(){
   this->copyPointsToDevice();
   this->copyFinestNodeCentersToDevice();
   this->copyFinestNodeKeysToDevice();
-  this->copyNormalsToDevice();
-  this->copyColorsToDevice();
+  if(this->normalsComputed)  this->copyNormalsToDevice();
+  if(this->hasColor)  this->copyColorsToDevice();
+
 
   printf("octree initial allocation & base variable copy took %f seconds.\n",((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
@@ -732,7 +853,7 @@ void Octree::copyPointsToHost(){
     CudaSafeCall(cudaFree(this->pointsDevice));
   }
   else{
-    cout<<"WARNING - points already on host"<<endl;
+    std::cout<<"WARNING - points already on host"<<std::endl;
   }
 }
 void Octree::copyNormalsToDevice(){
@@ -747,7 +868,7 @@ void Octree::copyNormalsToHost(){
     CudaSafeCall(cudaFree(this->normalsDevice));
   }
   else{
-    cout<<"WARNING - normals already on host"<<endl;
+    std::cout<<"WARNING - normals already on host"<<std::endl;
   }
 }
 void Octree::copyColorsToDevice(){
@@ -762,7 +883,7 @@ void Octree::copyColorsToHost(){
     CudaSafeCall(cudaFree(this->colorsDevice));
   }
   else{
-    cout<<"WARNING - colors already on host"<<endl;
+    std::cout<<"WARNING - colors already on host"<<std::endl;
   }
 }
 
@@ -819,7 +940,7 @@ void Octree::copyPointNodeIndexesToHost(){
     CudaSafeCall(cudaFree(this->pointNodeIndexDevice));
   }
   else{
-    cout<<"WARNING - pointNodeIndices already on host"<<endl;
+    std::cout<<"WARNING - pointNodeIndices already on host"<<std::endl;
   }
 }
 void Octree::copyVerticesToDevice(){
@@ -834,7 +955,7 @@ void Octree::copyVerticesToHost(){
     CudaSafeCall(cudaFree(this->vertexArrayDevice));
   }
   else{
-    cout<<"WARNING - vertexArray already on host"<<endl;
+    std::cout<<"WARNING - vertexArray already on host"<<std::endl;
   }
 }
 void Octree::copyEdgesToDevice(){
@@ -849,7 +970,7 @@ void Octree::copyEdgesToHost(){
     CudaSafeCall(cudaFree(this->edgeArrayDevice));
   }
   else{
-    cout<<"WARNING - edgeArray already on host"<<endl;
+    std::cout<<"WARNING - edgeArray already on host"<<std::endl;
   }
 }
 void Octree::copyFacesToDevice(){
@@ -864,7 +985,7 @@ void Octree::copyFacesToHost(){
     CudaSafeCall(cudaFree(this->faceArrayDevice));
   }
   else{
-    cout<<"WARNING - faceArray already on host"<<endl;
+    std::cout<<"WARNING - faceArray already on host"<<std::endl;
   }
 }
 
@@ -935,13 +1056,18 @@ void Octree::prepareFinestUniquNodes(){
     CudaSafeCall(cudaMemcpy(this->normals, thrust::raw_pointer_cast(sortedNmls.data()), this->numPoints*sizeof(float3),cudaMemcpyDeviceToHost));
   }
 
-  CudaSafeCall(cudaFree(this->pointsDevice));
-  this->pointsDeviceReady = false;
-  CudaSafeCall(cudaFree(this->normalsDevice));
-  this->normalsDeviceReady = false;
-  CudaSafeCall(cudaFree(this->colorsDevice));
-  this->colorsDeviceReady = false;
-
+  if(this->pointsDeviceReady){
+    CudaSafeCall(cudaFree(this->pointsDevice));
+    this->pointsDeviceReady = false;
+  }
+  if(this->normalsDeviceReady){
+    CudaSafeCall(cudaFree(this->normalsDevice));
+    this->normalsDeviceReady = false;
+  }
+  if(this->colorsDeviceReady){
+    CudaSafeCall(cudaFree(this->colorsDevice));
+    this->colorsDeviceReady = false;
+  }
 
   //TODO OPTIMIZE THIS PORTION
   //COMPACT DATA
@@ -952,6 +1078,10 @@ void Octree::prepareFinestUniquNodes(){
 
   bool foundFirst = false;
   int numUniqueNodes = 0;
+  // for(int i = 0; i < this->numPoints; ++i){
+  //   printf("%d, {%f,%f,%f} ",i,this->points[i].x,this->points[i].y,this->points[i].z);
+  //   printBits(sizeof(int), &this->finestNodeKeys[i]);
+  // }
   while(numUniqueNodes != this->numPoints || numUniqueNodes == 0){
     if(this->finestNodeKeys[numUniqueNodes] == *new_end.first){
       if(foundFirst) break;
@@ -1045,7 +1175,7 @@ void Octree::createFinalNodeArray(){
     CudaSafeCall(cudaMemcpy(nodeAddressesHost, nodeAddressesDevice, numUniqueNodes* sizeof(int), cudaMemcpyDeviceToHost));
 
     int numNodesAtDepth = (d > 0) ? nodeAddressesHost[numUniqueNodes - 1] + 8: 1;
-    //cout<<"NUM NODES|UNIQUE NODES AT DEPTH "<<d<<" = "<<numNodesAtDepth<<"|"<<numUniqueNodes<<endl;
+    //std::cout<<"NUM NODES|UNIQUE NODES AT DEPTH "<<d<<" = "<<numNodesAtDepth<<"|"<<numUniqueNodes<<std::endl;
     delete[] nodeAddressesHost;
 
     CudaSafeCall(cudaMalloc((void**)&nodeArray2D[this->depth - d], numNodesAtDepth* sizeof(Node)));
@@ -1112,39 +1242,39 @@ void Octree::createFinalNodeArray(){
 }
 
 void Octree::printLUTs(){
-  cout<<"\nPARENT LUT"<<endl;
+  std::cout<<"\nPARENT LUT"<<std::endl;
   for(int row = 0; row <  8; ++row){
     for(int col = 0; col < 27; ++col){
-      cout<<this->parentLUT[row][col]<<" ";
+      std::cout<<this->parentLUT[row][col]<<" ";
     }
-    cout<<endl;
+    std::cout<<std::endl;
   }
-  cout<<"\nCHILD LUT"<<endl;
+  std::cout<<"\nCHILD LUT"<<std::endl;
   for(int row = 0; row <  8; ++row){
     for(int col = 0; col < 27; ++col){
-      cout<<this->childLUT[row][col]<<" ";
+      std::cout<<this->childLUT[row][col]<<" ";
     }
-    cout<<endl;
+    std::cout<<std::endl;
   }
-  cout<<"\nVERTEX LUT"<<endl;
+  std::cout<<"\nVERTEX LUT"<<std::endl;
   for(int row = 0; row <  8; ++row){
     for(int col = 0; col < 7; ++col){
-      cout<<this->vertexLUT[row][col]<<" ";
+      std::cout<<this->vertexLUT[row][col]<<" ";
     }
-    cout<<endl;
+    std::cout<<std::endl;
   }
-  cout<<"\nEDGE LUT"<<endl;
+  std::cout<<"\nEDGE LUT"<<std::endl;
   for(int row = 0; row <  12; ++row){
     for(int col = 0; col < 3; ++col){
-      cout<<this->edgeLUT[row][col]<<" ";
+      std::cout<<this->edgeLUT[row][col]<<" ";
     }
-    cout<<endl;
+    std::cout<<std::endl;
   }
-  cout<<"\nFACE LUT"<<endl;
+  std::cout<<"\nFACE LUT"<<std::endl;
   for(int row = 0; row <  6; ++row){
-    cout<<this->faceLUT[row]<<" ";
+    std::cout<<this->faceLUT[row]<<" ";
   }
-  cout<<endl<<endl;
+  std::cout<<std::endl<<std::endl;
 }
 void Octree::fillLUTs(){
   clock_t cudatimer;
@@ -1341,7 +1471,7 @@ void Octree::computeVertexArray(){
     CudaCheckError();
     CudaSafeCall(cudaMemcpy(&numVertices, atomicCounter, sizeof(int), cudaMemcpyDeviceToHost));
     if(i == this->depth  && numVertices - prevCount != 8){
-      cout<<"ERROR GENERATING VERTICES, vertices at depth 0 != 8 -> "<<numVertices - prevCount<<endl;
+      std::cout<<"ERROR GENERATING VERTICES, vertices at depth 0 != 8 -> "<<numVertices - prevCount<<std::endl;
       exit(-1);
     }
 
@@ -1472,7 +1602,7 @@ void Octree::computeEdgeArray(){
     CudaCheckError();
     CudaSafeCall(cudaMemcpy(&numEdges, atomicCounter, sizeof(int), cudaMemcpyDeviceToHost));
     if(i == this->depth  && numEdges - prevCount != 12){
-      cout<<"ERROR GENERATING EDGES, edges at depth 0 != 12 -> "<<numEdges - prevCount<<endl;
+      std::cout<<"ERROR GENERATING EDGES, edges at depth 0 != 12 -> "<<numEdges - prevCount<<std::endl;
       exit(-1);
     }
 
@@ -1603,7 +1733,7 @@ void Octree::computeFaceArray(){
     CudaCheckError();
     CudaSafeCall(cudaMemcpy(&numFaces, atomicCounter, sizeof(int), cudaMemcpyDeviceToHost));
     if(i == this->depth  && numFaces - prevCount != 6){
-      cout<<"ERROR GENERATING FACES, faces at depth 0 != 6 -> "<<numFaces - prevCount<<endl;
+      std::cout<<"ERROR GENERATING FACES, faces at depth 0 != 6 -> "<<numFaces - prevCount<<std::endl;
       exit(-1);
     }
 
@@ -1709,7 +1839,7 @@ void Octree::checkForGeneralNodeErrors(){
       }
       if(this->finalNodeArray[i].children[c] == 0 &&
         this->finalNodeArray[i].depth != this->depth - 1){
-        cout<<"NODE THAT IS NOT AT 2nd TO FINEST DEPTH HAS A CHILD WITH INDEX 0 IN FINEST DEPTH"<<endl;
+        std::cout<<"NODE THAT IS NOT AT 2nd TO FINEST DEPTH HAS A CHILD WITH INDEX 0 IN FINEST DEPTH"<<std::endl;
       }
     }
     if(this->finalNodeArray[i].numPoints == 0){
@@ -1725,12 +1855,12 @@ void Octree::checkForGeneralNodeErrors(){
     }
     if(this->finalNodeArray[i].depth == 0){
       if(this->finalNodeArray[i].numFinestChildren < this->numFinestUniqueNodes){
-        cout<<"DEPTH 0 DOES NOT INCLUDE ALL FINEST UNIQUE NODES "<<this->finalNodeArray[i].numFinestChildren<<",";
-        cout<<this->numFinestUniqueNodes<<", NUM FULL FINEST NODES SHOULD BE "<<this->depthIndex[1]<<endl;
+        std::cout<<"DEPTH 0 DOES NOT INCLUDE ALL FINEST UNIQUE NODES "<<this->finalNodeArray[i].numFinestChildren<<",";
+        std::cout<<this->numFinestUniqueNodes<<", NUM FULL FINEST NODES SHOULD BE "<<this->depthIndex[1]<<std::endl;
         exit(-1);
       }
       if(this->finalNodeArray[i].numPoints != this->numPoints){
-        cout<<"DEPTH 0 DOES NOT CONTAIN ALL POINTS "<<this->finalNodeArray[i].numPoints<<","<<this->numPoints<<endl;
+        std::cout<<"DEPTH 0 DOES NOT CONTAIN ALL POINTS "<<this->finalNodeArray[i].numPoints<<","<<this->numPoints<<std::endl;
         exit(-1);
       }
     }
@@ -1781,87 +1911,269 @@ void Octree::checkForGeneralNodeErrors(){
     error = true;
   }
   if(numSiblingParents > 0){
-    cout<<"ERROR "<<numSiblingParents<<" NODES THINK THEIR PARENT IS IN THE SAME DEPTH AS THEMSELVES"<<endl;
+    std::cout<<"ERROR "<<numSiblingParents<<" NODES THINK THEIR PARENT IS IN THE SAME DEPTH AS THEMSELVES"<<std::endl;
     error = true;
   }
   if(numChildNeighbors > 0){
-    cout<<"ERROR "<<numChildNeighbors<<" NODES WITH SIBLINGS AT HIGHER DEPTH"<<endl;
+    std::cout<<"ERROR "<<numChildNeighbors<<" NODES WITH SIBLINGS AT HIGHER DEPTH"<<std::endl;
     error = true;
   }
   if(numParentNeighbors > 0){
-    cout<<"ERROR "<<numParentNeighbors<<" NODES WITH SIBLINGS AT LOWER DEPTH"<<endl;
+    std::cout<<"ERROR "<<numParentNeighbors<<" NODES WITH SIBLINGS AT LOWER DEPTH"<<std::endl;
     error = true;
   }
   if(numFuckedNodes > 0){
-    cout<<numFuckedNodes<<" ERROR IN NODE CONCATENATION OR GENERATION"<<endl;
+    std::cout<<numFuckedNodes<<" ERROR IN NODE CONCATENATION OR GENERATION"<<std::endl;
     error = true;
   }
   if(orphanNodes > 0){
-    cout<<orphanNodes<<" ERROR THERE ARE ORPHAN NODES"<<endl;
+    std::cout<<orphanNodes<<" ERROR THERE ARE ORPHAN NODES"<<std::endl;
     error = true;
   }
   if(nodesThatCantFindChildren > 0){
-    cout<<"ERROR "<<nodesThatCantFindChildren<<" PARENTS WITHOUT CHILDREN"<<endl;
+    std::cout<<"ERROR "<<nodesThatCantFindChildren<<" PARENTS WITHOUT CHILDREN"<<std::endl;
     error = true;
   }
   if(numVerticesMissing > 0){
-    cout<<"ERROR "<<numVerticesMissing<<" VERTICES MISSING"<<endl;
+    std::cout<<"ERROR "<<numVerticesMissing<<" VERTICES MISSING"<<std::endl;
     error = true;
   }
   if(numEgesMissing > 0){
-    cout<<"ERROR "<<numEgesMissing<<" EDGES MISSING"<<endl;
+    std::cout<<"ERROR "<<numEgesMissing<<" EDGES MISSING"<<std::endl;
     error = true;
   }
   if(numFacesMissing > 0){
-    cout<<"ERROR "<<numFacesMissing<<" FACES MISSING"<<endl;
+    std::cout<<"ERROR "<<numFacesMissing<<" FACES MISSING"<<std::endl;
     error = true;
   }
   if(error) exit(-1);
-  else cout<<"NO ERRORS DETECTED IN OCTREE"<<endl;
-  cout<<"NODES WITHOUT POINTS = "<<noPoints<<endl;
-  cout<<"NODES WITH POINTS = "<<this->totalNodes - noPoints<<endl<<endl;
+  else std::cout<<"NO ERRORS DETECTED IN OCTREE"<<std::endl;
+  std::cout<<"NODES WITHOUT POINTS = "<<noPoints<<std::endl;
+  std::cout<<"NODES WITH POINTS = "<<this->totalNodes - noPoints<<std::endl<<std::endl;
 
   printf("octree checkForErrors took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
-void Octree::computeNormals(float neighborDistance, int numNeighbors){
+//TODO make camera parameter acquisition dynamic and not hard coded
+void Octree::computeNormals(float neighborDistance){
+  std::cout<<"\n";
   clock_t cudatimer;
   cudatimer = clock();
-  /*north korean mountain range camera parameters*/
-  const float3 position1 = {0.0f,5.0f, 0.0f};
-  const float3 position2 = {0.868240888335,4.92403876506, 0.0f};
-  const float3 direction1 = {0.0f,1.0f, 0.0f};
-  const float3 direction2 = {0.173648177667,0.984807753012, 0.0f};
 
+  int numNeighbors = 0;
+  if(this->colorsDeviceReady) this->copyColorsToHost();
   if(!this->pointsDeviceReady) this->copyPointsToDevice();
+  this->copyNodesToHost();
+  int depthIndex = 0;
+  int numNodesAtDepth = 0;
 
-  uint size = this->numPoints*numNeighbors;
+  for(int i = 0; i < this->depth; ++i){
+    if(this->finalNodeArray[this->depthIndex[i]].width > neighborDistance){
+      depthIndex = this->depthIndex[i];
+      numNodesAtDepth = this->depthIndex[i + 1] - depthIndex;
+      break;
+    }
+  }
+  int currentNumNeighbors = 0;
+  int currentNeighborIndex = -1;
+  int maxPointsInOneNode= 0;
+  for(int i = depthIndex; i < depthIndex + numNodesAtDepth; ++i){
+    currentNumNeighbors = 0;
+    if(this->finalNodeArray[i].numPoints > maxPointsInOneNode){
+      maxPointsInOneNode = this->finalNodeArray[i].numPoints;
+    }
+    for(int n = 0; n < 27; ++n){
+      currentNeighborIndex = this->finalNodeArray[i].neighbors[n];
+      if(currentNeighborIndex != -1){
+        currentNumNeighbors += this->finalNodeArray[currentNeighborIndex].numPoints;
+      }
+    }
+    if(numNeighbors < currentNumNeighbors){
+      numNeighbors = currentNumNeighbors;
+    }
+  }
+  if(maxPointsInOneNode > 1024){
+    std::cout<<"ERROR max neighbors = "<<numNeighbors<<" > 1024...please reduce neighbor distance and run again"<<std::endl;
+    exit(-1);
+  }
+
+  std::cout<<"Continuing with "<<maxPointsInOneNode<<" maxNeighborsInOneNode"<<std::endl;
+  std::cout<<"Continuing with "<<numNeighbors<<" maxPossibleNeighbors"<<std::endl;
+
+  /*north korean mountain range camera parameters*/
+  float3 position1 = {0.0f,5.0f, 0.0f};
+  float3 position2 = {0.868240888335,4.92403876506, 0.0f};
+  float3 direction1 = {0.0f,1.0f, 0.0f};
+  float3 direction2 = {0.173648177667,0.984807753012, 0.0f};
+  float3 cameraPositions[2] = {position1, position2};
+  unsigned int numCameras = 2;
+  if(numCameras > 1024){
+    std::cout<<"ERROR numCameras > 1024"<<std::endl;
+    exit(-1);
+  }
+
+  uint size = this->numPoints*numNeighbors*3;
   float* cMatrixDevice;
+  int* neighborIndicesDevice;
+  int* numRealNeighborsDevice;
+  int* numRealNeighbors = new int[this->numPoints];
+
+  for(int i = 0; i < this->numPoints; ++i){
+    numRealNeighbors[i] = 0;
+  }
+  int* temp = new int[size/3];
+  float* temp2 = new float[size];
+  for(int i = 0; i < size; ++i){
+    if(i % 3 == 0){
+      temp[i/3] = -1;
+    }
+    temp2[i] = 0.0f;
+  }
+
+  CudaSafeCall(cudaMalloc((void**)&numRealNeighborsDevice, this->numPoints*sizeof(int)));
   CudaSafeCall(cudaMalloc((void**)&cMatrixDevice, size*sizeof(float)));
+  CudaSafeCall(cudaMalloc((void**)&neighborIndicesDevice, (size/3)*sizeof(int)));
+  CudaSafeCall(cudaMemcpy(numRealNeighborsDevice, numRealNeighbors, this->numPoints*sizeof(int), cudaMemcpyHostToDevice));
+  CudaSafeCall(cudaMemcpy(cMatrixDevice, temp2, size*sizeof(float), cudaMemcpyHostToDevice));
+  CudaSafeCall(cudaMemcpy(neighborIndicesDevice, temp, (size/3)*sizeof(int), cudaMemcpyHostToDevice));
+  delete[] temp;
+  delete[] temp2;
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-
-  findNormalNeighbors<<<grid, block>>>(this->numPoints, this->pointsDevice, this->finalNodeArrayDevice, cMatrixDevice);
+  block.x = maxPointsInOneNode;
+  if(numNodesAtDepth < 65535) grid.x = (unsigned int) numNodesAtDepth;
+  else{
+    grid.x = 65535;
+    while(grid.x*grid.y < numNodesAtDepth){
+      ++grid.y;
+    }
+    while(grid.x*grid.y > numNodesAtDepth){
+      --grid.x;
+    }
+    if(grid.x*grid.y < numNodesAtDepth){
+      ++grid.x;
+    }
+  }
+  findNormalNeighborsAndComputeCMatrix<<<grid, block>>>(numNodesAtDepth, depthIndex, numNeighbors, neighborDistance,
+    this->finalNodeArrayDevice, this->pointsDevice, cMatrixDevice, neighborIndicesDevice, numRealNeighborsDevice);
   CudaCheckError();
+  CudaSafeCall(cudaMemcpy(numRealNeighbors, numRealNeighborsDevice, this->numPoints*sizeof(int), cudaMemcpyDeviceToHost));
 
   this->copyNormalsToDevice();
 
-  float* singleCMatrixDevice;
-  CudaSafeCall(cudaMalloc((void**)&singleCMatrixDevice, numNeighbors*sizeof(float)));
+  cusolverDnHandle_t cusolverH = NULL;
+  cublasHandle_t cublasH = NULL;
+  cublasStatus_t cublas_status = CUBLAS_STATUS_SUCCESS;
+  cusolverStatus_t cusolver_status = CUSOLVER_STATUS_SUCCESS;
+
+  float *d_A, *d_S, *d_U, *d_VT, *d_work, *d_rwork;
+  int* devInfo;
+
+  cusolver_status = cusolverDnCreate(&cusolverH);
+  assert(CUSOLVER_STATUS_SUCCESS == cublas_status);
+
+  cublas_status = cublasCreate(&cublasH);
+  assert(CUBLAS_STATUS_SUCCESS == cublas_status);
+
+
+  int n = 3;
+  int m = 0;
+  int lwork = 0;
+
+  //TODO changed this to gesvdjBatched (this will enable doing multiple svds at once)
   for(int p = 0; p < this->numPoints; ++p){
-    CudaSafeCall(cudaMemcpy(singleCMatrixDevice, cMatrixDevice + (p*numNeighbors), numNeighbors*sizeof(float), cudaMemcpyDeviceToDevice));
-    //CUSOLVER SVD
+    m = numRealNeighbors[p];
+    lwork = 0;
+    if(m <= 1){
+      std::cout<<"ERROR...point has no neighbors but itself"<<std::endl;
+    }
+
+    CudaSafeCall(cudaMalloc((void**)&d_A, m*n*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&d_S, n*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&d_U, m*m*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&d_VT, n*n*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&devInfo, sizeof(int)));
+
+    CudaSafeCall(cudaMemcpy(d_A, cMatrixDevice + (p*numNeighbors*3), m*n*sizeof(float), cudaMemcpyDeviceToDevice));
+    transposeFloatMatrix<<<m*n,1>>>(m,n,d_A);
+    CudaCheckError();
+    cudaDeviceSynchronize();
+
+    //query working space of SVD
+    cusolver_status = cusolverDnSgesvd_bufferSize(cusolverH, m, n, &lwork);
+    assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
+
+    CudaSafeCall(cudaMalloc((void**)&d_work, lwork*sizeof(float)));
+    //SVD
+
+    cusolver_status = cusolverDnSgesvd(cusolverH, 'A', 'A', m, n,
+      d_A, m, d_S, d_U, m, d_VT, n, d_work, lwork, d_rwork, devInfo);
+    cudaDeviceSynchronize();
+    assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
+    CudaCheckError();
 
     //FIND 2 ROWS OF S WITH HEIGHEST VALUES
     //TAKE THOSE ROWS IN VT AND GET CROSS PRODUCT = NORMALS ESTIMATE
-    //estimateNormal<<<grid, block>>>(p, numNeighbors, d_s, d_vt, this->normalsDevice);
+    //TODO maybe find better way to cache this and not use only one block
+    estimateNormal<<<1, 3>>>(p, d_VT, this->normalsDevice);
+    CudaCheckError();
+    CudaSafeCall(cudaFree(d_A));
+    CudaSafeCall(cudaFree(d_S));
+    CudaSafeCall(cudaFree(d_U));
+    CudaSafeCall(cudaFree(d_VT));
+    CudaSafeCall(cudaFree(d_work));
+    CudaSafeCall(cudaFree(devInfo));
   }
+  std::cout<<"normals have been estimated by use of svd"<<std::endl;
+  if (cublasH) cublasDestroy(cublasH);
+  if (cusolverH) cusolverDnDestroy(cusolverH);
 
+  delete[] numRealNeighbors;
+  CudaSafeCall(cudaFree(cMatrixDevice));
+
+  float3* cameraPositionsDevice;
+  bool* ambiguityDevice;
+  CudaSafeCall(cudaMalloc((void**)&cameraPositionsDevice, 2*sizeof(float3)));
+  CudaSafeCall(cudaMalloc((void**)&ambiguityDevice, this->numPoints*sizeof(bool)));
+  CudaSafeCall(cudaMemcpy(cameraPositionsDevice, cameraPositions, numCameras*sizeof(float3), cudaMemcpyHostToDevice));
+
+
+
+  dim3 grid2 = {1,1,1};
   //THEN CHECK FOR AMBIGUITY
+  if(this->numPoints < 65535) grid2.x = (unsigned int) this->numPoints;
+  else{
+    grid2.x = 65535;
+    while(grid2.x*grid2.y < this->numPoints){
+      ++grid2.y;
+    }
+    while(grid2.x*grid2.y > this->numPoints){
+      --grid2.x;
+    }
+    if(grid2.x*grid2.y < this->numPoints){
+      ++grid2.x;
+    }
+  }
+  dim3 block2 = {numCameras,1,1};
+
   /*
   AMBIGUOUS if(dot((position1 - pi), ni) < 0 && (!dot((position2 - pi), ni) < 0))
   */
+  checkForAbiguity<<<grid2, block2>>>(this->numPoints, numCameras, this->normalsDevice,
+    this->pointsDevice, cameraPositionsDevice, ambiguityDevice);
+  CudaCheckError();
+  CudaSafeCall(cudaFree(cameraPositionsDevice));
+
+  bool* ambiguity = new bool[this->numPoints];
+  CudaSafeCall(cudaMemcpy(ambiguity, ambiguityDevice, this->numPoints*sizeof(bool), cudaMemcpyDeviceToHost));
+  int numAmbiguous = 0;
+  for(int i = 0; i < this->numPoints; ++i){
+    if(ambiguity[i]) ++numAmbiguous;
+  }
+  std::cout<<"numAmbiguous = "<<numAmbiguous<<"/"<<this->numPoints<<std::endl;
+  delete[] ambiguity;
+
 
   //FOR AMBIGUOUS NORMALS
   /*
@@ -1869,24 +2181,44 @@ void Octree::computeNormals(float neighborDistance, int numNeighbors){
   if ambiguous normal does not have non ambiguous neighbor normal it is not oriented this iteration
   */
   bool ambiguityExists = true;
-
+  bool* ambiguityExistsDevice;
+  CudaSafeCall(cudaMalloc((void**)&ambiguityExistsDevice, sizeof(bool)));
+  CudaSafeCall(cudaMemcpy(ambiguityExistsDevice, &ambiguityExists, sizeof(bool), cudaMemcpyHostToDevice));
+  if(numNeighbors > block.x){
+    block.x = 1024;
+  }
+  else{
+    block.x = numNeighbors;
+  }
+  int iteration = 0;
   while(ambiguityExists){
-
     ambiguityExists = false;
+
+    reorient<<<grid2, block>>>(this->numPoints, numRealNeighborsDevice, numNeighbors, this->normalsDevice,
+      neighborIndicesDevice, ambiguityDevice, ambiguityExistsDevice);
+    CudaCheckError();
+
+    //TODO figure out if you want to do multiple iterations before doing this
+    CudaSafeCall(cudaMemcpy(&ambiguityExists, ambiguityExistsDevice, sizeof(bool), cudaMemcpyDeviceToHost));
+    std::cout<<++iteration<<std::endl;
   }
 
-  CudaSafeCall(cudaFree(cMatrixDevice));
-  this->copyPointsToHost();
-  this->copyNormalsToHost();
+  CudaSafeCall(cudaFree(numRealNeighborsDevice));
+  CudaSafeCall(cudaFree(neighborIndicesDevice));
+  CudaSafeCall(cudaFree(ambiguityDevice));
+  CudaSafeCall(cudaFree(cameraPositionsDevice));
+
   this->normalsComputed = true;
   printf("octree computeNormals took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
+  this->copyPointsToHost();
+  this->copyNormalsToHost();
 }
 
 void Octree::writeVertexPLY(){
-  string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_vertices.ply";
-  ofstream plystream(newFile);
+  std::string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_vertices.ply";
+  std::ofstream plystream(newFile);
   if (plystream.is_open()) {
-    ostringstream stringBuffer = ostringstream("");
+    std::ostringstream stringBuffer = std::ostringstream("");
     stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
     stringBuffer << "element vertex ";
     stringBuffer <<  this->totalVertices;
@@ -1895,7 +2227,7 @@ void Octree::writeVertexPLY(){
     stringBuffer << "end_header\n";
     plystream << stringBuffer.str();
     for(int i = 0; i < this->totalVertices; ++i){
-      stringBuffer = ostringstream("");
+      stringBuffer = std::ostringstream("");
       stringBuffer << this->vertexArray[i].coord.x;
       stringBuffer << " ";
       stringBuffer << this->vertexArray[i].coord.y;
@@ -1910,18 +2242,18 @@ void Octree::writeVertexPLY(){
       stringBuffer << "\n";
       plystream << stringBuffer.str();
     }
-    cout<<newFile + " has been created.\n"<<endl;
+    std::cout<<newFile + " has been created.\n"<<std::endl;
   }
   else{
-    cout << "Unable to open: " + newFile<< endl;
+    std::cout << "Unable to open: " + newFile<< std::endl;
     exit(1);
   }
 }
 void Octree::writeEdgePLY(){
-  string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_edges.ply";
-  ofstream plystream(newFile);
+  std::string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_edges.ply";
+  std::ofstream plystream(newFile);
   if (plystream.is_open()) {
-    ostringstream stringBuffer = ostringstream("");
+    std::ostringstream stringBuffer = std::ostringstream("");
     stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
     stringBuffer << "element vertex ";
     stringBuffer <<  this->totalVertices;
@@ -1934,7 +2266,7 @@ void Octree::writeEdgePLY(){
     stringBuffer << "end_header\n";
     plystream << stringBuffer.str();
     for(int i = 0; i < this->totalVertices; ++i){
-      stringBuffer = ostringstream("");
+      stringBuffer = std::ostringstream("");
       stringBuffer << this->vertexArray[i].coord.x;
       stringBuffer << " ";
       stringBuffer << this->vertexArray[i].coord.y;
@@ -1950,7 +2282,7 @@ void Octree::writeEdgePLY(){
       plystream << stringBuffer.str();
     }
     for(int i = 0; i < this->totalEdges; ++i){
-      stringBuffer = ostringstream("");
+      stringBuffer = std::ostringstream("");
       stringBuffer << this->edgeArray[i].v1;
       stringBuffer << " ";
       stringBuffer << this->edgeArray[i].v2;
@@ -1963,18 +2295,18 @@ void Octree::writeEdgePLY(){
       stringBuffer << "\n";
       plystream << stringBuffer.str();
     }
-    cout<<newFile + " has been created.\n"<<endl;
+    std::cout<<newFile + " has been created.\n"<<std::endl;
   }
   else{
-    cout << "Unable to open: " + newFile<< endl;
+    std::cout << "Unable to open: " + newFile<< std::endl;
     exit(1);
   }
 }
 void Octree::writeCenterPLY(){
-  string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_centers.ply";
-  ofstream plystream(newFile);
+  std::string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_centers.ply";
+  std::ofstream plystream(newFile);
   if (plystream.is_open()) {
-    ostringstream stringBuffer = ostringstream("");
+    std::ostringstream stringBuffer = std::ostringstream("");
     stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
     stringBuffer << "element vertex ";
     stringBuffer <<  this->totalNodes;
@@ -1983,7 +2315,7 @@ void Octree::writeCenterPLY(){
     stringBuffer << "end_header\n";
     plystream << stringBuffer.str();
     for(int i = 0; i < this->totalNodes; ++i){
-      stringBuffer = ostringstream("");
+      stringBuffer = std::ostringstream("");
       stringBuffer << this->finalNodeArray[i].center.x;
       stringBuffer << " ";
       stringBuffer << this->finalNodeArray[i].center.y;
@@ -1998,18 +2330,18 @@ void Octree::writeCenterPLY(){
       stringBuffer << "\n";
       plystream << stringBuffer.str();
     }
-    cout<<newFile + " has been created.\n"<<endl;
+    std::cout<<newFile + " has been created.\n"<<std::endl;
   }
   else{
-    cout << "Unable to open: " + newFile<< endl;
+    std::cout << "Unable to open: " + newFile<< std::endl;
     exit(1);
   }
 }
 void Octree::writeNormalPLY(){
-  string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_normals.ply";
-	ofstream plystream(newFile);
+  std::string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_normals.ply";
+	std::ofstream plystream(newFile);
 	if (plystream.is_open()) {
-    ostringstream stringBuffer = ostringstream("");
+    std::ostringstream stringBuffer = std::ostringstream("");
     stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
     stringBuffer << "element vertex ";
     stringBuffer << this->numPoints;
@@ -2018,7 +2350,7 @@ void Octree::writeNormalPLY(){
     stringBuffer << "end_header\n";
     plystream << stringBuffer.str();
     for(int i = 0; i < this->numPoints; ++i){
-      stringBuffer = ostringstream("");
+      stringBuffer = std::ostringstream("");
       stringBuffer << this->points[i].x;
       stringBuffer << " ";
       stringBuffer << this->points[i].y;
@@ -2033,10 +2365,10 @@ void Octree::writeNormalPLY(){
       stringBuffer << "\n";
       plystream << stringBuffer.str();
     }
-    cout<<newFile + " has been created.\n"<<endl;
+    std::cout<<newFile + " has been created.\n"<<std::endl;
 	}
 	else{
-    cout << "Unable to open: " + newFile<< endl;
+    std::cout << "Unable to open: " + newFile<< std::endl;
     exit(1);
   }
 }
