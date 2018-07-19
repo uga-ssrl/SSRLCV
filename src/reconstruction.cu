@@ -71,7 +71,7 @@ int main(int argc, char *argv[]){
       //
       // octree.copyNodesToHost();//this is only necessary for writeCenterPLY
       // octree.writeVertexPLY();
-      // octree.writeEdgePLY();
+      octree.writeEdgePLY();
       // octree.writeCenterPLY();
       octree.writeNormalPLY();
       // std::cout<<"---------------------------------------------------"<<std::endl;

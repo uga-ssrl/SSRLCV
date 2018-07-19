@@ -139,7 +139,7 @@ __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depth
 
 __global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, float maxDistance, Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors);
 __global__ void transposeFloatMatrix(int m, int n, float* matrix);
-__global__ void estimateNormal(int currentPoint, float* s, float* vt, float3* normals);
+__global__ void setNormal(int currentPoint, float* s, float* vt, float3* normals);
 __global__ void checkForAbiguity(int numPoints, int numCameras, float3* normals, float3* points, float3* cameraPositions, bool* ambiguous);
 __global__ void reorient(int numPoints, int* numNeighbors, int maxNeighbors, float3* normals, int* neighborIndices, bool* ambiguous, bool* ambiguityExists);
 
