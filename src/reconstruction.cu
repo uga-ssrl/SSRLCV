@@ -49,7 +49,7 @@ int main(int argc, char *argv[]){
       octree.fillLUTs();
       octree.fillNeighborhoods();
       if(!octree.normalsComputed){
-        octree.computeNormals(octree.width*0.015);
+        octree.computeNormals();
       }
       octree.computeVertexArray();
       octree.computeEdgeArray();

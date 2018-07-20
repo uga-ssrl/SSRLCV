@@ -335,7 +335,8 @@ __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depth
   }
 }
 
-__global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, float maxDistance, Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors){
+//TODO reworking neighbor search will change this kernel
+__global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodesAtDepth){
     float3 centroid = {0.0f,0.0f,0.0f};
@@ -344,12 +345,17 @@ __global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int de
     int numPointsInNode = nodeArray[blockID + regDepthIndex].numPoints;
     if(threadIdx.x < numPointsInNode){
       int neighbor = -1;
+      int regMaxNeighbors = maxNeighbors;
       int regPointIndex = nodeArray[blockID + regDepthIndex].pointIndex;
       float3 coord = points[regPointIndex + threadIdx.x];
       float3 neighborCoord;
-      float regDistanceSq = maxDistance*maxDistance;
+      float currentDistanceSq = 0.0f;
+      float largestDistanceSq = 0.0f;
+      int indexOfFurthestNeighbor = -1;
       int regNNPointIndex = 0;
       int numPointsInNeighbor = 0;
+      float* distanceSq = new float[regMaxNeighbors];
+      for(int i = 0; i < regMaxNeighbors; ++i) distanceSq[i] = 0.0f;
       for(int neigh = 0; neigh < 27; ++neigh){
         neighbor = nodeArray[blockID + regDepthIndex].neighbors[neigh];
         if(neighbor != -1){
@@ -357,47 +363,50 @@ __global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int de
           regNNPointIndex = nodeArray[neighbor].pointIndex;
           for(int p = 0; p < numPointsInNeighbor; ++p){
             neighborCoord = points[regNNPointIndex + p];
-            if(regDistanceSq > ((coord.x - neighborCoord.x)*(coord.x - neighborCoord.x)) +
-            ((coord.y - neighborCoord.y)*(coord.y - neighborCoord.y)) +
-            ((coord.z - neighborCoord.z)*(coord.z - neighborCoord.z))){
-              neighborIndices[(regPointIndex + threadIdx.x)*maxNeighbors + n] = regNNPointIndex + p;
-              cMatrix[(regPointIndex + threadIdx.x)*maxNeighbors*3 + (n*3)] = neighborCoord.x;
-              cMatrix[(regPointIndex + threadIdx.x)*maxNeighbors*3 + (n*3 + 1)] = neighborCoord.y;
-              cMatrix[(regPointIndex + threadIdx.x)*maxNeighbors*3 + (n*3 + 2)] = neighborCoord.z;
-              //calculate centroid
-              centroid = {centroid.x + neighborCoord.x, centroid.y + neighborCoord.y, centroid.z + neighborCoord.z};
+            currentDistanceSq = ((coord.x - neighborCoord.x)*(coord.x - neighborCoord.x)) +
+              ((coord.y - neighborCoord.y)*(coord.y - neighborCoord.y)) +
+              ((coord.z - neighborCoord.z)*(coord.z - neighborCoord.z));
+            if(n == regMaxNeighbors && currentDistanceSq >= largestDistanceSq) continue;
+            if(n < regMaxNeighbors){
+              if(currentDistanceSq > largestDistanceSq){
+                largestDistanceSq = currentDistanceSq;
+                indexOfFurthestNeighbor = n;
+              }
+              distanceSq[n] = currentDistanceSq;
+              neighborIndices[(regPointIndex + threadIdx.x)*regMaxNeighbors + n] = regNNPointIndex + p;
+              cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (n*3)] = neighborCoord.x;
+              cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (n*3 + 1)] = neighborCoord.y;
+              cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (n*3 + 2)] = neighborCoord.z;
               ++n;
             }
-          }
-        }
-      }
-      if(n == 1){
-        for(int neigh = 0; neigh < 27; ++neigh){
-          if(neigh == 13) continue;
-          neighbor = nodeArray[blockID + regDepthIndex].neighbors[neigh];
-          if(neighbor != -1){
-            numPointsInNeighbor = nodeArray[neighbor].numPoints;
-            regNNPointIndex = nodeArray[neighbor].pointIndex;
-            for(int p = 0; p < numPointsInNeighbor; ++p){
-              neighborCoord = points[regNNPointIndex + p];
-              neighborIndices[(regPointIndex + threadIdx.x)*maxNeighbors + n] = regNNPointIndex + p;
-              cMatrix[(regPointIndex + threadIdx.x)*maxNeighbors*3 + (n*3)] = neighborCoord.x;
-              cMatrix[(regPointIndex + threadIdx.x)*maxNeighbors*3 + (n*3 + 1)] = neighborCoord.y;
-              cMatrix[(regPointIndex + threadIdx.x)*maxNeighbors*3 + (n*3 + 2)] = neighborCoord.z;
-              //calculate centroid
-              centroid = {centroid.x + neighborCoord.x, centroid.y + neighborCoord.y, centroid.z + neighborCoord.z};
-              ++n;
+            else{
+              neighborIndices[(regPointIndex + threadIdx.x)*regMaxNeighbors + indexOfFurthestNeighbor] = regNNPointIndex + p;
+              cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (indexOfFurthestNeighbor*3)] = neighborCoord.x;
+              cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (indexOfFurthestNeighbor*3 + 1)] = neighborCoord.y;
+              cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (indexOfFurthestNeighbor*3 + 2)] = neighborCoord.z;
+              distanceSq[indexOfFurthestNeighbor] = currentDistanceSq;
+              largestDistanceSq = 0.0f;
+              for(int i = 0; i < regMaxNeighbors; ++i){
+                if(distanceSq[i] > largestDistanceSq){
+                  largestDistanceSq = distanceSq[i];
+                  indexOfFurthestNeighbor = i;
+                }
+              }
             }
           }
         }
       }
       numNeighbors[regPointIndex + threadIdx.x] = n;
+      for(int np = 0; np < n; ++np){
+        centroid.x += cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (np*3)];
+        centroid.y += cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (np*3 + 1)];
+        centroid.z += cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (np*3 + 2)];
+      }
       centroid = {centroid.x/n, centroid.y/n, centroid.z/n};
       for(int np = 0; np < n; ++np){
-        //calculate cMatrix
-        cMatrix[(regPointIndex + threadIdx.x)*maxNeighbors*3 + (np*3)] -= centroid.x;
-        cMatrix[(regPointIndex + threadIdx.x)*maxNeighbors*3 + (np*3 + 1)] -= centroid.y;
-        cMatrix[(regPointIndex + threadIdx.x)*maxNeighbors*3 + (np*3 + 2)] -= centroid.z;
+        cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (np*3)] -= centroid.x;
+        cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (np*3 + 1)] -= centroid.y;
+        cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (np*3 + 2)] -= centroid.z;
       }
     }
   }
@@ -1968,7 +1977,8 @@ void Octree::checkForGeneralNodeErrors(){
 
 //TODO make camera parameter acquisition dynamic and not hard coded
 //TODO possibly use maxPointsInOneNode > 1024 && minPointsInOneNode <= 1 as an outlier check
-void Octree::computeNormals(float neighborDistance){
+//TODO will need to remove neighborDistance as a parameter
+void Octree::computeNormals(){
   std::cout<<"\n";
   clock_t cudatimer;
   cudatimer = clock();
@@ -1977,83 +1987,44 @@ void Octree::computeNormals(float neighborDistance){
   if(!this->pointsDeviceReady) this->copyPointsToDevice();
   this->copyNodesToHost();
 
-  int maxPossibleNeighbors = 0;
-  int depthIndex = 0;
   int numNodesAtDepth = 0;
   int currentNumNeighbors = 0;
   int currentNeighborIndex = -1;
-  int maxPointsInOneNode= 0;
-  bool foundGoodDepth = false;
-  int minPointsInOneNode = std::numeric_limits<int>::max();
+  int maxPointsInOneNode = 0;
   int minPossibleNeighbors = std::numeric_limits<int>::max();
-  int targetDepth = 0;
-  std::cout<<"Starting neighbor distance max "<<neighborDistance<<std::endl;
+  int depthIndex = 0;
 
-  while(!foundGoodDepth){
-    for(int i = 0; i <= this->depth; ++i){
-      if(this->finalNodeArray[this->depthIndex[i]].width > neighborDistance){
-        depthIndex = this->depthIndex[i];
-        if(i == this->depth) numNodesAtDepth = 1;
-        else{
-          numNodesAtDepth = this->depthIndex[i + 1] - depthIndex;
-        }
-        targetDepth = i;
-        break;
-      }
+  //TODO change this to kernel or something to get a good amount of neighbors
+
+  int currentDepth = 0;
+  for(int i = 0; i < this->totalNodes; ++i){
+    currentNumNeighbors = 0;
+    if(minPossibleNeighbors <= 10){
+      ++currentDepth;
+      i = this->depthIndex[currentDepth];
+      minPossibleNeighbors = std::numeric_limits<int>::max();
+      maxPointsInOneNode = 0;
     }
-    maxPointsInOneNode = 0;
-    maxPossibleNeighbors = 0;
-    minPossibleNeighbors = std::numeric_limits<int>::max();
-    minPointsInOneNode = std::numeric_limits<int>::max();
-    for(int i = depthIndex; i < depthIndex + numNodesAtDepth; ++i){
-      currentNumNeighbors = 0;
-      if(this->finalNodeArray[i].numPoints != 0){
-        if(this->finalNodeArray[i].numPoints > maxPointsInOneNode){
-          maxPointsInOneNode = this->finalNodeArray[i].numPoints;
-        }
-        if(this->finalNodeArray[i].numPoints < minPointsInOneNode){
-          minPointsInOneNode = this->finalNodeArray[i].numPoints;
-        }
-      }
-      else{
-        continue;
-      }
-      for(int n = 0; n < 27; ++n){
-        currentNeighborIndex = this->finalNodeArray[i].neighbors[n];
-        if(currentNeighborIndex != -1){
-          currentNumNeighbors += this->finalNodeArray[currentNeighborIndex].numPoints;
-        }
-      }
-      if(maxPossibleNeighbors < currentNumNeighbors){
-        maxPossibleNeighbors = currentNumNeighbors;
-      }
-      if(minPossibleNeighbors > currentNumNeighbors){
-        minPossibleNeighbors = currentNumNeighbors;
-      }
+    if(this->depth - this->finalNodeArray[i].depth != currentDepth){
+      if(minPossibleNeighbors >= 10) break;
+      ++currentDepth;
     }
-    if(maxPointsInOneNode > 1024 && minPossibleNeighbors <= 1){
-      std::cout<<"ERROR maxPointsInOneNode > 1024 && minPointsInOneNode <= 1"<<std::endl;
-      exit(-1);
+    if(maxPointsInOneNode < this->finalNodeArray[i].numPoints){
+      maxPointsInOneNode = this->finalNodeArray[i].numPoints;
     }
-    else if(maxPointsInOneNode > 1024){
-      neighborDistance -= this->finalNodeArray[this->depthIndex[targetDepth]].width;
-      while(neighborDistance < 0){
-        neighborDistance += .001*this->width;
-      }
+    for(int n = 0; n < 27; ++n){
+      currentNeighborIndex = this->finalNodeArray[i].neighbors[n];
+      if(currentNeighborIndex != -1) currentNumNeighbors += this->finalNodeArray[currentNeighborIndex].numPoints;
     }
-    else if(minPossibleNeighbors <= 1){
-      neighborDistance += this->finalNodeArray[this->depthIndex[targetDepth]].width;
-    }
-    else{
-      foundGoodDepth = true;
+    if(minPossibleNeighbors > currentNumNeighbors){
+      minPossibleNeighbors = currentNumNeighbors;
     }
   }
-
-  std::cout<<"Continuing with "<<neighborDistance<<" search width at depth "<<this->depth - targetDepth<<std::endl;
-  std::cout<<"Continuing with "<<maxPointsInOneNode<<" maxNeighborsInOneNode"<<std::endl;
-  std::cout<<"Continuing with "<<minPointsInOneNode<<" minPointsInOneNode"<<std::endl;
-  std::cout<<"Continuing with "<<maxPossibleNeighbors<<" maxPossibleNeighbors"<<std::endl;
-  std::cout<<"Continuing with "<<minPossibleNeighbors<<" minPossibleNeighbors"<<std::endl;
+  depthIndex = this->depthIndex[currentDepth];
+  numNodesAtDepth = this->depthIndex[currentDepth + 1] - depthIndex;
+  std::cout<<"Continuing with depth "<<this->depth - currentDepth<<" nodes starting at "<<depthIndex<<std::endl;
+  std::cout<<"Continuing with "<<minPossibleNeighbors<<" minPossibleNeighbors = maxAllowedNeighbors"<<std::endl;
+  std::cout<<"Continuing with "<<maxPointsInOneNode<<" maxPointsInOneNode"<<std::endl;
 
   /*north korean mountain range camera parameters*/
   float3 position1 = {10,12,999};//{0.0f,5.0f, 0.0f};
@@ -2067,7 +2038,7 @@ void Octree::computeNormals(float neighborDistance){
     exit(-1);
   }
 
-  uint size = this->numPoints*maxPossibleNeighbors*3;
+  uint size = this->numPoints*minPossibleNeighbors*3;
   float* cMatrixDevice;
   int* neighborIndicesDevice;
   int* numRealNeighborsDevice;
@@ -2110,7 +2081,7 @@ void Octree::computeNormals(float neighborDistance){
       ++grid.x;
     }
   }
-  findNormalNeighborsAndComputeCMatrix<<<grid, block>>>(numNodesAtDepth, depthIndex, maxPossibleNeighbors, neighborDistance,
+  findNormalNeighborsAndComputeCMatrix<<<grid, block>>>(numNodesAtDepth, depthIndex, minPossibleNeighbors,
     this->finalNodeArrayDevice, this->pointsDevice, cMatrixDevice, neighborIndicesDevice, numRealNeighborsDevice);
   CudaCheckError();
   CudaSafeCall(cudaMemcpy(numRealNeighbors, numRealNeighborsDevice, this->numPoints*sizeof(int), cudaMemcpyDeviceToHost));
@@ -2150,7 +2121,7 @@ void Octree::computeNormals(float neighborDistance){
     CudaSafeCall(cudaMalloc((void**)&d_VT, n*n*sizeof(float)));
     CudaSafeCall(cudaMalloc((void**)&devInfo, sizeof(int)));
 
-    CudaSafeCall(cudaMemcpy(d_A, cMatrixDevice + (p*maxPossibleNeighbors*3), m*n*sizeof(float), cudaMemcpyDeviceToDevice));
+    CudaSafeCall(cudaMemcpy(d_A, cMatrixDevice + (p*minPossibleNeighbors*3), m*n*sizeof(float), cudaMemcpyDeviceToDevice));
     transposeFloatMatrix<<<m*n,1>>>(m,n,d_A);
     cudaDeviceSynchronize();
     CudaCheckError();
@@ -2238,11 +2209,11 @@ void Octree::computeNormals(float neighborDistance){
   bool* ambiguityExistsDevice;
   CudaSafeCall(cudaMalloc((void**)&ambiguityExistsDevice, sizeof(bool)));
   CudaSafeCall(cudaMemcpy(ambiguityExistsDevice, &ambiguityExists, sizeof(bool), cudaMemcpyHostToDevice));
-  if(maxPossibleNeighbors > block.x){
+  if(minPossibleNeighbors > block.x){
     block.x = 1024;
   }
   else{
-    block.x = maxPossibleNeighbors;
+    block.x = minPossibleNeighbors;
   }
   int iteration = 0;
   while(ambiguityExists && iteration != numAmbiguous){
@@ -2252,7 +2223,7 @@ void Octree::computeNormals(float neighborDistance){
     }
     ambiguityExists = false;
 
-    reorient<<<grid2, block>>>(this->numPoints, numRealNeighborsDevice, maxPossibleNeighbors, this->normalsDevice,
+    reorient<<<grid2, block>>>(this->numPoints, numRealNeighborsDevice, minPossibleNeighbors, this->normalsDevice,
       neighborIndicesDevice, ambiguityDevice, ambiguityExistsDevice);
     CudaCheckError();
 

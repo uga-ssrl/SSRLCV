@@ -137,7 +137,7 @@ __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, 
 __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD, int numNodesAtDepth, float totalWidth);
 __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depthIndex, int* parentLUT, int* childLUT, int* numNeighbors, int childDepthIndex);
 
-__global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, float maxDistance, Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors);
+__global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors);
 __global__ void transposeFloatMatrix(int m, int n, float* matrix);
 __global__ void setNormal(int currentPoint, float* s, float* vt, float3* normals);
 __global__ void checkForAbiguity(int numPoints, int numCameras, float3* normals, float3* points, float3* cameraPositions, bool* ambiguous);
@@ -316,9 +316,7 @@ struct Octree{
   /*
   NORMAL CALCULATION METHODS
   */
-  //TODO implement this part of the pipeline
-  //currently using plys that have normals
-  void computeNormals(float neighborDistance);
+  void computeNormals();
 
   void writeVertexPLY();
   void writeEdgePLY();
