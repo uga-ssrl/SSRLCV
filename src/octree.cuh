@@ -316,7 +316,7 @@ struct Octree{
   /*
   NORMAL CALCULATION METHODS
   */
-  void computeNormals();
+  void computeNormals(int minNeighForNorms, int maxNeighbors);
 
   void writeVertexPLY();
   void writeEdgePLY();

@@ -29,7 +29,7 @@ inline void __cudaCheckError(const char *file, const int line) {
 
   // More careful checking. However, this will affect performance.
   // Comment away if needed.
-  //err = cudaDeviceSynchronize();
+  err = cudaDeviceSynchronize();
   if (cudaSuccess != err) {
     fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
     file, line, cudaGetErrorString(err));
@@ -343,18 +343,25 @@ __global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int de
     int n = 0;
     int regDepthIndex = depthIndex;
     int numPointsInNode = nodeArray[blockID + regDepthIndex].numPoints;
-    if(threadIdx.x < numPointsInNode){
-      int neighbor = -1;
-      int regMaxNeighbors = maxNeighbors;
-      int regPointIndex = nodeArray[blockID + regDepthIndex].pointIndex;
-      float3 coord = points[regPointIndex + threadIdx.x];
-      float3 neighborCoord;
-      float currentDistanceSq = 0.0f;
-      float largestDistanceSq = 0.0f;
-      int indexOfFurthestNeighbor = -1;
-      int regNNPointIndex = 0;
-      int numPointsInNeighbor = 0;
-      float* distanceSq = new float[regMaxNeighbors];
+    int neighbor = -1;
+    int regMaxNeighbors = maxNeighbors;
+    int regPointIndex = nodeArray[blockID + regDepthIndex].pointIndex;
+    float3 coord = {0.0f,0.0f,0.0f};
+    float3 neighborCoord = {0.0f,0.0f,0.0f};
+    float currentDistanceSq = 0.0f;
+    float largestDistanceSq = 0.0f;
+    int indexOfFurthestNeighbor = -1;
+    int regNNPointIndex = 0;
+    int numPointsInNeighbor = 0;
+    float* distanceSq = new float[regMaxNeighbors];
+    for(int threadID = threadIdx.x; threadID < numPointsInNode; threadID += blockDim.x){
+      n = 0;
+      coord = points[regPointIndex + threadID];
+      currentDistanceSq = 0.0f;
+      largestDistanceSq = 0.0f;
+      indexOfFurthestNeighbor = -1;
+      regNNPointIndex = 0;
+      numPointsInNeighbor = 0;
       for(int i = 0; i < regMaxNeighbors; ++i) distanceSq[i] = 0.0f;
       for(int neigh = 0; neigh < 27; ++neigh){
         neighbor = nodeArray[blockID + regDepthIndex].neighbors[neigh];
@@ -366,24 +373,24 @@ __global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int de
             currentDistanceSq = ((coord.x - neighborCoord.x)*(coord.x - neighborCoord.x)) +
               ((coord.y - neighborCoord.y)*(coord.y - neighborCoord.y)) +
               ((coord.z - neighborCoord.z)*(coord.z - neighborCoord.z));
-            if(n == regMaxNeighbors && currentDistanceSq >= largestDistanceSq) continue;
             if(n < regMaxNeighbors){
               if(currentDistanceSq > largestDistanceSq){
                 largestDistanceSq = currentDistanceSq;
                 indexOfFurthestNeighbor = n;
               }
               distanceSq[n] = currentDistanceSq;
-              neighborIndices[(regPointIndex + threadIdx.x)*regMaxNeighbors + n] = regNNPointIndex + p;
-              cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (n*3)] = neighborCoord.x;
-              cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (n*3 + 1)] = neighborCoord.y;
-              cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (n*3 + 2)] = neighborCoord.z;
+              neighborIndices[(regPointIndex + threadID)*regMaxNeighbors + n] = regNNPointIndex + p;
+              cMatrix[(regPointIndex + threadID)*regMaxNeighbors*3 + (n*3)] = neighborCoord.x;
+              cMatrix[(regPointIndex + threadID)*regMaxNeighbors*3 + (n*3 + 1)] = neighborCoord.y;
+              cMatrix[(regPointIndex + threadID)*regMaxNeighbors*3 + (n*3 + 2)] = neighborCoord.z;
               ++n;
             }
+            else if(n == regMaxNeighbors && currentDistanceSq >= largestDistanceSq) continue;
             else{
-              neighborIndices[(regPointIndex + threadIdx.x)*regMaxNeighbors + indexOfFurthestNeighbor] = regNNPointIndex + p;
-              cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (indexOfFurthestNeighbor*3)] = neighborCoord.x;
-              cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (indexOfFurthestNeighbor*3 + 1)] = neighborCoord.y;
-              cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (indexOfFurthestNeighbor*3 + 2)] = neighborCoord.z;
+              neighborIndices[(regPointIndex + threadID)*regMaxNeighbors + indexOfFurthestNeighbor] = regNNPointIndex + p;
+              cMatrix[(regPointIndex + threadID)*regMaxNeighbors*3 + (indexOfFurthestNeighbor*3)] = neighborCoord.x;
+              cMatrix[(regPointIndex + threadID)*regMaxNeighbors*3 + (indexOfFurthestNeighbor*3 + 1)] = neighborCoord.y;
+              cMatrix[(regPointIndex + threadID)*regMaxNeighbors*3 + (indexOfFurthestNeighbor*3 + 2)] = neighborCoord.z;
               distanceSq[indexOfFurthestNeighbor] = currentDistanceSq;
               largestDistanceSq = 0.0f;
               for(int i = 0; i < regMaxNeighbors; ++i){
@@ -396,17 +403,17 @@ __global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int de
           }
         }
       }
-      numNeighbors[regPointIndex + threadIdx.x] = n;
+      numNeighbors[regPointIndex + threadID] = n;
       for(int np = 0; np < n; ++np){
-        centroid.x += cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (np*3)];
-        centroid.y += cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (np*3 + 1)];
-        centroid.z += cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (np*3 + 2)];
+        centroid.x += cMatrix[(regPointIndex + threadID)*regMaxNeighbors*3 + (np*3)];
+        centroid.y += cMatrix[(regPointIndex + threadID)*regMaxNeighbors*3 + (np*3 + 1)];
+        centroid.z += cMatrix[(regPointIndex + threadID)*regMaxNeighbors*3 + (np*3 + 2)];
       }
       centroid = {centroid.x/n, centroid.y/n, centroid.z/n};
       for(int np = 0; np < n; ++np){
-        cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (np*3)] -= centroid.x;
-        cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (np*3 + 1)] -= centroid.y;
-        cMatrix[(regPointIndex + threadIdx.x)*regMaxNeighbors*3 + (np*3 + 2)] -= centroid.z;
+        cMatrix[(regPointIndex + threadID)*regMaxNeighbors*3 + (np*3)] -= centroid.x;
+        cMatrix[(regPointIndex + threadID)*regMaxNeighbors*3 + (np*3 + 1)] -= centroid.y;
+        cMatrix[(regPointIndex + threadID)*regMaxNeighbors*3 + (np*3 + 2)] -= centroid.z;
       }
     }
   }
@@ -1978,11 +1985,10 @@ void Octree::checkForGeneralNodeErrors(){
 //TODO make camera parameter acquisition dynamic and not hard coded
 //TODO possibly use maxPointsInOneNode > 1024 && minPointsInOneNode <= 1 as an outlier check
 //TODO will need to remove neighborDistance as a parameter
-void Octree::computeNormals(){
+void Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
   std::cout<<"\n";
   clock_t cudatimer;
   cudatimer = clock();
-
   if(this->colorsDeviceReady) this->copyColorsToHost();
   if(!this->pointsDeviceReady) this->copyPointsToDevice();
   this->copyNodesToHost();
@@ -1993,20 +1999,18 @@ void Octree::computeNormals(){
   int maxPointsInOneNode = 0;
   int minPossibleNeighbors = std::numeric_limits<int>::max();
   int depthIndex = 0;
-
-  //TODO change this to kernel or something to get a good amount of neighbors
-
   int currentDepth = 0;
+
   for(int i = 0; i < this->totalNodes; ++i){
     currentNumNeighbors = 0;
-    if(minPossibleNeighbors <= 10){
+    if(minPossibleNeighbors < minNeighForNorms){
       ++currentDepth;
       i = this->depthIndex[currentDepth];
       minPossibleNeighbors = std::numeric_limits<int>::max();
       maxPointsInOneNode = 0;
     }
     if(this->depth - this->finalNodeArray[i].depth != currentDepth){
-      if(minPossibleNeighbors >= 10) break;
+      if(minPossibleNeighbors >= minNeighForNorms) break;
       ++currentDepth;
     }
     if(maxPointsInOneNode < this->finalNodeArray[i].numPoints){
@@ -2022,15 +2026,14 @@ void Octree::computeNormals(){
   }
   depthIndex = this->depthIndex[currentDepth];
   numNodesAtDepth = this->depthIndex[currentDepth + 1] - depthIndex;
-  std::cout<<"Continuing with depth "<<this->depth - currentDepth<<" nodes starting at "<<depthIndex<<std::endl;
-  std::cout<<"Continuing with "<<minPossibleNeighbors<<" minPossibleNeighbors = maxAllowedNeighbors"<<std::endl;
+  std::cout<<"Continuing with depth "<<this->depth - currentDepth<<" nodes starting at "<<depthIndex<<" with "<<numNodesAtDepth<<" nodes"<<std::endl;
+  std::cout<<"Continuing with "<<minPossibleNeighbors<<" minPossibleNeighbors"<<std::endl;
+  std::cout<<"Continuing with "<<maxNeighbors<<" maxNeighborsAllowed"<<std::endl;
   std::cout<<"Continuing with "<<maxPointsInOneNode<<" maxPointsInOneNode"<<std::endl;
 
   /*north korean mountain range camera parameters*/
-  float3 position1 = {10,12,999};//{0.0f,5.0f, 0.0f};
-  float3 position2 = {-12,-15,967};//{0.868240888335,4.92403876506, 0.0f};
-  float3 direction1 = {0.0f,1.0f, 0.0f};
-  float3 direction2 = {0.173648177667,0.984807753012, 0.0f};
+  float3 position1 = {10.0f,12.0f,999.0f};//{0.0f,5.0f, 0.0f};
+  float3 position2 = {-12.0f,-15.0f,967.0f};//{0.868240888335,4.92403876506, 0.0f};
   float3 cameraPositions[2] = {position1, position2};
   unsigned int numCameras = 2;
   if(numCameras > 1024){
@@ -2038,7 +2041,7 @@ void Octree::computeNormals(){
     exit(-1);
   }
 
-  uint size = this->numPoints*minPossibleNeighbors*3;
+  uint size = this->numPoints*maxNeighbors*3;
   float* cMatrixDevice;
   int* neighborIndicesDevice;
   int* numRealNeighborsDevice;
@@ -2048,26 +2051,21 @@ void Octree::computeNormals(){
     numRealNeighbors[i] = 0;
   }
   int* temp = new int[size/3];
-  float* temp2 = new float[size];
-  for(int i = 0; i < size; ++i){
-    if(i % 3 == 0){
-      temp[i/3] = -1;
-    }
-    temp2[i] = 0.0f;
+  for(int i = 0; i < size/3; ++i){
+    temp[i] = -1;
   }
 
   CudaSafeCall(cudaMalloc((void**)&numRealNeighborsDevice, this->numPoints*sizeof(int)));
   CudaSafeCall(cudaMalloc((void**)&cMatrixDevice, size*sizeof(float)));
   CudaSafeCall(cudaMalloc((void**)&neighborIndicesDevice, (size/3)*sizeof(int)));
   CudaSafeCall(cudaMemcpy(numRealNeighborsDevice, numRealNeighbors, this->numPoints*sizeof(int), cudaMemcpyHostToDevice));
-  CudaSafeCall(cudaMemcpy(cMatrixDevice, temp2, size*sizeof(float), cudaMemcpyHostToDevice));
   CudaSafeCall(cudaMemcpy(neighborIndicesDevice, temp, (size/3)*sizeof(int), cudaMemcpyHostToDevice));
   delete[] temp;
-  delete[] temp2;
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  block.x = maxPointsInOneNode;
+
+  block.x = (maxPointsInOneNode > 1024) ? 1024 : maxPointsInOneNode;
   if(numNodesAtDepth < 65535) grid.x = (unsigned int) numNodesAtDepth;
   else{
     grid.x = 65535;
@@ -2081,11 +2079,10 @@ void Octree::computeNormals(){
       ++grid.x;
     }
   }
-  findNormalNeighborsAndComputeCMatrix<<<grid, block>>>(numNodesAtDepth, depthIndex, minPossibleNeighbors,
+  findNormalNeighborsAndComputeCMatrix<<<grid, block>>>(numNodesAtDepth, depthIndex, maxNeighbors,
     this->finalNodeArrayDevice, this->pointsDevice, cMatrixDevice, neighborIndicesDevice, numRealNeighborsDevice);
   CudaCheckError();
   CudaSafeCall(cudaMemcpy(numRealNeighbors, numRealNeighborsDevice, this->numPoints*sizeof(int), cudaMemcpyDeviceToHost));
-
   this->copyNormalsToDevice();
 
   cusolverDnHandle_t cusolverH = NULL;
@@ -2102,7 +2099,6 @@ void Octree::computeNormals(){
   cublas_status = cublasCreate(&cublasH);
   assert(CUBLAS_STATUS_SUCCESS == cublas_status);
 
-
   int n = 3;
   int m = 0;
   int lwork = 0;
@@ -2111,23 +2107,23 @@ void Octree::computeNormals(){
   for(int p = 0; p < this->numPoints; ++p){
     m = numRealNeighbors[p];
     lwork = 0;
-    if(m <= 1){
-      std::cout<<"ERROR...point has no neighbors but itself"<<std::endl;
+    if(m < minNeighForNorms){
+      std::cout<<"ERROR...point does not have enough neighbors (4 or more is necessary)"<<std::endl;
     }
-
     CudaSafeCall(cudaMalloc((void**)&d_A, m*n*sizeof(float)));
     CudaSafeCall(cudaMalloc((void**)&d_S, n*sizeof(float)));
     CudaSafeCall(cudaMalloc((void**)&d_U, m*m*sizeof(float)));
     CudaSafeCall(cudaMalloc((void**)&d_VT, n*n*sizeof(float)));
     CudaSafeCall(cudaMalloc((void**)&devInfo, sizeof(int)));
 
-    CudaSafeCall(cudaMemcpy(d_A, cMatrixDevice + (p*minPossibleNeighbors*3), m*n*sizeof(float), cudaMemcpyDeviceToDevice));
+    CudaSafeCall(cudaMemcpy(d_A, cMatrixDevice + (p*maxNeighbors*n), m*n*sizeof(float), cudaMemcpyDeviceToDevice));
     transposeFloatMatrix<<<m*n,1>>>(m,n,d_A);
     cudaDeviceSynchronize();
     CudaCheckError();
 
     //query working space of SVD
     cusolver_status = cusolverDnSgesvd_bufferSize(cusolverH, m, n, &lwork);
+
     assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
 
     CudaSafeCall(cudaMalloc((void**)&d_work, lwork*sizeof(float)));
@@ -2136,7 +2132,6 @@ void Octree::computeNormals(){
     cusolver_status = cusolverDnSgesvd(cusolverH, 'A', 'A', m, n,
       d_A, m, d_S, d_U, m, d_VT, n, d_work, lwork, d_rwork, devInfo);
     cudaDeviceSynchronize();
-
     assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
 
     //FIND 2 ROWS OF S WITH HEIGHEST VALUES
@@ -2166,7 +2161,6 @@ void Octree::computeNormals(){
   CudaSafeCall(cudaMemcpy(cameraPositionsDevice, cameraPositions, numCameras*sizeof(float3), cudaMemcpyHostToDevice));
 
   dim3 grid2 = {1,1,1};
-  //THEN CHECK FOR AMBIGUITY
   if(this->numPoints < 65535) grid2.x = (unsigned int) this->numPoints;
   else{
     grid2.x = 65535;
@@ -2182,9 +2176,6 @@ void Octree::computeNormals(){
   }
   dim3 block2 = {numCameras,1,1};
 
-  /*
-  AMBIGUOUS if(dot((position1 - pi), ni) < 0 && (!dot((position2 - pi), ni) < 0))
-  */
   checkForAbiguity<<<grid2, block2>>>(this->numPoints, numCameras, this->normalsDevice,
     this->pointsDevice, cameraPositionsDevice, ambiguityDevice);
   CudaCheckError();
@@ -2198,7 +2189,7 @@ void Octree::computeNormals(){
   }
   std::cout<<"numAmbiguous = "<<numAmbiguous<<"/"<<this->numPoints<<std::endl;
   delete[] ambiguity;
-
+  this->copyPointsToHost();
 
   //FOR AMBIGUOUS NORMALS
   /*
@@ -2209,12 +2200,8 @@ void Octree::computeNormals(){
   bool* ambiguityExistsDevice;
   CudaSafeCall(cudaMalloc((void**)&ambiguityExistsDevice, sizeof(bool)));
   CudaSafeCall(cudaMemcpy(ambiguityExistsDevice, &ambiguityExists, sizeof(bool), cudaMemcpyHostToDevice));
-  if(minPossibleNeighbors > block.x){
-    block.x = 1024;
-  }
-  else{
-    block.x = minPossibleNeighbors;
-  }
+
+  block.x = (maxNeighbors > 1024) ? 1024 : maxNeighbors;
   int iteration = 0;
   while(ambiguityExists && iteration != numAmbiguous){
     if(iteration == numAmbiguous){
@@ -2223,7 +2210,7 @@ void Octree::computeNormals(){
     }
     ambiguityExists = false;
 
-    reorient<<<grid2, block>>>(this->numPoints, numRealNeighborsDevice, minPossibleNeighbors, this->normalsDevice,
+    reorient<<<grid2, block>>>(this->numPoints, numRealNeighborsDevice, maxNeighbors, this->normalsDevice,
       neighborIndicesDevice, ambiguityDevice, ambiguityExistsDevice);
     CudaCheckError();
 
@@ -2239,7 +2226,6 @@ void Octree::computeNormals(){
 
   this->normalsComputed = true;
   printf("octree computeNormals took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
-  this->copyPointsToHost();
   this->copyNormalsToHost();
 }
 
