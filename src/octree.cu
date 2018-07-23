@@ -29,7 +29,7 @@ inline void __cudaCheckError(const char *file, const int line) {
 
   // More careful checking. However, this will affect performance.
   // Comment away if needed.
-  err = cudaDeviceSynchronize();
+  // err = cudaDeviceSynchronize();
   if (cudaSuccess != err) {
     fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
     file, line, cudaGetErrorString(err));
@@ -335,7 +335,6 @@ __global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depth
   }
 }
 
-//TODO reworking neighbor search will change this kernel
 __global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodesAtDepth){
@@ -416,6 +415,7 @@ __global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int de
         cMatrix[(regPointIndex + threadID)*regMaxNeighbors*3 + (np*3 + 2)] -= centroid.z;
       }
     }
+    delete[] distanceSq;
   }
 }
 __global__ void transposeFloatMatrix(int m, int n, float* matrix){
@@ -455,41 +455,53 @@ __global__ void checkForAbiguity(int numPoints, int numCameras, float3* normals,
     }
   }
 }
-__global__ void reorient(int numPoints, int* numNeighbors, int maxNeighbors, float3* normals, int* neighborIndices, bool* ambiguous, bool* ambiguityExists){
+__global__ void reorient(int numNodesAtDepth, int depthIndex, Node* nodeArray, int* numNeighbors, int maxNeighbors, float3* normals, int* neighborIndices, bool* ambiguous){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
-  if(blockID < numPoints && ambiguous[blockID] && threadIdx.x < numNeighbors[blockID]){
-    __shared__ int2 directionCounter;
-    directionCounter = {0,0};
-    *ambiguityExists = false;
+  if(blockID < numNodesAtDepth){
+    __shared__ bool ambiguityExists;
+    ambiguityExists = true;
     __syncthreads();
-    int regNumNeighbors = numNeighbors[blockID];
-    float3 norm = normals[blockID];
+    int regDepthIndex = depthIndex;
+    int numPointsInNode = nodeArray[blockID + regDepthIndex].numPoints;
+    int regPointIndex = nodeArray[blockID + regDepthIndex].pointIndex;
+    int2 directionCounter = {0,0};
+    float3 norm = {0.0f,0.0f,0.0f};
     float3 neighNorm = {0.0f,0.0f,0.0f};
+    int regNumNeighbors = 0;
     int regNeighborIndex = 0;
     bool amb = true;
-    for(int np = threadIdx.x; np < regNumNeighbors; np += blockDim.x){
-      regNeighborIndex = neighborIndices[blockID*maxNeighbors + np];
-      //reorient based on neighbors that are oriented
-      if(ambiguous[regNeighborIndex]) continue;
-      else{
-        amb = false;
-        neighNorm = normals[regNeighborIndex];
-        if((norm.x*neighNorm.x)+(norm.y*neighNorm.y)+(norm.z*neighNorm.z) < 0){
-          atomicAdd(&directionCounter.x,1);
+    while(ambiguityExists){
+      ambiguityExists = false;
+      for(int threadID = threadIdx.x; threadID < numPointsInNode; threadID += blockDim.x){
+        if(!ambiguous[regPointIndex + threadID]) continue;
+        amb = true;
+        directionCounter = {0,0};
+        norm = normals[regPointIndex + threadID];
+        regNumNeighbors = numNeighbors[regPointIndex + threadID];
+        for(int np = 0; np < regNumNeighbors; ++np){
+          regNeighborIndex = neighborIndices[(regPointIndex + threadID)*maxNeighbors + np];
+          if(ambiguous[regNeighborIndex]) continue;
+          amb = false;
+          neighNorm = normals[regNeighborIndex];
+          if((norm.x*neighNorm.x)+(norm.y*neighNorm.y)+(norm.z*neighNorm.z) < 0){
+            ++directionCounter.x;
+          }
+          else{
+            ++directionCounter.y;
+          }
+        }
+        if(!amb){
+          ambiguous[blockID] = false;
+          if(directionCounter.x < directionCounter.y){
+            normals[blockID] = {-1.0f*norm.x,-1.0f*norm.y,-1.0f*norm.z};
+          }
         }
         else{
-          atomicAdd(&directionCounter.y,1);
+          ambiguityExists = true;
         }
       }
+      if(ambiguityExists) __syncthreads();
     }
-    __syncthreads();
-    if(!amb){
-      ambiguous[blockID] = false;
-      if(directionCounter.x < directionCounter.y){
-        normals[blockID] = {-1.0f*norm.x,-1.0f*norm.y,-1.0f*norm.z};
-      }
-    }
-    else *ambiguityExists = true;
   }
 }
 
@@ -2115,7 +2127,6 @@ void Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
     CudaSafeCall(cudaMalloc((void**)&d_U, m*m*sizeof(float)));
     CudaSafeCall(cudaMalloc((void**)&d_VT, n*n*sizeof(float)));
     CudaSafeCall(cudaMalloc((void**)&devInfo, sizeof(int)));
-
     CudaSafeCall(cudaMemcpy(d_A, cMatrixDevice + (p*maxNeighbors*n), m*n*sizeof(float), cudaMemcpyDeviceToDevice));
     transposeFloatMatrix<<<m*n,1>>>(m,n,d_A);
     cudaDeviceSynchronize();
@@ -2191,42 +2202,17 @@ void Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
   delete[] ambiguity;
   this->copyPointsToHost();
 
-  //FOR AMBIGUOUS NORMALS
-  /*
-  orient based on neighboring non abiguous by making sure dot(ni,mi) > 0
-  if ambiguous normal does not have non ambiguous neighbor normal it is not oriented this iteration
-  */
-  bool ambiguityExists = true;
-  bool* ambiguityExistsDevice;
-  CudaSafeCall(cudaMalloc((void**)&ambiguityExistsDevice, sizeof(bool)));
-  CudaSafeCall(cudaMemcpy(ambiguityExistsDevice, &ambiguityExists, sizeof(bool), cudaMemcpyHostToDevice));
-
-  block.x = (maxNeighbors > 1024) ? 1024 : maxNeighbors;
-  int iteration = 0;
-  while(ambiguityExists && iteration != numAmbiguous){
-    if(iteration == numAmbiguous){
-      std::cout<<"ERROR ambiguity should be eradicated...numAmbiguous = "<<numAmbiguous<<" iteration = "<<iteration<<std::endl;
-      exit(-1);
-    }
-    ambiguityExists = false;
-
-    reorient<<<grid2, block>>>(this->numPoints, numRealNeighborsDevice, maxNeighbors, this->normalsDevice,
-      neighborIndicesDevice, ambiguityDevice, ambiguityExistsDevice);
-    CudaCheckError();
-
-    //TODO figure out if you want to do multiple iterations before doing this
-    CudaSafeCall(cudaMemcpy(&ambiguityExists, ambiguityExistsDevice, sizeof(bool), cudaMemcpyDeviceToHost));
-    std::cout<<++iteration<<std::endl;
-  }
+  reorient<<<grid, block>>>(numNodesAtDepth, depthIndex, this->finalNodeArrayDevice, numRealNeighborsDevice, maxNeighbors, this->normalsDevice,
+    neighborIndicesDevice, ambiguityDevice);
+  CudaCheckError();
+  this->copyNormalsToHost();
+  this->normalsComputed = true;
 
   CudaSafeCall(cudaFree(numRealNeighborsDevice));
   CudaSafeCall(cudaFree(neighborIndicesDevice));
   CudaSafeCall(cudaFree(ambiguityDevice));
-  CudaSafeCall(cudaFree(cameraPositionsDevice));
 
-  this->normalsComputed = true;
-  printf("octree computeNormals took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
-  this->copyNormalsToHost();
+  printf("octree computeNormals took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
 void Octree::writeVertexPLY(){
