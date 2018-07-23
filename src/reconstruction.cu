@@ -50,7 +50,7 @@ int main(int argc, char *argv[]){
       octree.fillNeighborhoods();
       if(!octree.normalsComputed){
         //TODO find better way to get neighbors for points
-        octree.computeNormals(8, 40);
+        octree.computeNormals(3, 20);
       }
       octree.computeVertexArray();
       octree.computeEdgeArray();

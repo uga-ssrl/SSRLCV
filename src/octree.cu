@@ -428,7 +428,7 @@ __global__ void transposeFloatMatrix(int m, int n, float* matrix){
   }
 }
 __global__ void setNormal(int currentPoint, float* vt, float3* normals){
-  normals[currentPoint] = {vt[6],vt[7],vt[8]};
+  normals[currentPoint] = {vt[2],vt[5],vt[8]};
 }
 __global__ void checkForAbiguity(int numPoints, int numCameras, float3* normals, float3* points, float3* cameraPositions, bool* ambiguous){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
@@ -2032,8 +2032,8 @@ void Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
   std::cout<<"Continuing with "<<maxPointsInOneNode<<" maxPointsInOneNode"<<std::endl;
 
   /*north korean mountain range camera parameters*/
-  float3 position1 = {10.0f,12.0f,999.0f};//{0.0f,5.0f, 0.0f};
-  float3 position2 = {-12.0f,-15.0f,967.0f};//{0.868240888335,4.92403876506, 0.0f};
+  float3 position1 = {10.0f,12.0f,999.0f};
+  float3 position2 = {-12.0f,-15.0f,967.0f};
   float3 cameraPositions[2] = {position1, position2};
   unsigned int numCameras = 2;
   if(numCameras > 1024){
@@ -2108,7 +2108,7 @@ void Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
     m = numRealNeighbors[p];
     lwork = 0;
     if(m < minNeighForNorms){
-      std::cout<<"ERROR...point does not have enough neighbors (4 or more is necessary)"<<std::endl;
+      //std::cout<<"ERROR...point does not have enough neighbors (4 or more is necessary)"<<std::endl;
     }
     CudaSafeCall(cudaMalloc((void**)&d_A, m*n*sizeof(float)));
     CudaSafeCall(cudaMalloc((void**)&d_S, n*sizeof(float)));
