@@ -1,8 +1,8 @@
 #include "common_includes.h"
 #include "octree.cuh"
-#include "poisson.cuh"
+#include "surface.cuh"
 
-//TODO across all methods in octree and poisson use const __restrict__ to enable
+//TODO across all methods in octree and surface use const __restrict__ to enable
 //https://stackoverflow.com/questions/31344454/can-a-const-restrict-increase-cuda-register-usage
 
 //TODO to have further depth make octree node keys a long
@@ -16,8 +16,6 @@
 //TODO make method for getting grid and block dimensions
 
 //TODO use overload operators for cuda vector arithmetic in octree.cu
-
-//TODO implement octree.computeNormals()
 
 //TODO make octree a class not a struct with private members and functions
 
@@ -49,7 +47,6 @@ int main(int argc, char *argv[]){
       octree.fillLUTs();
       octree.fillNeighborhoods();
       if(!octree.normalsComputed){
-        //TODO find better way to get neighbors for points
         octree.computeNormals(3, 20);
       }
       octree.computeVertexArray();
@@ -59,13 +56,13 @@ int main(int argc, char *argv[]){
 
       // std::cout<<"PERFORMING POISSON RECONSTRUCTION WITH OCTREE\n"<<std::endl;
       // partialTimer = clock();
-      // Poisson poisson = Poisson(&octree);
-      // poisson.computeLUTs();
-      // poisson.computeDivergenceVector();
-      // //poisson.computeImplicitFunction();
-      // //poisson.computeImplicitMagma();
-      // //poisson.computeImplicitCuSPSolver();
-      // //poisson.marchingCubes();
+      // Surface surface = Surface(&octree);
+      // surface.computeLUTs();
+      // surface.computeDivergenceVector();
+      // //surface.computeImplicitFunction();
+      // //surface.computeImplicitMagma();
+      // //surface.computeImplicitCuSPSolver();
+      // //surface.marchingCubes();
       // std::cout<<"---------------------------------------------------"<<std::endl;
       //
       // std::cout<<"WRITING DERIVED PLY FILES\n"<<std::endl;

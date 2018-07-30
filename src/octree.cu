@@ -2120,7 +2120,8 @@ void Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
     m = numRealNeighbors[p];
     lwork = 0;
     if(m < minNeighForNorms){
-      //std::cout<<"ERROR...point does not have enough neighbors (4 or more is necessary)"<<std::endl;
+      std::cout<<"ERROR...point does not have enough neighbors...increase min neighbors"<<std::endl;
+      exit(-1);
     }
     CudaSafeCall(cudaMalloc((void**)&d_A, m*n*sizeof(float)));
     CudaSafeCall(cudaMalloc((void**)&d_S, n*sizeof(float)));
@@ -2192,20 +2193,20 @@ void Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
   CudaCheckError();
   CudaSafeCall(cudaFree(cameraPositionsDevice));
 
-  bool* ambiguity = new bool[this->numPoints];
-  CudaSafeCall(cudaMemcpy(ambiguity, ambiguityDevice, this->numPoints*sizeof(bool), cudaMemcpyDeviceToHost));
-  int numAmbiguous = 0;
-  for(int i = 0; i < this->numPoints; ++i){
-    if(ambiguity[i]) ++numAmbiguous;
-  }
-  std::cout<<"numAmbiguous = "<<numAmbiguous<<"/"<<this->numPoints<<std::endl;
-  delete[] ambiguity;
-  this->copyPointsToHost();
+  // bool* ambiguity = new bool[this->numPoints];
+  // CudaSafeCall(cudaMemcpy(ambiguity, ambiguityDevice, this->numPoints*sizeof(bool), cudaMemcpyDeviceToHost));
+  // int numAmbiguous = 0;
+  // for(int i = 0; i < this->numPoints; ++i){
+  //   if(ambiguity[i]) ++numAmbiguous;
+  // }
+  // std::cout<<"numAmbiguous = "<<numAmbiguous<<"/"<<this->numPoints<<std::endl;
+  // delete[] ambiguity;
 
   reorient<<<grid, block>>>(numNodesAtDepth, depthIndex, this->finalNodeArrayDevice, numRealNeighborsDevice, maxNeighbors, this->normalsDevice,
     neighborIndicesDevice, ambiguityDevice);
   CudaCheckError();
   this->copyNormalsToHost();
+  this->copyPointsToHost();//could be brought back to host before this method
   this->normalsComputed = true;
 
   CudaSafeCall(cudaFree(numRealNeighborsDevice));

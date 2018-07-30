@@ -1,5 +1,5 @@
-#ifndef POISSON_CUH
-#define POISSON_CUH
+#ifndef SURFACE_CUH
+#define SURFACE_CUH
 
 #include "common_includes.h"
 #include "octree.cuh"
@@ -52,7 +52,7 @@ __global__ void computeBeta(int numNodesAtDepth, float* r, float* rNew, float* n
 __global__ void updateP(int numNodesAtDepth, float* rNew, float beta, float* p);
 
 
-struct Poisson{
+struct Surface{
 
   Octree* octree;
 
@@ -70,8 +70,8 @@ struct Poisson{
   float* divergenceVectorDevice;
   float* nodeImplicitDevice;
 
-  Poisson(Octree* octree);
-  ~Poisson();
+  Surface(Octree* octree);
+  ~Surface();
 
   void computeLUTs();
   void computeDivergenceVector();
@@ -83,4 +83,4 @@ struct Poisson{
 };
 
 
-#endif /* POISSON_CUH */
+#endif /* SURFACE_CUH */

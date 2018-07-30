@@ -1,4 +1,4 @@
-#include "poisson.cuh"
+#include "surface.cuh"
 
 // Define this to turn on error checking
 #define CUDA_ERROR_CHECK
@@ -415,7 +415,7 @@ __global__ void updateP(int numNodesAtDepth, float* rNew, float beta, float* p){
 }
 
 
-Poisson::Poisson(Octree* octree){
+Surface::Surface(Octree* octree){
   this->octree = octree;
   float* divergenceVector = new float[this->octree->totalNodes];
   for(int i = 0; i < this->octree->totalNodes; ++i){
@@ -427,12 +427,12 @@ Poisson::Poisson(Octree* octree){
   this->octree->copyNormalsToDevice();
 }
 
-Poisson::~Poisson(){
+Surface::~Surface(){
 
 }
 
 //TODO OPTMIZE THIS YOU FUCK TARD
-void Poisson::computeLUTs(){
+void Surface::computeLUTs(){
   clock_t timer;
   timer = clock();
 
@@ -506,7 +506,7 @@ void Poisson::computeLUTs(){
 
 //TODO should optimize computeDivergenceCoarse
 //TODO THERE ARE MEMORY ACCESS PROBLEMS ORIGINATING PROBABLY FROM LUT STUFF!!!!!!!!!!!!!! FIXXXXXXXXx
-void Poisson::computeDivergenceVector(){
+void Surface::computeDivergenceVector(){
   clock_t cudatimer;
   cudatimer = clock();
   /*
@@ -634,7 +634,7 @@ void Poisson::computeDivergenceVector(){
   printf("Divergence vector generation kernel took %f seconds.\n",((float) cudatimer)/CLOCKS_PER_SEC);
 }
 
-void Poisson::computeImplicitFunction(){
+void Surface::computeImplicitFunction(){
   clock_t timer;
   timer = clock();
   clock_t cudatimer;
@@ -813,7 +813,7 @@ void Poisson::computeImplicitFunction(){
   printf("Node Implicit compuation took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
 }
 
-void Poisson::computeImplicitMagma(){
+void Surface::computeImplicitMagma(){
   clock_t timer;
   timer = clock();
   clock_t cudatimer;
@@ -1012,7 +1012,7 @@ void Poisson::computeImplicitMagma(){
 
 }
 
-void Poisson::computeImplicitCuSPSolver(){
+void Surface::computeImplicitCuSPSolver(){
   clock_t timer;
   timer = clock();
   clock_t cudatimer;
@@ -1264,7 +1264,7 @@ void Poisson::computeImplicitCuSPSolver(){
 
 }
 
-void Poisson::marchingCubes(){
+void Surface::marchingCubes(){
   this->octree->copyPointsToDevice();
   this->octree->copyNormalsToDevice();
 

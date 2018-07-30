@@ -52,7 +52,7 @@ BINDIR = ./bin
 
 _OBJS1 = 2viewreprojection.cu.o
 _OBJS2 = octree.cu.o
-_OBJS2 += poisson.cu.o
+_OBJS2 += surface.cu.o
 _OBJS2 += reconstruction.cu.o
 
 

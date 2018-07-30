@@ -21,6 +21,7 @@
 #include <sstream>
 #include <time.h>
 #include <string>
+#include <ffstream>
 
 
 
