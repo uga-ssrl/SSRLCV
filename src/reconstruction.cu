@@ -1,5 +1,4 @@
 #include "common_includes.h"
-#include "octree.cuh"
 #include "surface.cuh"
 
 //TODO across all methods in octree and surface use const __restrict__ to enable
@@ -23,6 +22,8 @@
 
 //TODO find all temporary device result arrays and remove redundant initial cudaMemcpyHostToDevice
 
+//TODO make normals unit vectors?
+
 
 int main(int argc, char *argv[]){
   try{
@@ -34,45 +35,26 @@ int main(int argc, char *argv[]){
       if(argc == 3) depth = std::stoi(argv[2]);
 
       clock_t totalTimer = clock();
+      std::cout<<"depth = "<<depth<<std::endl;
 
-      std::cout<<"---------------------------------------------------"<<std::endl;
-      std::cout<<"COMPUTING OCTREE\n"<<std::endl;
-
-      Octree octree = Octree(filePath, depth);
-      octree.init_octree_gpu();
-      octree.generateKeys();
-      octree.prepareFinestUniquNodes();
-      octree.createFinalNodeArray();
-      octree.freePrereqArrays();
-      octree.fillLUTs();
-      octree.fillNeighborhoods();
-      if(!octree.normalsComputed){
-        octree.computeNormals(3, 20);
-      }
-      octree.computeVertexArray();
-      octree.computeEdgeArray();
-      octree.computeFaceArray();
+      Surface surface = Surface(filePath, depth);
+      //surface.computeImplicitFunction();
+      //surface.computeImplicitMagma();
+      //surface.computeImplicitCuSPSolver();
+      ///surface.computeVertexImplicit();
+      surface.computeImplicitEasy();
+      surface.marchingCubes();
       std::cout<<"---------------------------------------------------"<<std::endl;
 
-      // std::cout<<"PERFORMING POISSON RECONSTRUCTION WITH OCTREE\n"<<std::endl;
-      // partialTimer = clock();
-      // Surface surface = Surface(&octree);
-      // surface.computeLUTs();
-      // surface.computeDivergenceVector();
-      // //surface.computeImplicitFunction();
-      // //surface.computeImplicitMagma();
-      // //surface.computeImplicitCuSPSolver();
-      // //surface.marchingCubes();
-      // std::cout<<"---------------------------------------------------"<<std::endl;
-      //
-      // std::cout<<"WRITING DERIVED PLY FILES\n"<<std::endl;
-      //
-      // octree.copyNodesToHost();//this is only necessary for writeCenterPLY
-      // octree.writeVertexPLY();
-      octree.writeEdgePLY();
-      // octree.writeCenterPLY();
-      octree.writeNormalPLY();
-      // std::cout<<"---------------------------------------------------"<<std::endl;
+      std::cout<<"WRITING DERIVED PLY FILES\n"<<std::endl;
+      surface.generateMesh();
+      surface.octree->writeEdgePLY();
+      surface.octree->writeNormalPLY();
+      // surface.octree->copyNodesToHost();//this is only necessary for writeCenterPLY
+      // surface.octree->writeCenterPLY();
+      // surface.octree->writeVertexPLY();
+
+      std::cout<<"---------------------------------------------------"<<std::endl;
 
       totalTimer = clock() - totalTimer;
       printf("\nTOTAL TIME = %f seconds.\n\n",((float) totalTimer)/CLOCKS_PER_SEC);

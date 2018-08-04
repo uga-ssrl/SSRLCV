@@ -14,49 +14,10 @@
 #include <cublas_v2.h>
 #include <cusolverDn.h>
 
-__constant__ int3 coordPlacementIdentity[8] = {
-  {-1,-1,-1},
-  {-1,-1,1},
-  {-1,1,-1},
-  {-1,1,1},
-  {1,-1,-1},
-  {1,-1,1},
-  {1,1,-1},
-  {1,1,1}
-};
-
-__constant__ int2 vertexEdgeIdentity[12] = {
-  {0,1},
-  {0,2},
-  {1,3},
-  {2,3},
-  {0,4},
-  {1,5},
-  {2,6},
-  {3,7},
-  {4,5},
-  {4,6},
-  {5,7},
-  {6,7}
-};
-
-__constant__ int4 vertexFaceIdentity[6] = {
-  {0,1,2,3},
-  {0,1,4,5},
-  {0,2,4,6},
-  {1,3,5,7},
-  {2,3,6,7},
-  {4,5,6,7}
-};
-
-__constant__ int4 edgeFaceIdentity[6] = {
-  {0,1,2,3},
-  {0,4,5,8},
-  {1,4,6,9},
-  {2,5,7,10},
-  {3,6,7,11},
-  {8,9,10,11}
-};
+extern __constant__ int3 coordPlacementIdentity[8];
+extern __constant__ int2 vertexEdgeIdentity[12];
+extern __constant__ int4 vertexFaceIdentity[6];
+extern __constant__ int4 edgeFaceIdentity[6];
 
 struct Vertex{
   uchar3 color;
@@ -114,6 +75,8 @@ struct Node{
 
   __device__ __host__ Node();
 };
+
+
 
 /*
 HELPER METHODS AND CUDA KERNELS
@@ -199,10 +162,13 @@ struct Octree{
   int* pointNodeIndexDevice;
   bool vertexArrayDeviceReady;
   Vertex* vertexArrayDevice;
+  int* vertexIndex;
   bool edgeArrayDeviceReady;
   Edge* edgeArrayDevice;
+  int* edgeIndex;
   bool faceArrayDeviceReady;
   Face* faceArrayDevice;
+  int* faceIndex;
   bool pointsDeviceReady;
   float3* pointsDevice;
   bool normalsDeviceReady;

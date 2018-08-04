@@ -3,6 +3,8 @@
 
 #include "common_includes.h"
 #include "octree.cuh"
+#include "cuda_util.cuh"
+
 #include <thrust/scan.h>
 #include <thrust/device_ptr.h>
 #include "magma_v2.h"
@@ -10,21 +12,11 @@
 #include <cusparse.h>
 #include <cublas_v2.h>
 
-__device__ __host__ float3 operator+(const float3 &a, const float3 &b);
-__device__ __host__ float3 operator-(const float3 &a, const float3 &b);
-__device__ __host__ float3 operator/(const float3 &a, const float3 &b);
-__device__ __host__ float3 operator*(const float3 &a, const float3 &b);
-__device__ __host__ float dotProduct(const float3 &a, const float3 &b);
-__device__ __host__ float3 operator+(const float3 &a, const float &b);
-__device__ __host__ float3 operator-(const float3 &a, const float &b);
-__device__ __host__ float3 operator/(const float3 &a, const float &b);
-__device__ __host__ float3 operator*(const float3 &a, const float &b);
-__device__ __host__ float3 operator+(const float &a, const float3 &b);
-__device__ __host__ float3 operator-(const float &a, const float3 &b);
-__device__ __host__ float3 operator/(const float &a, const float3 &b);
-__device__ __host__ float3 operator*(const float &a, const float3 &b);
-__device__ __host__ bool operator==(const float3 &a, const float3 &b);
-__device__ __host__ float3 blender(const float3 &a, const float3 &b, const float &bw);
+extern __constant__ int3 cubeCategoryTrianglesFromEdges[15][4];
+extern __constant__ bool cubeCategoryEdgeIdentity[15][12];
+extern __constant__ bool cubeCategoryVertexIdentity[15][8];
+extern __constant__ int numTrianglesInCubeCategory[15];
+
 __device__ __host__ float3 blenderPrime(const float3 &a, const float3 &b, const float &bw);
 __device__ __host__ float3 blenderPrimePrime(const float3 &a, const float3 &b, const float &bw);
 
@@ -51,6 +43,15 @@ __global__ void computeRNew(int numNodesAtDepth, float* r, float alpha, float* t
 __global__ void computeBeta(int numNodesAtDepth, float* r, float* rNew, float* numerator, float* denominator);
 __global__ void updateP(int numNodesAtDepth, float* rNew, float beta, float* p);
 
+__global__ void pointSumImplicitTraversal(int numPoints, float3* points, Node* nodeArray, int root, float* nodeImplicit, float* sumImplicit);
+__global__ void vertexSumImplicitTraversal(int numVertices, Vertex* vertexArray, float* nodeImplicit, float* vertexImplicit, float* avgImplict, int numPoints);
+
+__global__ void vertexImplicitFromNormals(int numVertices, Vertex* vertexArray, Node* nodeArray, float3* normals, float3* points, float* vertexImplicit);
+
+__global__ void calcVertexNumbers(int numEdges, Edge* edgeArray, float* vertexImplicit, int* vertexNumbers);
+__global__ void determineCubeCategories(int numNodes, Node* nodeArray, float* vertexImplicit, int* cubeCategory, int* triangleNumbers);
+__global__ void generateSurfaceVertices(int numEdges, Edge* edgeArray, Vertex* vertexArray, int* vertexNumbers, int* vertexAddresses, float3* surfaceVertices);
+__global__ void generateSurfaceTriangles(int numNodes, Node* nodeArray, int* vertexAddresses, int* triangleNumbers, int* triangleAddresses, int* cubeCategory, int3* surfaceTriangles);
 
 struct Surface{
 
@@ -69,16 +70,29 @@ struct Surface{
   //Major variables (do not need host versions other than for error checking)
   float* divergenceVectorDevice;
   float* nodeImplicitDevice;
+  float3* surfaceVertices;
+  int numSurfaceVertices;
+  int3* surfaceTriangles;
+  int numSurfaceTriangles;
+  float* vertexImplicitDevice;
 
-  Surface(Octree* octree);
+  Surface(std::string pathToPLY, int depthOfOctree);
+  Surface();
   ~Surface();
 
   void computeLUTs();
   void computeDivergenceVector();
+
   void computeImplicitFunction();
   void computeImplicitMagma();
   void computeImplicitCuSPSolver();
+  void computeImplicitEasy();
+
+  void computeVertexImplicit();
+
   void marchingCubes();
+
+  void generateMesh();
 
 };
 
