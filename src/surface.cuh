@@ -12,10 +12,9 @@
 #include <cusparse.h>
 #include <cublas_v2.h>
 
-extern __constant__ int3 cubeCategoryTrianglesFromEdges[15][4];
-extern __constant__ bool cubeCategoryEdgeIdentity[15][12];
-extern __constant__ bool cubeCategoryVertexIdentity[15][8];
-extern __constant__ int numTrianglesInCubeCategory[15];
+extern __constant__ int3 cubeCategoryTrianglesFromEdges[256][15];
+extern __constant__ int cubeCategoryEdgeIdentity[256];
+extern __constant__ int numTrianglesInCubeCategory[256];
 
 __device__ __host__ float3 blenderPrime(const float3 &a, const float3 &b, const float &bw);
 __device__ __host__ float3 blenderPrimePrime(const float3 &a, const float3 &b, const float &bw);
@@ -49,7 +48,7 @@ __global__ void vertexSumImplicitTraversal(int numVertices, Vertex* vertexArray,
 __global__ void vertexImplicitFromNormals(int numVertices, Vertex* vertexArray, Node* nodeArray, float3* normals, float3* points, float* vertexImplicit);
 
 __global__ void calcVertexNumbers(int numEdges, Edge* edgeArray, float* vertexImplicit, int* vertexNumbers);
-__global__ void determineCubeCategories(int numNodes, Node* nodeArray, float* vertexImplicit, int* cubeCategory, int* triangleNumbers);
+__global__ void determineCubeCategories(int numNodes, Node* nodeArray, int* vertexNumbers, int* cubeCategory, int* triangleNumbers);
 __global__ void generateSurfaceVertices(int numEdges, Edge* edgeArray, Vertex* vertexArray, int* vertexNumbers, int* vertexAddresses, float3* surfaceVertices);
 __global__ void generateSurfaceTriangles(int numNodes, Node* nodeArray, int* vertexAddresses, int* triangleNumbers, int* triangleAddresses, int* cubeCategory, int3* surfaceTriangles);
 
