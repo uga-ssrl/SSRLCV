@@ -12,7 +12,7 @@
 #include <cusparse.h>
 #include <cublas_v2.h>
 
-extern __constant__ int3 cubeCategoryTrianglesFromEdges[256][15];
+extern __constant__ int cubeCategoryTrianglesFromEdges[256][15];
 extern __constant__ int cubeCategoryEdgeIdentity[256];
 extern __constant__ int numTrianglesInCubeCategory[256];
 

@@ -1,8 +1,5 @@
 #include "common_includes.h"
 
-
-
-
 int cubeCategoryTrianglesFromEdges[256][15] = {
   {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
   {0, 1, 4, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
@@ -265,14 +262,36 @@ int cubeCategoryTrianglesFromEdges[256][15] = {
 int main(int argc, char *argv[]){
   std::ofstream numTri("numTri.txt");
   std::ofstream edges("edges.txt");
+  int currentNumTri = 0;
+  int currentCubeType = 0;
+  bool cubeTypeIndicator[12] = {false,false,false,false,false,false,false,false,false,false,false,false};
   if(numTri.is_open() && edges.is_open()){
     for(int i = 0; i < 256; ++i){
+      currentNumTri = 0;
+      currentCubeType = 0;
+      for(int e = 0; e < 12; ++e) cubeTypeIndicator[e] = false;
       for(int t = 0; t < 5; ++t){
-
+        if(cubeCategoryTrianglesFromEdges[i][t*3] != -1){
+          ++currentNumTri;
+        }
       }
       for(int e = 0; e < 12; ++e){
-        
+        if(cubeCategoryTrianglesFromEdges[i][e] != -1){
+          cubeTypeIndicator[cubeCategoryTrianglesFromEdges[i][e]] = true;
+        }
       }
+      for(int e = 11; e >= 0; --e){
+        if(cubeTypeIndicator[e]){
+          currentCubeType = (currentCubeType << 1) + 1;
+        }
+        else{
+          currentCubeType <<= 1;
+        }
+      }
+      numTri << currentNumTri;
+      numTri << ", ";
+      edges << currentCubeType;
+      edges << ", ";
     }
   }
   else{

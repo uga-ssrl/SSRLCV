@@ -31,7 +31,7 @@ int main(int argc, char *argv[]){
       std::string filePath = argv[1];
       int depth = 10;
 
-      if(argc == 2) depth = 9;
+      if(argc == 2) depth = 8;
       if(argc == 3) depth = std::stoi(argv[2]);
 
       clock_t totalTimer = clock();

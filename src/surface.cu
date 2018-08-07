@@ -315,12 +315,37 @@ __constant__ int cubeCategoryTrianglesFromEdges[256][15] = {
   {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}
 };
 
-__constant__ int cubeCategoryEdgeIdentity[256] = {
+__constant__ int cubeCategoryEdgeIdentity[256] = {0, 19, 37, 54, 1312, 1331, 1285, 1302,
+  784, 771, 821, 806, 1584, 1571, 1557, 1542, 74, 89, 111, 124, 1386, 1401, 1359, 1372,
+  858, 841, 895, 876, 1658, 1641, 1631, 1612, 140, 159, 169, 186, 1452, 1471, 1417, 1434,
+  924, 911, 953, 938, 1724, 1711, 1689, 1674, 198, 213, 227, 240, 1510, 1525, 1475, 1488,
+  982, 965, 1011, 992, 1782, 1765, 1747, 1728, 3200, 3219, 3237, 3254, 2464, 2483, 2437,
+  2454, 3984, 3971, 4021, 4006, 2736, 2723, 2709, 2694, 3274, 3289, 3311, 3324, 2538,
+  2553, 2511, 2524, 4058, 4041, 4095, 876, 2810, 2793, 2709, 2764, 3084, 3103, 3113,
+  3130, 2348, 2367, 2313, 2330, 3868, 3855, 3897, 3882, 2620, 2607, 2585, 2570, 3142,
+  3157, 3171, 3184, 2406, 2421, 2371, 2384, 3926, 3909, 3171, 3936, 2678, 2661, 2643,
+  2624, 2624, 2643, 2661, 2678, 3936, 3955, 3909, 3926, 2384, 2371, 2421, 2406, 3184,
+  3171, 3157, 3142, 2570, 2585, 2607, 2620, 3882, 3897, 3855, 3868, 2330, 2313, 2367,
+  2348, 3130, 3113, 3103, 3084, 2764, 2783, 2793, 2810, 4076, 4095, 4041, 1434, 2524,
+  2511, 2553, 2538, 3324, 3171, 3289, 3274, 2694, 2709, 2723, 2736, 4006, 2709, 3971,
+  3984, 2454, 2437, 2483, 2464, 3254, 3237, 3219, 3200, 1728, 1747, 1765, 1782, 992,
+  1011, 965, 982, 1488, 1475, 1525, 1510, 240, 227, 213, 198, 1674, 1689, 1711, 1724,
+  938, 953, 911, 924, 1434, 1417, 1434, 1452, 186, 169, 159, 140, 1612, 1631, 1641,
+  1658, 876, 876, 841, 858, 1372, 1359, 1401, 1386, 124, 111, 89, 74, 1542, 1557,
+  1571, 1584, 806, 821, 771, 784, 1302, 1285, 1331, 1312, 54, 37, 19, 0};
 
-};
 
-
-__constant__ int numTrianglesInCubeCategory[256] = ;
+__constant__ int numTrianglesInCubeCategory[256] = {0, 1, 1, 2, 1, 2, 2, 3, 1, 2,
+  2, 3, 2, 3, 3, 2, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 1, 2, 2, 3, 2,
+  3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2, 3, 3, 2, 3, 4, 4, 3, 3, 4, 4, 3, 4, 5, 5, 2,
+  1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4,
+  5, 4, 5, 5, 4, 2, 3, 3, 4, 3, 4, 2, 3, 3, 4, 4, 5, 4, 5, 3, 2, 3, 4, 4, 3, 4, 5,
+  3, 2, 4, 5, 5, 4, 5, 2, 4, 1, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2,
+  3, 3, 4, 3, 4, 4, 5, 3, 2, 4, 3, 4, 3, 5, 2, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5,
+  4, 5, 5, 4, 3, 4, 4, 3, 4, 5, 5, 4, 4, 3, 5, 2, 5, 4, 2, 1, 2, 3, 3, 4, 3, 4, 4,
+  5, 3, 4, 4, 5, 2, 3, 3, 2, 3, 4, 4, 5, 4, 5, 5, 2, 4, 3, 5, 4, 3, 2, 4, 1, 3, 4,
+  4, 5, 4, 5, 3, 4, 4, 5, 5, 2, 3, 4, 2, 1, 2, 3, 3, 2, 3, 4, 2, 1, 3, 2, 4, 1, 2,
+  1, 1, 0};
 
 struct is_not_neg_int{
   __host__ __device__
@@ -735,19 +760,26 @@ __global__ void vertexImplicitFromNormals(int numVertices, Vertex* vertexArray, 
     int node = vertexArray[blockID].nodes[threadIdx.x];
     if(node != -1){
       float3 vertex = vertexArray[blockID].coord;
-      int numPoints = nodeArray[node].numPoints;
-      int pointIndex = nodeArray[node].pointIndex;
+      int numPoints = 0;
+      int pointIndex = 0;
       float3 currentNormal = {0.0f,0.0f,0.0f};
       float3 currentVector = {0.0f,0.0f,0.0f};
       float dot = 0.0f;
-      for(int p = pointIndex; p < pointIndex + numPoints; ++p){
-        dot = 0.0f;
-        currentNormal = normals[pointIndex];
-        currentNormal = currentNormal/sqrtf(dotProduct(currentNormal,currentNormal));
-        currentVector = vertex - points[pointIndex];
-        currentVector = currentVector/sqrtf(dotProduct(currentVector,currentVector));
-        dot = dotProduct(currentNormal,currentVector);
-        atomicAdd(&imp, dot);
+      int neighbor = 0;
+      for(int n = 0; n < 27; ++n){
+        neighbor = nodeArray[node].neighbors[n];
+        if(neighbor == -1) continue;
+        numPoints = nodeArray[neighbor].numPoints;
+        pointIndex = nodeArray[neighbor].pointIndex;
+        for(int p = pointIndex; p < pointIndex + numPoints; ++p){
+          dot = 0.0f;
+          currentNormal = normals[pointIndex];
+          currentNormal = currentNormal/sqrtf(dotProduct(currentNormal,currentNormal));
+          currentVector = vertex - points[pointIndex];
+          currentVector = currentVector/sqrtf(dotProduct(currentVector,currentVector));
+          dot = dotProduct(currentNormal,currentVector);
+          atomicAdd(&imp, dot);
+        }
       }
     }
     __syncthreads();
@@ -773,9 +805,9 @@ __global__ void calcVertexNumbers(int numEdges, Edge* edgeArray, float* vertexIm
 __global__ void determineCubeCategories(int numNodes, Node* nodeArray, int* vertexNumbers, int* cubeCategory, int* triangleNumbers){
   int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   if(globalID < numNodes){
-    int edgeBasedCategory = 0x000;
+    int edgeBasedCategory = 0;
     int regEdge = 0;
-    for(int i = 0; i < 12; ++i){
+    for(int i = 11; i >= 0; --i){
       regEdge = nodeArray[globalID].edges[i];
       if(vertexNumbers[regEdge]){
         edgeBasedCategory = (edgeBasedCategory << 1) + 1;
