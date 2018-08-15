@@ -47,10 +47,15 @@ __global__ void vertexSumImplicitTraversal(int numVertices, Vertex* vertexArray,
 
 __global__ void vertexImplicitFromNormals(int numVertices, Vertex* vertexArray, Node* nodeArray, float3* normals, float3* points, float* vertexImplicit);
 
-__global__ void calcVertexNumbers(int numEdges, Edge* edgeArray, float* vertexImplicit, int* vertexNumbers);
-__global__ void determineCubeCategories(int numNodes, Node* nodeArray, int* vertexNumbers, int* cubeCategory, int* triangleNumbers);
-__global__ void generateSurfaceVertices(int numEdges, Edge* edgeArray, Vertex* vertexArray, int* vertexNumbers, int* vertexAddresses, float3* surfaceVertices);
-__global__ void generateSurfaceTriangles(int numNodes, Node* nodeArray, int* vertexAddresses, int* triangleNumbers, int* triangleAddresses, int* cubeCategory, int3* surfaceTriangles);
+
+//meshing
+__global__ void calcVertexNumbers(int numEdges, int depthIndex, Edge* edgeArray, float* vertexImplicit, int* vertexNumbers);
+
+
+//marching cubes
+__global__ void determineCubeCategories(int numNodes, int nodeIndex, int edgeIndex, Node* nodeArray, int* vertexNumbers, int* cubeCategory, int* triangleNumbers);
+__global__ void generateSurfaceVertices(int numEdges, int depthIndex, Edge* edgeArray, Vertex* vertexArray, int* vertexNumbers, int* vertexAddresses, float3* surfaceVertices);
+__global__ void generateSurfaceTriangles(int numNodes, int nodeIndex, int edgeIndex, Node* nodeArray, int* vertexAddresses, int* triangleAddresses, int* cubeCategory, int3* surfaceTriangles);
 
 struct Surface{
 
@@ -85,13 +90,14 @@ struct Surface{
   void computeImplicitFunction();
   void computeImplicitMagma();
   void computeImplicitCuSPSolver();
-  void computeImplicitEasy();
-
+  void computeImplicitEasy(int focusDepth);
   void computeVertexImplicit();
 
   void marchingCubes();
-
+  void jaxMeshing();
   void generateMesh();
+  void generateMeshWithFinestEdges();
+
 
 };
 

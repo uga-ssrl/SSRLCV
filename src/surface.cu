@@ -334,7 +334,6 @@ __constant__ int cubeCategoryEdgeIdentity[256] = {0, 19, 37, 54, 1312, 1331, 128
   1658, 876, 876, 841, 858, 1372, 1359, 1401, 1386, 124, 111, 89, 74, 1542, 1557,
   1571, 1584, 806, 821, 771, 784, 1302, 1285, 1331, 1312, 54, 37, 19, 0};
 
-
 __constant__ int numTrianglesInCubeCategory[256] = {0, 1, 1, 2, 1, 2, 2, 3, 1, 2,
   2, 3, 2, 3, 3, 2, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 1, 2, 2, 3, 2,
   3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2, 3, 3, 2, 3, 4, 4, 3, 3, 4, 4, 3, 4, 5, 5, 2,
@@ -754,47 +753,50 @@ __global__ void vertexSumImplicitTraversal(int numVertices, Vertex* vertexArray,
 __global__ void vertexImplicitFromNormals(int numVertices, Vertex* vertexArray, Node* nodeArray, float3* normals, float3* points, float* vertexImplicit){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numVertices){
-    __shared__ float imp;
-    imp = 0.0f;
-    __syncthreads();
-    int node = vertexArray[blockID].nodes[threadIdx.x];
-    if(node != -1){
-      float3 vertex = vertexArray[blockID].coord;
-      int numPoints = 0;
-      int pointIndex = 0;
-      float3 currentNormal = {0.0f,0.0f,0.0f};
-      float3 currentVector = {0.0f,0.0f,0.0f};
-      float dot = 0.0f;
-      int neighbor = 0;
-      for(int n = 0; n < 27; ++n){
-        neighbor = nodeArray[node].neighbors[n];
-        if(neighbor == -1) continue;
-        numPoints = nodeArray[neighbor].numPoints;
-        pointIndex = nodeArray[neighbor].pointIndex;
+    int node = -1;
+    int nodes[8] = {0};
+    for(int i = 0; i < 8; ++i) nodes[i] = vertexArray[blockID].nodes[i];
+    float3 vertex = vertexArray[blockID].coord;
+    int numPoints = 0;
+    int pointIndex = -1;
+    float3 currentNormal = {0.0f,0.0f,0.0f};
+    float3 currentVector = {0.0f,0.0f,0.0f};
+    int neighbor = 0;
+    float smallestDistanceSq = FLT_MAX;
+    float currentDistanceSq = 0.0f;
+    int closestPoint = -1;
+    while(closestPoint == -1){
+      for(int nd = 0; nd < 8; ++nd){
+        node = nodes[nd];
+        if(node == -1) continue;
+        numPoints = nodeArray[node].numPoints;
+        pointIndex = nodeArray[node].pointIndex;
         for(int p = pointIndex; p < pointIndex + numPoints; ++p){
-          dot = 0.0f;
-          currentNormal = normals[pointIndex];
-          currentNormal = currentNormal/sqrtf(dotProduct(currentNormal,currentNormal));
-          currentVector = vertex - points[pointIndex];
-          currentVector = currentVector/sqrtf(dotProduct(currentVector,currentVector));
-          dot = dotProduct(currentNormal,currentVector);
-          atomicAdd(&imp, dot);
+          currentDistanceSq = dotProduct(vertex - points[p],vertex - points[p]);
+          if(smallestDistanceSq > currentDistanceSq){
+            smallestDistanceSq = currentDistanceSq;
+            closestPoint = p;
+          }
         }
+        nodes[nd] = nodeArray[nodes[nd]].parent;
       }
     }
-    __syncthreads();
-    vertexImplicit[blockID] = imp;
+    currentNormal = normals[closestPoint];
+    currentNormal = currentNormal/sqrtf(dotProduct(currentNormal,currentNormal));
+    currentVector = vertex - points[closestPoint];
+    currentVector = currentVector/sqrtf(dotProduct(currentVector,currentVector));
+    vertexImplicit[blockID] = dotProduct(currentNormal,currentVector);
   }
 }
 
-__global__ void calcVertexNumbers(int numEdges, Edge* edgeArray, float* vertexImplicit, int* vertexNumbers){
+__global__ void calcVertexNumbers(int numEdges, int depthIndex, Edge* edgeArray, float* vertexImplicit, int* vertexNumbers){
   int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   if(globalID < numEdges){
     float impV1 = 0;
     float impV2 = 0;
-    impV1 = vertexImplicit[edgeArray[globalID].v1];
-    impV2 = vertexImplicit[edgeArray[globalID].v2];
-    if(impV1 > 0.0f && impV2 < 0.0f || impV1 < 0.0f && impV2 > 0.0f){
+    impV1 = vertexImplicit[edgeArray[globalID + depthIndex].v1];
+    impV2 = vertexImplicit[edgeArray[globalID + depthIndex].v2];
+    if(impV1 > 0.0f && impV2 < 0.0f || impV1 < 0.0f && impV2 > 0.0f || impV1 == 0.0f || impV2 == 0.0f){
       vertexNumbers[globalID] = 1;
     }
     else{
@@ -802,20 +804,23 @@ __global__ void calcVertexNumbers(int numEdges, Edge* edgeArray, float* vertexIm
     }
   }
 }
-__global__ void determineCubeCategories(int numNodes, Node* nodeArray, int* vertexNumbers, int* cubeCategory, int* triangleNumbers){
+
+//Marching cubes
+__global__ void determineCubeCategories(int numNodes, int nodeIndex, int edgeIndex, Node* nodeArray, int* vertexNumbers, int* cubeCategory, int* triangleNumbers){
   int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   if(globalID < numNodes){
     int edgeBasedCategory = 0;
     int regEdge = 0;
     for(int i = 11; i >= 0; --i){
-      regEdge = nodeArray[globalID].edges[i];
-      if(vertexNumbers[regEdge]){
+      regEdge = nodeArray[globalID + nodeIndex].edges[i];
+      if(vertexNumbers[regEdge - edgeIndex]){
         edgeBasedCategory = (edgeBasedCategory << 1) + 1;
       }
       else{
         edgeBasedCategory <<= 1;
       }
     }
+    triangleNumbers[globalID] = 0;
     for(int i = 0; i < 256; ++i){
       if(edgeBasedCategory == cubeCategoryEdgeIdentity[i]){
         triangleNumbers[globalID] = numTrianglesInCubeCategory[i];
@@ -825,12 +830,12 @@ __global__ void determineCubeCategories(int numNodes, Node* nodeArray, int* vert
     }
   }
 }
-__global__ void generateSurfaceVertices(int numEdges, Edge* edgeArray, Vertex* vertexArray, int* vertexNumbers, int* vertexAddresses, float3* surfaceVertices){
+__global__ void generateSurfaceVertices(int numEdges, int depthIndex, Edge* edgeArray, Vertex* vertexArray, int* vertexNumbers, int* vertexAddresses, float3* surfaceVertices){
   int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   if(globalID < numEdges){
     if(vertexNumbers[globalID] == 1){
-      int v1 = edgeArray[globalID].v1;
-      int v2 = edgeArray[globalID].v2;
+      int v1 = edgeArray[globalID + depthIndex].v1;
+      int v2 = edgeArray[globalID + depthIndex].v2;
       float3 midPoint = vertexArray[v1].coord + vertexArray[v2].coord;
       midPoint = midPoint/2.0f;
       int vertAddress = (globalID == 0) ? 0 : vertexAddresses[globalID - 1];
@@ -838,18 +843,17 @@ __global__ void generateSurfaceVertices(int numEdges, Edge* edgeArray, Vertex* v
     }
   }
 }
-__global__ void generateSurfaceTriangles(int numNodes, Node* nodeArray, int* vertexAddresses, int* triangleNumbers, int* triangleAddresses, int* cubeCategory, int3* surfaceTriangles){
+__global__ void generateSurfaceTriangles(int numNodes, int nodeIndex, int edgeIndex, Node* nodeArray, int* vertexAddresses, int* triangleAddresses, int* cubeCategory, int3* surfaceTriangles){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
-    int numTrianglesInNode = triangleNumbers[blockID];
-    if(threadIdx.x < numTrianglesInNode){
-      int3 nodeTriangle = {cubeCategoryTrianglesFromEdges[cubeCategory[blockID]][threadIdx.x*3],
-        cubeCategoryTrianglesFromEdges[cubeCategory[blockID]][threadIdx.x*3 + 1],
-        cubeCategoryTrianglesFromEdges[cubeCategory[blockID]][threadIdx.x*3 + 2]};
-      int3 surfaceTriangle = {nodeArray[blockID].edges[nodeTriangle.x],
-        nodeArray[blockID].edges[nodeTriangle.y],
-        nodeArray[blockID].edges[nodeTriangle.z]};
-      int triAddress = (blockID == 0) ? 0 : triangleAddresses[blockID - 1] + threadIdx.x;
+    int3 nodeTriangle = {cubeCategoryTrianglesFromEdges[cubeCategory[blockID]][threadIdx.x*3],
+      cubeCategoryTrianglesFromEdges[cubeCategory[blockID]][threadIdx.x*3 + 1],
+      cubeCategoryTrianglesFromEdges[cubeCategory[blockID]][threadIdx.x*3 + 2]};
+    if(nodeTriangle.x != -1){
+      int3 surfaceTriangle = {nodeArray[blockID + nodeIndex].edges[nodeTriangle.x] - edgeIndex,
+        nodeArray[blockID + nodeIndex].edges[nodeTriangle.y] - edgeIndex,
+        nodeArray[blockID + nodeIndex].edges[nodeTriangle.z] - edgeIndex};
+      int triAddress = (blockID == 0) ? threadIdx.x: triangleAddresses[blockID - 1] + threadIdx.x;
       int3 vertAddress = {-1,-1,-1};
       vertAddress.x = (surfaceTriangle.x == 0) ? 0 : vertexAddresses[surfaceTriangle.x - 1];
       vertAddress.y = (surfaceTriangle.y == 0) ? 0 : vertexAddresses[surfaceTriangle.y - 1];
@@ -1740,7 +1744,7 @@ void Surface::computeImplicitCuSPSolver(){
   printf("Node Implicit computation took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
 
 }
-void Surface::computeImplicitEasy(){
+void Surface::computeImplicitEasy(int focusDepth){
   clock_t timer;
   timer = clock();
 
@@ -1748,28 +1752,28 @@ void Surface::computeImplicitEasy(){
   int currentNeighbor = 0;
   float currentImp = 0.0f;
   int currentDepth = 0;
-  int numFinestVertices = this->octree->vertexIndex[1];
+  int numConsideredVertices = this->octree->vertexIndex[this->octree->depth - focusDepth + 1];
   if(!this->octree->vertexArrayDeviceReady) this->octree->copyVerticesToDevice();
   if(!this->octree->normalsDeviceReady) this->octree->copyNormalsToDevice();
   if(!this->octree->pointsDeviceReady) this->octree->copyPointsToDevice();
-  CudaSafeCall(cudaMalloc((void**)&this->vertexImplicitDevice, numFinestVertices*sizeof(float)));
+  CudaSafeCall(cudaMalloc((void**)&this->vertexImplicitDevice, numConsideredVertices*sizeof(float)));
 
   dim3 grid = {1,1,1};
   dim3 block = {8,1,1};
-  if(numFinestVertices < 65535) grid.x = (unsigned int) numFinestVertices;
+  if(numConsideredVertices < 65535) grid.x = (unsigned int) numConsideredVertices;
   else{
     grid.x = 65535;
-    while(grid.x*grid.y < numFinestVertices){
+    while(grid.x*grid.y < numConsideredVertices){
       ++grid.y;
     }
-    while(grid.x*grid.y > numFinestVertices){
+    while(grid.x*grid.y > numConsideredVertices){
       --grid.x;
     }
-    if(grid.x*grid.y < numFinestVertices){
+    if(grid.x*grid.y < numConsideredVertices){
       ++grid.x;
     }
   }
-  vertexImplicitFromNormals<<<grid,block>>>(numFinestVertices, this->octree->vertexArrayDevice, this->octree->finalNodeArrayDevice, this->octree->normalsDevice, this->octree->pointsDevice, this->vertexImplicitDevice);
+  vertexImplicitFromNormals<<<grid,block>>>(numConsideredVertices, this->octree->vertexArrayDevice, this->octree->finalNodeArrayDevice, this->octree->normalsDevice, this->octree->pointsDevice, this->vertexImplicitDevice);
   cudaDeviceSynchronize();//may not be necessary
   CudaCheckError();
   CudaSafeCall(cudaFree(this->octree->pointsDevice));
@@ -1781,7 +1785,6 @@ void Surface::computeImplicitEasy(){
   timer = clock() - timer;
   printf("Computing Vertex Implicit Values with normals took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
 }
-
 void Surface::computeVertexImplicit(){
   clock_t timer;
   timer = clock();
@@ -1813,7 +1816,7 @@ void Surface::computeVertexImplicit(){
   if(!this->octree->vertexArrayDeviceReady) this->octree->copyVerticesToDevice();
   int numFinestVertices = this->octree->vertexIndex[1];
   CudaSafeCall(cudaMalloc((void**)&this->vertexImplicitDevice, numFinestVertices*sizeof(float)));
-  block = {8,1,1};
+  block = {1,1,1};
   if(numFinestVertices < 65535) grid.x = (unsigned int) numFinestVertices;
   else{
     grid.x = 65535;
@@ -1837,6 +1840,7 @@ void Surface::computeVertexImplicit(){
 }
 
 void Surface::marchingCubes(){
+  this->computeImplicitEasy(this->octree->depth);
   clock_t timer;
   timer = clock();
 
@@ -1859,7 +1863,7 @@ void Surface::marchingCubes(){
       ++gridEdge.x;
     }
   }
-  calcVertexNumbers<<<gridEdge,blockEdge>>>(numFinestEdges, this->octree->edgeArrayDevice, this->vertexImplicitDevice, vertexNumbersDevice);
+  calcVertexNumbers<<<gridEdge,blockEdge>>>(numFinestEdges, 0, this->octree->edgeArrayDevice, this->vertexImplicitDevice, vertexNumbersDevice);
   cudaDeviceSynchronize();
   CudaCheckError();
   CudaSafeCall(cudaFree(this->vertexImplicitDevice));
@@ -1868,6 +1872,7 @@ void Surface::marchingCubes(){
   thrust::device_ptr<int> vN(vertexNumbersDevice);
   thrust::device_ptr<int> vA(vertexAddressesDevice);
   thrust::inclusive_scan(vN, vN + numFinestEdges, vA);
+  cudaDeviceSynchronize();
 
   /*Triangles*/
   //surround vertices with values less than 0
@@ -1893,7 +1898,7 @@ void Surface::marchingCubes(){
       ++grid.x;
     }
   }
-  determineCubeCategories<<<grid,block>>>(numFinestNodes, this->octree->finalNodeArrayDevice, vertexNumbersDevice, cubeCategoryDevice, triangleNumbersDevice);
+  determineCubeCategories<<<grid,block>>>(numFinestNodes, 0, 0, this->octree->finalNodeArrayDevice, vertexNumbersDevice, cubeCategoryDevice, triangleNumbersDevice);
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -1902,11 +1907,16 @@ void Surface::marchingCubes(){
   thrust::device_ptr<int> tN(triangleNumbersDevice);
   thrust::device_ptr<int> tA(triangleAddressesDevice);
   thrust::inclusive_scan(tN, tN + numFinestNodes, tA);
+  cudaDeviceSynchronize();
+
+  this->numSurfaceVertices = 0;
+  this->numSurfaceTriangles = 0;
 
   CudaSafeCall(cudaMemcpy(&this->numSurfaceVertices, vertexAddressesDevice + (numFinestEdges - 1), sizeof(int), cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaMemcpy(&this->numSurfaceTriangles, triangleAddressesDevice + (numFinestNodes - 1), sizeof(int), cudaMemcpyDeviceToHost));
-  printf("%d vertices and %d triangles\n",this->numSurfaceVertices, this->numSurfaceTriangles);
 
+  printf("%d vertices and %d triangles from %d finestNodes\n",this->numSurfaceVertices, this->numSurfaceTriangles, numFinestNodes);
+  CudaSafeCall(cudaFree(triangleNumbersDevice));
 
   float3* surfaceVerticesDevice;
   CudaSafeCall(cudaMalloc((void**)&surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3)));
@@ -1915,7 +1925,7 @@ void Surface::marchingCubes(){
   if(!this->octree->vertexArrayDeviceReady) this->octree->copyVerticesToDevice();
 
   /* generate vertices */
-  generateSurfaceVertices<<<gridEdge,blockEdge>>>(numFinestEdges, this->octree->edgeArrayDevice, this->octree->vertexArrayDevice, vertexNumbersDevice, vertexAddressesDevice, surfaceVerticesDevice);
+  generateSurfaceVertices<<<gridEdge,blockEdge>>>(numFinestEdges, 0, this->octree->edgeArrayDevice, this->octree->vertexArrayDevice, vertexNumbersDevice, vertexAddressesDevice, surfaceVerticesDevice);
   CudaCheckError();
   this->surfaceVertices = new float3[this->numSurfaceVertices];
   CudaSafeCall(cudaMemcpy(this->surfaceVertices, surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3),cudaMemcpyDeviceToHost));
@@ -1925,7 +1935,6 @@ void Surface::marchingCubes(){
   this->octree->edgeArrayDeviceReady = false;
   CudaSafeCall(cudaFree(this->octree->vertexArrayDevice));
   this->octree->vertexArrayDeviceReady = false;
-
 
   int3* surfaceTrianglesDevice;
 
@@ -1947,23 +1956,194 @@ void Surface::marchingCubes(){
     }
   }
   block = {5,1,1};
-  generateSurfaceTriangles<<<grid,block>>>(numFinestNodes, this->octree->finalNodeArrayDevice, vertexAddressesDevice, triangleNumbersDevice, triangleAddressesDevice, cubeCategoryDevice, surfaceTrianglesDevice);
+  generateSurfaceTriangles<<<grid,block>>>(numFinestNodes, 0, 0, this->octree->finalNodeArrayDevice, vertexAddressesDevice, triangleAddressesDevice, cubeCategoryDevice, surfaceTrianglesDevice);
   CudaCheckError();
 
   this->surfaceTriangles = new int3[this->numSurfaceTriangles];
   CudaSafeCall(cudaMemcpy(this->surfaceTriangles, surfaceTrianglesDevice, this->numSurfaceTriangles*sizeof(int3),cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaFree(surfaceTrianglesDevice));
   CudaSafeCall(cudaFree(vertexAddressesDevice));
-  CudaSafeCall(cudaFree(triangleNumbersDevice));
   CudaSafeCall(cudaFree(triangleAddressesDevice));
   CudaSafeCall(cudaFree(cubeCategoryDevice));
   timer = clock() - timer;
   printf("Marching cubes took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
+  this->generateMesh();
 
 }
+void Surface::jaxMeshing(){
+  clock_t timer;
+  timer = clock();
+  bool foundSurfaceDepth = false;
+  int numNodesAtDepth = 0;
+  int currentDepthIndex = -1;
+  int surfaceDepth = -1;
+  bool hadNeighborsWithPoints = false;
+  int currentNeighbor = -1;
+  int numNodesWithPointNeighbors = 0;
+  for(int d = 0; d < this->octree->depth; ++d){
+    numNodesAtDepth = this->octree->depthIndex[d + 1] - this->octree->depthIndex[d];
+    currentDepthIndex = this->octree->depthIndex[d];
+    foundSurfaceDepth = true;
+    numNodesWithPointNeighbors = 0;
+    for(int n = currentDepthIndex; n < numNodesAtDepth + currentDepthIndex; ++n){
+      if(this->octree->finalNodeArray[n].numPoints == 0) continue;
+      hadNeighborsWithPoints = false;
+      for(int neigh = 0; neigh < 27; ++neigh){
+        if(neigh == 13) continue;
+        currentNeighbor = this->octree->finalNodeArray[n].neighbors[neigh];
+        if(currentNeighbor != -1 && this->octree->finalNodeArray[currentNeighbor].numPoints != 0){
+          hadNeighborsWithPoints = true;
+          break;
+        }
+      }
+      if(!hadNeighborsWithPoints){
+        foundSurfaceDepth = false;
+        break;
+      }
+      else{
+        ++numNodesWithPointNeighbors;
+      }
+    }
+    if(foundSurfaceDepth){
+      surfaceDepth = d;
+      break;
+    }
+  }
+  //this->octree->writeDepthPLY(this->octree->depth - surfaceDepth);
+  printf("%d is the depth at which the surface is surrounded by nodes without holes\n",this->octree->depth - surfaceDepth);
+  this->computeImplicitEasy(this->octree->depth - surfaceDepth);
 
+  //MARCHING CUBES ON
+
+  if(!this->octree->edgeArrayDeviceReady) this->octree->copyEdgesToDevice();
+  int numMarchingEdges = this->octree->edgeIndex[surfaceDepth + 1] - this->octree->edgeIndex[surfaceDepth];
+  int* vertexNumbersDevice;
+  CudaSafeCall(cudaMalloc((void**)&vertexNumbersDevice, numMarchingEdges*sizeof(int)));
+  dim3 gridEdge = {1,1,1};
+  dim3 blockEdge = {1,1,1};
+  if(numMarchingEdges < 65535) gridEdge.x = (unsigned int) numMarchingEdges;
+  else{
+    gridEdge.x = 65535;
+    while(gridEdge.x*blockEdge.x < numMarchingEdges){
+      ++blockEdge.x;
+    }
+    while(gridEdge.x*blockEdge.x > numMarchingEdges){
+      --gridEdge.x;
+    }
+    if(gridEdge.x*blockEdge.x < numMarchingEdges){
+      ++gridEdge.x;
+    }
+  }
+  calcVertexNumbers<<<gridEdge,blockEdge>>>(numMarchingEdges, this->octree->edgeIndex[surfaceDepth], this->octree->edgeArrayDevice, this->vertexImplicitDevice, vertexNumbersDevice);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+  CudaSafeCall(cudaFree(this->vertexImplicitDevice));
+  int* vertexAddressesDevice;
+  CudaSafeCall(cudaMalloc((void**)&vertexAddressesDevice, numMarchingEdges*sizeof(int)));
+  thrust::device_ptr<int> vN(vertexNumbersDevice);
+  thrust::device_ptr<int> vA(vertexAddressesDevice);
+  thrust::inclusive_scan(vN, vN + numMarchingEdges, vA);
+  cudaDeviceSynchronize();
+
+  /*Triangles*/
+  //surround vertices with values less than 0
+
+  int numMarchingNodes = this->octree->depthIndex[surfaceDepth + 1] - this->octree->depthIndex[surfaceDepth];
+  int* triangleNumbersDevice;
+  int* cubeCategoryDevice;
+  CudaSafeCall(cudaMalloc((void**)&triangleNumbersDevice, numMarchingNodes*sizeof(int)));
+  CudaSafeCall(cudaMalloc((void**)&cubeCategoryDevice, numMarchingNodes*sizeof(int)));
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  if(numMarchingNodes < 65535) grid.x = (unsigned int) numMarchingNodes;
+  else{
+    grid.x = 65535;
+    while(grid.x*block.x < numMarchingNodes){
+      ++block.x;
+    }
+    while(grid.x*block.x > numMarchingNodes){
+      --grid.x;
+    }
+    if(grid.x*block.x < numMarchingNodes){
+      ++grid.x;
+    }
+  }
+  determineCubeCategories<<<grid,block>>>(numMarchingNodes, this->octree->depthIndex[surfaceDepth], this->octree->edgeIndex[surfaceDepth], this->octree->finalNodeArrayDevice, vertexNumbersDevice, cubeCategoryDevice, triangleNumbersDevice);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  int* triangleAddressesDevice;
+  CudaSafeCall(cudaMalloc((void**)&triangleAddressesDevice, numMarchingNodes*sizeof(int)));
+  thrust::device_ptr<int> tN(triangleNumbersDevice);
+  thrust::device_ptr<int> tA(triangleAddressesDevice);
+  thrust::inclusive_scan(tN, tN + numMarchingNodes, tA);
+  cudaDeviceSynchronize();
+
+  this->numSurfaceVertices = 0;
+  this->numSurfaceTriangles = 0;
+
+  CudaSafeCall(cudaMemcpy(&this->numSurfaceVertices, vertexAddressesDevice + (numMarchingEdges - 1), sizeof(int), cudaMemcpyDeviceToHost));
+  CudaSafeCall(cudaMemcpy(&this->numSurfaceTriangles, triangleAddressesDevice + (numMarchingNodes - 1), sizeof(int), cudaMemcpyDeviceToHost));
+
+  printf("%d vertices and %d triangles from %d finestNodes\n",this->numSurfaceVertices, this->numSurfaceTriangles, numMarchingNodes);
+  CudaSafeCall(cudaFree(triangleNumbersDevice));
+
+  float3* surfaceVerticesDevice;
+  CudaSafeCall(cudaMalloc((void**)&surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3)));
+
+
+  if(!this->octree->vertexArrayDeviceReady) this->octree->copyVerticesToDevice();
+
+  /* generate vertices */
+  generateSurfaceVertices<<<gridEdge,blockEdge>>>(numMarchingEdges, this->octree->edgeIndex[surfaceDepth], this->octree->edgeArrayDevice, this->octree->vertexArrayDevice, vertexNumbersDevice, vertexAddressesDevice, surfaceVerticesDevice);
+  CudaCheckError();
+  this->surfaceVertices = new float3[this->numSurfaceVertices];
+  CudaSafeCall(cudaMemcpy(this->surfaceVertices, surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3),cudaMemcpyDeviceToHost));
+  CudaSafeCall(cudaFree(surfaceVerticesDevice));
+  CudaSafeCall(cudaFree(vertexNumbersDevice));
+  CudaSafeCall(cudaFree(this->octree->edgeArrayDevice));
+  this->octree->edgeArrayDeviceReady = false;
+  CudaSafeCall(cudaFree(this->octree->vertexArrayDevice));
+  this->octree->vertexArrayDeviceReady = false;
+
+  int3* surfaceTrianglesDevice;
+
+  CudaSafeCall(cudaMalloc((void**)&surfaceTrianglesDevice, this->numSurfaceTriangles*sizeof(int3)));
+
+  /* generate triangles */
+  //grid is already numMarchingNodes
+  if(numMarchingNodes < 65535) grid.x = (unsigned int) numMarchingNodes;
+  else{
+    grid.x = 65535;
+    while(grid.x*grid.y < numMarchingNodes){
+      ++grid.y;
+    }
+    while(grid.x*grid.y > numMarchingNodes){
+      --grid.x;
+    }
+    if(grid.x*grid.y < numMarchingNodes){
+      ++grid.x;
+    }
+  }
+  block = {5,1,1};
+  generateSurfaceTriangles<<<grid,block>>>(numMarchingNodes, this->octree->depthIndex[surfaceDepth], this->octree->edgeIndex[surfaceDepth], this->octree->finalNodeArrayDevice, vertexAddressesDevice, triangleAddressesDevice, cubeCategoryDevice, surfaceTrianglesDevice);
+  CudaCheckError();
+
+  this->surfaceTriangles = new int3[this->numSurfaceTriangles];
+  CudaSafeCall(cudaMemcpy(this->surfaceTriangles, surfaceTrianglesDevice, this->numSurfaceTriangles*sizeof(int3),cudaMemcpyDeviceToHost));
+  CudaSafeCall(cudaFree(surfaceTrianglesDevice));
+  CudaSafeCall(cudaFree(vertexAddressesDevice));
+  CudaSafeCall(cudaFree(triangleAddressesDevice));
+  CudaSafeCall(cudaFree(cubeCategoryDevice));
+
+  timer = clock() - timer;
+  printf("Jax meshing took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
+  this->generateMesh();
+
+}
 void Surface::generateMesh(){
-  std::string newFile = "out" + this->octree->pathToFile.substr(4, this->octree->pathToFile.length() - 4) + "_mesh.ply";
+  std::string newFile = "out" + this->octree->pathToFile.substr(4, this->octree->pathToFile.length() - 4) + "_mesh_" + std::to_string(this->octree->depth)+ ".ply";
   std::ofstream plystream(newFile);
   if (plystream.is_open()) {
     std::ostringstream stringBuffer = std::ostringstream("");
@@ -1995,6 +2175,70 @@ void Surface::generateMesh(){
       stringBuffer << " ";
       stringBuffer << this->surfaceTriangles[i].z;
       stringBuffer << "\n";
+      plystream << stringBuffer.str();
+    }
+    std::cout<<newFile + " has been created.\n"<<std::endl;
+  }
+  else{
+    std::cout << "Unable to open: " + newFile<< std::endl;
+    exit(1);
+  }
+}
+void Surface::generateMeshWithFinestEdges(){
+  std::string newFile = "out" + this->octree->pathToFile.substr(4, this->octree->pathToFile.length() - 4) + "_meshwedges_" + std::to_string(this->octree->depth)+ ".ply";
+  std::ofstream plystream(newFile);
+  if (plystream.is_open()) {
+    std::ostringstream stringBuffer = std::ostringstream("");
+    stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
+    stringBuffer << "element vertex ";
+    stringBuffer << (this->numSurfaceVertices + this->octree->vertexIndex[1]);
+    stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
+    stringBuffer << "element face ";
+    stringBuffer << this->numSurfaceTriangles;
+    stringBuffer << "\nproperty list uchar int vertex_index\n";
+    stringBuffer << "element edge ";
+    stringBuffer <<  this->octree->edgeIndex[1];
+    stringBuffer << "\nproperty int vertex1\nproperty int vertex2\n";
+    stringBuffer << "property uchar red\nproperty uchar green\nproperty uchar blue\n";
+    stringBuffer << "end_header\n";
+    plystream << stringBuffer.str();
+    for(int i = 0; i < this->numSurfaceVertices; ++i){
+      stringBuffer = std::ostringstream("");
+      stringBuffer << this->surfaceVertices[i].x;
+      stringBuffer << " ";
+      stringBuffer << this->surfaceVertices[i].y;
+      stringBuffer << " ";
+      stringBuffer << this->surfaceVertices[i].z;
+      stringBuffer << "\n";
+      plystream << stringBuffer.str();
+    }
+    for(int i = 0; i < this->octree->vertexIndex[1]; ++i){
+      stringBuffer = std::ostringstream("");
+      stringBuffer << this->octree->vertexArray[i].coord.x;
+      stringBuffer << " ";
+      stringBuffer << this->octree->vertexArray[i].coord.y;
+      stringBuffer << " ";
+      stringBuffer << this->octree->vertexArray[i].coord.z;
+      stringBuffer << "\n";
+      plystream << stringBuffer.str();
+    }
+    for(int i = 0; i < this->numSurfaceTriangles; ++i){
+      stringBuffer = std::ostringstream("");
+      stringBuffer << "3 ";
+      stringBuffer << this->surfaceTriangles[i].x;
+      stringBuffer << " ";
+      stringBuffer << this->surfaceTriangles[i].y;
+      stringBuffer << " ";
+      stringBuffer << this->surfaceTriangles[i].z;
+      stringBuffer << "\n";
+      plystream << stringBuffer.str();
+    }
+    for(int i = 0; i < this->octree->edgeIndex[1]; ++i){
+      stringBuffer = std::ostringstream("");
+      stringBuffer << (this->octree->edgeArray[i].v1 + this->numSurfaceVertices);
+      stringBuffer << " ";
+      stringBuffer << (this->octree->edgeArray[i].v2 + this->numSurfaceVertices);
+      stringBuffer << " 255 255 255\n";
       plystream << stringBuffer.str();
     }
     std::cout<<newFile + " has been created.\n"<<std::endl;

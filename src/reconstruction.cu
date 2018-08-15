@@ -24,6 +24,8 @@
 
 //TODO make normals unit vectors?
 
+//TODO cudaFree(constant memory)????????
+
 
 int main(int argc, char *argv[]){
   try{
@@ -38,22 +40,13 @@ int main(int argc, char *argv[]){
       std::cout<<"depth = "<<depth<<std::endl;
 
       Surface surface = Surface(filePath, depth);
+      surface.octree->copyNodesToHost();//not necessary for most operations
       //surface.computeImplicitFunction();
       //surface.computeImplicitMagma();
       //surface.computeImplicitCuSPSolver();
       ///surface.computeVertexImplicit();
-      surface.computeImplicitEasy();
+      //surface.jaxMeshing();
       surface.marchingCubes();
-      std::cout<<"---------------------------------------------------"<<std::endl;
-
-      std::cout<<"WRITING DERIVED PLY FILES\n"<<std::endl;
-      surface.generateMesh();
-      surface.octree->writeEdgePLY();
-      surface.octree->writeNormalPLY();
-      // surface.octree->copyNodesToHost();//this is only necessary for writeCenterPLY
-      // surface.octree->writeCenterPLY();
-      // surface.octree->writeVertexPLY();
-
       std::cout<<"---------------------------------------------------"<<std::endl;
 
       totalTimer = clock() - totalTimer;

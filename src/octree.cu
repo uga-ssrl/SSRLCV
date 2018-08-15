@@ -2252,7 +2252,7 @@ void Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
 }
 
 void Octree::writeVertexPLY(){
-  std::string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_vertices.ply";
+  std::string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_vertices_" + std::to_string(this->depth)+ ".ply";
   std::ofstream plystream(newFile);
   if (plystream.is_open()) {
     std::ostringstream stringBuffer = std::ostringstream("");
@@ -2287,7 +2287,7 @@ void Octree::writeVertexPLY(){
   }
 }
 void Octree::writeEdgePLY(){
-  std::string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_edges.ply";
+  std::string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_edges_" + std::to_string(this->depth)+ ".ply";
   std::ofstream plystream(newFile);
   if (plystream.is_open()) {
     std::ostringstream stringBuffer = std::ostringstream("");
@@ -2340,7 +2340,7 @@ void Octree::writeEdgePLY(){
   }
 }
 void Octree::writeCenterPLY(){
-  std::string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_centers.ply";
+  std::string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_centers_" + std::to_string(this->depth)+ ".ply";
   std::ofstream plystream(newFile);
   if (plystream.is_open()) {
     std::ostringstream stringBuffer = std::ostringstream("");
@@ -2375,7 +2375,7 @@ void Octree::writeCenterPLY(){
   }
 }
 void Octree::writeNormalPLY(){
-  std::string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_normals.ply";
+  std::string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) + "_normals_" + std::to_string(this->depth)+ ".ply";
 	std::ofstream plystream(newFile);
 	if (plystream.is_open()) {
     std::ostringstream stringBuffer = std::ostringstream("");
@@ -2405,6 +2405,65 @@ void Octree::writeNormalPLY(){
     std::cout<<newFile + " has been created.\n"<<std::endl;
 	}
 	else{
+    std::cout << "Unable to open: " + newFile<< std::endl;
+    exit(1);
+  }
+}
+void Octree::writeDepthPLY(int d){
+  if(d < 0 || d > this->depth){
+    std::cout<<"ERROR DEPTH FOR WRITEDEPTHPLY IS OUT OF BOUNDS"<<std::endl;
+    exit(-1);
+  }
+  std::string newFile = "out" + this->pathToFile.substr(4, this->pathToFile.length() - 4) +
+  "_finestNodes_" + std::to_string(d) + "_"+ std::to_string(this->depth)+ ".ply";
+  std::ofstream plystream(newFile);
+  if (plystream.is_open()) {
+    int verticesToWrite = (depth != 0) ? this->vertexIndex[this->depth - d + 1] : this->totalVertices;
+    int facesToWrite = (depth != 0) ? this->faceIndex[this->depth - d + 1] - this->faceIndex[this->depth - d] : 6;
+    int faceStartingIndex = this->faceIndex[this->depth - d];
+    std::ostringstream stringBuffer = std::ostringstream("");
+    stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
+    stringBuffer << "element vertex ";
+    stringBuffer << verticesToWrite;
+    stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
+    stringBuffer << "property uchar red\nproperty uchar green\nproperty uchar blue\n";
+    stringBuffer << "element face ";
+    stringBuffer << facesToWrite;
+    stringBuffer << "\nproperty list uchar int vertex_index\n";
+    stringBuffer << "end_header\n";
+    plystream << stringBuffer.str();
+    for(int i = 0; i < verticesToWrite; ++i){
+      stringBuffer = std::ostringstream("");
+      stringBuffer << this->vertexArray[i].coord.x;
+      stringBuffer << " ";
+      stringBuffer << this->vertexArray[i].coord.y;
+      stringBuffer << " ";
+      stringBuffer << this->vertexArray[i].coord.z;
+      stringBuffer << " ";
+      stringBuffer << 50;
+      stringBuffer << " ";
+      stringBuffer << 50;
+      stringBuffer << " ";
+      stringBuffer << 50;
+      stringBuffer << "\n";
+      plystream << stringBuffer.str();
+    }
+    for(int i = faceStartingIndex; i < facesToWrite + faceStartingIndex; ++i){
+      stringBuffer = std::ostringstream("");
+      stringBuffer << "4 ";
+      stringBuffer << this->edgeArray[this->faceArray[i].e1].v1;
+      stringBuffer << " ";
+      stringBuffer << this->edgeArray[this->faceArray[i].e1].v2;
+      stringBuffer << " ";
+      stringBuffer << this->edgeArray[this->faceArray[i].e4].v2;
+      stringBuffer << " ";
+      stringBuffer << this->edgeArray[this->faceArray[i].e4].v1;
+      stringBuffer << "\n";
+      plystream << stringBuffer.str();
+    }
+    std::cout<<newFile + " has been created.\n"<<std::endl;
+  }
+  else{
     std::cout << "Unable to open: " + newFile<< std::endl;
     exit(1);
   }

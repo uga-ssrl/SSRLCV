@@ -61,7 +61,6 @@ struct Node{
   int key;
   int numPoints;
   int depth;
-  //TODO check this as it is set in generateParents
   int numFinestChildren;
   int finestChildIndex;
 
@@ -288,6 +287,7 @@ struct Octree{
   void writeEdgePLY();
   void writeCenterPLY();
   void writeNormalPLY();
+  void writeDepthPLY(int d);
 
 };
 #endif /* OCTREE_CUH */
