@@ -37,10 +37,6 @@ OBJS = ${patsubst %, ${OBJDIR}/%, ${_OBJS}}
 TARGET = reconstruction.exe
 LINKLINE = ${LINK} -gencode=arch=compute_61,code=sm_61 ${OBJS} ${LIB_CUDA} -o ${BINDIR}/${TARGET}
 
-sift= $(BIN)
-match= $(BINMATCH)
-demo= $(BINDEMO)
-
 
 .SUFFIXES: .cpp .cu .o
 
