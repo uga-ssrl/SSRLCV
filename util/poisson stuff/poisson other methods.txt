@@ -1,0 +1,547 @@
+//POISSON
+void Surface::computeDivergenceVector(){
+  clock_t cudatimer;
+  cudatimer = clock();
+  /*
+  FIRST COMPUTE VECTOR FIELD
+  */
+
+  int numNodesAtDepth = 0;
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  numNodesAtDepth = this->octree->depthIndex[1];
+  if(numNodesAtDepth < 65535) grid.x = (unsigned int) numNodesAtDepth;
+  else{
+    grid.x = 65535;
+    while(grid.x*grid.y < numNodesAtDepth){
+      ++grid.y;
+    }
+    while(grid.x*grid.y > numNodesAtDepth){
+      --grid.x;
+
+    }
+    if(grid.x*grid.y < numNodesAtDepth){
+      ++grid.x;
+    }
+  }
+  block.x = 27;
+  float3* vectorField = new float3[numNodesAtDepth];
+  for(int i = 0; i < numNodesAtDepth; ++i){
+    vectorField[i] = {0.0f,0.0f,0.0f};
+  }
+  float3* vectorFieldDevice;
+  CudaSafeCall(cudaMalloc((void**)&vectorFieldDevice, numNodesAtDepth*sizeof(float3)));
+  CudaSafeCall(cudaMemcpy(vectorFieldDevice, vectorField, numNodesAtDepth*sizeof(float3), cudaMemcpyHostToDevice));
+  computeVectorFeild<<<grid,block>>>(this->octree->finalNodeArrayDevice, numNodesAtDepth, vectorFieldDevice, this->octree->normalsDevice, this->octree->pointsDevice);
+  cudaDeviceSynchronize();//force this to finish as it is necessary for next kernels
+  CudaCheckError();
+  /*
+  CudaSafeCall(cudaMemcpy(vectorField, vectorFieldDevice, numNodesAtDepth*sizeof(float3), cudaMemcpyDeviceToHost));
+  for(int i = 0; i < numNodesAtDepth; ++i){
+    if(vectorField[i].x != 0.0f && vectorField[i].y != 0.0f && vectorField[i].z != 0.0f){
+      std::cout<<vectorField[i].x<<","<<vectorField[i].y<<","<<vectorField[i].z<<std::endl;
+    }
+  }
+  */
+  delete[] vectorField;
+  cudatimer = clock() - cudatimer;
+  printf("Vector field generation kernel took %f seconds.\n",((float) cudatimer)/CLOCKS_PER_SEC);
+  cudatimer = clock();
+  /*
+  NOW COMPUTE DIVERGENCE VECTOR AFTER FINDING VECTOR FIELD
+  */
+
+
+  cudatimer = clock() - cudatimer;
+  printf("Divergence vector generation kernel took %f seconds.\n",((float) cudatimer)/CLOCKS_PER_SEC);
+}
+void Surface::computeImplicitMagma(){
+  this->computeDivergenceVector();
+
+  clock_t timer;
+  timer = clock();
+  clock_t cudatimer;
+  cudatimer = clock();
+
+  unsigned int size = (pow(2, this->octree->depth + 1) - 1);
+  int numNodesAtDepth = 0;
+  float* temp;
+  int* tempInt;
+  int* numNonZero;
+  int* numNonZeroDevice;
+  float* laplacianValuesDevice;
+  int* laplacianIndicesDevice;
+  float* csrValues;
+  int* csrIndices;
+  float* csrValuesDevice;
+  int* csrIndicesDevice;
+  int totalNonZero = 0;
+  float* partialDivergence;
+  float* partialImplicit;
+  int m;
+  int n = 1;
+  dim3 grid;
+  dim3 block;
+
+  CudaSafeCall(cudaMalloc((void**)&this->nodeImplicitDevice, this->octree->totalNodes*sizeof(float)));
+
+  for(int d = this->octree->depth; d >= 0; --d){
+    //update divergence coefficients based on solutions at coarser depths
+    grid = {1,1,1};
+    block = {27,1,1};
+    if(d != this->octree->depth){
+      numNodesAtDepth = this->octree->depthIndex[d + 1] - this->octree->depthIndex[d];
+      if(numNodesAtDepth < 65535) grid.x = (unsigned int) numNodesAtDepth;
+      else{
+        grid.x = 65535;
+        while(grid.x*grid.y < numNodesAtDepth){
+          ++grid.y;
+        }
+        while(grid.x*grid.y > numNodesAtDepth){
+          --grid.x;
+        }
+        if(grid.x*grid.y < numNodesAtDepth){
+          ++grid.x;
+        }
+      }
+      updateDivergence<<<grid, block>>>(this->octree->depth, this->octree->finalNodeArrayDevice, numNodesAtDepth,
+        this->octree->depthIndex[d], this->divergenceVectorDevice,
+        this->fLUTDevice, this->fPrimePrimeLUTDevice, this->nodeImplicitDevice);
+      cudaDeviceSynchronize();
+      CudaCheckError();
+    }
+    else{
+      numNodesAtDepth = 1;
+    }
+
+    temp = new float[numNodesAtDepth*27];
+    tempInt = new int[numNodesAtDepth*27];
+    numNonZero = new int[numNodesAtDepth + 1];
+    numNonZero[0] = 0;
+    for(int i = 0; i < numNodesAtDepth*27; ++i){
+      temp[i] = 0.0f;
+      tempInt[i] = -1;
+      if(i % 27 == 0){
+        numNonZero[(i/27) + 1] = 0;
+      }
+    }
+    CudaSafeCall(cudaMalloc((void**)&numNonZeroDevice, (numNodesAtDepth+1)*sizeof(int)));
+    CudaSafeCall(cudaMalloc((void**)&laplacianValuesDevice, numNodesAtDepth*27*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&laplacianIndicesDevice, numNodesAtDepth*27*sizeof(int)));
+    CudaSafeCall(cudaMemcpy(numNonZeroDevice, numNonZero, (numNodesAtDepth+1)*sizeof(int), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(laplacianValuesDevice, temp, numNodesAtDepth*27*sizeof(float), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(laplacianIndicesDevice, tempInt, numNodesAtDepth*27*sizeof(int), cudaMemcpyHostToDevice));
+
+    computeLdCSR<<<grid, block>>>(this->octree->depth, this->octree->finalNodeArrayDevice, numNodesAtDepth, this->octree->depthIndex[d],
+      laplacianValuesDevice, laplacianIndicesDevice, numNonZeroDevice);
+
+    cudaDeviceSynchronize();
+    CudaCheckError();
+
+    thrust::device_ptr<int> nN(numNonZeroDevice);
+    thrust::inclusive_scan(nN, nN + numNodesAtDepth + 1, nN);
+    CudaCheckError();
+    CudaSafeCall(cudaMemcpy(numNonZero, numNonZeroDevice, (numNodesAtDepth+1)*sizeof(int), cudaMemcpyDeviceToHost));
+
+    totalNonZero = numNonZero[numNodesAtDepth];
+
+    delete[] temp;
+    delete[] tempInt;
+    csrValues = new float[totalNonZero];
+    csrIndices = new int[totalNonZero];
+    for(int i = 0; i < totalNonZero; ++i){
+      csrValues[i] = 0.0f;
+      csrIndices[i] = 0;
+    }
+
+    CudaSafeCall(cudaMalloc((void**)&csrValuesDevice, totalNonZero*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&csrIndicesDevice, totalNonZero*sizeof(int)));
+
+    thrust::device_ptr<float> arrayToCompact(laplacianValuesDevice);
+    thrust::device_ptr<float> arrayOut(csrValuesDevice);
+    thrust::device_ptr<int> placementToCompact(laplacianIndicesDevice);
+    thrust::device_ptr<int> placementOut(csrIndicesDevice);
+
+    thrust::copy_if(arrayToCompact, arrayToCompact + (numNodesAtDepth*27), arrayOut, is_not_zero_float());
+    CudaCheckError();
+    thrust::copy_if(placementToCompact, placementToCompact + (numNodesAtDepth*27), placementOut, is_not_neg_int());
+    CudaCheckError();
+
+    CudaSafeCall(cudaFree(laplacianValuesDevice));
+    CudaSafeCall(cudaFree(laplacianIndicesDevice));
+    CudaSafeCall(cudaMemcpy(csrValues, csrValuesDevice, totalNonZero*sizeof(float),cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaMemcpy(csrIndices, csrIndicesDevice, totalNonZero*sizeof(int),cudaMemcpyDeviceToHost));
+
+    partialDivergence = new float[numNodesAtDepth];
+    CudaSafeCall(cudaMemcpy(partialDivergence, this->divergenceVectorDevice + this->octree->depthIndex[d], numNodesAtDepth*sizeof(float), cudaMemcpyDeviceToHost));
+    partialImplicit = new float[numNodesAtDepth];
+    for(int i = 0; i < numNodesAtDepth; ++i){
+      partialImplicit[i] = 0.0f;
+    }
+    if(d != this->octree->depth){
+
+      m = numNodesAtDepth;
+
+      //DO SPARSE LINEAR SOLVER WITH A IN CSR FORMAT
+      magma_init();
+      magma_sopts opts;
+      magma_queue_t queue;
+      magma_queue_create(0 , &queue);
+
+      magma_s_matrix A={Magma_CSR}, dA={Magma_CSR};
+      magma_s_matrix b={Magma_CSR}, db={Magma_CSR};
+      magma_s_matrix x={Magma_CSR}, dx={Magma_CSR};
+      magma_scsrset(m, m, numNonZero, csrIndices, csrValues, &A, queue);
+      magma_svset(m, n, partialDivergence, &b, queue);
+      magma_svset(m, n, partialImplicit, &x, queue);
+
+      opts.solver_par.solver     = Magma_CG;
+      opts.solver_par.maxiter    = m;
+
+      magma_smtransfer( A, &dA, Magma_CPU, Magma_DEV, queue );
+      magma_smtransfer( b, &db, Magma_CPU, Magma_DEV, queue );
+      magma_smtransfer( x, &dx, Magma_CPU, Magma_DEV, queue );
+
+      //magma_scg_res(dA,db,&dx,&opts.solver_par,queue);//preconditioned cojugate gradient solver
+      //magma_scg_merge(dA,db,&dx,&opts.solver_par,queue);//cojugate gradient in variant solver merge
+      magma_scg(dA,db,&dx,&opts.solver_par,queue);//cojugate gradient solver
+      //magma_s_solver(dA,db,&dx,&opts,queue);//cojugate gradient solver
+
+      magma_smfree( &x, queue );
+      magma_smtransfer( dx, &x, Magma_CPU, Magma_DEV, queue );
+
+      magma_svget( x, &m, &n, &partialImplicit, queue );
+
+      magma_smfree( &dx, queue );
+      magma_smfree( &db, queue );
+      magma_smfree( &dA, queue );
+
+      magma_queue_destroy(queue);
+      magma_finalize();
+    }
+    else{
+      partialImplicit[0] = csrValues[0]/partialDivergence[0];
+    }
+
+    //copy partial implicit into the final nodeImplicitFunction array
+    CudaSafeCall(cudaMemcpy(this->nodeImplicitDevice + this->octree->depthIndex[d], partialImplicit, numNodesAtDepth*sizeof(float), cudaMemcpyHostToDevice));
+
+    delete[] csrValues;
+    delete[] csrIndices;
+    delete[] numNonZero;
+    delete[] partialDivergence;
+    delete[] partialImplicit;
+    CudaSafeCall(cudaFree(csrValuesDevice));
+    CudaSafeCall(cudaFree(csrIndicesDevice));
+    CudaSafeCall(cudaFree(numNonZeroDevice));
+
+    cudatimer = clock() - cudatimer;
+    printf("Node Implicit computation for depth %d took %f seconds w/%d nodes.\n", this->octree->depth - d,((float) cudatimer)/CLOCKS_PER_SEC, numNodesAtDepth);
+    cudatimer = clock();
+  }
+
+  CudaSafeCall(cudaFree(this->divergenceVectorDevice));
+
+  timer = clock() - timer;
+  printf("Node Implicit compuation took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
+
+}
+void Surface::computeImplicitCuSPSolver(){
+  this->computeDivergenceVector();
+  //TODO precondition with cusparseScsric0
+
+  clock_t timer;
+  timer = clock();
+  clock_t cudatimer;
+  cudatimer = clock();
+
+  unsigned int size = (pow(2, this->octree->depth + 1) - 1);
+  int numNodesAtDepth = 0;
+  float* temp;
+  int* tempInt;
+  int* numNonZero;
+  int* numNonZeroDevice;
+  float* laplacianValuesDevice;
+  int* laplacianIndicesDevice;
+  float* csrValues;
+  int* csrIndices;
+  float* csrValuesDevice;
+  int* csrIndicesDevice;
+  int totalNonZero = 0;
+  float* partialDivergence;
+  float* partialImplicit;
+  dim3 grid;
+  dim3 block;
+  const float tol = 1e-5f;
+  int max_iter = size;
+  float a, b, na, r0, r1;
+  float dot, m;
+  float *d_p, *d_Ax;
+  int k;
+  float alpha, beta, alpham1;
+
+  CudaSafeCall(cudaMalloc((void**)&this->nodeImplicitDevice, this->octree->totalNodes*sizeof(float)));
+
+  for(int d = this->octree->depth; d >= 0; --d){
+    //update divergence coefficients based on solutions at coarser depths
+    grid = {1,1,1};
+    block = {27,1,1};
+    if(d != this->octree->depth){
+      numNodesAtDepth = this->octree->depthIndex[d + 1] - this->octree->depthIndex[d];
+      if(numNodesAtDepth < 65535) grid.x = (unsigned int) numNodesAtDepth;
+      else{
+        grid.x = 65535;
+        while(grid.x*grid.y < numNodesAtDepth){
+          ++grid.y;
+        }
+        while(grid.x*grid.y > numNodesAtDepth){
+          --grid.x;
+        }
+        if(grid.x*grid.y < numNodesAtDepth){
+          ++grid.x;
+        }
+      }
+      for(int dcoarse = d + 1; dcoarse <= this->octree->depth; ++dcoarse){
+        updateDivergence<<<grid, block>>>(this->octree->depth, this->octree->finalNodeArrayDevice, numNodesAtDepth,
+          this->octree->depthIndex[d], this->divergenceVectorDevice,
+          this->fLUTDevice, this->fPrimePrimeLUTDevice, this->nodeImplicitDevice);
+        cudaDeviceSynchronize();
+        CudaCheckError();
+        //if(d == this->octree->depth - 8) exit(0);
+      }
+    }
+    else{
+
+      numNodesAtDepth = 1;
+    }
+
+    temp = new float[numNodesAtDepth*27];
+    tempInt = new int[numNodesAtDepth*27];
+    numNonZero = new int[numNodesAtDepth + 1];
+    numNonZero[0] = 0;
+    for(int i = 0; i < numNodesAtDepth*27; ++i){
+      temp[i] = 0.0f;
+      tempInt[i] = -1;
+      if(i % 27 == 0){
+        numNonZero[(i/27) + 1] = 0;
+      }
+    }
+    CudaSafeCall(cudaMalloc((void**)&numNonZeroDevice, (numNodesAtDepth+1)*sizeof(int)));
+    CudaSafeCall(cudaMalloc((void**)&laplacianValuesDevice, numNodesAtDepth*27*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&laplacianIndicesDevice, numNodesAtDepth*27*sizeof(int)));
+    CudaSafeCall(cudaMemcpy(numNonZeroDevice, numNonZero, (numNodesAtDepth+1)*sizeof(int), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(laplacianValuesDevice, temp, numNodesAtDepth*27*sizeof(float), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(laplacianIndicesDevice, tempInt, numNodesAtDepth*27*sizeof(int), cudaMemcpyHostToDevice));
+
+    computeLdCSR<<<grid, block>>>(this->octree->depth, this->octree->finalNodeArrayDevice, numNodesAtDepth, this->octree->depthIndex[d],
+      laplacianValuesDevice, laplacianIndicesDevice, numNonZeroDevice);
+
+    CudaCheckError();
+
+    thrust::device_ptr<int> nN(numNonZeroDevice);
+    thrust::inclusive_scan(nN, nN + numNodesAtDepth + 1, nN);
+    CudaCheckError();
+    CudaSafeCall(cudaMemcpy(numNonZero, numNonZeroDevice, (numNodesAtDepth+1)*sizeof(int), cudaMemcpyDeviceToHost));
+
+    totalNonZero = numNonZero[numNodesAtDepth];
+
+    delete[] tempInt;
+    csrValues = new float[totalNonZero];
+    csrIndices = new int[totalNonZero];
+    for(int i = 0; i < totalNonZero; ++i){
+      csrValues[i] = 0.0f;
+      csrIndices[i] = 0;
+    }
+
+    CudaSafeCall(cudaMalloc((void**)&csrValuesDevice, totalNonZero*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&csrIndicesDevice, totalNonZero*sizeof(int)));
+
+    thrust::device_ptr<float> arrayToCompact(laplacianValuesDevice);
+    thrust::device_ptr<float> arrayOut(csrValuesDevice);
+    thrust::device_ptr<int> placementToCompact(laplacianIndicesDevice);
+    thrust::device_ptr<int> placementOut(csrIndicesDevice);
+
+    thrust::copy_if(arrayToCompact, arrayToCompact + (numNodesAtDepth*27), arrayOut, is_not_zero_float());
+    CudaCheckError();
+    thrust::copy_if(placementToCompact, placementToCompact + (numNodesAtDepth*27), placementOut, is_not_neg_int());
+    CudaCheckError();
+
+    CudaSafeCall(cudaFree(laplacianValuesDevice));
+    CudaSafeCall(cudaFree(laplacianIndicesDevice));
+    CudaSafeCall(cudaMemcpy(csrValues, csrValuesDevice, totalNonZero*sizeof(float),cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaMemcpy(csrIndices, csrIndicesDevice, totalNonZero*sizeof(int),cudaMemcpyDeviceToHost));
+
+    CudaSafeCall(cudaMalloc((void**)&partialImplicit, numNodesAtDepth*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&partialDivergence, numNodesAtDepth*sizeof(float)));
+
+    CudaSafeCall(cudaMemcpy(partialDivergence, this->divergenceVectorDevice + this->octree->depthIndex[d], numNodesAtDepth*sizeof(float), cudaMemcpyDeviceToDevice));
+    CudaSafeCall(cudaMemcpy(partialImplicit, temp + (numNodesAtDepth - 1), numNodesAtDepth*sizeof(float), cudaMemcpyHostToDevice));
+    delete[] temp;
+
+    m = numNodesAtDepth;
+    max_iter = numNodesAtDepth;
+
+    //DO SPARSE LINEAR SOLVER WITH A IN CSR FORMAT
+    /* Get handle to the CUBLAS context */
+    cublasHandle_t cublasHandle = 0;
+    cublasStatus_t cublasStatus;
+    cublasStatus = cublasCreate(&cublasHandle);
+
+    //TODO check those status
+    /* Get handle to the CUSPARSE context */
+    cusparseHandle_t cusparseHandle = 0;
+    cusparseStatus_t cusparseStatus;
+    cusparseStatus = cusparseCreate(&cusparseHandle);
+
+    cusparseMatDescr_t descr = 0;
+    cusparseStatus = cusparseCreateMatDescr(&descr);
+
+    cusparseSetMatType(descr,CUSPARSE_MATRIX_TYPE_GENERAL);
+    cusparseSetMatIndexBase(descr,CUSPARSE_INDEX_BASE_ZERO);
+
+    CudaSafeCall(cudaMalloc((void **)&d_p, m*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void **)&d_Ax, m*sizeof(float)));
+
+    alpha = 1.0;
+    alpham1 = -1.0;
+    beta = 0.0;
+    r0 = 0.;
+
+    cusparseScsrmv(cusparseHandle,CUSPARSE_OPERATION_NON_TRANSPOSE, m, m, totalNonZero,
+      &alpha, descr, csrValuesDevice, numNonZeroDevice, csrIndicesDevice, partialImplicit, &beta, d_Ax);
+
+    cublasSaxpy(cublasHandle, m, &alpham1, d_Ax, 1, partialDivergence, 1);
+    cublasStatus = cublasSdot(cublasHandle, m, partialDivergence, 1, partialDivergence, 1, &r1);
+
+    k = 1;
+
+    while (r1 > tol*tol && k <= max_iter){
+        if (k > 1){
+            b = r1 / r0;
+            cublasStatus = cublasSscal(cublasHandle, m, &b, d_p, 1);
+            cublasStatus = cublasSaxpy(cublasHandle, m, &alpha, partialDivergence, 1, d_p, 1);
+        }
+        else{
+            cublasStatus = cublasScopy(cublasHandle, m, partialDivergence, 1, d_p, 1);
+        }
+
+        cusparseScsrmv(cusparseHandle, CUSPARSE_OPERATION_NON_TRANSPOSE, m, m, totalNonZero,
+          &alpha, descr, csrValuesDevice, numNonZeroDevice, csrIndicesDevice, d_p, &beta, d_Ax);
+
+        cublasStatus = cublasSdot(cublasHandle, m, d_p, 1, d_Ax, 1, &dot);
+        a = r1 / dot;
+
+        cublasStatus = cublasSaxpy(cublasHandle, m, &a, d_p, 1, partialImplicit, 1);
+        na = -a;
+        cublasStatus = cublasSaxpy(cublasHandle, m, &na, d_Ax, 1, partialDivergence, 1);
+
+        r0 = r1;
+        cublasStatus = cublasSdot(cublasHandle, m, partialDivergence, 1, partialDivergence, 1, &r1);
+        cudaDeviceSynchronize();
+        printf("iteration = %3d, residual = %e\n", k, sqrt(r1));
+        k++;
+    }
+    printf("solver at depth %d was solved in %d iterations with a beta value of %f\n",this->octree->depth - d, k, beta);
+    // float rsum, diff, err = 0.0;
+    //
+    // for (int i = 0; i < N; i++)
+    // {
+    //     rsum = 0.0;
+    //
+    //     for (int j = I[i]; j < I[i+1]; j++)
+    //     {
+    //         rsum += val[j]*x[J[j]];
+    //     }
+    //
+    //     diff = fabs(rsum - rhs[i]);
+    //
+    //     if (diff > err)
+    //     {
+    //         err = diff;
+    //     }
+    // }
+    // printf("Test Summary:  Error amount = %f\n", err);
+    // exit((k <= max_iter) ? 0 : 1);
+
+    cusparseDestroy(cusparseHandle);
+    cublasDestroy(cublasHandle);
+
+    //copy partial implicit into the final nodeImplicitFunction array
+    CudaSafeCall(cudaMemcpy(this->nodeImplicitDevice + this->octree->depthIndex[d], partialImplicit, numNodesAtDepth*sizeof(float), cudaMemcpyHostToDevice));
+
+    delete[] csrValues;
+    delete[] csrIndices;
+    delete[] numNonZero;
+    cudaFree(d_p);
+    cudaFree(d_Ax);
+    CudaSafeCall(cudaFree(csrValuesDevice));
+    CudaSafeCall(cudaFree(csrIndicesDevice));
+    CudaSafeCall(cudaFree(numNonZeroDevice));
+    CudaSafeCall(cudaFree(partialImplicit));
+    CudaSafeCall(cudaFree(partialDivergence));
+
+    cudatimer = clock() - cudatimer;
+    printf("Node Implicit computation for depth %d took %f seconds w/%d nodes.\n", d,((float) cudatimer)/CLOCKS_PER_SEC, numNodesAtDepth);
+    cudatimer = clock();
+  }
+  CudaSafeCall(cudaFree(this->divergenceVectorDevice));
+
+  timer = clock() - timer;
+  printf("Node Implicit computation took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
+
+}
+void Surface::computeVertexImplicit(){
+  clock_t timer;
+  timer = clock();
+
+  /*Vertices*/
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  if(this->octree->numPoints < 65535) grid.x = (unsigned int) this->octree->numPoints;
+  else{
+    grid.x = 65535;
+    while(grid.x*block.x < this->octree->numPoints){
+      ++block.x;
+    }
+    while(grid.x*block.x > this->octree->numPoints){
+      --grid.x;
+    }
+    if(grid.x*block.x < this->octree->numPoints){
+      ++grid.x;
+    }
+  }
+  float* sumImplicitDevice;
+  CudaSafeCall(cudaMalloc((void**)&sumImplicitDevice, sizeof(float)));
+  pointSumImplicitTraversal<<<grid,block>>>(this->octree->numPoints, this->octree->pointsDevice, this->octree->finalNodeArrayDevice, this->octree->depthIndex[this->octree->depth], this->nodeImplicitDevice, sumImplicitDevice);
+  cudaDeviceSynchronize();//may not be necessary
+  CudaCheckError();
+  CudaSafeCall(cudaFree(this->octree->pointsDevice));
+  this->octree->pointsDeviceReady = false;
+  if(!this->octree->vertexArrayDeviceReady) this->octree->copyVerticesToDevice();
+  int numFinestVertices = this->octree->vertexIndex[1];
+  CudaSafeCall(cudaMalloc((void**)&this->vertexImplicitDevice, numFinestVertices*sizeof(float)));
+  block = {1,1,1};
+  if(numFinestVertices < 65535) grid.x = (unsigned int) numFinestVertices;
+  else{
+    grid.x = 65535;
+    while(grid.x*grid.y < numFinestVertices){
+      ++grid.y;
+    }
+    while(grid.x*grid.y > numFinestVertices){
+      --grid.x;
+    }
+    if(grid.x*grid.y < numFinestVertices){
+      ++grid.x;
+    }
+  }
+  vertexSumImplicitTraversal<<<grid,block>>>(numFinestVertices, this->octree->vertexArrayDevice, this->nodeImplicitDevice, this->vertexImplicitDevice, sumImplicitDevice, this->octree->numPoints);
+  CudaCheckError();
+  CudaSafeCall(cudaFree(sumImplicitDevice));
+  CudaSafeCall(cudaFree(this->nodeImplicitDevice));
+  timer = clock() - timer;
+  printf("Computing Vertex Implicit Values took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
+
+}
+
+

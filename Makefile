@@ -35,7 +35,7 @@ _OBJS += cuda_util.cu.o
 OBJS = ${patsubst %, ${OBJDIR}/%, ${_OBJS}}
 
 TARGET = reconstruction.exe
-LINKLINE = ${LINK} ${OBJS} ${LIB_CUDA} -o ${BINDIR}/${TARGET}
+LINKLINE = ${LINK} -gencode=arch=compute_61,code=sm_61 ${OBJS} ${LIB_CUDA} -o ${BINDIR}/${TARGET}
 
 sift= $(BIN)
 match= $(BINMATCH)

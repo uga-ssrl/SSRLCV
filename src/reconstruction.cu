@@ -40,12 +40,6 @@ int main(int argc, char *argv[]){
       std::cout<<"depth = "<<depth<<std::endl;
 
       Surface surface = Surface(filePath, depth);
-      surface.octree->copyNodesToHost();//not necessary for most operations
-      //surface.computeImplicitFunction();
-      //surface.computeImplicitMagma();
-      //surface.computeImplicitCuSPSolver();
-      ///surface.computeVertexImplicit();
-      //surface.jaxMeshing();
       surface.marchingCubes();
       std::cout<<"---------------------------------------------------"<<std::endl;
 

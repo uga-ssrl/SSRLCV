@@ -1,0 +1,62 @@
+__global__ void computeLd(int depthOfOctree, Node* nodeArray, int numNodes, int depthIndex, float* laplacianValues, int* laplacianIndices, float* fLUT, float* fPrimePrimeLUT){
+  int blockID = blockIdx.y * gridDim.x + blockIdx.x;
+  if(blockID < numNodes){
+    int neighborIndex = nodeArray[blockID + depthIndex].neighbors[threadIdx.x];
+    if(neighborIndex != -1){
+      int3 xyz1;
+      int3 xyz2;
+      xyz1 = splitCrunchBits3(depthOfOctree*3, nodeArray[blockID + depthIndex].key);
+      xyz2 = splitCrunchBits3(depthOfOctree*3, nodeArray[neighborIndex].key);
+      int mult = pow(2,depthOfOctree + 1) - 1;
+      float laplacianValue = (fPrimePrimeLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+
+      (fLUT[xyz1.x*mult + xyz2.x]*fPrimePrimeLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+
+      (fLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fPrimePrimeLUT[xyz1.z*mult + xyz2.z]);
+      if(laplacianValue != 0.0f){
+        laplacianValues[blockID*27 + threadIdx.x] = laplacianValue;
+        laplacianIndices[blockID*27 + threadIdx.x] = neighborIndex - depthIndex;
+      }
+      else{
+        laplacianIndices[blockID*27 + threadIdx.x] = -1;
+      }
+    }
+    else{
+      laplacianIndices[blockID*27 + threadIdx.x] = -1;
+    }
+  }
+}
+
+__global__ void updateDivergence(int depthOfOctree, Node* nodeArray, int numNodes, int depthIndex, float* divCoeff, float* fLUT, float* fPrimePrimeLUT, float* nodeImplicit){
+  int blockID = blockIdx.y * gridDim.x + blockIdx.x;
+  if(blockID < numNodes){
+    __shared__ float update;
+    update = 0.0f;
+    __syncthreads();
+    int parent = nodeArray[blockID + depthIndex].parent;
+    float laplacianValue = 0.0f;
+    int mult = pow(2,depthOfOctree + 1) - 1;
+    float nodeImplicitValue = 0.0f;
+    int3 xyz1 = splitCrunchBits3(depthOfOctree*3, nodeArray[blockID + depthIndex].key);
+    int3 xyz2 = {0,0,0};
+    while(parent != -1){
+      int parentNeighbor = nodeArray[parent].neighbors[threadIdx.x];
+      if(parentNeighbor != -1){
+        nodeImplicitValue = nodeImplicit[parentNeighbor];
+        laplacianValue = 0.0f;
+        xyz2 = splitCrunchBits3(depthOfOctree*3, nodeArray[parentNeighbor].key);
+        laplacianValue = (fPrimePrimeLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+
+        (fLUT[xyz1.x*mult + xyz2.x]*fPrimePrimeLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+
+        (fLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fPrimePrimeLUT[xyz1.z*mult + xyz2.z]);
+        if(laplacianValue != 0.0f) atomicAdd(&update, laplacianValue*nodeImplicitValue);
+      }
+      parent = nodeArray[parent].parent;
+    }
+    __syncthreads();
+    if(threadIdx.x == 0){
+      divCoeff[blockID + depthIndex] -= update;
+      if(!isfinite(divCoeff[blockID + depthIndex])){
+        printf("BROKEN %d,%f\n",blockID + depthIndex, update);
+      }
+    }
+  }
+}
+
