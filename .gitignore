@@ -6,3 +6,5 @@ out/*.ply
 *.ply
 
 data/
+
+bin/sift_parallel
