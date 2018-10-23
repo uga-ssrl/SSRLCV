@@ -561,19 +561,9 @@ Surface::Surface(std::string pathToPLY, int depthOfOctree){
   std::cout<<"COMPUTING OCTREE\n"<<std::endl;
 
   this->octree = new Octree(pathToPLY, depthOfOctree);
-  this->octree->init_octree_gpu();
-  this->octree->generateKeys();
-  this->octree->prepareFinestUniquNodes();
-  this->octree->createFinalNodeArray();
-  this->octree->freePrereqArrays();
-  this->octree->fillLUTs();
-  this->octree->fillNeighborhoods();
   if(!this->octree->normalsComputed){
     this->octree->computeNormals(3, 20);
   }
-  this->octree->computeVertexArray();
-  this->octree->computeEdgeArray();
-  this->octree->computeFaceArray();
   std::cout<<"---------------------------------------------------"<<std::endl;
   if(!this->octree->pointsDeviceReady) this->octree->copyPointsToDevice();
   if(!this->octree->normalsDeviceReady) this->octree->copyNormalsToDevice();
