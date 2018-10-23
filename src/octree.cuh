@@ -2,6 +2,7 @@
 #define OCTREE_CUH
 
 #include "common_includes.h"
+#include "cuda_util.cuh"
 #include <thrust/sort.h>
 #include <thrust/pair.h>
 #include <thrust/unique.h>
@@ -112,24 +113,9 @@ __global__ void fillUniqueEdgeArray(Node* nodeArray, Edge* edgeArray, int numEdg
 __global__ void findFaceOwners(Node* nodeArray, int numNodes, int depthIndex, int* faceLUT, int* numFaces, int* ownerInidices, int* facePlacement);
 __global__ void fillUniqueFaceArray(Node* nodeArray, Face* faceArray, int numFaces, int faceIndex,int depthIndex, int depth, float width, int* faceLUT, int* ownerInidices, int* facePlacement);
 
-struct Octree{
+class Octree{
 
-  //global variables
-  std::string pathToFile;
-  bool normalsComputed;
-  bool hasColor;
-  bool simpleOctree;
-  float3* points;
-  float3* normals;
-  uchar3* colors;
-  float3 center;
-  int numPoints;
-  float3 min;
-  float3 max;
-  float width;
-  int depth;
-
-  //the rest of the variables are allocated in methods where they are first used
+private:
 
   //prerequisite variables - freed in freePrereqArrays()
   int numFinestUniqueNodes;
@@ -140,40 +126,6 @@ struct Octree{
   float3* finestNodeCentersDevice;
   int* finestNodePointIndexesDevice;
   int* finestNodeKeysDevice;
-
-  int totalNodes;
-  Node* finalNodeArray;
-  Node* finalNodeArrayDevice;
-
-  int* depthIndex;
-  int* pointNodeIndex;
-  int totalVertices;
-  Vertex* vertexArray;
-  int totalEdges;
-  Edge* edgeArray;
-  int totalFaces;
-  Face* faceArray;
-
-  /*
-  THESE ARE DEVICE VARIABLES THAT ARE FREED AND ALLOCATED IN THEIR COPY METHODS
-  */
-  bool pointNodeDeviceReady;
-  int* pointNodeIndexDevice;
-  bool vertexArrayDeviceReady;
-  Vertex* vertexArrayDevice;
-  int* vertexIndex;
-  bool edgeArrayDeviceReady;
-  Edge* edgeArrayDevice;
-  int* edgeIndex;
-  bool faceArrayDeviceReady;
-  Face* faceArrayDevice;
-  int* faceIndex;
-  bool pointsDeviceReady;
-  float3* pointsDevice;
-  bool normalsDeviceReady;
-  float3* normalsDevice;
-  bool colorsDeviceReady;
-  uchar3* colorsDevice;
 
   /*
   THESE ARE THE LOOK UP TABLES USED IN NEIGHBORHOOD, VERTEX ARRAY,
@@ -216,11 +168,65 @@ struct Octree{
   int faceLUT[6] = {4,10,12,14,16,22};
   int* faceLUTDevice;
 
+public:
+  //global variables
+  std::string pathToFile;
+  bool normalsComputed;
+  bool hasColor;
+  bool simpleOctree;
+  float3* points;
+  float3* normals;
+  uchar3* colors;
+  float3 center;
+  int numPoints;
+  float3 min;
+  float3 max;
+  float width;
+  int depth;
+
+  int totalNodes;
+  Node* finalNodeArray;
+  Node* finalNodeArrayDevice;
+
+  int* depthIndex;
+  int* pointNodeIndex;
+  int totalVertices;
+  Vertex* vertexArray;
+  int totalEdges;
+  Edge* edgeArray;
+  int totalFaces;
+  Face* faceArray;
+
+  /*
+  THESE ARE DEVICE VARIABLES THAT ARE FREED AND ALLOCATED IN THEIR COPY METHODS
+  */
+  bool pointNodeDeviceReady;
+  int* pointNodeIndexDevice;
+  bool vertexArrayDeviceReady;
+  Vertex* vertexArrayDevice;
+  int* vertexIndex;
+  bool edgeArrayDeviceReady;
+  Edge* edgeArrayDevice;
+  int* edgeIndex;
+  bool faceArrayDeviceReady;
+  Face* faceArrayDevice;
+  int* faceIndex;
+  bool pointsDeviceReady;
+  float3* pointsDevice;
+  bool normalsDeviceReady;
+  float3* normalsDevice;
+  bool colorsDeviceReady;
+  uchar3* colorsDevice;
+
+
+
   Octree();
   ~Octree();
 
   void parsePLY();
   Octree(std::string pathToFile, int depth);
+  Octree(int numPoints, float3* points, int depth);
+  Octree(int numPoints, float3* points, float maxDeepestWidth);
 
   /*
   MEMORY OPERATIONS OF GLOBAL OCTREE VARIABLES (deleted when octree is destroyed)
@@ -252,6 +258,7 @@ struct Octree{
 
   void copyPointNodeIndexesToDevice();
   void copyPointNodeIndexesToHost();
+
   void copyVerticesToDevice();
   void copyVerticesToHost();
   void copyEdgesToDevice();
@@ -272,9 +279,12 @@ struct Octree{
   void printLUTs();
   void fillLUTs();//aslo allocates the device versions
   void fillNeighborhoods();
+
   void computeVertexArray();
   void computeEdgeArray();
   void computeFaceArray();
+
+  void createVEFArrays();
 
   void checkForGeneralNodeErrors();
 

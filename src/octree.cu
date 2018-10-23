@@ -706,13 +706,15 @@ Octree::Octree(){
 }
 
 Octree::~Octree(){
-  delete[] this->vertexIndex;
-  delete[] this->edgeIndex;
-  delete[] this->faceIndex;
+  if(!this->simpleOctree){
+    delete[] this->vertexIndex;
+    delete[] this->edgeIndex;
+    delete[] this->faceIndex;
+    delete[] this->vertexArray;
+    delete[] this->edgeArray;
+    delete[] this->faceArray;
+  }
   delete[] this->finalNodeArray;
-  delete[] this->vertexArray;
-  delete[] this->edgeArray;
-  delete[] this->faceArray;
   delete[] this->points;
   delete[] this->normals;
   delete[] this->colors;
@@ -909,12 +911,145 @@ Octree::Octree(std::string pathToFile, int depth){
   this->pointsDeviceReady = false;
   this->normalsDeviceReady = false;
   this->colorsDeviceReady = false;
+  this->init_octree_gpu();
+  this->generateKeys();
+  this->prepareFinestUniquNodes();
+  this->createFinalNodeArray();
+  this->freePrereqArrays();
+  this->fillLUTs();
+  this->fillNeighborhoods();
+  this->createVEFArrays();
+}
+Octree::Octree(int numPoints, float3* points, int depth){
+  this->simpleOctree = true;
+  this->depth = depth;
+  std::cout<<"initializing simple octree with points"<<std::endl;
+  float minX = FLT_MAX, minY = FLT_MAX, minZ = FLT_MAX, maxX = -FLT_MAX, maxY = -FLT_MAX, maxZ = -FLT_MAX;
+  this->numPoints = numPoints;
+  this->points = new float3[this->numPoints];
+  this->colors = new uchar3[this->numPoints];
+  this->normals = new float3[this->numPoints];
+  this->finestNodeCenters = new float3[this->numPoints];
+  this->finestNodePointIndexes = new int[this->numPoints];
+  this->finestNodeKeys = new int[this->numPoints];
+  this->pointNodeIndex = new int[this->numPoints];
+  this->totalNodes = 0;
+  this->numFinestUniqueNodes = 0;
+  this->hasColor = false;
+  this->normalsComputed = false;
+  this->colorsDeviceReady = false;
+  this->normalsDeviceReady = false;
+
+  for(int i = 0; i < this->numPoints; ++i){
+    this->points[i] = points[i];
+    if(minX > points[i].x) minX = points[i].x;
+    else if(maxX < points[i].x) maxX = points[i].x;
+
+    if(minY > points[i].y) minY = points[i].y;
+    else if(maxY < points[i].y) maxY = points[i].y;
+
+    if(minZ > points[i].z) minZ = points[i].z;
+    else if(maxZ < points[i].z) maxZ = points[i].z;
+
+    this->normals[i] = {0.0f, 0.0f, 0.0f};
+    this->colors[i] = {255,255,255};
+    this->finestNodeCenters[i] = {0.0f,0.0f,0.0f};
+    this->finestNodeKeys[i] = 0;
+    this->pointNodeIndex[i] = -1;
+    //initializing here even though points are not sorted yet
+    this->finestNodePointIndexes[i] = i;
+  }
+
+  this->min = {minX,minY,minZ};
+  this->max = {maxX,maxY,maxZ};
+
+  this->center.x = (maxX + minX)/2;
+  this->center.y = (maxY + minY)/2;
+  this->center.z = (maxZ + minZ)/2;
+
+  this->width = maxX - minX;
+  if(this->width < maxY - minY) this->width = maxY - minY;
+  if(this->width < maxZ - minZ) this->width = maxZ - minZ;
+
+  printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
+  printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
+  printf("bounding box width = %f\n", this->width);
+  printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
+  printf("number of points = %d\n\n", this->numPoints);
+  this->init_octree_gpu();
+  this->generateKeys();
+  this->prepareFinestUniquNodes();
+  this->createFinalNodeArray();
+  this->freePrereqArrays();
+  this->fillLUTs();
+  this->fillNeighborhoods();
+}
+Octree::Octree(int numPoints, float3* points, float maxDeepestWidth){
+  this->simpleOctree = true;
+  std::cout<<"initializing simple octree with points"<<std::endl;
+  this->min = {FLT_MAX,FLT_MAX,FLT_MAX};
+  this->max = {-FLT_MAX,-FLT_MAX,-FLT_MAX};
+  this->numPoints = numPoints;
+  this->points = new float3[this->numPoints];
+  this->colors = new uchar3[this->numPoints];
+  this->normals = new float3[this->numPoints];
+  this->finestNodeCenters = new float3[this->numPoints];
+  this->finestNodePointIndexes = new int[this->numPoints];
+  this->finestNodeKeys = new int[this->numPoints];
+  this->pointNodeIndex = new int[this->numPoints];
+  this->totalNodes = 0;
+  this->numFinestUniqueNodes = 0;
+  this->hasColor = false;
+  this->normalsComputed = false;
+  this->colorsDeviceReady = false;
+  this->normalsDeviceReady = false;
+
+  for(int i = 0; i < this->numPoints; ++i){
+    this->points[i] = points[i];
+    if(this->min.x > points[i].x) this->min.x = points[i].x;
+    else if(this->max.x < points[i].x) this->max.x = points[i].x;
+
+    if(this->min.y > points[i].y) this->min.y = points[i].y;
+    else if(this->max.y < points[i].y) this->max.y = points[i].y;
+
+    if(this->min.z > points[i].z) this->min.z = points[i].z;
+    else if(this->max.z < points[i].z) this->max.z = points[i].z;
+
+    this->normals[i] = {0.0f, 0.0f, 0.0f};
+    this->colors[i] = {255,255,255};
+    this->finestNodeCenters[i] = {0.0f,0.0f,0.0f};
+    this->finestNodeKeys[i] = 0;
+    this->pointNodeIndex[i] = -1;
+    //initializing here even though points are not sorted yet
+    this->finestNodePointIndexes[i] = i;
+  }
+  float3 dimensions = this->max - this->min;
+  float width = dimensions.x;
+  if(dimensions.y > width) width = dimensions.y;
+  if(dimensions.z > width) width = dimensions.z;
+  this->width = width;
+  this->depth = 0;
+  while(width > maxDeepestWidth || this->depth == 10){
+    width /= 2.0f;
+    ++this->depth;
+  }
+  this->center = (this->max - this->min)/2.0f;
+
+  printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
+  printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
+  printf("bounding box width = %f\n", this->width);
+  printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
+  printf("number of points = %d\n\n", this->numPoints);
+  this->init_octree_gpu();
+  this->generateKeys();
+  this->prepareFinestUniquNodes();
+  this->createFinalNodeArray();
+  this->freePrereqArrays();
+  this->fillLUTs();
+  this->fillNeighborhoods();
 }
 
 void Octree::init_octree_gpu(){
-  clock_t cudatimer;
-  cudatimer = clock();
-
   CudaSafeCall(cudaMalloc((void**)&this->finestNodeCentersDevice, this->numPoints * sizeof(float3)));
   CudaSafeCall(cudaMalloc((void**)&this->finestNodeKeysDevice, this->numPoints * sizeof(int)));
   CudaSafeCall(cudaMalloc((void**)&this->finestNodePointIndexesDevice, this->numPoints * sizeof(int)));
@@ -924,9 +1059,6 @@ void Octree::init_octree_gpu(){
   this->copyFinestNodeKeysToDevice();
   if(this->normalsComputed)  this->copyNormalsToDevice();
   if(this->hasColor)  this->copyColorsToDevice();
-
-
-  printf("octree initial allocation & base variable copy took %f seconds.\n",((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
 void Octree::copyPointsToDevice(){
@@ -995,9 +1127,6 @@ void Octree::copyFinestNodePointIndexesToHost(){
   CudaSafeCall(cudaMemcpy(this->finestNodePointIndexes, this->finestNodePointIndexesDevice, this->numPoints * sizeof(int), cudaMemcpyDeviceToHost));
 }
 void Octree::freePrereqArrays(){
-  clock_t cudatimer;
-  cudatimer = clock();
-
   delete[] this->finestNodeCenters;
   delete[] this->finestNodePointIndexes;
   delete[] this->finestNodeKeys;
@@ -1005,8 +1134,6 @@ void Octree::freePrereqArrays(){
   CudaSafeCall(cudaFree(this->finestNodeCentersDevice));
   CudaSafeCall(cudaFree(this->finestNodePointIndexesDevice));
   CudaSafeCall(cudaFree(this->finestNodeKeysDevice));
-
-  printf("octree freePrereqArrays took %f seconds.\n",((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
 void Octree::copyNodesToDevice(){
@@ -1078,9 +1205,6 @@ void Octree::copyFacesToHost(){
 }
 
 void Octree::generateKeys(){
-  clock_t cudatimer;
-  cudatimer = clock();
-
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   if(this->numPoints < 65535) grid.x = (unsigned int) this->numPoints;
@@ -1100,15 +1224,8 @@ void Octree::generateKeys(){
 
   getNodeKeys<<<grid,block>>>(this->pointsDevice, this->finestNodeCentersDevice, this->finestNodeKeysDevice, this->center, this->width, this->numPoints, this->depth);
   CudaCheckError();
-
-  printf("octree generateNodeKeys took %f seconds.\n",((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 void Octree::prepareFinestUniquNodes(){
-  clock_t cudatimer;
-  cudatimer = clock();
-
-  //SORT DATA
-
   thrust::device_ptr<int> kys = thrust::device_pointer_cast(this->finestNodeKeysDevice);
   thrust::device_ptr<float3> pnts = thrust::device_pointer_cast(this->pointsDevice);
   thrust::device_ptr<float3> cnts = thrust::device_pointer_cast(this->finestNodeCentersDevice);
@@ -1209,14 +1326,9 @@ void Octree::prepareFinestUniquNodes(){
     currentNode.color = {color.x,color.y,color.z};
     this->uniqueNodesAtFinestLevel[i] = currentNode;
   }
-
-  printf("octree prepareFinestUniquNodes took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
 void Octree::createFinalNodeArray(){
-  clock_t cudatimer;
-  cudatimer = clock();
-
   Node* uniqueNodesDevice;
   CudaSafeCall(cudaMalloc((void**)&uniqueNodesDevice, this->numFinestUniqueNodes*sizeof(Node)));
   CudaSafeCall(cudaMemcpy(uniqueNodesDevice, this->uniqueNodesAtFinestLevel, this->numFinestUniqueNodes*sizeof(Node), cudaMemcpyHostToDevice));
@@ -1315,8 +1427,6 @@ void Octree::createFinalNodeArray(){
     CudaSafeCall(cudaFree(nodeArray2D[i]));
   }
   delete[] nodeArray2D;
-
-  printf("octree buildFinalNodeArray took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
   printf("TOTAL NODES = %d\n\n",this->totalNodes);
 
 }
@@ -1357,9 +1467,6 @@ void Octree::printLUTs(){
   std::cout<<std::endl<<std::endl;
 }
 void Octree::fillLUTs(){
-  clock_t cudatimer;
-  cudatimer = clock();
-
   int c[6][6][6];
   int p[6][6][6];
 
@@ -1433,15 +1540,9 @@ void Octree::fillLUTs(){
   CudaSafeCall(cudaMemcpy(this->parentLUTDevice, flatParentLUT, 216*sizeof(int), cudaMemcpyHostToDevice));
   CudaSafeCall(cudaMemcpy(this->vertexLUTDevice, flatVertexLUT, 56*sizeof(int), cudaMemcpyHostToDevice));
   CudaSafeCall(cudaMemcpy(this->childLUTDevice, flatChildLUT, 216*sizeof(int), cudaMemcpyHostToDevice));
-
-  printf("octree fillLUTs took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
 void Octree::fillNeighborhoods(){
-  clock_t cudatimer;
-  cudatimer = clock();
-
-  //need to use highest number of nodes in a depth instead of totalNodes
   dim3 grid = {1,1,1};
   dim3 block = {27,1,1};
   int numNodesAtDepth;
@@ -1484,8 +1585,6 @@ void Octree::fillNeighborhoods(){
   CudaSafeCall(cudaFree(atomicCounterDevice));
   CudaSafeCall(cudaFree(this->childLUTDevice));
   CudaSafeCall(cudaFree(this->parentLUTDevice));
-
-  printf("octree findAllNeighbors took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 void Octree::computeVertexArray(){
   clock_t cudatimer;
@@ -1874,6 +1973,12 @@ void Octree::computeFaceArray(){
   CudaSafeCall(cudaFree(this->faceLUTDevice));
   CudaSafeCall(cudaFree(faceArray2DDevice));
   printf("octree createFaceArray took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
+}
+
+void Octree::createVEFArrays(){
+  this->computeVertexArray();
+  this->computeEdgeArray();
+  this->computeFaceArray();
 }
 
 void Octree::checkForGeneralNodeErrors(){
