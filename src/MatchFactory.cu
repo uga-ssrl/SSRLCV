@@ -209,7 +209,7 @@ SIFT_Descriptor* queryDescriptors, int numFeaturesQuery, int numDescriptorsPerFe
     __shared__ SubpixelM7x7 subDescriptor;
     SubPixelMatch subPixelMatch;
     Match match = matches[blockId];
-    subPixelMatch.features[0] = match.features[0],
+    subPixelMatch.features[0] = match.features[0];
     subPixelMatch.features[1] = match.features[1];
     subPixelMatch.distance[0] = match.distance[0];
     subPixelMatch.distance[1] = match.distance[1];
@@ -346,6 +346,25 @@ __global__ void determineSubPixelLocationsBruteForce(float increment, unsigned l
     else return;
   }
 }
+
+/*
+MATCH REFINEMENT
+*/
+
+__global__ void refineWCutoffRatio(int numMatches, Match* matches, int* matchCounter, float2 minMax, float cutoffRatio){
+  int globalId = blockIdx.x*blockDim.x + threadIdx.x;
+  if(globalId < numMatches){
+    float2 regMinMax = minMax;
+    if((matches[globalId].distance[1] - regMinMax.x)/(regMinMax.y-regMinMax.x) > cutoffRatio){
+      matchCounter[globalId] = 1;
+    }
+    else{
+      matchCounter[globalId] = 0;
+      matches[globalId].distance[0] = -1.0f;
+    }
+  }
+}
+
 
 /*
 fundamental matrix stuff
@@ -523,9 +542,80 @@ void calcFundamentalMatrix_2View(Image_Descriptor query, Image_Descriptor target
 }
 
 MatchFactory::MatchFactory(){
-
+  this->numImages = 0;
+  this->cutoffRatio = 0.0f;
 }
-Match* MatchFactory::generateMatchesPairwiseBruteForce(Image* query, Image* target, MemoryState return_state){
+
+void MatchFactory::setCutOffRatio(float cutoffRatio){
+  this->cutoffRatio = cutoffRatio;
+}
+
+//TODO consider using a defualt cutoff if not set
+void MatchFactory::refineMatches(MatchSet* &matchSet){
+  if(this->cutoffRatio == 0.0f){
+    std::cout<<"ERROR not cutoff ratio set for refinement"<<std::endl;
+    exit(-1);
+  }
+  Match* matches = NULL;
+  Match* matches_device = NULL;
+  if(matchSet->memoryState == gpu){
+    matches = new Match[matchSet->numMatches];
+    CudaSafeCall(cudaMemcpy(matches, matchSet->matches, matchSet->numMatches*sizeof(Match),cudaMemcpyDeviceToHost));
+    matches_device = matchSet->matches;
+  }
+  else{
+    CudaSafeCall(cudaMalloc((void**)&matches_device, matchSet->numMatches*sizeof(Match)));
+    CudaSafeCall(cudaMemcpy(matches_device, matchSet->matches, matchSet->numMatches*sizeof(Match),cudaMemcpyHostToDevice));
+    matches = matchSet->matches;
+  }
+  float max = 0.0f;
+  float min = FLT_MAX;
+  for(int i = 0; i < matchSet->numMatches; ++i){
+    if(matches[i].distance[1] < min) min = matches[i].distance[1];
+    if(matches[i].distance[1] > max) max = matches[i].distance[1];
+  }
+
+  delete[] matches;
+
+  printf("max dist = %f || min dist = %f\n",max,min);
+  int* matchCounter_device = NULL;
+  CudaSafeCall(cudaMalloc((void**)&matchCounter_device, matchSet->numMatches*sizeof(int)));
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock((unsigned long) matchSet->numMatches, grid, block);
+  refineWCutoffRatio<<<grid,block>>>(matchSet->numMatches, matches_device, matchCounter_device, {min, max}, this->cutoffRatio);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  thrust::device_ptr<int> sum(matchCounter_device);
+  thrust::inclusive_scan(sum, sum + matchSet->numMatches, sum);
+  unsigned long beforeCompaction = matchSet->numMatches;
+  CudaSafeCall(cudaMemcpy(&(matchSet->numMatches),matchCounter_device + (beforeCompaction - 1), sizeof(int), cudaMemcpyDeviceToHost));
+  CudaSafeCall(cudaFree(matchCounter_device));
+
+  Match* minimizedMatches_device = NULL;
+  CudaSafeCall(cudaMalloc((void**)&minimizedMatches_device, matchSet->numMatches*sizeof(Match)));
+
+  thrust::device_ptr<Match> arrayToCompact(matches_device);
+  thrust::device_ptr<Match> arrayOut(minimizedMatches_device);
+  thrust::copy_if(arrayToCompact, arrayToCompact + beforeCompaction, arrayOut, match_above_cutoff());
+  CudaCheckError();
+  CudaSafeCall(cudaFree(matches_device));
+
+  printf("numMatches after eliminating base on %f cutoffRatio = %d (was %d)\n",this->cutoffRatio,matchSet->numMatches,beforeCompaction);
+
+  if(matchSet->memoryState == gpu){
+    matchSet->matches = minimizedMatches_device;
+  }
+  else if(matchSet->memoryState == cpu){
+    matchSet->matches = new Match[matchSet->numMatches];
+    CudaSafeCall(cudaMemcpy(matchSet->matches, minimizedMatches_device, matchSet->numMatches*sizeof(Match),cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaFree(minimizedMatches_device));
+  }
+}
+
+void MatchFactory::generateMatchesPairwiseBruteForce(Image* query, Image* target, MatchSet* &matchSet, MemoryState return_state){
   if(return_state != cpu && return_state != gpu){
     std::cout<<"ERROR can only return return_state 1=host 2=device"<<std::endl;
     exit(-1);
@@ -580,12 +670,15 @@ Match* MatchFactory::generateMatchesPairwiseBruteForce(Image* query, Image* targ
   }
   else targetDescriptors_device = target->featureDescriptors_device;
 
-
   unsigned int numPossibleMatches = query->numFeatures;
-  Match* matches_device;
-  Match* matches = new Match[numPossibleMatches];
 
+  matchSet = new MatchSet();
+  matchSet->numMatches = numPossibleMatches;
+  matchSet->memoryState = return_state;
+  Match* matches_device = NULL;
+  Match* matches = NULL;
   CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(Match)));
+  matches = new Match[numPossibleMatches];
 
   dim3 grid = {1,1,1};
   dim3 block = {1024,1,1};
@@ -605,28 +698,30 @@ Match* MatchFactory::generateMatchesPairwiseBruteForce(Image* query, Image* targ
     case cpu:
       CudaSafeCall(cudaMemcpy(matches, matches_device, numPossibleMatches*sizeof(sizeof(Match)), cudaMemcpyDeviceToHost));
       CudaSafeCall(cudaFree(matches_device));
-      return matches;
+      matchSet->matches = matches;
+      break;
     case gpu:
       delete[] matches;
-      return matches_device;
+      matchSet->matches = matches_device;
+      break;
     default:
       std::cout<<"ERROR invalid only return return_state"<<std::endl;
       exit(-1);
   }
-  if(query->arrayStates[1] != gpu || query->arrayStates[1] != both){
+  if(query->arrayStates[1] != gpu && query->arrayStates[1] != both){
     CudaSafeCall(cudaFree(queryFeatures_device));
   }
-  if(target->arrayStates[1] != gpu || target->arrayStates[1] != both){
+  if(target->arrayStates[1] != gpu && target->arrayStates[1] != both){
     CudaSafeCall(cudaFree(targetFeatures_device));
   }
-  if(query->arrayStates[2] != gpu || query->arrayStates[2] != both){
+  if(query->arrayStates[2] != gpu && query->arrayStates[2] != both){
     CudaSafeCall(cudaFree(queryDescriptors_device));
   }
-  if(target->arrayStates[2] != gpu || target->arrayStates[2] != both){
+  if(target->arrayStates[2] != gpu && target->arrayStates[2] != both){
     CudaSafeCall(cudaFree(targetDescriptors_device));
   }
 }
-Match* MatchFactory::generateMatchesPairwiseConstrained(Image* query, Image* target, float epsilon, MemoryState return_state){
+void MatchFactory::generateMatchesPairwiseConstrained(Image* query, Image* target, float epsilon, MatchSet* &matchSet, MemoryState return_state){
   if(return_state != cpu && return_state != gpu){
     std::cout<<"ERROR can only return return_state 1=host 2=device"<<std::endl;
     exit(-1);
@@ -635,7 +730,6 @@ Match* MatchFactory::generateMatchesPairwiseConstrained(Image* query, Image* tar
     std::cout<<"ERROR must have a numDescriptorsPerFeature of more than 0 - no descriptors"<<std::endl;
     exit(-1);
   }
-
 
   SIFT_Feature* queryFeatures_device;
   SIFT_Feature* targetFeatures_device;
@@ -682,12 +776,15 @@ Match* MatchFactory::generateMatchesPairwiseConstrained(Image* query, Image* tar
   }
   else targetDescriptors_device = target->featureDescriptors_device;
 
-
   unsigned int numPossibleMatches = query->numFeatures;
-  Match* matches_device;
-  Match* matches = new Match[numPossibleMatches];
 
+  matchSet = new MatchSet();
+  matchSet->numMatches = numPossibleMatches;
+  matchSet->memoryState = return_state;
+  Match* matches_device = NULL;
+  Match* matches = NULL;
   CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(Match)));
+  matches = new Match[numPossibleMatches];
 
   dim3 grid = {1,1,1};
   dim3 block = {1024,1,1};
@@ -711,33 +808,36 @@ Match* MatchFactory::generateMatchesPairwiseConstrained(Image* query, Image* tar
   CudaSafeCall(cudaFree(fundamental_device));
 
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+
   switch(return_state){
     case cpu:
       CudaSafeCall(cudaMemcpy(matches, matches_device, numPossibleMatches*sizeof(sizeof(Match)), cudaMemcpyDeviceToHost));
       CudaSafeCall(cudaFree(matches_device));
-      return matches;
+      matchSet->matches = matches;
+      break;
     case gpu:
       delete[] matches;
-      return matches_device;
+      matchSet->matches = matches_device;
+      break;
     default:
       std::cout<<"ERROR invalid only return return_state"<<std::endl;
       exit(-1);
   }
-  if(query->arrayStates[1] != gpu || query->arrayStates[1] != both){
+  if(query->arrayStates[1] != gpu && query->arrayStates[1] != both){
     CudaSafeCall(cudaFree(queryFeatures_device));
   }
-  if(target->arrayStates[1] != gpu || target->arrayStates[1] != both){
+  if(target->arrayStates[1] != gpu && target->arrayStates[1] != both){
     CudaSafeCall(cudaFree(targetFeatures_device));
   }
-  if(query->arrayStates[2] != gpu || query->arrayStates[2] != both){
+  if(query->arrayStates[2] != gpu && query->arrayStates[2] != both){
     CudaSafeCall(cudaFree(queryDescriptors_device));
   }
-  if(target->arrayStates[2] != gpu || target->arrayStates[2] != both){
+  if(target->arrayStates[2] != gpu && target->arrayStates[2] != both){
     CudaSafeCall(cudaFree(targetDescriptors_device));
   }
 }
 
-SubPixelMatch* MatchFactory::generateSubPixelMatchesPairwiseBruteForce(Image* query, Image* target, MemoryState return_state){
+void MatchFactory::generateSubPixelMatchesPairwiseBruteForce(Image* query, Image* target, SubPixelMatchSet* &matchSet, MemoryState return_state){
   SIFT_Descriptor* queryDescriptors_device;
   SIFT_Descriptor* targetDescriptors_device;
 
@@ -746,8 +846,8 @@ SubPixelMatch* MatchFactory::generateSubPixelMatchesPairwiseBruteForce(Image* qu
       std::cout<<"ERROR query does not have descriptors"<<std::endl;
       exit(-1);
     }
-    CudaSafeCall(cudaMalloc((void**)&queryDescriptors_device, query->numDescriptorsPerFeature*query->numFeatures*query->featureDescriptor_size));
-    CudaSafeCall(cudaMemcpy(queryDescriptors_device, query->featureDescriptors, query->numDescriptorsPerFeature*query->numFeatures*query->featureDescriptor_size, cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMalloc((void**)&queryDescriptors_device, query->numDescriptorsPerFeature*query->numFeatures*sizeof(SIFT_Descriptor)));
+    CudaSafeCall(cudaMemcpy(queryDescriptors_device, query->featureDescriptors, query->numDescriptorsPerFeature*query->numFeatures*sizeof(SIFT_Descriptor), cudaMemcpyHostToDevice));
   }
   else queryDescriptors_device = query->featureDescriptors_device;
 
@@ -756,14 +856,17 @@ SubPixelMatch* MatchFactory::generateSubPixelMatchesPairwiseBruteForce(Image* qu
       std::cout<<"ERROR target does not have descriptors"<<std::endl;
       exit(-1);
     }
-    CudaSafeCall(cudaMalloc((void**)&targetDescriptors_device, target->numDescriptorsPerFeature*target->numFeatures*target->featureDescriptor_size));
-    CudaSafeCall(cudaMemcpy(targetDescriptors_device, target->featureDescriptors, target->numDescriptorsPerFeature*target->numFeatures*target->featureDescriptor_size, cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMalloc((void**)&targetDescriptors_device, target->numDescriptorsPerFeature*target->numFeatures*sizeof(SIFT_Descriptor)));
+    CudaSafeCall(cudaMemcpy(targetDescriptors_device, target->featureDescriptors, target->numDescriptorsPerFeature*target->numFeatures*sizeof(SIFT_Descriptor), cudaMemcpyHostToDevice));
   }
   else targetDescriptors_device = target->featureDescriptors_device;
 
+  MatchSet* nonSubSet = NULL;
+  this->generateMatchesPairwiseBruteForce(query, target, nonSubSet, gpu);
 
-  Match* matches_device = this->generateMatchesPairwiseBruteForce(query, target, gpu);
-  int numMatches = query->numFeatures;
+  this->refineMatches(nonSubSet);
+
+  int numMatches = nonSubSet->numMatches;
 
   SubPixelMatch* subPixelMatches_device;
   CudaSafeCall(cudaMalloc((void**)&subPixelMatches_device, numMatches*sizeof(SubPixelMatch)));
@@ -778,17 +881,19 @@ SubPixelMatch* MatchFactory::generateSubPixelMatchesPairwiseBruteForce(Image* qu
   getGrid(numMatches, grid);
   std::cout<<"initializing subPixelMatches..."<<std::endl;
   clock_t timer = clock();
-  initializeSubPixels<<<grid, block>>>(query->descriptor, target->descriptor, numMatches, matches_device, subPixelMatches_device,
+  initializeSubPixels<<<grid, block>>>(query->descriptor, target->descriptor, numMatches, nonSubSet->matches, subPixelMatches_device,
     subDescriptors_device, queryDescriptors_device, query->numFeatures, query->numDescriptorsPerFeature,
     targetDescriptors_device, target->numFeatures, target->numDescriptorsPerFeature);
   cudaDeviceSynchronize();
   CudaCheckError();
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
-  CudaSafeCall(cudaFree(matches_device));
-  if(query->arrayStates[2] != gpu || query->arrayStates[2] != both){
+
+  delete nonSubSet;
+
+  if(query->arrayStates[2] != gpu && query->arrayStates[2] != both){
     CudaSafeCall(cudaFree(queryDescriptors_device));
   }
-  if(target->arrayStates[2] != gpu || target->arrayStates[2] != both){
+  if(target->arrayStates[2] != gpu && target->arrayStates[2] != both){
     CudaSafeCall(cudaFree(targetDescriptors_device));
   }
 
@@ -816,7 +921,9 @@ SubPixelMatch* MatchFactory::generateSubPixelMatchesPairwiseBruteForce(Image* qu
   CudaSafeCall(cudaFree(splines_device));
 
   SubPixelMatch* subPixelMatches;
-
+  matchSet = new SubPixelMatchSet();
+  matchSet->numMatches = numMatches;
+  matchSet->memoryState = return_state;
   switch(return_state){
     case cpu:
       subPixelMatches = new SubPixelMatch[numMatches];
@@ -830,9 +937,9 @@ SubPixelMatch* MatchFactory::generateSubPixelMatchesPairwiseBruteForce(Image* qu
       std::cout<<"ERROR invalid return_state"<<std::endl;
       exit(-1);
   }
-  return (return_state == cpu) ? subPixelMatches : subPixelMatches_device;
+  matchSet->matches = (return_state == cpu) ? subPixelMatches : subPixelMatches_device;
 }
-SubPixelMatch* MatchFactory::generateSubPixelMatchesPairwiseConstrained(Image* query, Image* target, float epsilon, MemoryState return_state){
+void MatchFactory::generateSubPixelMatchesPairwiseConstrained(Image* query, Image* target, float epsilon, SubPixelMatchSet* &matchSet, MemoryState return_state){
   SIFT_Descriptor* queryDescriptors_device;
   SIFT_Descriptor* targetDescriptors_device;
 
@@ -841,8 +948,8 @@ SubPixelMatch* MatchFactory::generateSubPixelMatchesPairwiseConstrained(Image* q
       std::cout<<"ERROR query does not have descriptors"<<std::endl;
       exit(-1);
     }
-    CudaSafeCall(cudaMalloc((void**)&queryDescriptors_device, query->numDescriptorsPerFeature*query->numFeatures*query->featureDescriptor_size));
-    CudaSafeCall(cudaMemcpy(queryDescriptors_device, query->featureDescriptors, query->numDescriptorsPerFeature*query->numFeatures*query->featureDescriptor_size, cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMalloc((void**)&queryDescriptors_device, query->numDescriptorsPerFeature*query->numFeatures*sizeof(SIFT_Descriptor)));
+    CudaSafeCall(cudaMemcpy(queryDescriptors_device, query->featureDescriptors, query->numDescriptorsPerFeature*query->numFeatures*sizeof(SIFT_Descriptor), cudaMemcpyHostToDevice));
   }
   else queryDescriptors_device = query->featureDescriptors_device;
 
@@ -851,14 +958,17 @@ SubPixelMatch* MatchFactory::generateSubPixelMatchesPairwiseConstrained(Image* q
       std::cout<<"ERROR target does not have descriptors"<<std::endl;
       exit(-1);
     }
-    CudaSafeCall(cudaMalloc((void**)&targetDescriptors_device, target->numDescriptorsPerFeature*target->numFeatures*target->featureDescriptor_size));
-    CudaSafeCall(cudaMemcpy(targetDescriptors_device, target->featureDescriptors, target->numDescriptorsPerFeature*target->numFeatures*target->featureDescriptor_size, cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMalloc((void**)&targetDescriptors_device, target->numDescriptorsPerFeature*target->numFeatures*sizeof(SIFT_Descriptor)));
+    CudaSafeCall(cudaMemcpy(targetDescriptors_device, target->featureDescriptors, target->numDescriptorsPerFeature*target->numFeatures*sizeof(SIFT_Descriptor), cudaMemcpyHostToDevice));
   }
   else targetDescriptors_device = target->featureDescriptors_device;
 
+  MatchSet* nonSubSet  = NULL;
+  this->generateMatchesPairwiseConstrained(query, target, epsilon, nonSubSet, gpu);
 
-  Match* matches_device = this->generateMatchesPairwiseConstrained(query, target, epsilon, gpu);
-  int numMatches = query->numFeatures;
+  this->refineMatches(nonSubSet);
+
+  int numMatches = nonSubSet->numMatches;
 
   SubPixelMatch* subPixelMatches_device;
   CudaSafeCall(cudaMalloc((void**)&subPixelMatches_device, numMatches*sizeof(SubPixelMatch)));
@@ -866,24 +976,24 @@ SubPixelMatch* MatchFactory::generateSubPixelMatchesPairwiseConstrained(Image* q
   SubpixelM7x7* subDescriptors_device;
   CudaSafeCall(cudaMalloc((void**)&subDescriptors_device, numMatches*sizeof(SubpixelM7x7)));
 
-  //TODO figure out if you want subPixelMatches on device before subpixelLocation determination
-
   dim3 grid = {1,1,1};
   dim3 block = {9,9,1};
   getGrid(numMatches, grid);
   std::cout<<"initializing subPixelMatches..."<<std::endl;
   clock_t timer = clock();
-  initializeSubPixels<<<grid, block>>>(query->descriptor, target->descriptor, numMatches, matches_device, subPixelMatches_device,
+  initializeSubPixels<<<grid, block>>>(query->descriptor, target->descriptor, numMatches, nonSubSet->matches, subPixelMatches_device,
     subDescriptors_device, queryDescriptors_device, query->numFeatures, query->numDescriptorsPerFeature,
     targetDescriptors_device, target->numFeatures, target->numDescriptorsPerFeature);
   cudaDeviceSynchronize();
   CudaCheckError();
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
-  CudaSafeCall(cudaFree(matches_device));
-  if(query->arrayStates[2] != gpu || query->arrayStates[2] != both){
+
+  delete nonSubSet;
+
+  if(query->arrayStates[2] != gpu && query->arrayStates[2] != both){
     CudaSafeCall(cudaFree(queryDescriptors_device));
   }
-  if(target->arrayStates[2] != gpu || target->arrayStates[2] != both){
+  if(target->arrayStates[2] != gpu && target->arrayStates[2] != both){
     CudaSafeCall(cudaFree(targetDescriptors_device));
   }
 
@@ -910,8 +1020,10 @@ SubPixelMatch* MatchFactory::generateSubPixelMatchesPairwiseConstrained(Image* q
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
   CudaSafeCall(cudaFree(splines_device));
 
+  matchSet = new SubPixelMatchSet();
   SubPixelMatch* subPixelMatches;
-
+  matchSet->memoryState = return_state;
+  matchSet->numMatches = numMatches;
   switch(return_state){
     case cpu:
       subPixelMatches = new SubPixelMatch[numMatches];
@@ -925,5 +1037,5 @@ SubPixelMatch* MatchFactory::generateSubPixelMatchesPairwiseConstrained(Image* q
       std::cout<<"ERROR invalid return_state"<<std::endl;
       exit(-1);
   }
-  return (return_state == cpu) ? subPixelMatches : subPixelMatches_device;
+  matchSet->matches = (return_state == cpu) ? subPixelMatches : subPixelMatches_device;
 }

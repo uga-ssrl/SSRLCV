@@ -56,8 +56,9 @@ int main(int argc, char *argv[]){
     images[1].descriptor.cam_vec = {0.0f, 0.0f, -1.0f};
 
     MatchFactory matchFactory = MatchFactory();
-    Match* matches = matchFactory.generateSubPixelMatchesPairwiseConstrained(&(images[0]), &(images[1]), 10.0f, cpu);
-    delete[] matches;
+    SubPixelMatchSet* matchSet = NULL;
+    matchFactory.generateSubPixelMatchesPairwiseConstrained(&(images[0]), &(images[1]), 10.0f, matchSet, cpu);
+    delete matchSet;
 
     printf("\nParallel DSIFT took = %f seconds.\n\n",((float) clock() -  totalTimer)/CLOCKS_PER_SEC);
 

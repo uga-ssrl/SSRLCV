@@ -76,7 +76,9 @@ int main(int argc, char *argv[]){
     images[1].descriptor.cam_vec = {0.0f, 0.0f, -1.0f};
 
     MatchFactory matchFactory = MatchFactory();
-    SubPixelMatch* matches = matchFactory.generateSubPixelMatchesPairwiseConstrained(&(images[0]), &(images[1]), 10.0f, cpu);
+    matchFactory.setCutOffRatio(0.1);
+    SubPixelMatchSet* matchSet = NULL;
+    matchFactory.generateSubPixelMatchesPairwiseConstrained(&(images[0]), &(images[1]), 20.0f, matchSet, cpu);
 
     //TODO write method to clear all image featuresand descriptors
     printf("\nParallel DSIFT took = %f seconds.\n\n",((float) clock() -  partialTimer)/CLOCKS_PER_SEC);
@@ -86,7 +88,7 @@ int main(int argc, char *argv[]){
     */
 
     std::cout<<"starting reprojection"<<std::endl;
-    totalTimer = clock();
+    partialTimer = clock();
 
   	CameraData* cData = new CameraData();
     cData->cameras = new Camera[2];
@@ -107,13 +109,13 @@ int main(int argc, char *argv[]){
 
 
     FeatureMatches* reprojection_matches = new FeatureMatches();
-    reprojection_matches->numMatches = images[0].numFeatures;
-    reprojection_matches->matches = new float4[images[0].numFeatures];
-    for(int i = 0; i < images[0].numFeatures; ++i){
-      reprojection_matches->matches[i] = {matches[i].subLocations[0].x,matches[i].subLocations[0].y,matches[i].subLocations[1].x,matches[i].subLocations[1].y};
+    reprojection_matches->numMatches = matchSet->numMatches;
+    reprojection_matches->matches = new float4[matchSet->numMatches];
+    for(int i = 0; i < matchSet->numMatches; ++i){
+      reprojection_matches->matches[i] = {matchSet->matches[i].subLocations[0].x,matchSet->matches[i].subLocations[0].y,matchSet->matches[i].subLocations[1].x,matchSet->matches[i].subLocations[1].y};
     }
 
-    delete[] matches;
+    delete matchSet;
 
   	//execute 2 view reprojection on gpu
   	PointCloud* pCloud = NULL;
