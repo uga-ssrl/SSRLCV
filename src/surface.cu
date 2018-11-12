@@ -556,6 +556,15 @@ __global__ void generateSurfaceTriangles(int numNodes, int nodeIndex, int edgeIn
   }
 }
 
+Surface::Surface(Octree* octree){
+  this->octree = octree;
+  if(!this->octree->normalsComputed){
+    this->octree->computeNormals(3, 20);
+  }
+  std::cout<<"---------------------------------------------------"<<std::endl;
+  if(!this->octree->pointsDeviceReady) this->octree->copyPointsToDevice();
+  if(!this->octree->normalsDeviceReady) this->octree->copyNormalsToDevice();
+}
 Surface::Surface(std::string pathToPLY, int depthOfOctree){
   std::cout<<"---------------------------------------------------"<<std::endl;
   std::cout<<"COMPUTING OCTREE\n"<<std::endl;
@@ -572,7 +581,7 @@ Surface::Surface(){
 
 }
 Surface::~Surface(){
-  delete this->octree;
+
 }
 
 void Surface::computeVertexImplicitJAX(int focusDepth){
@@ -1054,7 +1063,8 @@ void Surface::jaxMeshing(){
 
 }
 void Surface::generateMesh(){
-  std::string newFile = "out" + this->octree->pathToFile.substr(4, this->octree->pathToFile.length() - 4) + "_mesh_" + std::to_string(this->octree->depth)+ ".ply";
+  if(this->octree->name.length() == 0) this->octree->name = this->octree->pathToFile.substr(4, this->octree->pathToFile.length() - 4);
+  std::string newFile = "out/" + this->octree->name + "_mesh_" + std::to_string(this->octree->depth)+ ".ply";
   std::ofstream plystream(newFile);
   if (plystream.is_open()) {
     std::ostringstream stringBuffer = std::ostringstream("");

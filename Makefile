@@ -6,7 +6,7 @@ LINK := nvcc
 NVCC  := nvcc
 
 # Includes
-INCLUDES = -I. -I./include -I/usr/local/cuda/include -I/usr/local/magma/include
+INCLUDES = -I. -I./include -I/usr/local/cuda/include
 
 # Common flags
 COMMONFLAGS += ${INCLUDES}
@@ -17,30 +17,49 @@ CXXFLAGS += -Wall -std=c++11
 NVCCFLAGS += ${COMMONFLAGS}
 NVCCFLAGS += -std=c++11 -gencode=arch=compute_61,code=sm_61
 
-LIB_CUDA :=  -L/usr/local/magma/lib -lmagma_sparse -lmagma \
-             -L/usr/local/cuda/lib64 -lcublas -lcudart -lcusparse -lcusolver\
-             -L/opt/openblas/lib -lopenblas
-
+LIB :=  -L/usr/local/cuda/lib64 -lcublas -lcuda -lcudart -lcusparse -lcusolver\
+        -L/opt/openblas/lib -lopenblas -lpng -Xcompiler -fopenmp
 
 SRCDIR = ./src
 OBJDIR = ./obj
 BINDIR = ./bin
 
-_OBJS = reconstruction.cu.o
-_OBJS += surface.cu.o
-_OBJS += octree.cu.o
+
+_OBJS = image_io.cpp.o
 _OBJS += cuda_util.cu.o
+_OBJS += Feature.cu.o
+_OBJS += Image.cu.o
+_OBJS += FeatureFactory.cu.o
+_OBJS += MatchFactory.cu.o
+_OBJS += reprojection.cu.o
+_OBJS += octree.cu.o surface.cu.o
+_OBJS += SFM.cu.o
+_DSIFT_OBJS = image_io.cpp.o cuda_util.cu.o Feature.cu.o Image.cu.o\
+FeatureFactory.cu.o MatchFactory.cu.o DSIFTFeatureMatching.cu.o
+_REPRO_OBJS = cuda_util.cu.o reprojection.cu.o 2ViewReprojection.cu.o
+_RECON_OBJS = cuda_util.cu.o octree.cu.o surface.cu.o Reconstruction.cu.o
 
 
+DSIFT_OBJS = ${patsubst %, ${OBJDIR}/%, ${_DSIFT_OBJS}}
+REPRO_OBJS = ${patsubst %, ${OBJDIR}/%, ${_REPRO_OBJS}}
+RECON_OBJS = ${patsubst %, ${OBJDIR}/%, ${_RECON_OBJS}}
 OBJS = ${patsubst %, ${OBJDIR}/%, ${_OBJS}}
 
-TARGET = reconstruction.exe
-LINKLINE = ${LINK} -gencode=arch=compute_61,code=sm_61 ${OBJS} ${LIB_CUDA} -o ${BINDIR}/${TARGET}
+
+TARGET_DSIFT = DSIFT_Matching
+TARGET_REPRO = Reprojection
+TARGET_RECON = SurfaceReconstruction
+TARGET = SFM
+
+LINKLINE_DSIFT = ${LINK} -gencode=arch=compute_61,code=sm_61 ${DSIFT_OBJS} ${LIB} -o ${BINDIR}/${TARGET_DSIFT}
+LINKLINE_REPRO = ${LINK} -gencode=arch=compute_61,code=sm_61 ${REPRO_OBJS} ${LIB} -o ${BINDIR}/${TARGET_REPRO}
+LINKLINE_RECON = ${LINK} -gencode=arch=compute_61,code=sm_61 ${RECON_OBJS} ${LIB} -o ${BINDIR}/${TARGET_RECON}
+LINKLINE_SFM = ${LINK} -gencode=arch=compute_61,code=sm_61 ${OBJS} ${LIB} -o ${BINDIR}/${TARGET}
 
 
 .SUFFIXES: .cpp .cu .o
 
-all: ${BINDIR}/${TARGET}
+all: ${BINDIR}/${TARGET_DSIFT}  ${BINDIR}/${TARGET_REPRO}  ${BINDIR}/${TARGET_RECON}  ${BINDIR}/${TARGET}
 
 $(OBJDIR):
 	    -mkdir -p $(OBJDIR)
@@ -52,13 +71,16 @@ $(BINDIR):
 #  Cuda Cuda Reconstruction
 #
 ${OBJDIR}/%.cu.o: ${SRCDIR}/%.cu
-	${NVCC} ${NVCCFLAGS} -dc $< -o $@
+	${NVCC} ${INCLUDES} ${NVCCFLAGS} -dc $< -o $@
 
 ${OBJDIR}/%.cpp.o: ${SRCDIR}/%.cpp
-	${CXX} ${CXXFLAGS} -c $< -o $@
+	${CXX} ${INCLUDES} ${CXXFLAGS} -c $< -o $@
 
-${BINDIR}/${TARGET}: ${OBJS} Makefile
-	${LINKLINE}
+${BINDIR}/%: ${DSIFT_OBJS} ${REPRO_OBJS} ${RECON_OBJS} ${OBJS} Makefile
+	${LINKLINE_DSIFT}
+	${LINKLINE_REPRO}
+	${LINKLINE_RECON}
+	${LINKLINE_SFM}
 
 clean:
 	rm -f out/*.ply
