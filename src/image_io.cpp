@@ -97,20 +97,6 @@ unsigned char* readPNG(const char* filePath, int &height, int &width, unsigned c
   width = png_get_image_width(png_ptr, info_ptr);
   height = png_get_image_height(png_ptr, info_ptr);
   png_byte color_type = png_get_color_type(png_ptr, info_ptr);
-  switch(color_type){
-    case PNG_COLOR_TYPE_GRAY:
-      colorDepth = 1;
-      break;
-    case PNG_COLOR_TYPE_GRAY_ALPHA:
-      colorDepth = 2;
-      break;
-    case PNG_COLOR_TYPE_RGB:
-      colorDepth = 3;
-      break;
-    case PNG_COLOR_TYPE_RGB_ALPHA:
-      colorDepth = 4;
-      break;
-  }
   //png_byte bit_depth = png_get_bit_depth(png_ptr, info_ptr);//unused
   int numChannels = png_get_channels(png_ptr, info_ptr);
   png_read_update_info(png_ptr, info_ptr);
@@ -120,7 +106,8 @@ unsigned char* readPNG(const char* filePath, int &height, int &width, unsigned c
   }
   png_read_image(png_ptr, row_pointers);
   fclose(fp);
-  return getPixelArray(row_pointers, width, height, color_type);
+  colorDepth = numChannels;
+  return getPixelArray(row_pointers, width, height, numChannels);
 }
 
 void writePNG(const char* filePath, const unsigned char* &image, const int &width, const int &height){

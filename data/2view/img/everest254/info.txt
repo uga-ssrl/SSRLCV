@@ -1,5 +1,0 @@
-// Camera 1 is rotated 10 degrees on the y axis
-// Camera 2 is just looking straight down the z- vector
-// TODO unify these files
-foc=160mm
-fov=11.4212d

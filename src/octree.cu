@@ -819,8 +819,11 @@ void Octree::parsePLY(){
             ++index;
             break;
           case 5:
-            if(this->normalsComputed) normal.z = value;
-            else if(this->hasColor){
+            if(this->normalsComputed){
+               normal.z = value;
+               if(!this->hasColor) lineIsDone = true;
+            }
+            if(this->hasColor && !this->normalsComputed){
               color.z = value;
               lineIsDone = true;
             }

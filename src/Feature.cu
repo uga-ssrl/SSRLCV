@@ -8,24 +8,28 @@ __device__ __host__ SIFT_Feature::SIFT_Feature(){
   this->parentImage = -1;
   this->real = true;
   this->sigma = 0.0f;
+  this->descriptorIndex = -1;
 }
 __device__ __host__ SIFT_Feature::SIFT_Feature(int2 loc, int parentImage){
   this->loc = loc;
   this->parentImage = parentImage;
   this->real = true;
   this->sigma = 0.0f;
+  this->descriptorIndex = -1;
 }
 __device__ __host__ SIFT_Feature::SIFT_Feature(int2 loc, int parentImage, bool real){
   this->loc = loc;
   this->parentImage = parentImage;
   this->real = real;
   this->sigma = 0.0f;
+  this->descriptorIndex = -1;
 }
 __device__ __host__ SIFT_Feature::SIFT_Feature(int2 loc, int parentImage, bool real, float sigma){
   this->loc = loc;
   this->parentImage = parentImage;
   this->real = real;
   this->sigma = sigma;
+  this->descriptorIndex = -1;
 }
 __device__ __host__ SIFT_Descriptor::SIFT_Descriptor(){
   this->theta = 0.0f;

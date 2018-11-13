@@ -20,19 +20,13 @@
 // Main Method for 2 view reprojection
 int main(int argc, char* argv[])
 {
-  ConfigVals config();					 //stores configuration values
-
-	if (true)
-	{
-		printDeviceProperties();
-	}
 
 	//load and structure reprojection input
 	FeatureMatches* fMatches =NULL;
-	loadMatchData(fMatches, "/home/nvidia/Development/reprojection/data/matches.txt");
+	loadMatchData(fMatches, "./data/repro_test/nk_matches.txt");
 	std::cout<<"made it here 1\n\n";
 	CameraData* cData = NULL;
-	loadCameraData(cData, "/home/nvidia/Development/reprojection/data/cameras.txt");
+	loadCameraData(cData, "./data/repro_test/nk_cameras.txt");
 
 	std::cout<<"made it here 2\n\n";
 

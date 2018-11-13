@@ -87,7 +87,9 @@ SIFT_Descriptor* descriptorsTarget, SIFT_Feature* featuresTarget, Match* matches
 
 
 __global__ void refineWCutoffRatio(int numMatches, Match* matches, int* matchCounter, float2 minMax, float cutoffRatio);
-
+__global__ void refineWCutoffRatio(int numMatches, SubPixelMatch* matches, int* matchCounter, float2 minMax, float cutoffRatio);
+__global__ void copyMatches(int numMatches, int* matchCounter, Match* minimizedMatches, Match* matches);
+__global__ void copyMatches(int numMatches, int* matchCounter, SubPixelMatch* minimizedMatches, SubPixelMatch* matches);
 
 /*
 Funundamental matrix stuff
@@ -115,7 +117,8 @@ public:
 
   void setCutOffRatio(float cutoffRatio);
 
-  void refineMatches(MatchSet* &matchSet);
+  void refineMatches(MatchSet* matchSet);
+  void refineMatches(SubPixelMatchSet* matchSet);
 
 
   void generateMatchesPairwiseBruteForce(Image* query, Image* target, MatchSet* &matchSet, MemoryState return_state);

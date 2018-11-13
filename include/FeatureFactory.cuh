@@ -29,6 +29,7 @@ __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
 __device__ __forceinline__ float modulus(float &x, float &y);
 __device__ __forceinline__ float2 rotateAboutPoint(int2 &loc, float &theta, float2 &origin);
 
+__global__ void initFeatureArrayNoZeros(Image_Descriptor query, Image_Descriptor target, unsigned int totalFeatures, Image_Descriptor image, SIFT_Feature* features, int* numFeatureExtractor, unsigned char* pixels);
 __global__ void initFeatureArray(Image_Descriptor query, Image_Descriptor target, unsigned int totalFeatures, Image_Descriptor image, SIFT_Feature* features, int* numFeatureExtractor);
 __global__ void computeThetas(unsigned int totalFeatures, Image_Descriptor image, int numOrientations, unsigned char* pixels, SIFT_Feature* features, SIFT_Descriptor* descriptors);
 __global__ void fillDescriptorsDensly(unsigned int totalFeatures, Image_Descriptor image, int numOrientations, unsigned char* pixels, SIFT_Feature* features, SIFT_Descriptor* descriptors);
@@ -38,6 +39,7 @@ class FeatureFactory{
 protected:
 
 public:
+  bool allowZeros;
   Image* image;
   FeatureFactory();
   void setImage(Image* image);
@@ -52,7 +54,10 @@ private:
 
 public:
   SIFT_FeatureFactory();
+  SIFT_FeatureFactory(bool allowZeros);
   SIFT_FeatureFactory(int numOrientations);
+  SIFT_FeatureFactory(bool allowZeros, int numOrientations);
+  void setZeroAllowance(bool allowZeros);
   void setNumOrientations(int numOrientations);
   void generateFeatures();//NOTE not implemented
   void generateFeaturesDensly();

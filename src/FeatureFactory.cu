@@ -140,7 +140,13 @@ __device__ __forceinline__ float2 rotateAboutPoint(const int2 &loc, const float 
 /*
 KERNELS
 */
-
+__global__ void initFeatureArrayNoZeros(unsigned int totalFeatures, Image_Descriptor image, SIFT_Feature* features, int* numFeatureExtractor, unsigned char* pixels){
+  Image_Descriptor parentRef = image;
+  int2 locationInParent = {(int)blockIdx.y,(int)blockIdx.x};
+  bool real = ((locationInParent.x - 12) >= 0 && (locationInParent.y - 12) >= 0) && ((locationInParent + 12) < parentRef.size && pixels[blockIdx.y*gridDim.x + blockIdx.x] != 0);
+  features[blockIdx.y*gridDim.x + blockIdx.x] = SIFT_Feature(locationInParent, parentRef.id, real);
+  numFeatureExtractor[blockIdx.y*gridDim.x + blockIdx.x] = real;
+}
 __global__ void initFeatureArray(unsigned int totalFeatures, Image_Descriptor image, SIFT_Feature* features, int* numFeatureExtractor){
   Image_Descriptor parentRef = image;
   int2 locationInParent = {(int)blockIdx.y,(int)blockIdx.x};
@@ -178,6 +184,7 @@ __global__ void computeThetas(unsigned int totalFeatures, Image_Descriptor image
     for(int i = 0; i < regNumOrient; ++i){
       descriptors[blockId*regNumOrient + i] = SIFT_Descriptor(bestMagWThetas[i].y);
     }
+    features[blockId].descriptorIndex = blockId*regNumOrient;
     delete[] bestMagWThetas;
   }
 }
@@ -278,8 +285,10 @@ START OF HOST METHODS
 */
 //Base feature factory
 
+
 FeatureFactory::FeatureFactory(){
   this->image = NULL;
+  this->allowZeros = true;
 }
 void FeatureFactory::setImage(Image* image){
   this->image = image;
@@ -288,12 +297,26 @@ void FeatureFactory::setImage(Image* image){
   }
 }
 SIFT_FeatureFactory::SIFT_FeatureFactory(){
+  this->allowZeros = true;
   this->image = NULL;
   this->numOrientations = 0;
 }
+SIFT_FeatureFactory::SIFT_FeatureFactory(bool allowZeros){
+  this->allowZeros = true;
+  this->numOrientations = 0;
+  this->image = NULL;
+}
+
 SIFT_FeatureFactory::SIFT_FeatureFactory(int numOrientations){
   this->numOrientations = numOrientations;
-  if(this->image != NULL) this->image->numDescriptorsPerFeature = numOrientations;
+  this->image = NULL;
+}
+SIFT_FeatureFactory::SIFT_FeatureFactory(bool allowZeros, int numOrientations){
+  this->allowZeros = allowZeros;
+  this->numOrientations = numOrientations;
+}
+void SIFT_FeatureFactory::setZeroAllowance(bool allowZeros){
+  this->allowZeros = allowZeros;
 }
 void SIFT_FeatureFactory::setNumOrientations(int numOrientations){
   this->numOrientations = numOrientations;
@@ -356,6 +379,11 @@ void SIFT_FeatureFactory::generateFeaturesDensly(){
   if(this->image->numDescriptorsPerFeature == 0){
     this->image->numDescriptorsPerFeature = 1;
   }
+  if(this->image->arrayStates[0] == cpu){
+    this->image->setPixelState(gpu);
+    std::cout<<"NOTE pixels are now on GPU"<<std::endl;
+  }
+
 
   SIFT_Feature* features_device_temp = NULL;
   SIFT_Feature* features_device = NULL;
@@ -370,7 +398,12 @@ void SIFT_FeatureFactory::generateFeaturesDensly(){
   dim3 block = {1,1,1};
   std::cout<<"initializing DSIFT feature array with "<<this->image->numFeatures<<" features..."<<std::endl;
   clock_t timer = clock();
-  initFeatureArray<<<grid, block>>>(this->image->numFeatures, this->image->descriptor, features_device_temp, numFeatureExtractor);
+  if(this->allowZeros){
+    initFeatureArray<<<grid, block>>>(this->image->numFeatures, this->image->descriptor, features_device_temp, numFeatureExtractor);
+  }
+  else{
+    initFeatureArrayNoZeros<<<grid, block>>>(this->image->numFeatures, this->image->descriptor, features_device_temp, numFeatureExtractor, this->image->pixels_device);
+  }
   cudaDeviceSynchronize();
   CudaCheckError();
 

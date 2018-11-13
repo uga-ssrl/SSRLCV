@@ -6,6 +6,7 @@ struct Feature{
   int2 loc;
   bool real;
   int parentImage;
+  int descriptorIndex;
 };
 
 struct SIFT_Feature : public Feature{

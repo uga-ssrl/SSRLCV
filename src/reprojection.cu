@@ -43,10 +43,9 @@ inline void __cudaCheckError(const char *file, const int line) {
 }
 
 //global constants
-const unsigned int   res  = 1024;
+const unsigned int   res  = 254;
 const float          foc  = 0.035;
 const float          fov  = 0.8575553107;//0.0593412; //3.4 degrees to match the blender sim //0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
-const float          PI   = 3.1415926535;
 const float          dpix = (foc*tan(fov/2))/(res/2); //float          dpix = 0.00002831538; //(foc*tan(fov/2))/(res/2)
 
 //============= DEVICE FUNCTIONS ================
@@ -124,9 +123,10 @@ __device__ void inverse3x3_gpu(float M[3][3], float (&Minv)[3][3])
 }
 
 
-__global__ void two_view_reproject(float4* matches, float cam1C[3], float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9], float rotationTranspose1[9], float rotationTranspose2[9], float3* points)
+__global__ void two_view_reproject(int numMatches, float4* matches, float cam1C[3], float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9], float rotationTranspose1[9], float rotationTranspose2[9], float3* points)
 {
 
+  if(!(getGlobalIdx_1D_1D()<numMatches))return;
 	//check out globalID cheat sheet jackson gave you for this
 	int matchIndex = getGlobalIdx_1D_1D(); //need to define once I calculate grid/block size
 	//printf("thread index %d", getGlobalIdx_1D_1D());
@@ -295,7 +295,7 @@ void debugPrint(std::string str)
 //takes in point cloud outputted from gpu and saves it in ply format
 void savePly(PointCloud* pCloud)
 {
-        std::ofstream outputFile1("output.ply");
+        std::ofstream outputFile1("out/repro_output.ply");
         outputFile1 << "ply\nformat ascii 1.0\nelement vertex ";
         outputFile1 << pCloud->numPoints << "\n";
         outputFile1 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
@@ -307,6 +307,7 @@ void savePly(PointCloud* pCloud)
                 currentPoint = &(pCloud->points[i]);
                 outputFile1 << currentPoint->x << " " << currentPoint->y << " " << currentPoint->z << " " << 0 << " " << 254 << " " << 0 << "\n";
         }
+        std::cout<<"data/repro_output.ply has been written"<<std::endl;
 }
 //used inside of loadMatchData to fill in match data for each line
  void parseMatchData(float4* &currentMatch, std::string line, int index)
@@ -733,11 +734,10 @@ void twoViewReprojection(FeatureMatches* fMatches, CameraData* cData, PointCloud
 
 	//block and thread count
 	dim3 THREAD_COUNT = {512, 1, 1};
-	dim3 BLOCK_COUNT = {(unsigned int)ceil(POINT_CLOUD_SIZE/512),
- 1, 1}; //(unsigned int)ceil(POINT_CLOUD_SIZE/512)
+	dim3 BLOCK_COUNT = {(unsigned int)ceil((POINT_CLOUD_SIZE+512)/512),1, 1}; //(unsigned int)ceil(POINT_CLOUD_SIZE/512)
 
 	//call kernel
-	two_view_reproject<<<BLOCK_COUNT, THREAD_COUNT>>>(d_in_matches, d_in_cam1C, d_in_cam1V, d_in_cam2C, d_in_cam2V, d_in_k_inv, d_in_rotTran1, d_in_rotTran2, d_out_pointCloud);
+	two_view_reproject<<<BLOCK_COUNT, THREAD_COUNT>>>(POINT_CLOUD_SIZE, d_in_matches, d_in_cam1C, d_in_cam1V, d_in_cam2C, d_in_cam2V, d_in_k_inv, d_in_rotTran1, d_in_rotTran2, d_out_pointCloud);
 
 	//error check
 	CudaCheckError();

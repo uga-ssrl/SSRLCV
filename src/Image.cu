@@ -173,10 +173,9 @@ Image::Image(std::string filePath, int id, MemoryState arrayStates[3]){
 
   //read image
   this->pixels = readPNG(filePath.c_str(), this->descriptor.size.y, this->descriptor.size.x, this->colorDepth);
-
   this->totalPixels = this->descriptor.size.x*this->descriptor.size.y;
-
   if(this->arrayStates[0] == gpu){//gpu then
+
     CudaSafeCall(cudaMalloc((void**)&this->pixels_device, this->totalPixels*((int)this->colorDepth)*sizeof(unsigned char)));
     CudaSafeCall(cudaMemcpy(this->pixels_device, this->pixels, this->totalPixels*((int)this->colorDepth)*sizeof(unsigned char), cudaMemcpyHostToDevice));
     delete[] this->pixels;

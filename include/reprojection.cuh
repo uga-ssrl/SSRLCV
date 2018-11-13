@@ -28,7 +28,7 @@ __device__ void normalize_gpu(float (&v)[3]);
 __device__ int getGlobalIdx_1D_1D();
 __device__ void inverse3x3_gpu(float M[3][3], float (&Minv)[3][3]);
 
-__global__ void two_view_reproject(float4* matches, float cam1C[3],
+__global__ void two_view_reproject(int numMatches, float4* matches, float cam1C[3],
 	float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9],
 	float rotationTranspose1[9], float rotationTranspose2[9], float3* points);
 

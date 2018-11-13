@@ -1,5 +1,4 @@
 #include "MatchFactory.cuh"
-#define PI 3.1415926535897932384626433832795028841971693993
 // Define this to turn on error checking
 #define CUDA_ERROR_CHECK
 
@@ -202,6 +201,7 @@ subpixel stuff
 */
 //TODO overload this kernel for different types of descriptors
 
+//NOTE THIS MIGHT ONLY WORK FOR DENSE SIFT
 __global__ void initializeSubPixels(Image_Descriptor query, Image_Descriptor target, unsigned long numMatches, Match* matches, SubPixelMatch* subPixelMatches, SubpixelM7x7* subPixelDescriptors,
 SIFT_Descriptor* queryDescriptors, int numFeaturesQuery, int numDescriptorsPerFeatureQuery, SIFT_Descriptor* targetDescriptors, int numFeaturesTarget, int numDescriptorsPerFeatureTarget){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
@@ -355,7 +355,7 @@ __global__ void refineWCutoffRatio(int numMatches, Match* matches, int* matchCou
   int globalId = blockIdx.x*blockDim.x + threadIdx.x;
   if(globalId < numMatches){
     float2 regMinMax = minMax;
-    if((matches[globalId].distance[1] - regMinMax.x)/(regMinMax.y-regMinMax.x) > cutoffRatio){
+    if((matches[globalId].distance[1] - regMinMax.x)/(regMinMax.y-regMinMax.x) < cutoffRatio){
       matchCounter[globalId] = 1;
     }
     else{
@@ -364,7 +364,37 @@ __global__ void refineWCutoffRatio(int numMatches, Match* matches, int* matchCou
     }
   }
 }
-
+__global__ void refineWCutoffRatio(int numMatches, SubPixelMatch* matches, int* matchCounter, float2 minMax, float cutoffRatio){
+  int globalId = blockIdx.x*blockDim.x + threadIdx.x;
+  if(globalId < numMatches){
+    float2 regMinMax = minMax;
+    if((matches[globalId].distance[1] - regMinMax.x)/(regMinMax.y-regMinMax.x) < cutoffRatio){
+      matchCounter[globalId] = 1;
+    }
+    else{
+      matchCounter[globalId] = 0;
+      matches[globalId].distance[0] = -1.0f;
+    }
+  }
+}
+__global__ void copyMatches(int numMatches, int* matchCounter, Match* minimizedMatches, Match* matches){
+  int globalId = blockIdx.x*blockDim.x + threadIdx.x;
+  if(globalId < numMatches){
+    int counterVal = matchCounter[globalId];
+    if(counterVal != 0 && counterVal > matchCounter[globalId - 1]){
+      minimizedMatches[counterVal - 1] = matches[globalId];
+    }
+  }
+}
+__global__ void copyMatches(int numMatches, int* matchCounter, SubPixelMatch* minimizedMatches, SubPixelMatch* matches){
+  int globalId = blockIdx.x*blockDim.x + threadIdx.x;
+  if(globalId < numMatches){
+    int counterVal = matchCounter[globalId];
+    if(counterVal != 0 && counterVal > matchCounter[globalId - 1]){
+      minimizedMatches[counterVal - 1] = matches[globalId];
+    }
+  }
+}
 
 /*
 fundamental matrix stuff
@@ -551,7 +581,7 @@ void MatchFactory::setCutOffRatio(float cutoffRatio){
 }
 
 //TODO consider using a defualt cutoff if not set
-void MatchFactory::refineMatches(MatchSet* &matchSet){
+void MatchFactory::refineMatches(MatchSet* matchSet){
   if(this->cutoffRatio == 0.0f){
     std::cout<<"ERROR not cutoff ratio set for refinement"<<std::endl;
     exit(-1);
@@ -592,15 +622,20 @@ void MatchFactory::refineMatches(MatchSet* &matchSet){
   thrust::inclusive_scan(sum, sum + matchSet->numMatches, sum);
   unsigned long beforeCompaction = matchSet->numMatches;
   CudaSafeCall(cudaMemcpy(&(matchSet->numMatches),matchCounter_device + (beforeCompaction - 1), sizeof(int), cudaMemcpyDeviceToHost));
-  CudaSafeCall(cudaFree(matchCounter_device));
 
   Match* minimizedMatches_device = NULL;
   CudaSafeCall(cudaMalloc((void**)&minimizedMatches_device, matchSet->numMatches*sizeof(Match)));
 
-  thrust::device_ptr<Match> arrayToCompact(matches_device);
-  thrust::device_ptr<Match> arrayOut(minimizedMatches_device);
-  thrust::copy_if(arrayToCompact, arrayToCompact + beforeCompaction, arrayOut, match_above_cutoff());
+  copyMatches<<<grid,block>>>(beforeCompaction, matchCounter_device, minimizedMatches_device, matches_device);
+  cudaDeviceSynchronize();
   CudaCheckError();
+
+  // thrust::device_ptr<Match> arrayToCompact(matches_device);
+  // thrust::device_ptr<Match> arrayOut(minimizedMatches_device);
+  // thrust::copy_if(arrayToCompact, arrayToCompact + beforeCompaction, arrayOut, match_above_cutoff());
+  // CudaCheckError();
+
+  CudaSafeCall(cudaFree(matchCounter_device));
   CudaSafeCall(cudaFree(matches_device));
 
   printf("numMatches after eliminating base on %f cutoffRatio = %d (was %d)\n",this->cutoffRatio,matchSet->numMatches,beforeCompaction);
@@ -611,6 +646,74 @@ void MatchFactory::refineMatches(MatchSet* &matchSet){
   else if(matchSet->memoryState == cpu){
     matchSet->matches = new Match[matchSet->numMatches];
     CudaSafeCall(cudaMemcpy(matchSet->matches, minimizedMatches_device, matchSet->numMatches*sizeof(Match),cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaFree(minimizedMatches_device));
+  }
+}
+void MatchFactory::refineMatches(SubPixelMatchSet* matchSet){
+  if(this->cutoffRatio == 0.0f){
+    std::cout<<"ERROR not cutoff ratio set for refinement"<<std::endl;
+    exit(-1);
+  }
+  SubPixelMatch* matches = NULL;
+  SubPixelMatch* matches_device = NULL;
+  if(matchSet->memoryState == gpu){
+    matches = new SubPixelMatch[matchSet->numMatches];
+    CudaSafeCall(cudaMemcpy(matches, matchSet->matches, matchSet->numMatches*sizeof(SubPixelMatch),cudaMemcpyDeviceToHost));
+    matches_device = matchSet->matches;
+  }
+  else{
+    CudaSafeCall(cudaMalloc((void**)&matches_device, matchSet->numMatches*sizeof(SubPixelMatch)));
+    CudaSafeCall(cudaMemcpy(matches_device, matchSet->matches, matchSet->numMatches*sizeof(SubPixelMatch),cudaMemcpyHostToDevice));
+    matches = matchSet->matches;
+  }
+  float max = 0.0f;
+  float min = FLT_MAX;
+  for(int i = 0; i < matchSet->numMatches; ++i){
+    if(matches[i].distance[1] < min) min = matches[i].distance[1];
+    if(matches[i].distance[1] > max) max = matches[i].distance[1];
+  }
+
+  delete[] matches;
+
+  printf("max dist = %f || min dist = %f\n",max,min);
+  int* matchCounter_device = NULL;
+  CudaSafeCall(cudaMalloc((void**)&matchCounter_device, matchSet->numMatches*sizeof(int)));
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock((unsigned long) matchSet->numMatches, grid, block);
+  refineWCutoffRatio<<<grid,block>>>(matchSet->numMatches, matches_device, matchCounter_device, {min, max}, this->cutoffRatio);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  thrust::device_ptr<int> sum(matchCounter_device);
+  thrust::inclusive_scan(sum, sum + matchSet->numMatches, sum);
+  unsigned long beforeCompaction = matchSet->numMatches;
+  CudaSafeCall(cudaMemcpy(&(matchSet->numMatches),matchCounter_device + (beforeCompaction - 1), sizeof(int), cudaMemcpyDeviceToHost));
+
+  SubPixelMatch* minimizedMatches_device = NULL;
+  CudaSafeCall(cudaMalloc((void**)&minimizedMatches_device, matchSet->numMatches*sizeof(SubPixelMatch)));
+
+  copyMatches<<<grid,block>>>(beforeCompaction, matchCounter_device, minimizedMatches_device, matches_device);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  CudaSafeCall(cudaFree(matchCounter_device));
+  CudaSafeCall(cudaFree(matches_device));
+
+  // thrust::device_ptr<SubPixelMatch> arrayToCompact(matches_device);
+  // thrust::device_ptr<SubPixelMatch> arrayOut(minimizedMatches_device);
+  // thrust::copy_if(arrayToCompact, arrayToCompact + beforeCompaction, arrayOut, match_above_cutoff());
+  // CudaCheckError();
+
+  printf("numMatches after eliminating base on %f cutoffRatio = %d (was %d)\n",this->cutoffRatio,matchSet->numMatches,beforeCompaction);
+
+  if(matchSet->memoryState == gpu){
+    matchSet->matches = minimizedMatches_device;
+  }
+  else if(matchSet->memoryState == cpu){
+    matchSet->matches = new SubPixelMatch[matchSet->numMatches];
+    CudaSafeCall(cudaMemcpy(matchSet->matches, minimizedMatches_device, matchSet->numMatches*sizeof(SubPixelMatch),cudaMemcpyDeviceToHost));
     CudaSafeCall(cudaFree(minimizedMatches_device));
   }
 }
@@ -864,8 +967,6 @@ void MatchFactory::generateSubPixelMatchesPairwiseBruteForce(Image* query, Image
   MatchSet* nonSubSet = NULL;
   this->generateMatchesPairwiseBruteForce(query, target, nonSubSet, gpu);
 
-  this->refineMatches(nonSubSet);
-
   int numMatches = nonSubSet->numMatches;
 
   SubPixelMatch* subPixelMatches_device;
@@ -965,8 +1066,6 @@ void MatchFactory::generateSubPixelMatchesPairwiseConstrained(Image* query, Imag
 
   MatchSet* nonSubSet  = NULL;
   this->generateMatchesPairwiseConstrained(query, target, epsilon, nonSubSet, gpu);
-
-  this->refineMatches(nonSubSet);
 
   int numMatches = nonSubSet->numMatches;
 

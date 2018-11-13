@@ -1063,8 +1063,8 @@ void Surface::jaxMeshing(){
 
 }
 void Surface::generateMesh(){
-  if(this->octree->name.length() == 0) this->octree->name = this->octree->pathToFile.substr(4, this->octree->pathToFile.length() - 4);
-  std::string newFile = "out/" + this->octree->name + "_mesh_" + std::to_string(this->octree->depth)+ ".ply";
+  if(this->octree->name.length() == 0) this->octree->name = std::to_string(clock());
+  std::string newFile = "out/" + this->octree->name + "_mesh_march_" + std::to_string(this->octree->depth)+ ".ply";
   std::ofstream plystream(newFile);
   if (plystream.is_open()) {
     std::ostringstream stringBuffer = std::ostringstream("");
