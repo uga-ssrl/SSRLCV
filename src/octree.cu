@@ -2578,7 +2578,7 @@ void Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsigned int
 }
 
 void Octree::writeVertexPLY(){
-  if(this->name.length() == 0) this->name = this->pathToFile.substr(4, this->pathToFile.length() - 4);
+  if(this->name.length() == 0) this->name = this->pathToFile.substr(this->pathToFile.find_last_of("/") + 1,this->pathToFile.length() - 4);
   std::string newFile = "out/" + this->name + "_vertices_" + std::to_string(this->depth)+ ".ply";
   std::ofstream plystream(newFile);
   if (plystream.is_open()) {
@@ -2614,7 +2614,7 @@ void Octree::writeVertexPLY(){
   }
 }
 void Octree::writeEdgePLY(){
-  if(this->name.length() == 0) this->name = this->pathToFile.substr(4, this->pathToFile.length() - 4);
+  if(this->name.length() == 0) this->name = this->pathToFile.substr(this->pathToFile.find_last_of("/") + 1,this->pathToFile.length() - 4);
   std::string newFile = "out/" + this->name + "_edges_" + std::to_string(this->depth)+ ".ply";
   std::ofstream plystream(newFile);
   if (plystream.is_open()) {
@@ -2668,7 +2668,7 @@ void Octree::writeEdgePLY(){
   }
 }
 void Octree::writeCenterPLY(){
-  if(this->name.length() == 0) this->name = this->pathToFile.substr(4, this->pathToFile.length() - 4);
+  if(this->name.length() == 0) this->name = this->pathToFile.substr(this->pathToFile.find_last_of("/") + 1,this->pathToFile.length() - 4);
   std::string newFile = "out/" + this->name + "_centers_" + std::to_string(this->depth)+ ".ply";
   std::ofstream plystream(newFile);
   if (plystream.is_open()) {
@@ -2704,7 +2704,7 @@ void Octree::writeCenterPLY(){
   }
 }
 void Octree::writeNormalPLY(){
-  if(this->name.length() == 0) this->name = this->pathToFile.substr(4, this->pathToFile.length() - 4);
+  if(this->name.length() == 0) this->name = this->pathToFile.substr(this->pathToFile.find_last_of("/") + 1,this->pathToFile.length() - 4);
   std::string newFile = "out/" + this->name + "_normals_" + std::to_string(this->depth)+ ".ply";
 	std::ofstream plystream(newFile);
 	if (plystream.is_open()) {
@@ -2744,7 +2744,7 @@ void Octree::writeDepthPLY(int d){
     std::cout<<"ERROR DEPTH FOR WRITEDEPTHPLY IS OUT OF BOUNDS"<<std::endl;
     exit(-1);
   }
-  if(this->name.length() == 0) this->name = this->pathToFile.substr(4, this->pathToFile.length() - 4);
+  if(this->name.length() == 0) this->name = this->pathToFile.substr(this->pathToFile.find_last_of("/") + 1,this->pathToFile.length() - 4);
   std::string newFile = "out/" + this->name +
   "_finestNodes_" + std::to_string(d) + "_"+ std::to_string(this->depth)+ ".ply";
   std::ofstream plystream(newFile);

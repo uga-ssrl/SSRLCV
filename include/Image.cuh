@@ -19,10 +19,13 @@ struct Image_Descriptor{
   float3 cam_vec;
   float fov;
   float foc;
+  float dpix;
   __device__ __host__ Image_Descriptor();
   __device__ __host__ Image_Descriptor(int id, int2 size);
   __device__ __host__ Image_Descriptor(int id, int2 size, float3 cam_pos, float3 camp_dir);
 };
+
+void get_cam_params2view(Image_Descriptor &cam1, Image_Descriptor &cam2, std::string infile);
 
 class Image{
 

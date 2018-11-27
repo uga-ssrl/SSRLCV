@@ -844,8 +844,8 @@ void MatchFactory::generateMatchesPairwiseConstrained(Image* query, Image* targe
       std::cout<<"ERROR query does not have features"<<std::endl;
       exit(-1);
     }
-    CudaSafeCall(cudaMalloc((void**)&queryFeatures_device, query->numFeatures*query->feature_size));
-    CudaSafeCall(cudaMemcpy(queryFeatures_device, query->features, query->numFeatures*query->feature_size, cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMalloc((void**)&queryFeatures_device, query->numFeatures*sizeof(SIFT_Feature)));
+    CudaSafeCall(cudaMemcpy(queryFeatures_device, query->features, query->numFeatures*sizeof(SIFT_Feature), cudaMemcpyHostToDevice));
   }
   else queryFeatures_device = query->features_device;
 
@@ -854,8 +854,8 @@ void MatchFactory::generateMatchesPairwiseConstrained(Image* query, Image* targe
       std::cout<<"ERROR target does not have features"<<std::endl;
       exit(-1);
     }
-    CudaSafeCall(cudaMalloc((void**)&targetFeatures_device, target->numFeatures*target->feature_size));
-    CudaSafeCall(cudaMemcpy(targetFeatures_device, target->features, target->numFeatures*target->feature_size, cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMalloc((void**)&targetFeatures_device, target->numFeatures*sizeof(SIFT_Feature)));
+    CudaSafeCall(cudaMemcpy(targetFeatures_device, target->features, target->numFeatures*sizeof(SIFT_Feature), cudaMemcpyHostToDevice));
   }
   else targetFeatures_device = target->features_device;
 
@@ -864,8 +864,8 @@ void MatchFactory::generateMatchesPairwiseConstrained(Image* query, Image* targe
       std::cout<<"ERROR query does not have descriptors"<<std::endl;
       exit(-1);
     }
-    CudaSafeCall(cudaMalloc((void**)&queryDescriptors_device, query->numDescriptorsPerFeature*query->numFeatures*query->featureDescriptor_size));
-    CudaSafeCall(cudaMemcpy(queryDescriptors_device, query->featureDescriptors, query->numDescriptorsPerFeature*query->numFeatures*query->featureDescriptor_size, cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMalloc((void**)&queryDescriptors_device, query->numDescriptorsPerFeature*query->numFeatures*sizeof(SIFT_Descriptor)));
+    CudaSafeCall(cudaMemcpy(queryDescriptors_device, query->featureDescriptors, query->numDescriptorsPerFeature*query->numFeatures*sizeof(SIFT_Descriptor), cudaMemcpyHostToDevice));
   }
   else queryDescriptors_device = query->featureDescriptors_device;
 
@@ -874,8 +874,8 @@ void MatchFactory::generateMatchesPairwiseConstrained(Image* query, Image* targe
       std::cout<<"ERROR target does not have descriptors"<<std::endl;
       exit(-1);
     }
-    CudaSafeCall(cudaMalloc((void**)&targetDescriptors_device, target->numDescriptorsPerFeature*target->numFeatures*target->featureDescriptor_size));
-    CudaSafeCall(cudaMemcpy(targetDescriptors_device, target->featureDescriptors, target->numDescriptorsPerFeature*target->numFeatures*target->featureDescriptor_size, cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMalloc((void**)&targetDescriptors_device, target->numDescriptorsPerFeature*target->numFeatures*sizeof(SIFT_Descriptor)));
+    CudaSafeCall(cudaMemcpy(targetDescriptors_device, target->featureDescriptors, target->numDescriptorsPerFeature*target->numFeatures*sizeof(SIFT_Descriptor), cudaMemcpyHostToDevice));
   }
   else targetDescriptors_device = target->featureDescriptors_device;
 

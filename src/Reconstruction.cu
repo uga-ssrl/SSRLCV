@@ -29,19 +29,37 @@
 
 int main(int argc, char *argv[]){
   try{
-    if(argc > 1 && argc < 4){
+    if(argc > 1 && argc < 5){
 
       std::string filePath = argv[1];
       int depth = 10;
 
+      std::string test = "surf";
+
       if(argc == 2) depth = 8;
-      if(argc == 3) depth = std::stoi(argv[2]);
+      if(argc > 2) depth = std::stoi(argv[2]);
+      if(argc == 4){
+        test = argv[3];
+      }
 
       clock_t totalTimer = clock();
-      std::cout<<"depth = "<<depth<<std::endl;
 
-      Surface surface = Surface(filePath, depth);
-      surface.marchingCubes();
+      std::cout<<"depth = "<<depth<<std::endl;
+      Octree octree = Octree(filePath, depth);
+      if(test != "norm" && test != "surf"){
+        octree.writeVertexPLY();
+        octree.writeEdgePLY();
+        octree.writeCenterPLY();
+      }
+      if(test != "octree"){
+        octree.computeNormals(3, 20);
+        octree.writeNormalPLY();
+      }
+      if(test == "surf"){
+        Surface surface = Surface(&octree);
+        surface.marchingCubes();
+      }
+
       std::cout<<"---------------------------------------------------"<<std::endl;
 
       totalTimer = clock() - totalTimer;

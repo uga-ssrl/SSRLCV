@@ -1,5 +1,6 @@
 #include "image_io.h"
 
+
 void getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths){
   DIR* dir;
   if (NULL == (dir = opendir(dirPath.c_str()))){

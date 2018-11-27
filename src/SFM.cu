@@ -35,42 +35,6 @@
 //TODO delete methods in images
 
 
-//
-// void parseCameraLine(float3 &pos, float3 &vec, std::string line)
-// {
-//         std::istringstream ss(line);
-//         std::string token;
-//         std::vector<std::string> data;
-//         while (getline(ss, token, ','))
-//         {
-//           data.push_back(token);
-//         }
-//         pos.x = std::stof(data[1]);
-//         pos.y = std::stof(data[2]);
-//         pos.z = std::stof(data[3]);
-//         vec.x = std::stof(data[4]);
-//         vec.y = std::stof(data[5]);
-//         vec.z = std::stof(data[6]);
-// }
-// void readCameraData(Image* images, std::string pathToCameras)
-// {
-//         cameras->numCameras = 2; //automate
-//         cameras->cameras = new Camera[2]; //automate
-//
-//         std::ifstream inFile(pathToCameras);
-//         std::string line;
-//         int index = 0;
-//         while (getline(inFile, line))
-//         {
-//
-//             parseCameraData(currentCam, line);
-//             index++;
-//         }
-// }
-//
-
-
-
 int main(int argc, char *argv[]){
   try{
     //CUDA INITIALIZATION
@@ -99,21 +63,25 @@ int main(int argc, char *argv[]){
     for(int i = 0; i < numImages; ++i){
       images[i] = Image(imagePaths[i], i, pixFeatureDescriptorMemoryState);
       images[i].convertToBW();
-      images[i].descriptor.foc = 0.035;
-      images[i].descriptor.fov = 0.8575553107;
       printf("%s size = %dx%d\n",imagePaths[i].c_str(), images[i].descriptor.size.x, images[i].descriptor.size.y);
       featureFactory.setImage(&(images[i]));
       featureFactory.generateFeaturesDensly();
     }
     std::cout<<"image features are set"<<std::endl;
 
-    images[0].descriptor.cam_pos = {0.0, 2.0f, 0.0f};
-    images[0].descriptor.cam_vec = {0.0f, 1.0f, 0.0f};
-    images[1].descriptor.cam_pos = {0.250666467129,1.98422940263,0.0f};
-    images[1].descriptor.cam_vec = {0.125333233564,0.992114701314,0.0f};
+    images[0].descriptor.foc = 0.160;
+    images[0].descriptor.fov = (11.4212*PI/180);
+    images[0].descriptor.cam_pos = {7.81417, 0.0f, 44.3630};
+    images[0].descriptor.cam_vec = {-0.173648, 0.0f, -0.984808};
+    images[1].descriptor.foc = 0.160;
+    images[1].descriptor.fov = (11.4212*PI/180);
+    images[1].descriptor.cam_pos = {0.0f,0.0f,45.0f};
+    images[1].descriptor.cam_vec = {0.0f,0.0f,-1.0f};
+
+    //get_cam_params2view(images[0].descriptor,images[1].descriptor,"data/morpheus/params_morpheus.txt")
 
     MatchFactory matchFactory = MatchFactory();
-    matchFactory.setCutOffRatio(0.15);
+    matchFactory.setCutOffRatio(0.1);
     SubPixelMatchSet* matchSet = NULL;
     matchFactory.generateSubPixelMatchesPairwiseConstrained(&(images[0]), &(images[1]), 5.0f, matchSet, cpu);
     matchFactory.refineMatches(matchSet);
@@ -131,19 +99,19 @@ int main(int argc, char *argv[]){
   	CameraData* cData = new CameraData();
     cData->cameras = new Camera[2];
     cData->numCameras = 2;
-    cData->cameras[0].val1 = 0.0f;
-    cData->cameras[0].val2 = 2.0f;
-    cData->cameras[0].val3 = 0.0f;
-    cData->cameras[0].val4 = 0.0f;
-    cData->cameras[0].val5 = 1.0f;
-    cData->cameras[0].val6 = 0.0f;
+    cData->cameras[0].val1 = images[0].descriptor.cam_pos.x;
+    cData->cameras[0].val2 = images[0].descriptor.cam_pos.y;
+    cData->cameras[0].val3 = images[0].descriptor.cam_pos.z;
+    cData->cameras[0].val4 = images[0].descriptor.cam_vec.x;
+    cData->cameras[0].val5 = images[0].descriptor.cam_vec.y;
+    cData->cameras[0].val6 = images[0].descriptor.cam_vec.z;
 
-    cData->cameras[0].val1 = 0.250666467129;
-    cData->cameras[0].val2 = 1.98422940263;
-    cData->cameras[0].val3 = 0.0f;
-    cData->cameras[0].val4 = 0.125333233564;
-    cData->cameras[0].val5 = 0.992114701314;
-    cData->cameras[0].val6 = 0.0f;
+    cData->cameras[0].val1 = images[1].descriptor.cam_pos.x;
+    cData->cameras[0].val2 = images[1].descriptor.cam_pos.x;
+    cData->cameras[0].val3 = images[1].descriptor.cam_pos.x;
+    cData->cameras[0].val4 = images[1].descriptor.cam_vec.x;
+    cData->cameras[0].val5 = images[1].descriptor.cam_vec.x;
+    cData->cameras[0].val6 = images[1].descriptor.cam_vec.x;
 
 
     FeatureMatches* reprojection_matches = new FeatureMatches();

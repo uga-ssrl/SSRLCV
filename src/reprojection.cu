@@ -44,8 +44,8 @@ inline void __cudaCheckError(const char *file, const int line) {
 
 //global constants
 const unsigned int   res  = 254;
-const float          foc  = 0.035;
-const float          fov  = 0.8575553107;//0.0593412; //3.4 degrees to match the blender sim //0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
+const float          foc  = 0.160;
+const float          fov  = (11.4212*PI/180);//0.0593412; //3.4 degrees to match the blender sim //0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
 const float          dpix = (foc*tan(fov/2))/(res/2); //float          dpix = 0.00002831538; //(foc*tan(fov/2))/(res/2)
 
 //============= DEVICE FUNCTIONS ================
@@ -307,7 +307,7 @@ void savePly(PointCloud* pCloud)
                 currentPoint = &(pCloud->points[i]);
                 outputFile1 << currentPoint->x << " " << currentPoint->y << " " << currentPoint->z << " " << 0 << " " << 254 << " " << 0 << "\n";
         }
-        std::cout<<"data/repro_output.ply has been written"<<std::endl;
+        std::cout<<"out/repro_output.ply has been written"<<std::endl;
 }
 //used inside of loadMatchData to fill in match data for each line
  void parseMatchData(float4* &currentMatch, std::string line, int index)
@@ -413,7 +413,7 @@ struct ArgParser
 };
 
 //arg parser methods
-ArgParser::ArgParser( int argc, char* argv[])
+ArgParser::ArgParser(int argc, char* argv[])
 {
         std::cout << "*===================* REPROJECTION *===================*" << std::endl;
         if (argc < 3)
