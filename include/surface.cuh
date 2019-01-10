@@ -2,7 +2,7 @@
 #define SURFACE_CUH
 
 #include "common_includes.h"
-#include "octree.cuh"
+#include "Octree.cuh"
 #include "cuda_util.cuh"
 
 #include <thrust/scan.h>

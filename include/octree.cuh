@@ -93,7 +93,7 @@ __global__ void getNodeKeys(float3* points, float3* nodeCenters,int* nodeKeys, f
 
 //following methods are used to fill in the node array in a top down manor
 __global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, Node* uniqueNodes);
-void calculateNodeAddresses(dim3 grid, dim3 block,int numUniqueNodes, Node* uniqueNodes, int* nodeAddressesDevice, int* nodeNumbersDevice);
+void calculateNodeAddresses(dim3 grid, dim3 block,int numUniqueNodes, Node* uniqueNodes, int* nodeAddresses_device, int* nodeNumbers_device);
 __global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeNumbers, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int currentDepth, float totalWidth);
 __global__ void fillFinestNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int* pointNodeIndex);
 __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, Node* childNodeArray ,int numUniqueNodes);
@@ -123,9 +123,9 @@ private:
   int* finestNodePointIndexes;
   int* finestNodeKeys;
   Node* uniqueNodesAtFinestLevel;
-  float3* finestNodeCentersDevice;
-  int* finestNodePointIndexesDevice;
-  int* finestNodeKeysDevice;
+  float3* finestNodeCenters_device;
+  int* finestNodePointIndexes_device;
+  int* finestNodeKeys_device;
 
   /*
   THESE ARE THE LOOK UP TABLES USED IN NEIGHBORHOOD, VERTEX ARRAY,
@@ -136,9 +136,9 @@ private:
   TODO just make these flat to start with
   */
   int parentLUT[8][27];
-  int* parentLUTDevice;
+  int* parentLUT_device;
   int childLUT[8][27];
-  int* childLUTDevice;
+  int* childLUT_device;
   int vertexLUT[8][7]{
     {0,1,3,4,9,10,12},
     {1,2,4,5,10,11,14},
@@ -149,7 +149,7 @@ private:
     {12,15,16,21,22,24,25},
     {14,16,17,22,23,25,26}
   };
-  int* vertexLUTDevice;
+  int* vertexLUT_device;
   int edgeLUT[12][3]{
     {1,4,10},
     {3,4,12},
@@ -164,9 +164,9 @@ private:
     {14,22,23},
     {16,22,25}
   };
-  int* edgeLUTDevice;
+  int* edgeLUT_device;
   int faceLUT[6] = {4,10,12,14,16,22};
-  int* faceLUTDevice;
+  int* faceLUT_device;
 
 public:
   //global variables
@@ -186,8 +186,8 @@ public:
   int depth;
 
   int totalNodes;
-  Node* finalNodeArray;
-  Node* finalNodeArrayDevice;
+  Node* nodeArray;
+  Node* nodeArray_device;
 
   int* depthIndex;
   int* pointNodeIndex;
@@ -201,23 +201,36 @@ public:
   /*
   THESE ARE DEVICE VARIABLES THAT ARE FREED AND ALLOCATED IN THEIR COPY METHODS
   */
+
+  MemoryState nodes_state;
+  MemoryState points_state;
+  MemoryState faces_state;
+  MemoryState vertices_state;
+  MemoryState edges_state;
+  MemoryState normals_state;
+  MemoryState colors_state;
+  MemoryState pointNodes_state;
+
   bool pointNodeDeviceReady;
-  int* pointNodeIndexDevice;
   bool vertexArrayDeviceReady;
-  Vertex* vertexArrayDevice;
-  int* vertexIndex;
   bool edgeArrayDeviceReady;
-  Edge* edgeArrayDevice;
-  int* edgeIndex;
   bool faceArrayDeviceReady;
-  Face* faceArrayDevice;
-  int* faceIndex;
   bool pointsDeviceReady;
-  float3* pointsDevice;
   bool normalsDeviceReady;
-  float3* normalsDevice;
   bool colorsDeviceReady;
-  uchar3* colorsDevice;
+
+  int* pointNodeIndex_device;
+  Vertex* vertexArray_device;
+  int* vertexIndex;
+  Edge* edgeArray_device;
+  int* edgeIndex;
+  Face* faceArray_device;
+  int* faceIndex;
+  float3* points_device;
+  float3* normals_device;
+  uchar3* colors_device;
+
+
 
 
 

@@ -610,12 +610,12 @@ void Surface::computeVertexImplicitJAX(int focusDepth){
       ++grid.x;
     }
   }
-  vertexImplicitFromNormals<<<grid,block>>>(numConsideredVertices, this->octree->vertexArrayDevice, this->octree->finalNodeArrayDevice, this->octree->normalsDevice, this->octree->pointsDevice, this->vertexImplicitDevice);
+  vertexImplicitFromNormals<<<grid,block>>>(numConsideredVertices, this->octree->vertexArray_device, this->octree->nodeArray_device, this->octree->normals_device, this->octree->points_device, this->vertexImplicitDevice);
   cudaDeviceSynchronize();//may not be necessary
   CudaCheckError();
-  CudaSafeCall(cudaFree(this->octree->pointsDevice));
-  CudaSafeCall(cudaFree(this->octree->normalsDevice));
-  CudaSafeCall(cudaFree(this->octree->vertexArrayDevice));
+  CudaSafeCall(cudaFree(this->octree->points_device));
+  CudaSafeCall(cudaFree(this->octree->normals_device));
+  CudaSafeCall(cudaFree(this->octree->vertexArray_device));
   this->octree->pointsDeviceReady = false;
   this->octree->normalsDeviceReady = false;
   this->octree->vertexArrayDeviceReady = false;
@@ -645,7 +645,7 @@ void Surface::adaptiveMarchingCubes(){
       ++gridEdge.x;
     }
   }
-  calcVertexNumbers<<<gridEdge,blockEdge>>>(this->octree->totalEdges, 0, this->octree->edgeArrayDevice, this->vertexImplicitDevice, vertexNumbersDevice);
+  calcVertexNumbers<<<gridEdge,blockEdge>>>(this->octree->totalEdges, 0, this->octree->edgeArray_device, this->vertexImplicitDevice, vertexNumbersDevice);
   cudaDeviceSynchronize();
   CudaCheckError();
   CudaSafeCall(cudaFree(this->vertexImplicitDevice));
@@ -658,7 +658,7 @@ void Surface::adaptiveMarchingCubes(){
   CudaSafeCall(cudaMalloc((void**)&triangleNumbersDevice, this->octree->totalNodes*sizeof(int)));
   CudaSafeCall(cudaMalloc((void**)&cubeCategoryDevice, this->octree->totalNodes*sizeof(int)));
 
-  categorizeCubesRecursively<<<1,8>>>(this->octree->depthIndex[this->octree->depth - 1], this->octree->edgeArrayDevice, this->octree->finalNodeArrayDevice, vertexNumbersDevice, cubeCategoryDevice, triangleNumbersDevice);
+  categorizeCubesRecursively<<<1,8>>>(this->octree->depthIndex[this->octree->depth - 1], this->octree->edgeArray_device, this->octree->nodeArray_device, vertexNumbersDevice, cubeCategoryDevice, triangleNumbersDevice);
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -678,7 +678,7 @@ void Surface::adaptiveMarchingCubes(){
     }
   }
 
-  minimizeVertices<<<gridEdge2, blockEdge2>>>(this->octree->totalEdges, this->octree->edgeArrayDevice, this->octree->finalNodeArrayDevice, cubeCategoryDevice, vertexNumbersDevice);
+  minimizeVertices<<<gridEdge2, blockEdge2>>>(this->octree->totalEdges, this->octree->edgeArray_device, this->octree->nodeArray_device, cubeCategoryDevice, vertexNumbersDevice);
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -712,15 +712,15 @@ void Surface::adaptiveMarchingCubes(){
 
 
   /* generate vertices */
-  generateSurfaceVertices<<<gridEdge,blockEdge>>>(this->octree->totalEdges, 0, this->octree->edgeArrayDevice, this->octree->vertexArrayDevice, vertexNumbersDevice, vertexAddressesDevice, surfaceVerticesDevice);
+  generateSurfaceVertices<<<gridEdge,blockEdge>>>(this->octree->totalEdges, 0, this->octree->edgeArray_device, this->octree->vertexArray_device, vertexNumbersDevice, vertexAddressesDevice, surfaceVerticesDevice);
   CudaCheckError();
   this->surfaceVertices = new float3[this->numSurfaceVertices];
   CudaSafeCall(cudaMemcpy(this->surfaceVertices, surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3),cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaFree(surfaceVerticesDevice));
   CudaSafeCall(cudaFree(vertexNumbersDevice));
-  CudaSafeCall(cudaFree(this->octree->edgeArrayDevice));
+  CudaSafeCall(cudaFree(this->octree->edgeArray_device));
   this->octree->edgeArrayDeviceReady = false;
-  CudaSafeCall(cudaFree(this->octree->vertexArrayDevice));
+  CudaSafeCall(cudaFree(this->octree->vertexArray_device));
   this->octree->vertexArrayDeviceReady = false;
 
   int3* surfaceTrianglesDevice;
@@ -744,7 +744,7 @@ void Surface::adaptiveMarchingCubes(){
       ++grid.x;
     }
   }
-  generateSurfaceTriangles<<<grid,block>>>(this->octree->totalNodes, 0, 0, this->octree->finalNodeArrayDevice, vertexAddressesDevice, triangleAddressesDevice, cubeCategoryDevice, surfaceTrianglesDevice);
+  generateSurfaceTriangles<<<grid,block>>>(this->octree->totalNodes, 0, 0, this->octree->nodeArray_device, vertexAddressesDevice, triangleAddressesDevice, cubeCategoryDevice, surfaceTrianglesDevice);
   CudaCheckError();
 
   this->surfaceTriangles = new int3[this->numSurfaceTriangles];
@@ -781,7 +781,7 @@ void Surface::marchingCubes(){
       ++gridEdge.x;
     }
   }
-  calcVertexNumbers<<<gridEdge,blockEdge>>>(numFinestEdges, 0, this->octree->edgeArrayDevice, this->vertexImplicitDevice, vertexNumbersDevice);
+  calcVertexNumbers<<<gridEdge,blockEdge>>>(numFinestEdges, 0, this->octree->edgeArray_device, this->vertexImplicitDevice, vertexNumbersDevice);
   cudaDeviceSynchronize();
   CudaCheckError();
   CudaSafeCall(cudaFree(this->vertexImplicitDevice));
@@ -816,7 +816,7 @@ void Surface::marchingCubes(){
       ++grid.x;
     }
   }
-  determineCubeCategories<<<grid,block>>>(numFinestNodes, 0, 0, this->octree->finalNodeArrayDevice, vertexNumbersDevice, cubeCategoryDevice, triangleNumbersDevice);
+  determineCubeCategories<<<grid,block>>>(numFinestNodes, 0, 0, this->octree->nodeArray_device, vertexNumbersDevice, cubeCategoryDevice, triangleNumbersDevice);
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -843,15 +843,15 @@ void Surface::marchingCubes(){
   if(!this->octree->vertexArrayDeviceReady) this->octree->copyVerticesToDevice();
 
   /* generate vertices */
-  generateSurfaceVertices<<<gridEdge,blockEdge>>>(numFinestEdges, 0, this->octree->edgeArrayDevice, this->octree->vertexArrayDevice, vertexNumbersDevice, vertexAddressesDevice, surfaceVerticesDevice);
+  generateSurfaceVertices<<<gridEdge,blockEdge>>>(numFinestEdges, 0, this->octree->edgeArray_device, this->octree->vertexArray_device, vertexNumbersDevice, vertexAddressesDevice, surfaceVerticesDevice);
   CudaCheckError();
   this->surfaceVertices = new float3[this->numSurfaceVertices];
   CudaSafeCall(cudaMemcpy(this->surfaceVertices, surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3),cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaFree(surfaceVerticesDevice));
   CudaSafeCall(cudaFree(vertexNumbersDevice));
-  CudaSafeCall(cudaFree(this->octree->edgeArrayDevice));
+  CudaSafeCall(cudaFree(this->octree->edgeArray_device));
   this->octree->edgeArrayDeviceReady = false;
-  CudaSafeCall(cudaFree(this->octree->vertexArrayDevice));
+  CudaSafeCall(cudaFree(this->octree->vertexArray_device));
   this->octree->vertexArrayDeviceReady = false;
 
   int3* surfaceTrianglesDevice;
@@ -874,7 +874,7 @@ void Surface::marchingCubes(){
     }
   }
   block = {5,1,1};
-  generateSurfaceTriangles<<<grid,block>>>(numFinestNodes, 0, 0, this->octree->finalNodeArrayDevice, vertexAddressesDevice, triangleAddressesDevice, cubeCategoryDevice, surfaceTrianglesDevice);
+  generateSurfaceTriangles<<<grid,block>>>(numFinestNodes, 0, 0, this->octree->nodeArray_device, vertexAddressesDevice, triangleAddressesDevice, cubeCategoryDevice, surfaceTrianglesDevice);
   CudaCheckError();
 
   this->surfaceTriangles = new int3[this->numSurfaceTriangles];
@@ -906,12 +906,12 @@ void Surface::jaxMeshing(){
     foundSurfaceDepth = true;
     numNodesWithPointNeighbors = 0;
     for(int n = currentDepthIndex; n < numNodesAtDepth + currentDepthIndex; ++n){
-      if(this->octree->finalNodeArray[n].numPoints == 0) continue;
+      if(this->octree->nodeArray[n].numPoints == 0) continue;
       hadNeighborsWithPoints = false;
       for(int neigh = 0; neigh < 27; ++neigh){
         if(neigh == 13) continue;
-        currentNeighbor = this->octree->finalNodeArray[n].neighbors[neigh];
-        if(currentNeighbor != -1 && this->octree->finalNodeArray[currentNeighbor].numPoints != 0){
+        currentNeighbor = this->octree->nodeArray[n].neighbors[neigh];
+        if(currentNeighbor != -1 && this->octree->nodeArray[currentNeighbor].numPoints != 0){
           hadNeighborsWithPoints = true;
           break;
         }
@@ -954,7 +954,7 @@ void Surface::jaxMeshing(){
       ++gridEdge.x;
     }
   }
-  calcVertexNumbers<<<gridEdge,blockEdge>>>(numMarchingEdges, this->octree->edgeIndex[surfaceDepth], this->octree->edgeArrayDevice, this->vertexImplicitDevice, vertexNumbersDevice);
+  calcVertexNumbers<<<gridEdge,blockEdge>>>(numMarchingEdges, this->octree->edgeIndex[surfaceDepth], this->octree->edgeArray_device, this->vertexImplicitDevice, vertexNumbersDevice);
   cudaDeviceSynchronize();
   CudaCheckError();
   CudaSafeCall(cudaFree(this->vertexImplicitDevice));
@@ -989,7 +989,7 @@ void Surface::jaxMeshing(){
       ++grid.x;
     }
   }
-  determineCubeCategories<<<grid,block>>>(numMarchingNodes, this->octree->depthIndex[surfaceDepth], this->octree->edgeIndex[surfaceDepth], this->octree->finalNodeArrayDevice, vertexNumbersDevice, cubeCategoryDevice, triangleNumbersDevice);
+  determineCubeCategories<<<grid,block>>>(numMarchingNodes, this->octree->depthIndex[surfaceDepth], this->octree->edgeIndex[surfaceDepth], this->octree->nodeArray_device, vertexNumbersDevice, cubeCategoryDevice, triangleNumbersDevice);
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -1016,15 +1016,15 @@ void Surface::jaxMeshing(){
   if(!this->octree->vertexArrayDeviceReady) this->octree->copyVerticesToDevice();
 
   /* generate vertices */
-  generateSurfaceVertices<<<gridEdge,blockEdge>>>(numMarchingEdges, this->octree->edgeIndex[surfaceDepth], this->octree->edgeArrayDevice, this->octree->vertexArrayDevice, vertexNumbersDevice, vertexAddressesDevice, surfaceVerticesDevice);
+  generateSurfaceVertices<<<gridEdge,blockEdge>>>(numMarchingEdges, this->octree->edgeIndex[surfaceDepth], this->octree->edgeArray_device, this->octree->vertexArray_device, vertexNumbersDevice, vertexAddressesDevice, surfaceVerticesDevice);
   CudaCheckError();
   this->surfaceVertices = new float3[this->numSurfaceVertices];
   CudaSafeCall(cudaMemcpy(this->surfaceVertices, surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3),cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaFree(surfaceVerticesDevice));
   CudaSafeCall(cudaFree(vertexNumbersDevice));
-  CudaSafeCall(cudaFree(this->octree->edgeArrayDevice));
+  CudaSafeCall(cudaFree(this->octree->edgeArray_device));
   this->octree->edgeArrayDeviceReady = false;
-  CudaSafeCall(cudaFree(this->octree->vertexArrayDevice));
+  CudaSafeCall(cudaFree(this->octree->vertexArray_device));
   this->octree->vertexArrayDeviceReady = false;
 
   int3* surfaceTrianglesDevice;
@@ -1047,7 +1047,7 @@ void Surface::jaxMeshing(){
     }
   }
   block = {5,1,1};
-  generateSurfaceTriangles<<<grid,block>>>(numMarchingNodes, this->octree->depthIndex[surfaceDepth], this->octree->edgeIndex[surfaceDepth], this->octree->finalNodeArrayDevice, vertexAddressesDevice, triangleAddressesDevice, cubeCategoryDevice, surfaceTrianglesDevice);
+  generateSurfaceTriangles<<<grid,block>>>(numMarchingNodes, this->octree->depthIndex[surfaceDepth], this->octree->edgeIndex[surfaceDepth], this->octree->nodeArray_device, vertexAddressesDevice, triangleAddressesDevice, cubeCategoryDevice, surfaceTrianglesDevice);
   CudaCheckError();
 
   this->surfaceTriangles = new int3[this->numSurfaceTriangles];
