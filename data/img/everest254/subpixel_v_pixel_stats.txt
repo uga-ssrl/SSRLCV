@@ -1,0 +1,12 @@
+Subpixel (SAD values):
+Average 	= 1157
+standard_dev 	= 451
+max 		= 2611
+min		= 136
+
+
+Pixel (SAD Values):
+Average 	= 1699
+standard_dev 	= 723
+max 		= 6050
+min		= 136

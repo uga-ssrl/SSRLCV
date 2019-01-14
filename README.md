@@ -1,5 +1,13 @@
 # ~ Tegra SfM ~
 
+## Create the following directories if they do not exist
+bin, data, obj, out, src, util
+(util, data, and src should be in repository)
+
+## File Naming Convention
+If a file has CUDA in it of any sort -> .cu and its header -> .cuh.
+All other files can be .cpp and .h
+
 ## Dependencies
 * libpng
 * g++

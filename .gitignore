@@ -1,9 +1,8 @@
-*~
 *.o
-*.log
-bin
-bin/*
-/bin/*
+*.exe
+src/*.txt
+out/*.ply
+
 *.ply
 .DS_Store
 util/.DS_Store
