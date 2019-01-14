@@ -191,11 +191,11 @@ unsigned short camera_count;
 // TODO (some of) this stuff should be set by camera calibration
 // TODO have this stuff sent in with camera parameter files
 // This was for the test cases only
-__constant__ int   d_res      = 1024;
-__constant__ float d_foc      = 0.035;
-__constant__ float d_fov      = 0.8575553107;//0.0593412; //3.4 degrees to match the blender sim //0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
+__constant__ int   d_res      = 3024;//1024;
+__constant__ float d_foc      = 0.00399;//0.035;
+__constant__ float d_fov      = 1.1089822; // 64.54 degrees 0.8575553107;//0.0593412; //3.4 degrees to match the blender sim //0.8575553107; // 49.1343 degrees  // 0.785398163397; // 45 degrees
 __constant__ float d_PI       = 3.1415926535;
-__constant__ float d_dpix     = 0.00003124996;//0.00000103877;// 0.00003124996;///(d_foc*tan(d_fov/2))/(d_res/2);
+__constant__ float d_dpix     = 0.00000163426;//0.00003124996;//0.00000103877;// 0.00003124996;///(d_foc*tan(d_fov/2))/(d_res/2);
 __constant__ float d_stepsize = 0.1; // the step size of the iterative solution
 
 unsigned int   res  = 1024;
