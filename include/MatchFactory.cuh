@@ -108,6 +108,7 @@ protected:
 public:
 
   float cutoffRatio;
+  float cutoffEuclid;
   int numImages;
 
   MatchFactory();
@@ -116,9 +117,13 @@ public:
   //TODO consider making it so features are computed if they arent instead of throwing errors with image parameters
 
   void setCutOffRatio(float cutoffRatio);
+  void setCutOffEuclid(float cutoffEuclid);
 
+  // these take top of float cutoffRatio
+  // TODO make additional methods for Euclid cutoff
   void refineMatches(MatchSet* matchSet);
   void refineMatches(SubPixelMatchSet* matchSet);
+  void refineMatchesEuclid(SubPixelMatchSet* matchSet);
 
 
   void generateMatchesPairwiseBruteForce(Image* query, Image* target, MatchSet* &matchSet, MemoryState return_state);

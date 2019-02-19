@@ -36,22 +36,27 @@ _OBJS += octree.cu.o surface.cu.o
 _OBJS += SFM.cu.o
 _DSIFT_OBJS = image_io.cpp.o cuda_util.cu.o Feature.cu.o Image.cu.o\
 FeatureFactory.cu.o MatchFactory.cu.o DSIFTFeatureMatching.cu.o
+_DPIPE_OBJS = image_io.cpp.o cuda_util.cu.o Feature.cu.o Image.cu.o\
+FeatureFactory.cu.o MatchFactory.cu.o DSIFTPipeline.cu.o
 _REPRO_OBJS = cuda_util.cu.o reprojection.cu.o 2ViewReprojection.cu.o
 _RECON_OBJS = cuda_util.cu.o octree.cu.o surface.cu.o Reconstruction.cu.o
 
 
 DSIFT_OBJS = ${patsubst %, ${OBJDIR}/%, ${_DSIFT_OBJS}}
+DPIPE_OBJS = ${patsubst %, ${OBJDIR}/%, ${_DPIPE_OBJS}}
 REPRO_OBJS = ${patsubst %, ${OBJDIR}/%, ${_REPRO_OBJS}}
 RECON_OBJS = ${patsubst %, ${OBJDIR}/%, ${_RECON_OBJS}}
 OBJS = ${patsubst %, ${OBJDIR}/%, ${_OBJS}}
 
 
 TARGET_DSIFT = DSIFT_Matching
+TARGET_DPIPE = DPIPE_example
 TARGET_REPRO = Reprojection
 TARGET_RECON = SurfaceReconstruction
 TARGET = SFM
 
 LINKLINE_DSIFT = ${LINK} -gencode=arch=compute_61,code=sm_61 ${DSIFT_OBJS} ${LIB} -o ${BINDIR}/${TARGET_DSIFT}
+LINKLINE_DPIPE = ${LINK} -gencode=arch=compute_61,code=sm_61 ${DPIPE_OBJS} ${LIB} -o ${BINDIR}/${TARGET_DPIPE}
 LINKLINE_REPRO = ${LINK} -gencode=arch=compute_61,code=sm_61 ${REPRO_OBJS} ${LIB} -o ${BINDIR}/${TARGET_REPRO}
 LINKLINE_RECON = ${LINK} -gencode=arch=compute_61,code=sm_61 ${RECON_OBJS} ${LIB} -o ${BINDIR}/${TARGET_RECON}
 LINKLINE_SFM = ${LINK} -gencode=arch=compute_61,code=sm_61 ${OBJS} ${LIB} -o ${BINDIR}/${TARGET}
@@ -76,8 +81,9 @@ ${OBJDIR}/%.cu.o: ${SRCDIR}/%.cu
 ${OBJDIR}/%.cpp.o: ${SRCDIR}/%.cpp
 	${CXX} ${INCLUDES} ${CXXFLAGS} -c $< -o $@
 
-${BINDIR}/%: ${DSIFT_OBJS} ${REPRO_OBJS} ${RECON_OBJS} ${OBJS} Makefile
+${BINDIR}/%: ${DSIFT_OBJS} ${DPIPE_OBJS} ${REPRO_OBJS} ${RECON_OBJS} ${OBJS} Makefile
 	${LINKLINE_DSIFT}
+	${LINKLINE_DPIPE}
 	${LINKLINE_REPRO}
 	${LINKLINE_RECON}
 	${LINKLINE_SFM}
