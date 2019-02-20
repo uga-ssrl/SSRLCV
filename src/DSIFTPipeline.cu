@@ -58,11 +58,14 @@ int main(int argc, char *argv[]){
     images[1].descriptor.cam_vec = {0.0f,0.0f,-1.0f};
 
     MatchFactory matchFactory = MatchFactory();
-    matchFactory.setCutOffRatio(0.05);
+    // matchFactory.setCutOffRatio(0.05);
+    matchFactory.setCutOffEuclid(50.0);
     SubPixelMatchSet* matchSet = NULL;
     matchFactory.generateSubPixelMatchesPairwiseConstrained(&(images[0]), &(images[1]), 5.0f, matchSet, cpu);
-    matchFactory.refineMatches(matchSet);
+    // matchFactory.refineMatchesEu(matchSet);
+    matchFactory.refineMatchesEuclid(matchSet);
 
+    // outputs raw matches
     std::string newFile = "./data/img/everest254/everest254_matches.txt";
     std::ofstream matchstream(newFile);
     if(matchstream.is_open()){

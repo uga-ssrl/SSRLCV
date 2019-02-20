@@ -721,8 +721,8 @@ void MatchFactory::refineMatches(SubPixelMatchSet* matchSet){
   }
 }
 void MatchFactory::refineMatchesEuclid(SubPixelMatchSet* matchSet){
-  if(this->cutoffRatio == 0.0f){
-    std::cout<<"ERROR not cutoff ratio set for refinement"<<std::endl;
+  if(this->cutoffEuclid == 0.0f){
+    std::cout<<"ERROR no cutoff euclid set for refinement"<<std::endl;
     exit(-1);
   }
   SubPixelMatch* matches = NULL;
@@ -753,7 +753,7 @@ void MatchFactory::refineMatchesEuclid(SubPixelMatchSet* matchSet){
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   getFlatGridBlock((unsigned long) matchSet->numMatches, grid, block);
-  refineWCutoffRatio<<<grid,block>>>(matchSet->numMatches, matches_device, matchCounter_device, {min, max}, this->cutoffRatio);
+  refineWCutoffRatio<<<grid,block>>>(matchSet->numMatches, matches_device, matchCounter_device, {min, max}, this->cutoffEuclid);
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -772,12 +772,7 @@ void MatchFactory::refineMatchesEuclid(SubPixelMatchSet* matchSet){
   CudaSafeCall(cudaFree(matchCounter_device));
   CudaSafeCall(cudaFree(matches_device));
 
-  // thrust::device_ptr<SubPixelMatch> arrayToCompact(matches_device);
-  // thrust::device_ptr<SubPixelMatch> arrayOut(minimizedMatches_device);
-  // thrust::copy_if(arrayToCompact, arrayToCompact + beforeCompaction, arrayOut, match_above_cutoff());
-  // CudaCheckError();
-
-  printf("numMatches after eliminating base on %f cutoffRatio = %d (was %d)\n",this->cutoffRatio,matchSet->numMatches,beforeCompaction);
+  printf("numMatches after eliminating base on %f cutoffEuclid = %d (was %d)\n",this->cutoffEuclid,matchSet->numMatches,beforeCompaction);
 
   if(matchSet->memoryState == gpu){
     matchSet->matches = minimizedMatches_device;
