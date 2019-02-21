@@ -1,7 +1,10 @@
 #include "common_includes.h"
+#include "cuda_util.cuh"
 #include "Image.cuh"
 #include "FeatureFactory.cuh"
 #include "MatchFactory.cuh"
+#include <new>
+#include <sstream>
 
 //TODO IO
 //TODO determine image support
@@ -22,13 +25,11 @@
 __global__ void disparity(float2 *matches0, float2 *matches1, float3 *points, int n){
   // yeet on that id
   int id = blockIdx.x*blockDim.x+threadIdx.x;
-  if (id >= n) return; // out of bounds
-
-  points[id].x = matches0[id].x;
-  points[id].y = matches0[id].y;
-  // disparity here
-  
-  points[id].z = 0.0f;
+  if (id < n){
+    points[id].x = matches0[id].x;
+    points[id].y = matches0[id].y;
+    points[id].z = sqrtf(64.0f * ((matches0[id].x - matches1[id].x)*(matches0[id].x - matches1[id].x) + (matches0[id].y - matches1[id].y)*(matches0[id].y - matches1[id].y)));
+  }
 } // disparity
 
 // main method
@@ -123,37 +124,40 @@ int main(int argc, char *argv[]){
         break;
       }
     }
-    float max_error = sigma * b_size;
+    float mul = 3.0f;
+    float max_error = (max_bin * b_size) + (mul * sigma * b_size);
     std::cout << "1 sigma is: " << sigma << ", matches with error over " << max_error << " are rejected" << std::endl;
 
 
     // actually filter the matches now
-    
+
     std::vector<float2> match0_v;
     std::vector<float2> match1_v;
 
     for (int i = 0; i < matchSet->numMatches; i++){
       if (matchSet->matches[i].distance[1] <= max_error) {
-	float2 temp0;
-	float2 temp1;
-	temp0.x = matchSet->matches[i].subLocations[0].x;
-	temp0.y = matchSet->matches[i].subLocations[0].y;
-	temp1.x = matchSet->matches[i].subLocations[1].x;
-	temp1.y = matchSet->matches[i].subLocations[1].y;
-	match0_v.push_back(temp0);
-	match1_v.push_back(temp1);
+         float2 temp0;
+	       float2 temp1;
+	       temp0.x = matchSet->matches[i].subLocations[0].x;
+	       temp0.y = matchSet->matches[i].subLocations[0].y;
+	       temp1.x = matchSet->matches[i].subLocations[1].x;
+         temp1.y = matchSet->matches[i].subLocations[1].y;
+         match0_v.push_back(temp0);
+         match1_v.push_back(temp1);
       }
     } // filling our boi
 
-    int n = matchSet->numMatches - match0_v.size(); 
-    int removed = matchSet->numMatches - n;
-    std::cout << "removed " << removed << " matches due to error" << std::endl;
+    int removed = matchSet->numMatches - match0_v.size();
+    int n = match0_v.size();
+    //int n = 100;
+    std::cout << "removed " << removed << " matches due to error | ";
+    std::cout << "keeping " << n << " matches" << std::endl;
 
     // prep for disparity
 
     // matches
-    float2 *h_matches0 = match0_v.data();
-    float2 *h_matches1 = match1_v.data();
+    float2 *h_matches0;
+    float2 *h_matches1;
     // depth point cloud
     float3 *h_points;
 
@@ -167,6 +171,16 @@ int main(int argc, char *argv[]){
     size_t match_size = n*sizeof(float2);
     size_t point_size = n*sizeof(float3);
 
+    h_points = (float3*) malloc(point_size);
+
+    cudaMalloc((void**) &d_matches0, match_size);
+    cudaMalloc((void**) &d_matches1, match_size);
+    cudaMalloc((void**) &d_points, point_size);
+
+    // set the pointer to the vectors
+    h_matches0 = &match0_v[0];
+    h_matches1 = &match1_v[0];
+
     // copy mem
     cudaMemcpy( d_matches0, h_matches0, match_size, cudaMemcpyHostToDevice);
     cudaMemcpy( d_matches1, h_matches1, match_size, cudaMemcpyHostToDevice);
@@ -178,20 +192,30 @@ int main(int argc, char *argv[]){
     disparity<<<gridSize, blockSize>>>(d_matches0, d_matches1, d_points, n);
 
     // get data back
-    cudaMemcpy( h_points, d_points, point_size, cudaMemcpyDeviceToHost );
+    cudaMemcpy(h_points, d_points, point_size, cudaMemcpyDeviceToHost );
 
     // TODO write data to PLY
 
-    
+    //savePly(h_points, n);
+
+    std::ofstream outputFile1("test.ply");
+    outputFile1 << "ply\nformat ascii 1.0\nelement vertex ";
+    outputFile1 << n << "\n";
+    outputFile1 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
+    outputFile1 << "end_header\n";
+
+    for(int i = 0; i < n; i++){
+            outputFile1 << h_points[i].x << " " << h_points[i].y << " " << h_points[i].z << " " << 0 << " " << 254 << " " << 0 << "\n";
+    }
+    std::cout<<"test.ply has been written to repo root"<<std::endl;
+
     // cleanup and return
     cudaFree(d_matches0);
     cudaFree(d_matches1);
     cudaFree(d_points);
 
-    free(h_matches0);
-    free(h_matches1);
     free(h_points);
-    
+
     delete matchSet;
     return 0;
   }
