@@ -720,6 +720,7 @@ void MatchFactory::refineMatches(SubPixelMatchSet* matchSet){
     CudaSafeCall(cudaFree(minimizedMatches_device));
   }
 }
+
 void MatchFactory::refineMatchesEuclid(SubPixelMatchSet* matchSet){
   if(this->cutoffEuclid == 0.0f){
     std::cout<<"ERROR no cutoff euclid set for refinement"<<std::endl;

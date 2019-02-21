@@ -15,7 +15,7 @@ CXXFLAGS += -Wall -std=c++11
 # compute_<#> and sm_<#> will need to change depending on the device
 # if this is not done you will receive a no kernel image is availabe error
 NVCCFLAGS += ${COMMONFLAGS}
-NVCCFLAGS += -std=c++11 -gencode=arch=compute_61,code=sm_61
+NVCCFLAGS += -std=c++11 -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61
 
 LIB :=  -L/usr/local/cuda/lib64 -lcublas -lcuda -lcudart -lcusparse -lcusolver\
         -L/opt/openblas/lib -lopenblas -lpng -Xcompiler -fopenmp
@@ -55,11 +55,11 @@ TARGET_REPRO = Reprojection
 TARGET_RECON = SurfaceReconstruction
 TARGET = SFM
 
-LINKLINE_DSIFT = ${LINK} -gencode=arch=compute_61,code=sm_61 ${DSIFT_OBJS} ${LIB} -o ${BINDIR}/${TARGET_DSIFT}
-LINKLINE_DPIPE = ${LINK} -gencode=arch=compute_61,code=sm_61 ${DPIPE_OBJS} ${LIB} -o ${BINDIR}/${TARGET_DPIPE}
-LINKLINE_REPRO = ${LINK} -gencode=arch=compute_61,code=sm_61 ${REPRO_OBJS} ${LIB} -o ${BINDIR}/${TARGET_REPRO}
-LINKLINE_RECON = ${LINK} -gencode=arch=compute_61,code=sm_61 ${RECON_OBJS} ${LIB} -o ${BINDIR}/${TARGET_RECON}
-LINKLINE_SFM = ${LINK} -gencode=arch=compute_61,code=sm_61 ${OBJS} ${LIB} -o ${BINDIR}/${TARGET}
+LINKLINE_DSIFT = ${LINK} -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 ${DSIFT_OBJS} ${LIB} -o ${BINDIR}/${TARGET_DSIFT}
+LINKLINE_DPIPE = ${LINK} -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 ${DPIPE_OBJS} ${LIB} -o ${BINDIR}/${TARGET_DPIPE}
+LINKLINE_REPRO = ${LINK} -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 ${REPRO_OBJS} ${LIB} -o ${BINDIR}/${TARGET_REPRO}
+LINKLINE_RECON = ${LINK} -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 ${RECON_OBJS} ${LIB} -o ${BINDIR}/${TARGET_RECON}
+LINKLINE_SFM = ${LINK} -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 ${OBJS} ${LIB} -o ${BINDIR}/${TARGET}
 
 
 .SUFFIXES: .cpp .cu .o

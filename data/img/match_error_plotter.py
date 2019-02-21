@@ -9,7 +9,8 @@ print '=   Error   Visualizer  ='
 print '========================='
 print '\n^C to quit...'
 
-match_error_src = "everest254/brute_unfiltered_distances.txt"
+#match_error_src = "everest254/brute_unfiltered_distances.txt"
+match_error_src = "everest254/everest254_matches.txt"
 
 error_data_raw = []
 error_data = []
@@ -30,6 +31,6 @@ ax = fig.add_subplot(111)
 
 ax.set_xlabel('best-fit matching error')
 ax.set_ylabel('error occurace')
-    
+
 plt.hist(error_data, bins=100)
 plt.show()
