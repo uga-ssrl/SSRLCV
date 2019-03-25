@@ -2,7 +2,8 @@
 *.exe
 src/*.txt
 out/*.ply
-
+data/*
+bin/*
 *.ply
 .DS_Store
 util/.DS_Store

@@ -26,18 +26,19 @@ BINDIR = ./bin
 
 
 _OBJS = image_io.cpp.o
+_OBJS += tinyply.cpp.o
 _OBJS += cuda_util.cu.o
 _OBJS += Feature.cu.o
 _OBJS += Image.cu.o
 _OBJS += FeatureFactory.cu.o
 _OBJS += MatchFactory.cu.o
 _OBJS += reprojection.cu.o
-_OBJS += octree.cu.o surface.cu.o
+_OBJS += Octree.cu.o surface.cu.o
 _OBJS += SFM.cu.o
 _DSIFT_OBJS = image_io.cpp.o cuda_util.cu.o Feature.cu.o Image.cu.o\
 FeatureFactory.cu.o MatchFactory.cu.o DSIFTFeatureMatching.cu.o
 _REPRO_OBJS = cuda_util.cu.o reprojection.cu.o 2ViewReprojection.cu.o
-_RECON_OBJS = cuda_util.cu.o octree.cu.o surface.cu.o Reconstruction.cu.o
+_RECON_OBJS = tinyply.cpp.o cuda_util.cu.o Octree.cu.o surface.cu.o Reconstruction.cu.o
 
 
 DSIFT_OBJS = ${patsubst %, ${OBJDIR}/%, ${_DSIFT_OBJS}}

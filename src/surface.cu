@@ -885,7 +885,7 @@ void Surface::marchingCubes(){
   CudaSafeCall(cudaFree(cubeCategoryDevice));
   timer = clock() - timer;
   printf("Marching cubes took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
-  this->generateMesh();
+  this->generateMesh(true);
 
 }
 void Surface::jaxMeshing(){
@@ -1062,10 +1062,38 @@ void Surface::jaxMeshing(){
   this->generateMesh();
 
 }
+
+void Surface::generateMesh(bool binary){
+
+  tinyply::PlyFile ply;
+  ply.get_comments().push_back("SSRL Test");
+  ply.add_properties_to_element("vertex",{"x","y","z"},tinyply::Type::FLOAT32, this->numSurfaceVertices, reinterpret_cast<uint8_t*>(this->surfaceVertices), tinyply::Type::INVALID, 0);
+  ply.add_properties_to_element("face",{"vertex_indices"},tinyply::Type::INT32, this->numSurfaceTriangles, reinterpret_cast<uint8_t*>(this->surfaceTriangles), tinyply::Type::INT32, 3);
+
+  std::filebuf fb_binary;
+  if(this->octree->name.length() == 0) this->octree->name = std::to_string(clock());
+  std::string newFile = "out/" + this->octree->name + "_mesh_march_" + std::to_string(this->octree->depth)+ ".ply";
+
+  if(binary){
+    fb_binary.open(newFile, std::ios::out | std::ios::binary);
+    std::ostream outstream_binary(&fb_binary);
+    if (outstream_binary.fail()) throw std::runtime_error("failed to open " + newFile);
+    ply.write(outstream_binary, true);
+  }
+  else{
+    std::filebuf fb_ascii;
+  	fb_ascii.open(newFile, std::ios::out);
+  	std::ostream outstream_ascii(&fb_ascii);
+  	if (outstream_ascii.fail()) throw std::runtime_error("failed to open " + newFile);
+    ply.write(outstream_ascii, false);
+  }
+
+}
 void Surface::generateMesh(){
   if(this->octree->name.length() == 0) this->octree->name = std::to_string(clock());
   std::string newFile = "out/" + this->octree->name + "_mesh_march_" + std::to_string(this->octree->depth)+ ".ply";
   std::ofstream plystream(newFile);
+
   if (plystream.is_open()) {
     std::ostringstream stringBuffer = std::ostringstream("");
     stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
