@@ -1,4 +1,4 @@
-#include "octree.cuh"
+#include "Octree.cuh"
 
 // Define this to turn on error checking
 #define CUDA_ERROR_CHECK
@@ -2798,4 +2798,177 @@ void Octree::writeDepthPLY(int d){
     std::cout << "Unable to open: " + newFile<< std::endl;
     exit(1);
   }
+}
+
+
+void Octree::writeVertexPLY(bool binary){
+  std::vector<float3> vertices_data;
+  for(int i = 0; i < this->totalVertices; ++i){
+    vertices_data.push_back(this->vertexArray[i].coord);
+  }
+
+  tinyply::PlyFile ply;
+  ply.get_comments().push_back("SSRL Test");
+  ply.add_properties_to_element("vertex",{"x","y","z"},tinyply::Type::FLOAT32, vertices_data.size(), reinterpret_cast<uint8_t*>(vertices_data.data()), tinyply::Type::INVALID, 0);
+
+  std::filebuf fb_binary;
+  if(this->name.length() == 0) this->name = this->pathToFile.substr(this->pathToFile.find_last_of("/") + 1,this->pathToFile.length() - 4);
+  std::string newFile = "out/" + this->name + "_vertices_" + std::to_string(this->depth)+ ".ply";
+
+  if(binary){
+    fb_binary.open(newFile, std::ios::out | std::ios::binary);
+    std::ostream outstream_binary(&fb_binary);
+    if (outstream_binary.fail()) throw std::runtime_error("failed to open " + newFile);
+    ply.write(outstream_binary, true);
+  }
+  else{
+    std::filebuf fb_ascii;
+  	fb_ascii.open(newFile, std::ios::out);
+  	std::ostream outstream_ascii(&fb_ascii);
+  	if (outstream_ascii.fail()) throw std::runtime_error("failed to open " + newFile);
+    ply.write(outstream_ascii, false);
+  }
+
+
+}
+void Octree::writeEdgePLY(bool binary){
+
+  std::vector<float3> vertices_data;
+  std::vector<int2> edges_data;
+  for(int i = 0; i < this->totalVertices; ++i){
+    vertices_data.push_back(this->vertexArray[i].coord);
+  }
+  for(int i = 0; i < this->totalEdges; ++i){
+    edges_data.push_back({this->edgeArray[i].v1,this->edgeArray[i].v2});
+  }
+
+  tinyply::PlyFile ply;
+  ply.get_comments().push_back("SSRL Test");
+  ply.add_properties_to_element("vertex",{"x","y","z"},tinyply::Type::FLOAT32, vertices_data.size(), reinterpret_cast<uint8_t*>(vertices_data.data()), tinyply::Type::INVALID, 0);
+  ply.add_properties_to_element("edge",{"vertex1","vertex2"},tinyply::Type::INT32, edges_data.size(), reinterpret_cast<uint8_t*>(edges_data.data()), tinyply::Type::INVALID, 0);
+
+  std::filebuf fb_binary;
+  if(this->name.length() == 0) this->name = this->pathToFile.substr(this->pathToFile.find_last_of("/") + 1,this->pathToFile.length() - 4);
+  std::string newFile = "out/" + this->name + "_edges_" + std::to_string(this->depth)+ ".ply";
+
+  if(binary){
+    fb_binary.open(newFile, std::ios::out | std::ios::binary);
+    std::ostream outstream_binary(&fb_binary);
+    if (outstream_binary.fail()) throw std::runtime_error("failed to open " + newFile);
+    ply.write(outstream_binary, true);
+  }
+  else{
+    std::filebuf fb_ascii;
+  	fb_ascii.open(newFile, std::ios::out);
+  	std::ostream outstream_ascii(&fb_ascii);
+  	if (outstream_ascii.fail()) throw std::runtime_error("failed to open " + newFile);
+    ply.write(outstream_ascii, false);
+  }
+
+
+}
+void Octree::writeCenterPLY(bool binary){
+  std::vector<float3> vertices_data;
+  for(int i = 0; i < this->totalVertices; ++i){
+    vertices_data.push_back(this->nodeArray[i].center);
+  }
+
+  tinyply::PlyFile ply;
+  ply.get_comments().push_back("SSRL Test");
+  ply.add_properties_to_element("vertex",{"x","y","z"},tinyply::Type::FLOAT32, vertices_data.size(), reinterpret_cast<uint8_t*>(vertices_data.data()), tinyply::Type::INVALID, 0);
+
+  std::filebuf fb_binary;
+  if(this->name.length() == 0) this->name = this->pathToFile.substr(this->pathToFile.find_last_of("/") + 1,this->pathToFile.length() - 4);
+  std::string newFile = "out/" + this->name + "_nodecenter_" + std::to_string(this->depth)+ ".ply";
+
+  if(binary){
+    fb_binary.open(newFile, std::ios::out | std::ios::binary);
+    std::ostream outstream_binary(&fb_binary);
+    if (outstream_binary.fail()) throw std::runtime_error("failed to open " + newFile);
+    ply.write(outstream_binary, true);
+  }
+  else{
+    std::filebuf fb_ascii;
+  	fb_ascii.open(newFile, std::ios::out);
+  	std::ostream outstream_ascii(&fb_ascii);
+  	if (outstream_ascii.fail()) throw std::runtime_error("failed to open " + newFile);
+    ply.write(outstream_ascii, false);
+  }
+
+
+
+}
+void Octree::writeNormalPLY(bool binary){
+
+    tinyply::PlyFile ply;
+    ply.get_comments().push_back("SSRL Test");
+    ply.add_properties_to_element("vertex",{"x","y","z"},tinyply::Type::FLOAT32, this->numPoints, reinterpret_cast<uint8_t*>(this->points), tinyply::Type::INVALID, 0);
+    ply.add_properties_to_element("vertex",{"nx","ny","nz"},tinyply::Type::FLOAT32, this->numPoints, reinterpret_cast<uint8_t*>(this->normals), tinyply::Type::INVALID, 0);
+
+    std::filebuf fb_binary;
+    if(this->name.length() == 0) this->name = this->pathToFile.substr(this->pathToFile.find_last_of("/") + 1,this->pathToFile.length() - 4);
+    std::string newFile = "out/" + this->name + "_normals_" + std::to_string(this->depth)+ ".ply";
+
+    if(binary){
+      fb_binary.open(newFile, std::ios::out | std::ios::binary);
+      std::ostream outstream_binary(&fb_binary);
+      if (outstream_binary.fail()) throw std::runtime_error("failed to open " + newFile);
+      ply.write(outstream_binary, true);
+    }
+    else{
+      std::filebuf fb_ascii;
+    	fb_ascii.open(newFile, std::ios::out);
+    	std::ostream outstream_ascii(&fb_ascii);
+    	if (outstream_ascii.fail()) throw std::runtime_error("failed to open " + newFile);
+      ply.write(outstream_ascii, false);
+    }
+
+
+}
+void Octree::writeDepthPLY(int d, bool binary){
+  if(d < 0 || d > this->depth){
+    std::cout<<"ERROR DEPTH FOR WRITEDEPTHPLY IS OUT OF BOUNDS"<<std::endl;
+    exit(-1);
+  }
+  if(this->name.length() == 0) this->name = this->pathToFile.substr(this->pathToFile.find_last_of("/") + 1,this->pathToFile.length() - 4);
+  std::string newFile = "out/" + this->name +
+  "_nodes_" + std::to_string(d) + "_"+ std::to_string(this->depth)+ ".ply";
+
+  tinyply::PlyFile ply;
+  std::vector<float3> vertices_data;
+  std::vector<uint4> faces_data;
+  int verticesToWrite = (depth != 0) ? this->vertexIndex[this->depth - d + 1] : this->totalVertices;
+  int facesToWrite = (depth != 0) ? this->faceIndex[this->depth - d + 1] - this->faceIndex[this->depth - d] : 6;
+  int faceStartingIndex = this->faceIndex[this->depth - d];
+  for(int i = 0; i < verticesToWrite; ++i){
+    vertices_data.push_back(this->vertexArray[i].coord);
+  }
+  for(int i = faceStartingIndex; i < facesToWrite + faceStartingIndex; ++i){
+    faces_data.push_back({
+      this->edgeArray[this->faceArray[i].e1].v1,
+      this->edgeArray[this->faceArray[i].e1].v2,
+      this->edgeArray[this->faceArray[i].e4].v2,
+      this->edgeArray[this->faceArray[i].e4].v1
+    });
+  }
+  ply.get_comments().push_back("SSRL Test");
+  ply.add_properties_to_element("vertex",{"x","y","z"},tinyply::Type::FLOAT32, vertices_data.size(), reinterpret_cast<uint8_t*>(vertices_data.data()), tinyply::Type::INVALID, 0);
+  ply.add_properties_to_element("face",{"vertex_indices"},tinyply::Type::INT32, faces_data.size(), reinterpret_cast<uint8_t*>(faces_data.data()), tinyply::Type::INT32, 4);
+
+  std::filebuf fb_binary;
+
+  if(binary){
+    fb_binary.open(newFile, std::ios::out | std::ios::binary);
+    std::ostream outstream_binary(&fb_binary);
+    if (outstream_binary.fail()) throw std::runtime_error("failed to open " + newFile);
+    ply.write(outstream_binary, true);
+  }
+  else{
+    std::filebuf fb_ascii;
+    fb_ascii.open(newFile, std::ios::out);
+    std::ostream outstream_ascii(&fb_ascii);
+    if (outstream_ascii.fail()) throw std::runtime_error("failed to open " + newFile);
+    ply.write(outstream_ascii, false);
+  }
+
 }

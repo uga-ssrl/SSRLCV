@@ -48,6 +48,7 @@ struct Surface{
   void adaptiveMarchingCubes();
   void marchingCubes();
   void jaxMeshing();
+  void generateMesh(bool binary);
   void generateMesh();
   void generateMeshWithFinestEdges();
 

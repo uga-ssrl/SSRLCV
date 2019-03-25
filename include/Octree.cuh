@@ -314,5 +314,11 @@ public:
   void writeNormalPLY();
   void writeDepthPLY(int d);
 
+  void writeVertexPLY(bool binary);
+  void writeEdgePLY(bool binary);
+  void writeCenterPLY(bool binary);
+  void writeNormalPLY(bool binary);
+  void writeDepthPLY(int d, bool binary);
+
 };
 #endif /* OCTREE_CUH */

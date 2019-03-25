@@ -47,15 +47,16 @@ int main(int argc, char *argv[]){
       std::cout<<"depth = "<<depth<<std::endl;
       Octree octree = Octree(filePath, depth);
       if(test != "norm" && test != "surf"){
-        octree.writeVertexPLY();
-        octree.writeEdgePLY();
-        octree.writeCenterPLY();
+        octree.writeVertexPLY(true);
+        octree.writeEdgePLY(true);
+        octree.writeCenterPLY(true);
       }
-      if(test != "octree"){
+      if(test != "octree" && !octree.normalsComputed){
         octree.computeNormals(3, 20);
-        octree.writeNormalPLY();
+        octree.writeNormalPLY(true);
       }
       if(test == "surf"){
+        octree.writeDepthPLY(depth - 1, true);
         Surface surface = Surface(&octree);
         surface.marchingCubes();
       }
