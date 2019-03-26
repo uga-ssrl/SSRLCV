@@ -1,0 +1,15 @@
+{
+	"folders": [ { "path": "."} ],
+	"build_systems": [ {
+			"name": "Tegra SFM Remote",
+			"working_dir": "$project_path",
+
+			"windows": { 
+				"cmd": [ "bash", "-c", "python remote-build.py" ]
+			},
+			"linux": {
+				"cmd": [ "python", "remote-build.py" ]
+			}
+		}
+	]
+}
