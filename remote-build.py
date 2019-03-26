@@ -11,6 +11,8 @@ print('Pushing updates:')
 x = subprocess.Popen([ 'rsync', '-ar', 
 	'--exclude=obj', 
 	'--exclude=bin',
+	'--exclude=out',
+	'--exclude=data',
 	'.', 'sfm-build:~/build' ], stdout=PIPE)
 
 out.write('| ')

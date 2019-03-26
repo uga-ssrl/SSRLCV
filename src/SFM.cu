@@ -61,6 +61,10 @@ int main(int argc, char *argv[]){
     Image* images = new Image[numImages];
     MemoryState pixFeatureDescriptorMemoryState[3] = {gpu,gpu,gpu};
     for(int i = 0; i < numImages; ++i){
+      // Loading meta
+      std::string& path = imagePaths[i];
+      readImageMeta(path);
+
       images[i] = Image(imagePaths[i], i, pixFeatureDescriptorMemoryState);
       images[i].convertToBW();
       printf("%s size = %dx%d\n",imagePaths[i].c_str(), images[i].descriptor.size.x, images[i].descriptor.size.y);

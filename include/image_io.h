@@ -12,4 +12,13 @@ unsigned char* readPNG(const char* filePath, int &height, int &width, unsigned c
 
 void writePNG(const char* filePath, const unsigned char* &image, const int &width, const int &height);
 
+// Meta 
+
+typedef struct { 
+  float3 position;
+  float3 orientation;
+} image_meta;
+
+image_meta readImageMeta(std::string image);
+
 #endif /*IMAGE_IO_H*/
