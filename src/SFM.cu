@@ -49,6 +49,7 @@ int main(int argc, char *argv[]){
     }
     std::string path = argv[1];
     std::vector<std::string> imagePaths = findFiles(path);
+    camera_meta cameraMeta = readCameraMeta(path); 
 
     int numOrientations = (argc > 2) ? std::stoi(argv[2]) : 1;
     int numImages = (int) imagePaths.size();
@@ -60,29 +61,25 @@ int main(int argc, char *argv[]){
     SIFT_FeatureFactory featureFactory = SIFT_FeatureFactory(numOrientations);
     Image* images = new Image[numImages];
     MemoryState pixFeatureDescriptorMemoryState[3] = {gpu,gpu,gpu};
-    for(int i = 0; i < numImages; ++i){
-      // Loading meta
-      std::string& path = imagePaths[i];
-      readImageMeta(path);
 
+    for(int i = 0; i < numImages; ++i){
+      std::string& path = imagePaths[i];
+      image_meta imageMeta = readImageMeta(path);
       images[i] = Image(imagePaths[i], i, pixFeatureDescriptorMemoryState);
       images[i].convertToBW();
-      printf("%s size = %dx%d\n",imagePaths[i].c_str(), images[i].descriptor.size.x, images[i].descriptor.size.y);
+
+      images[i].descriptor.foc      = cameraMeta.focal;
+      images[i].descriptor.fov      = cameraMeta.fov; 
+      images[i].descriptor.cam_pos  = imageMeta.position;
+      images[i].descriptor.cam_vec  = imageMeta.orientation;
+
+      printf("%s size = %dx%d\n", imagePaths[i].c_str(), images[i].descriptor.size.x, images[i].descriptor.size.y);
+
+
       featureFactory.setImage(&(images[i]));
       featureFactory.generateFeaturesDensly();
     }
-    std::cout<<"image features are set"<<std::endl;
-
-    images[0].descriptor.foc = 0.160;
-    images[0].descriptor.fov = (11.4212*PI/180);
-    images[0].descriptor.cam_pos = {7.81417, 0.0f, 44.3630};
-    images[0].descriptor.cam_vec = {-0.173648, 0.0f, -0.984808};
-    images[1].descriptor.foc = 0.160;
-    images[1].descriptor.fov = (11.4212*PI/180);
-    images[1].descriptor.cam_pos = {0.0f,0.0f,45.0f};
-    images[1].descriptor.cam_vec = {0.0f,0.0f,-1.0f};
-
-    //get_cam_params2view(images[0].descriptor,images[1].descriptor,"data/morpheus/params_morpheus.txt")
+    std::cout<<"features are set"<<std::endl;
 
     MatchFactory matchFactory = MatchFactory();
     matchFactory.setCutOffRatio(0.1);
@@ -100,22 +97,34 @@ int main(int argc, char *argv[]){
     std::cout<<"starting reprojection"<<std::endl;
     partialTimer = clock();
 
-  	CameraData* cData = new CameraData();
-    cData->cameras = new Camera[2];
-    cData->numCameras = 2;
-    cData->cameras[0].val1 = images[0].descriptor.cam_pos.x;
-    cData->cameras[0].val2 = images[0].descriptor.cam_pos.y;
-    cData->cameras[0].val3 = images[0].descriptor.cam_pos.z;
-    cData->cameras[0].val4 = images[0].descriptor.cam_vec.x;
-    cData->cameras[0].val5 = images[0].descriptor.cam_vec.y;
-    cData->cameras[0].val6 = images[0].descriptor.cam_vec.z;
+  	// CameraData* cData = new CameraData();
+   //  cData->cameras = new Camera[2];
+   //  cData->numCameras = 2;
+   //  cData->cameras[0].val1 = images[0].descriptor.cam_pos.x;
+   //  cData->cameras[0].val2 = images[0].descriptor.cam_pos.y;
+   //  cData->cameras[0].val3 = images[0].descriptor.cam_pos.z;
+   //  cData->cameras[0].val4 = images[0].descriptor.cam_vec.x;
+   //  cData->cameras[0].val5 = images[0].descriptor.cam_vec.y;
+   //  cData->cameras[0].val6 = images[0].descriptor.cam_vec.z;
 
-    cData->cameras[0].val1 = images[1].descriptor.cam_pos.x;
-    cData->cameras[0].val2 = images[1].descriptor.cam_pos.x;
-    cData->cameras[0].val3 = images[1].descriptor.cam_pos.x;
-    cData->cameras[0].val4 = images[1].descriptor.cam_vec.x;
-    cData->cameras[0].val5 = images[1].descriptor.cam_vec.x;
-    cData->cameras[0].val6 = images[1].descriptor.cam_vec.x;
+   //  cData->cameras[0].val1 = images[1].descriptor.cam_pos.x;
+   //  cData->cameras[0].val2 = images[1].descriptor.cam_pos.x;
+   //  cData->cameras[0].val3 = images[1].descriptor.cam_pos.x;
+   //  cData->cameras[0].val4 = images[1].descriptor.cam_vec.x;
+   //  cData->cameras[0].val5 = images[1].descriptor.cam_vec.x;
+   //  cData->cameras[0].val6 = images[1].descriptor.cam_vec.x;
+
+    CameraData * cData = new CameraData();
+    cData->numCameras = numImages;
+    cData->cameras = new Camera[numImages]; 
+    for(int i = 0; i < numImages; i++) {
+      cData->cameras[i].val1 = images[i].descriptor.cam_pos.x;
+      cData->cameras[i].val2 = images[i].descriptor.cam_pos.y;
+      cData->cameras[i].val3 = images[i].descriptor.cam_pos.z;
+      cData->cameras[i].val4 = images[i].descriptor.cam_vec.x;
+      cData->cameras[i].val5 = images[i].descriptor.cam_vec.y;
+      cData->cameras[i].val6 = images[i].descriptor.cam_vec.z;
+    }
 
 
     FeatureMatches* reprojection_matches = new FeatureMatches();

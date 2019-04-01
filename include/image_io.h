@@ -19,6 +19,12 @@ typedef struct {
   float3 orientation;
 } image_meta;
 
+typedef struct { 
+	float fov;		// in radians
+	float focal;	// in meters
+} camera_meta; 
+
 image_meta readImageMeta(std::string image);
+camera_meta readCameraMeta(std::string path);
 
 #endif /*IMAGE_IO_H*/

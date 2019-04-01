@@ -18,3 +18,5 @@ util/bolbi.jpg.temp.jpg
 data/._*
 util/._*
 util/io/._*
+
+*.sublime-workspace

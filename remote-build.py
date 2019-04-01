@@ -5,7 +5,6 @@ from sys import exit
 from time import sleep 
 from os import getcwd
 
-print('Building %s' % getcwd()) 
 print('Pushing updates:')
 
 x = subprocess.Popen([ 'rsync', '-ar', 
