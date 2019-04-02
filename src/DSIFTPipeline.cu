@@ -28,6 +28,7 @@ __global__ void disparity(float2 *matches0, float2 *matches1, float3 *points, in
   if (id < n){
     points[id].x = matches0[id].x;
     points[id].y = matches0[id].y;
+    // TODO make the scale factor - in this case its 64.0f - based on the optical system
     points[id].z = sqrtf(64.0f * ((matches0[id].x - matches1[id].x)*(matches0[id].x - matches1[id].x) + (matches0[id].y - matches1[id].y)*(matches0[id].y - matches1[id].y)));
   }
 } // disparity
@@ -45,6 +46,12 @@ int main(int argc, char *argv[]){
 
     int numOrientations = (argc > 2) ? std::stoi(argv[2]) : 1;
     int numImages = (int) imagePaths.size();
+    // NOTE: this is chosen by the user.
+    // TODO: Abstract this away
+    int segment_size = 500; // this is only the approximate goal size
+    bool segmenting = true;
+    // only true if we are trying to histogram filter
+    // bool filtering = false;
 
     //CUDA INITIALIZATION
     cuInit(0);
@@ -54,27 +61,91 @@ int main(int argc, char *argv[]){
     SIFT_FeatureFactory featureFactory = SIFT_FeatureFactory(numOrientations);
     Image* images = new Image[numImages];
     MemoryState pixFeatureDescriptorMemoryState[3] = {gpu,gpu,gpu};
-    for(int i = 0; i < numImages; ++i){
-      images[i] = Image(imagePaths[i], i, pixFeatureDescriptorMemoryState);
-      images[i].convertToBW();
-      printf("%s size = %dx%d\n",imagePaths[i].c_str(), images[i].descriptor.size.x, images[i].descriptor.size.y);
-      featureFactory.setImage(&(images[i]));
-      featureFactory.generateFeaturesDensly();
-    }
-    std::cout<<"image features are set"<<std::endl;
 
-    //camera parameters for everest254
-    images[0].descriptor.foc = 0.160;
-    images[0].descriptor.fov = (11.4212*PI/180);
-    images[0].descriptor.cam_pos = {7.81417, 0.0f, 44.3630};
-    images[0].descriptor.cam_vec = {-0.173648, 0.0f, -0.984808};
-    images[1].descriptor.foc = 0.160;
-    images[1].descriptor.fov = (11.4212*PI/180);
-    images[1].descriptor.cam_pos = {0.0f,0.0f,45.0f};
-    images[1].descriptor.cam_vec = {0.0f,0.0f,-1.0f};
+
+
+    // segment images before descriptors are made
+    if (segmenting) {
+      // load the images
+      for(int i = 0; i < numImages; ++i){
+        images[i] = Image(imagePaths[i], i, pixFeatureDescriptorMemoryState);
+        images[i].convertToBW();
+        // images[i].segment(x_segments,y_segments,x_segment_size,y_segment_size);
+        printf("%s size = %dx%d\n",imagePaths[i].c_str(), images[i].descriptor.size.x, images[i].descriptor.size.y);
+      }
+      // segment the images here into blocks
+      // find a close divisor:
+      int seg_size = images[0].descriptor.size.x;
+      while (seg_size > segment_size) { seg_size /= 2; }
+      int x_segment_size = seg_size;
+      seg_size = images[0].descriptor.size.y;
+      while (seg_size > segment_size) { seg_size /= 2; }
+      int y_segment_size = seg_size;
+      // segment images for faster match generation
+      // default segment size goal is 500 or less
+      int x_segments = images[0].descriptor.size.x / x_segment_size;
+      int y_segments = images[0].descriptor.size.y / y_segment_size;
+
+      for(int i = 0; i < x_segments*y_segments; ++i){
+        images[i].descriptor.foc = 0.160;
+        images[i].descriptor.fov = (11.4212*PI/180);
+        images[i].descriptor.cam_pos = {7.81417, 0.0f, 44.3630};
+        images[i].descriptor.cam_vec = {-0.173648, 0.0f, -0.984808};
+        images[i].descriptor.segment_size.x = x_segment_size;
+        images[i].descriptor.segment_size.y = y_segment_size;
+        images[i].descriptor.segment_num.x = x_segments;
+        images[i].descriptor.segment_num.y = y_segments;
+        images[i].segment_helper.is_segment = false;
+        std::cout << "pre-segment" << std::endl;
+        images[i].segment(x_segments,y_segments,x_segment_size,y_segment_size);
+        std::cout << "segmented image " << i << " ... " << std::endl;
+      }
+
+      std::cout << "Segmented with: " << (x_segments*y_segments) << " total segments of size: " << segment_size << std::endl;
+
+
+    } else {
+        //GET PIXEL ARRAYS & CREATE SIFT_FEATURES DENSLY
+        // SIFT_FeatureFactory featureFactory = SIFT_FeatureFactory(numOrientations);
+        // images = new Image[numImages];
+        // MemoryState pixFeatureDescriptorMemoryState[3] = {gpu,gpu,gpu};
+        for(int i = 0; i < numImages; ++i){
+          images[i] = Image(imagePaths[i], i, pixFeatureDescriptorMemoryState);
+          images[i].convertToBW();
+
+          printf("%s size = %dx%d\n",imagePaths[i].c_str(), images[i].descriptor.size.x, images[i].descriptor.size.y);
+
+          //camera parameters for everest254
+          images[0].descriptor.foc = 0.160;
+          images[0].descriptor.fov = (11.4212*PI/180);
+          images[0].descriptor.cam_pos = {7.81417, 0.0f, 44.3630};
+          images[0].descriptor.cam_vec = {-0.173648, 0.0f, -0.984808};
+          images[0].descriptor.segment_size.x = -1;
+          images[0].descriptor.segment_size.y = -1;
+          images[0].descriptor.segment_num.x = -1;
+          images[0].descriptor.segment_num.y = -1;
+          images[0].segment_helper.is_segment = false;
+          images[1].descriptor.foc = 0.160;
+          images[1].descriptor.fov = (11.4212*PI/180);
+          images[1].descriptor.cam_pos = {0.0f,0.0f,45.0f};
+          images[1].descriptor.cam_vec = {0.0f,0.0f,-1.0f};
+          images[1].descriptor.segment_size.x = -1;
+          images[1].descriptor.segment_size.y = -1;
+          images[1].descriptor.segment_num.x = -1;
+          images[1].descriptor.segment_num.y = -1;
+          images[1].segment_helper.is_segment = false;
+
+          featureFactory.setImage(&(images[i]));
+          featureFactory.generateFeaturesDensly();
+        }
+    }
+
+    std::cout<<"image features are set"<<std::endl<<std::endl;
 
     MatchFactory matchFactory = MatchFactory();
     SubPixelMatchSet* matchSet = NULL;
+
+
     matchFactory.generateSubPixelMatchesPairwiseConstrained(&(images[0]), &(images[1]), 5.0f, matchSet, cpu);
     printf("\nParallel DSIFT took = %f seconds.\n\n",((float) clock() -  totalTimer)/CLOCKS_PER_SEC);
 
@@ -97,6 +168,7 @@ int main(int argc, char *argv[]){
     }
 
     // begin histogram filtering ...
+    // NOTE / TODO simple percentage filter cutoff may also work
     std::cout << "Histogram filtering matches..." << std::endl;
     int b_size = 100; // size of each bin
     int h_size = (128*256)/b_size; // size of the max error / bin size
@@ -124,10 +196,10 @@ int main(int argc, char *argv[]){
         break;
       }
     }
-    float mul = 3.0f;
+    // 3 sigma means we're basically keeping everything
+    float mul = 1.0f;
     float max_error = (max_bin * b_size) + (mul * sigma * b_size);
     std::cout << "1 sigma is: " << sigma << ", matches with error over " << max_error << " are rejected" << std::endl;
-
 
     // actually filter the matches now
 
@@ -152,8 +224,6 @@ int main(int argc, char *argv[]){
     //int n = 100;
     std::cout << "removed " << removed << " matches due to error | ";
     std::cout << "keeping " << n << " matches" << std::endl;
-
-    // prep for disparity
 
     // matches
     float2 *h_matches0;
