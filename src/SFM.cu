@@ -2,7 +2,7 @@
 #include "Image.cuh"
 #include "FeatureFactory.cuh"
 #include "MatchFactory.cuh"
-#include "reprojection.cuh"
+#include "PointCloudFactory.cuh" 
 #include "surface.cuh"
 
 //TODO across all methods in octree and surface use const __restrict__ to enable
@@ -97,51 +97,11 @@ int main(int argc, char *argv[]){
     std::cout<<"starting reprojection"<<std::endl;
     partialTimer = clock();
 
-  	// CameraData* cData = new CameraData();
-   //  cData->cameras = new Camera[2];
-   //  cData->numCameras = 2;
-   //  cData->cameras[0].val1 = images[0].descriptor.cam_pos.x;
-   //  cData->cameras[0].val2 = images[0].descriptor.cam_pos.y;
-   //  cData->cameras[0].val3 = images[0].descriptor.cam_pos.z;
-   //  cData->cameras[0].val4 = images[0].descriptor.cam_vec.x;
-   //  cData->cameras[0].val5 = images[0].descriptor.cam_vec.y;
-   //  cData->cameras[0].val6 = images[0].descriptor.cam_vec.z;
+    // Point Cloud Factory 
+    PointCloud * pCloud = NULL; 
+    PointCloudFactory pointCloudFactory = PointCloudFactory(); 
+    pointCloudFactory.generatePointCloud(pCloud, images, numImages, matchSet);
 
-   //  cData->cameras[0].val1 = images[1].descriptor.cam_pos.x;
-   //  cData->cameras[0].val2 = images[1].descriptor.cam_pos.x;
-   //  cData->cameras[0].val3 = images[1].descriptor.cam_pos.x;
-   //  cData->cameras[0].val4 = images[1].descriptor.cam_vec.x;
-   //  cData->cameras[0].val5 = images[1].descriptor.cam_vec.x;
-   //  cData->cameras[0].val6 = images[1].descriptor.cam_vec.x;
-
-    CameraData * cData = new CameraData();
-    cData->numCameras = numImages;
-    cData->cameras = new Camera[numImages]; 
-    for(int i = 0; i < numImages; i++) {
-      cData->cameras[i].val1 = images[i].descriptor.cam_pos.x;
-      cData->cameras[i].val2 = images[i].descriptor.cam_pos.y;
-      cData->cameras[i].val3 = images[i].descriptor.cam_pos.z;
-      cData->cameras[i].val4 = images[i].descriptor.cam_vec.x;
-      cData->cameras[i].val5 = images[i].descriptor.cam_vec.y;
-      cData->cameras[i].val6 = images[i].descriptor.cam_vec.z;
-    }
-
-
-    FeatureMatches* reprojection_matches = new FeatureMatches();
-    reprojection_matches->numMatches = matchSet->numMatches;
-    reprojection_matches->matches = new float4[matchSet->numMatches];
-    for(int i = 0; i < matchSet->numMatches; ++i){
-      reprojection_matches->matches[i] = {matchSet->matches[i].subLocations[0].x,matchSet->matches[i].subLocations[0].y,matchSet->matches[i].subLocations[1].x,matchSet->matches[i].subLocations[1].y};
-    }
-
-    delete matchSet;
-
-  	//execute 2 view reprojection on gpu
-  	PointCloud* pCloud = NULL;
-  	twoViewReprojection(reprojection_matches, cData, pCloud);
-
-    delete cData;
-    delete reprojection_matches;
 
     printf("\nParallel Reprojection took %f seconds.\n\n",((float) clock() -  partialTimer)/CLOCKS_PER_SEC);
 

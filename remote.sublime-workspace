@@ -3,6 +3,18 @@
 	{
 		"selected_items":
 		[
+			[
+				"PointCloud",
+				"PointCloudFactory"
+			],
+			[
+				"point",
+				"pointCloudFactory"
+			],
+			[
+				"PointC",
+				"PointCloudFactory"
+			]
 		]
 	},
 	"buffers":
@@ -45,24 +57,30 @@
 	"expanded_folders":
 	[
 		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM",
+		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/include",
 		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/src"
 	],
 	"file_history":
 	[
+		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/include/MatchFactory.cuh",
+		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/src/MatchFactory.cu",
+		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/src/reprojection.cu",
+		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/include/reprojection.cuh",
+		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/src/SFM.cu",
+		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/Makefile",
+		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/include/PointCloudFactory.cuh",
+		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/src/PointCloudFactory.cu",
+		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/src/cloud_segmentation.py",
 		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/include/image_io.h",
 		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/src/image_io.cpp",
-		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/include/MatchFactory.cuh",
 		"/C/Users/Chicken Gordita/AppData/Local/Temp/main.sh.txt",
 		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/example.sublime-project",
-		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/src/SFM.cu",
 		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/include/Image.cuh",
-		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/src/MatchFactory.cu",
 		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/.gitignore",
 		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/remote-build.py",
 		"/C/Users/Chicken Gordita/Documents/JakeC/MOCI/simulations/two-view.json",
 		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/__init__.py",
 		"/C/Users/Chicken Gordita/Documents/JakeC/MOCI/simulations/two-view/5/Render #001 - Scan 10deg/images/0.meta",
-		"/C/Users/Chicken Gordita/Documents/JakeC/Tegra SFM/include/reprojection.cuh",
 		"/C/Users/Chicken Gordita/Documents/JakeC/MOCI/README.md",
 		"/C/Users/Chicken Gordita/Documents/JakeC/MOCI/example-simulation.json",
 		"/C/Users/Chicken Gordita/Documents/JakeC/MOCI/simulations/two-view/4/Render #001 - Scan 10deg/images/1.meta",
@@ -115,6 +133,11 @@
 			"sheets":
 			[
 			]
+		},
+		{
+			"sheets":
+			[
+			]
 		}
 	],
 	"incremental_find":
@@ -134,11 +157,18 @@
 				0,
 				1,
 				1
+			],
+			[
+				1,
+				0,
+				2,
+				1
 			]
 		],
 		"cols":
 		[
 			0.0,
+			0.5,
 			1.0
 		],
 		"rows":
