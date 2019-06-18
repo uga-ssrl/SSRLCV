@@ -49,7 +49,7 @@ int main(int argc, char *argv[]){
     // NOTE: this is chosen by the user.
     // TODO: Abstract this away
     int segment_size = 500; // this is only the approximate goal size
-    bool segmenting = true;
+    bool segmenting = false;
     // only true if we are trying to histogram filter
     // bool filtering = false;
 
@@ -115,11 +115,12 @@ int main(int argc, char *argv[]){
 
           printf("%s size = %dx%d\n",imagePaths[i].c_str(), images[i].descriptor.size.x, images[i].descriptor.size.y);
 
-          //camera parameters for everest254
+          // NOTE: camera parameters for current test
+          // TODO make this an input
           images[0].descriptor.foc = 0.160;
           images[0].descriptor.fov = (11.4212*PI/180);
-          images[0].descriptor.cam_pos = {7.81417, 0.0f, 44.3630};
-          images[0].descriptor.cam_vec = {-0.173648, 0.0f, -0.984808};
+          images[0].descriptor.cam_pos = {1.86063, 0.0f, 44.961508};
+          images[0].descriptor.cam_vec = {-0.041353, 0.0f, -0.999145};
           images[0].descriptor.segment_size.x = -1;
           images[0].descriptor.segment_size.y = -1;
           images[0].descriptor.segment_num.x = -1;
@@ -170,7 +171,7 @@ int main(int argc, char *argv[]){
     // begin histogram filtering ...
     // NOTE / TODO simple percentage filter cutoff may also work
     std::cout << "Histogram filtering matches..." << std::endl;
-    int b_size = 100; // size of each bin
+    int b_size = 50; // size of each bin
     int h_size = (128*256)/b_size; // size of the max error / bin size
     int histogram[h_size] = {0};
     int max_bin = 0;
@@ -197,7 +198,7 @@ int main(int argc, char *argv[]){
       }
     }
     // 3 sigma means we're basically keeping everything
-    float mul = 1.0f;
+    float mul = 6.0f;
     float max_error = (max_bin * b_size) + (mul * sigma * b_size);
     std::cout << "1 sigma is: " << sigma << ", matches with error over " << max_error << " are rejected" << std::endl;
 
@@ -205,6 +206,10 @@ int main(int argc, char *argv[]){
 
     std::vector<float2> match0_v;
     std::vector<float2> match1_v;
+
+    // NOTE TEMP NEEDS TO BE REMOVED
+    max_error = 128 * 128;
+    std::cout << "MAX_ERROR ADJUSTED : " << max_error << " , REMOVE THIS!! " << std::endl;
 
     for (int i = 0; i < matchSet->numMatches; i++){
       if (matchSet->matches[i].distance[1] <= max_error) {
