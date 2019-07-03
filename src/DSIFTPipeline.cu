@@ -66,44 +66,7 @@ int main(int argc, char *argv[]){
 
     // segment images before descriptors are made
     if (segmenting) {
-      // load the images
-      for(int i = 0; i < numImages; ++i){
-        images[i] = Image(imagePaths[i], i, pixFeatureDescriptorMemoryState);
-        images[i].convertToBW();
-        // images[i].segment(x_segments,y_segments,x_segment_size,y_segment_size);
-        printf("%s size = %dx%d\n",imagePaths[i].c_str(), images[i].descriptor.size.x, images[i].descriptor.size.y);
-      }
-      // segment the images here into blocks
-      // find a close divisor:
-      int seg_size = images[0].descriptor.size.x;
-      while (seg_size > segment_size) { seg_size /= 2; }
-      int x_segment_size = seg_size;
-      seg_size = images[0].descriptor.size.y;
-      while (seg_size > segment_size) { seg_size /= 2; }
-      int y_segment_size = seg_size;
-      // segment images for faster match generation
-      // default segment size goal is 500 or less
-      int x_segments = images[0].descriptor.size.x / x_segment_size;
-      int y_segments = images[0].descriptor.size.y / y_segment_size;
-
-      for(int i = 0; i < x_segments*y_segments; ++i){
-        images[i].descriptor.foc = 0.160;
-        images[i].descriptor.fov = (11.4212*PI/180);
-        images[i].descriptor.cam_pos = {7.81417, 0.0f, 44.3630};
-        images[i].descriptor.cam_vec = {-0.173648, 0.0f, -0.984808};
-        images[i].descriptor.segment_size.x = x_segment_size;
-        images[i].descriptor.segment_size.y = y_segment_size;
-        images[i].descriptor.segment_num.x = x_segments;
-        images[i].descriptor.segment_num.y = y_segments;
-        images[i].segment_helper.is_segment = false;
-        std::cout << "pre-segment" << std::endl;
-        images[i].segment(x_segments,y_segments,x_segment_size,y_segment_size);
-        std::cout << "segmented image " << i << " ... " << std::endl;
-      }
-
-      std::cout << "Segmented with: " << (x_segments*y_segments) << " total segments of size: " << segment_size << std::endl;
-
-
+      // TODO segmenting would go here
     } else {
         //GET PIXEL ARRAYS & CREATE SIFT_FEATURES DENSLY
         // SIFT_FeatureFactory featureFactory = SIFT_FeatureFactory(numOrientations);
@@ -117,10 +80,11 @@ int main(int argc, char *argv[]){
 
           // NOTE: camera parameters for current test
           // TODO make this an input
+          //camera parameters for everest254
           images[0].descriptor.foc = 0.160;
           images[0].descriptor.fov = (11.4212*PI/180);
-          images[0].descriptor.cam_pos = {1.86063, 0.0f, 44.961508};
-          images[0].descriptor.cam_vec = {-0.041353, 0.0f, -0.999145};
+          images[0].descriptor.cam_pos = {7.81417, 0.0f, 44.3630};
+          images[0].descriptor.cam_vec = {-0.173648, 0.0f, -0.984808};
           images[0].descriptor.segment_size.x = -1;
           images[0].descriptor.segment_size.y = -1;
           images[0].descriptor.segment_num.x = -1;
@@ -135,6 +99,7 @@ int main(int argc, char *argv[]){
           images[1].descriptor.segment_num.x = -1;
           images[1].descriptor.segment_num.y = -1;
           images[1].segment_helper.is_segment = false;
+
 
           featureFactory.setImage(&(images[i]));
           featureFactory.generateFeaturesDensly();
@@ -208,11 +173,11 @@ int main(int argc, char *argv[]){
     std::vector<float2> match1_v;
 
     // NOTE TEMP NEEDS TO BE REMOVED
-    max_error = 128 * 128;
+    max_error = 128 * 256;
     std::cout << "MAX_ERROR ADJUSTED : " << max_error << " , REMOVE THIS!! " << std::endl;
 
     for (int i = 0; i < matchSet->numMatches; i++){
-      if (matchSet->matches[i].distance[1] <= max_error) {
+      //if (matchSet->matches[i].distance[1] <= max_error) {
          float2 temp0;
 	       float2 temp1;
 	       temp0.x = matchSet->matches[i].subLocations[0].x;
@@ -221,7 +186,7 @@ int main(int argc, char *argv[]){
          temp1.y = matchSet->matches[i].subLocations[1].y;
          match0_v.push_back(temp0);
          match1_v.push_back(temp1);
-      }
+      //}
     } // filling our boi
 
     int removed = matchSet->numMatches - match0_v.size();

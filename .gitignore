@@ -3,8 +3,13 @@
 src/*.txt
 out/*.ply
 
+*.csv
 *.ply
 .DS_Store
+*/.DS_Store
+*/*/.DS_Store
+*/*/*/.DS_Store
+*/*/*/*/.DS_Store
 util/.DS_Store
 src/.DS_Store
 data/.DS_Store
