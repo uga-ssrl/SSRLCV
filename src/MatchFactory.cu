@@ -579,6 +579,9 @@ MatchFactory::MatchFactory(){
 void MatchFactory::setCutOffRatio(float cutoffRatio){
   this->cutoffRatio = cutoffRatio;
 }
+void MatchFactory::setCutOffEuclid(float cutoffEuclid){
+  this->cutoffEuclid = cutoffEuclid;
+}
 
 //TODO consider using a defualt cutoff if not set
 void MatchFactory::refineMatches(MatchSet* matchSet){
@@ -707,6 +710,70 @@ void MatchFactory::refineMatches(SubPixelMatchSet* matchSet){
   // CudaCheckError();
 
   printf("numMatches after eliminating base on %f cutoffRatio = %d (was %d)\n",this->cutoffRatio,matchSet->numMatches,beforeCompaction);
+
+  if(matchSet->memoryState == gpu){
+    matchSet->matches = minimizedMatches_device;
+  }
+  else if(matchSet->memoryState == cpu){
+    matchSet->matches = new SubPixelMatch[matchSet->numMatches];
+    CudaSafeCall(cudaMemcpy(matchSet->matches, minimizedMatches_device, matchSet->numMatches*sizeof(SubPixelMatch),cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaFree(minimizedMatches_device));
+  }
+}
+
+void MatchFactory::refineMatchesEuclid(SubPixelMatchSet* matchSet){
+  if(this->cutoffEuclid == 0.0f){
+    std::cout<<"ERROR no cutoff euclid set for refinement"<<std::endl;
+    exit(-1);
+  }
+  SubPixelMatch* matches = NULL;
+  SubPixelMatch* matches_device = NULL;
+  if(matchSet->memoryState == gpu){
+    matches = new SubPixelMatch[matchSet->numMatches];
+    CudaSafeCall(cudaMemcpy(matches, matchSet->matches, matchSet->numMatches*sizeof(SubPixelMatch),cudaMemcpyDeviceToHost));
+    matches_device = matchSet->matches;
+  }
+  else{
+    CudaSafeCall(cudaMalloc((void**)&matches_device, matchSet->numMatches*sizeof(SubPixelMatch)));
+    CudaSafeCall(cudaMemcpy(matches_device, matchSet->matches, matchSet->numMatches*sizeof(SubPixelMatch),cudaMemcpyHostToDevice));
+    matches = matchSet->matches;
+  }
+  float max = 0.0f;
+  float min = FLT_MAX;
+  for(int i = 0; i < matchSet->numMatches; ++i){
+    if(matches[i].distance[1] < min) min = matches[i].distance[1];
+    if(matches[i].distance[1] > max) max = matches[i].distance[1];
+  }
+
+  delete[] matches;
+
+  printf("max dist = %f || min dist = %f\n",max,min);
+  int* matchCounter_device = NULL;
+  CudaSafeCall(cudaMalloc((void**)&matchCounter_device, matchSet->numMatches*sizeof(int)));
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock((unsigned long) matchSet->numMatches, grid, block);
+  refineWCutoffRatio<<<grid,block>>>(matchSet->numMatches, matches_device, matchCounter_device, {min, max}, this->cutoffEuclid);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  thrust::device_ptr<int> sum(matchCounter_device);
+  thrust::inclusive_scan(sum, sum + matchSet->numMatches, sum);
+  unsigned long beforeCompaction = matchSet->numMatches;
+  CudaSafeCall(cudaMemcpy(&(matchSet->numMatches),matchCounter_device + (beforeCompaction - 1), sizeof(int), cudaMemcpyDeviceToHost));
+
+  SubPixelMatch* minimizedMatches_device = NULL;
+  CudaSafeCall(cudaMalloc((void**)&minimizedMatches_device, matchSet->numMatches*sizeof(SubPixelMatch)));
+
+  copyMatches<<<grid,block>>>(beforeCompaction, matchCounter_device, minimizedMatches_device, matches_device);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  CudaSafeCall(cudaFree(matchCounter_device));
+  CudaSafeCall(cudaFree(matches_device));
+
+  printf("numMatches after eliminating base on %f cutoffEuclid = %d (was %d)\n",this->cutoffEuclid,matchSet->numMatches,beforeCompaction);
 
   if(matchSet->memoryState == gpu){
     matchSet->matches = minimizedMatches_device;
