@@ -1,4 +1,6 @@
 #include "image_io.h"
+#include <iostream>
+#include <fstream>
 
 
 void getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths){
@@ -170,4 +172,41 @@ void writePNG(const char* filePath, const unsigned char* &image, const int &widt
   png_write_end(png_ptr, NULL);
   fclose(fp);
   std::cout<<filePath<<" has been written"<<std::endl;
+}
+
+/**
+ * Return the camera position and orientation vectors within the .meta file corresponding to the given path.
+ * The .meta file, which I made to be outputted by the Blender sims, just has six floats separated by spaces.  3 position, 3 orientation, both xyz.
+ * @author jake
+ */
+image_meta readImageMeta(std::string image) {
+  std::string path = image.replace(image.length() - 4, std::string::npos, ".meta");
+  std::cout << "Reading meta: " << path << std::endl;
+  std::ifstream file(path);
+  image_meta res;
+
+  float f1, f2, f3;
+  file >> f1 >> f2 >> f3;
+  res.position = { f1, f2, f3 };
+
+  float d1, d2, d3;
+  file >> d1 >> d2 >> d3;
+  res.orientation = { d1, d2, d3 };
+
+  return res;
+}
+
+camera_meta readCameraMeta(std::string path) {
+  std::cout << "Reading camera meta from " << path << std::endl;
+  if(path.substr(path.length() - 1, 1) != "/") path += "/";
+  path += "camera.meta";
+
+  std::ifstream file(path);
+  camera_meta res;
+
+  float focal, fov;
+  file >> focal >> fov;
+  res.focal = focal;
+  res.fov = fov;
+  return res;
 }

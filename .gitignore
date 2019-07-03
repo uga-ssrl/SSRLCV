@@ -2,8 +2,9 @@
 *.exe
 src/*.txt
 out/*.ply
-
-*.csv
+data/*
+bin/*
+.csv
 *.ply
 .DS_Store
 */.DS_Store
@@ -22,3 +23,6 @@ util/bolbi.jpg.temp.jpg
 data/._*
 util/._*
 util/io/._*
+
+*.sublime-workspace
+*.sublime-project

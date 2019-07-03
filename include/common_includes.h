@@ -31,6 +31,8 @@
 #include <dirent.h>
 #include <cfloat>
 #include <cstring>
+#include "tinyply.h"
+
 
 //TODO change enum to 1 and 2 so both = cpu + gpu
 #define CPU 1

@@ -2,7 +2,7 @@
 #define SURFACE_CUH
 
 #include "common_includes.h"
-#include "octree.cuh"
+#include "Octree.cuh"
 #include "cuda_util.cuh"
 
 #include <thrust/scan.h>
@@ -48,6 +48,7 @@ struct Surface{
   void adaptiveMarchingCubes();
   void marchingCubes();
   void jaxMeshing();
+  void generateMesh(bool binary);
   void generateMesh();
   void generateMeshWithFinestEdges();
 
