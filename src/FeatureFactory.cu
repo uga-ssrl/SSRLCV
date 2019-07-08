@@ -1,4 +1,138 @@
-// #include "FeatureFactory.cuh"
+#include "FeatureFactory.cuh"
+
+/*
+HOST METHODS
+*/
+//Base feature factory
+
+
+ssrlcv::FeatureFactory::FeatureFactory(){
+
+}
+
+ssrlcv::SIFT_FeatureFactory::SIFT_FeatureFactory(){
+  this->numOrientations = 0;
+}
+ssrlcv::SIFT_FeatureFactory::SIFT_FeatureFactory(int numOrientations){
+  this->numOrientations = numOrientations;
+}
+void ssrlcv::SIFT_FeatureFactory::setNumOrientations(int numOrientations){
+  this->numOrientations = numOrientations;
+}
+
+// void ssrlcv::SIFT_FeatureFactory::generateDescriptorsDensly(ssrlcv::SIFT_Feature* features_device, ssrlcv::SIFT_Descriptor* descriptors_device){
+//   dim3 grid = {1,1,1};
+//   dim3 block = {9,1,1};
+//   getGrid(this->image->numFeatures, grid);
+//   std::cout<<"computing thetas for feature descriptors..."<<std::endl;
+//   clock_t timer = clock();
+//   computeThetas<<<grid, block>>>(this->image->numFeatures, this->image->descriptor,
+//     this->image->numDescriptorsPerFeature, this->image->pixels_device,
+//     features_device, descriptors_device);
+//   cudaDeviceSynchronize();
+//   CudaCheckError();
+//   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+//
+//   block = {18,18,1};
+//   getGrid(this->image->numFeatures*this->numOrientations, grid);
+//   std::cout<<"generating feature descriptors..."<<std::endl;
+//   timer = clock();
+//   fillSIFTDescriptorsDensly<<<grid,block>>>(this->image->numFeatures, this->image->descriptor,
+//     this->image->numDescriptorsPerFeature, this->image->pixels_device,
+//     features_device, descriptors_device);
+//   cudaDeviceSynchronize();
+//   CudaCheckError();
+//   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+// }
+// void ssrlcv::SIFT_FeatureFactory::generateFeaturesDensly(){
+//   std::cout<<"generating features"<<std::endl;
+//   this->image->feature_size = sizeof(ssrlcv::SIFT_Feature);
+//   this->image->featureDescriptor_size = sizeof(ssrlcv::SIFT_Descriptor);
+//   if(this->image->totalPixels == 0){
+//     std::cout<<"ERROR must have pixels for generating features"<<std::endl;
+//     exit(-1);
+//   }
+//   if(this->image->colorDepth != 1){
+//     this->image->convertToBW();
+//   }
+//   if(this->image->numDescriptorsPerFeature == 0){
+//     this->image->numDescriptorsPerFeature = 1;
+//   }
+//   if(this->image->arrayStates[0] == cpu){
+//     this->image->setPixelState(gpu);
+//     std::cout<<"NOTE pixels are now on GPU"<<std::endl;
+//   }
+//
+//
+//   ssrlcv::SIFT_Feature* features_device_temp = nullptr;
+//   ssrlcv::SIFT_Feature* features_device = nullptr;
+//   ssrlcv::SIFT_Descriptor* descriptors_device = nullptr;
+//   CudaSafeCall(cudaMalloc((void**)&features_device_temp, this->image->totalPixels*sizeof(ssrlcv::SIFT_Feature)));
+//
+//   int* numFeatureExtractor;
+//   CudaSafeCall(cudaMalloc((void**)&numFeatureExtractor, this->image->totalPixels*sizeof(int)));
+//   this->image->numFeatures = this->image->totalPixels;
+//
+//   dim3 grid = {(unsigned int)this->image->descriptor.size.x,(unsigned int)this->image->descriptor.size.y,1};
+//   dim3 block = {1,1,1};
+//   std::cout<<"initializing DSIFT feature array with "<<this->image->numFeatures<<" features..."<<std::endl;
+//   clock_t timer = clock();
+//   if(this->allowZeros){
+//     initFeatureArray<<<grid, block>>>(this->image->numFeatures, this->image->descriptor, features_device_temp, numFeatureExtractor);
+//   }
+//   else{
+//     initFeatureArrayNoZeros<<<grid, block>>>(this->image->numFeatures, this->image->descriptor, features_device_temp, numFeatureExtractor, this->image->pixels_device);
+//   }
+//   cudaDeviceSynchronize();
+//   CudaCheckError();
+//
+//   thrust::device_ptr<int> sum(numFeatureExtractor);
+//   thrust::inclusive_scan(sum, sum + this->image->numFeatures, sum);
+//   unsigned long beforeCompaction = this->image->numFeatures;
+//   CudaSafeCall(cudaMemcpy(&(this->image->numFeatures),numFeatureExtractor + (beforeCompaction - 1), sizeof(int), cudaMemcpyDeviceToHost));
+//   CudaSafeCall(cudaFree(numFeatureExtractor));
+//   printf("numFeatures after eliminating ambiguity = %d\n",this->image->numFeatures);
+//
+//   CudaSafeCall(cudaMalloc((void**)&features_device, this->image->numFeatures*sizeof(ssrlcv::SIFT_Feature)));
+//
+//   thrust::device_ptr<ssrlcv::SIFT_Feature> arrayToCompact(features_device_temp);
+//   thrust::device_ptr<ssrlcv::SIFT_Feature> arrayOut(features_device);
+//   thrust::copy_if(arrayToCompact, arrayToCompact + beforeCompaction, arrayOut, feature_is_inbounds());
+//   CudaCheckError();
+//   CudaSafeCall(cudaFree(features_device_temp));
+//
+//
+//   CudaSafeCall(cudaMalloc((void**)&descriptors_device, this->image->numFeatures*this->numOrientations*sizeof(ssrlcv::SIFT_Descriptor)));
+//
+//   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+//
+//   this->generateDescriptorsDensly(features_device, descriptors_device);
+//
+//   if(this->image->arrayStates[1] == both || this->image->arrayStates[1] == cpu){
+//     this->image->features = new ssrlcv::SIFT_Feature[this->image->numFeatures];
+//     CudaSafeCall(cudaMemcpy(this->image->features, features_device, this->image->numFeatures*sizeof(ssrlcv::SIFT_Feature), cudaMemcpyDeviceToHost));
+//   }
+//   else{
+//     this->image->features_device = features_device;
+//   }
+//   if(this->image->arrayStates[1] == cpu){
+//     CudaSafeCall(cudaFree(features_device));
+//   }
+//   if(this->image->arrayStates[2] == both || this->image->arrayStates[2] == cpu){
+//     this->image->featureDescriptors = new ssrlcv::SIFT_Descriptor[this->image->numFeatures];
+//     CudaSafeCall(cudaMemcpy(this->image->featureDescriptors, descriptors_device, this->image->numFeatures*this->numOrientations*sizeof(ssrlcv::SIFT_Descriptor), cudaMemcpyDeviceToHost));
+//   }
+//   else{
+//     this->image->featureDescriptors_device = descriptors_device;
+//   }
+//   if(this->image->arrayStates[2] == cpu){
+//     CudaSafeCall(cudaFree(descriptors_device));
+//   }
+// }
+//
+// /*
+// CUDA implementations
+// */
 //
 // __constant__ float matchTreshold = 0.1;
 // __constant__ float pi = 3.1415926535897932384626433832795028841971693993751058209749445923078164062;
@@ -239,158 +373,5 @@
 //       descriptors[blockId].descriptor[(threadIdx.y*4 + threadIdx.x)*8 + d] =
 //         __float2int_rn(255*(bin_descriptors[d]-localMin)/(localMax-localMin));
 //     }
-//   }
-// }
-//
-// /*
-// START OF HOST METHODS
-// */
-// //Base feature factory
-//
-//
-// ssrlcv::FeatureFactory::FeatureFactory(){
-//   this->image = nullptr;
-//   this->allowZeros = true;
-// }
-// void ssrlcv::FeatureFactory::setImage(Image* image){
-//   this->image = image;
-//   if(this->image->numDescriptorsPerFeature == 0){
-//     this->image->numDescriptorsPerFeature = 1;
-//   }
-// }
-// ssrlcv::SIFT_FeatureFactory::SIFT_FeatureFactory(){
-//   this->allowZeros = true;
-//   this->image = nullptr;
-//   this->numOrientations = 0;
-// }
-// ssrlcv::SIFT_FeatureFactory::SIFT_FeatureFactory(bool allowZeros){
-//   this->allowZeros = true;
-//   this->numOrientations = 0;
-//   this->image = nullptr;
-// }
-//
-// ssrlcv::SIFT_FeatureFactory::SIFT_FeatureFactory(int numOrientations){
-//   this->numOrientations = numOrientations;
-//   this->image = nullptr;
-// }
-// ssrlcv::SIFT_FeatureFactory::SIFT_FeatureFactory(bool allowZeros, int numOrientations){
-//   this->allowZeros = allowZeros;
-//   this->numOrientations = numOrientations;
-// }
-// void ssrlcv::SIFT_FeatureFactory::setZeroAllowance(bool allowZeros){
-//   this->allowZeros = allowZeros;
-// }
-// void ssrlcv::SIFT_FeatureFactory::setNumOrientations(int numOrientations){
-//   this->numOrientations = numOrientations;
-//   if(this->image != nullptr) this->image->numDescriptorsPerFeature = numOrientations;
-// }
-//
-// void ssrlcv::SIFT_FeatureFactory::generateDescriptorsDensly(ssrlcv::SIFT_Feature* features_device, ssrlcv::SIFT_Descriptor* descriptors_device){
-//   dim3 grid = {1,1,1};
-//   dim3 block = {9,1,1};
-//   getGrid(this->image->numFeatures, grid);
-//   std::cout<<"computing thetas for feature descriptors..."<<std::endl;
-//   clock_t timer = clock();
-//   computeThetas<<<grid, block>>>(this->image->numFeatures, this->image->descriptor,
-//     this->image->numDescriptorsPerFeature, this->image->pixels_device,
-//     features_device, descriptors_device);
-//   cudaDeviceSynchronize();
-//   CudaCheckError();
-//   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
-//
-//   block = {18,18,1};
-//   getGrid(this->image->numFeatures*this->numOrientations, grid);
-//   std::cout<<"generating feature descriptors..."<<std::endl;
-//   timer = clock();
-//   fillSIFTDescriptorsDensly<<<grid,block>>>(this->image->numFeatures, this->image->descriptor,
-//     this->image->numDescriptorsPerFeature, this->image->pixels_device,
-//     features_device, descriptors_device);
-//   cudaDeviceSynchronize();
-//   CudaCheckError();
-//   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
-// }
-// void ssrlcv::SIFT_FeatureFactory::generateFeaturesDensly(){
-//   std::cout<<"generating features"<<std::endl;
-//   this->image->feature_size = sizeof(ssrlcv::SIFT_Feature);
-//   this->image->featureDescriptor_size = sizeof(ssrlcv::SIFT_Descriptor);
-//   if(this->image->totalPixels == 0){
-//     std::cout<<"ERROR must have pixels for generating features"<<std::endl;
-//     exit(-1);
-//   }
-//   if(this->image->colorDepth != 1){
-//     this->image->convertToBW();
-//   }
-//   if(this->image->numDescriptorsPerFeature == 0){
-//     this->image->numDescriptorsPerFeature = 1;
-//   }
-//   if(this->image->arrayStates[0] == cpu){
-//     this->image->setPixelState(gpu);
-//     std::cout<<"NOTE pixels are now on GPU"<<std::endl;
-//   }
-//
-//
-//   ssrlcv::SIFT_Feature* features_device_temp = nullptr;
-//   ssrlcv::SIFT_Feature* features_device = nullptr;
-//   ssrlcv::SIFT_Descriptor* descriptors_device = nullptr;
-//   CudaSafeCall(cudaMalloc((void**)&features_device_temp, this->image->totalPixels*sizeof(ssrlcv::SIFT_Feature)));
-//
-//   int* numFeatureExtractor;
-//   CudaSafeCall(cudaMalloc((void**)&numFeatureExtractor, this->image->totalPixels*sizeof(int)));
-//   this->image->numFeatures = this->image->totalPixels;
-//
-//   dim3 grid = {(unsigned int)this->image->descriptor.size.x,(unsigned int)this->image->descriptor.size.y,1};
-//   dim3 block = {1,1,1};
-//   std::cout<<"initializing DSIFT feature array with "<<this->image->numFeatures<<" features..."<<std::endl;
-//   clock_t timer = clock();
-//   if(this->allowZeros){
-//     initFeatureArray<<<grid, block>>>(this->image->numFeatures, this->image->descriptor, features_device_temp, numFeatureExtractor);
-//   }
-//   else{
-//     initFeatureArrayNoZeros<<<grid, block>>>(this->image->numFeatures, this->image->descriptor, features_device_temp, numFeatureExtractor, this->image->pixels_device);
-//   }
-//   cudaDeviceSynchronize();
-//   CudaCheckError();
-//
-//   thrust::device_ptr<int> sum(numFeatureExtractor);
-//   thrust::inclusive_scan(sum, sum + this->image->numFeatures, sum);
-//   unsigned long beforeCompaction = this->image->numFeatures;
-//   CudaSafeCall(cudaMemcpy(&(this->image->numFeatures),numFeatureExtractor + (beforeCompaction - 1), sizeof(int), cudaMemcpyDeviceToHost));
-//   CudaSafeCall(cudaFree(numFeatureExtractor));
-//   printf("numFeatures after eliminating ambiguity = %d\n",this->image->numFeatures);
-//
-//   CudaSafeCall(cudaMalloc((void**)&features_device, this->image->numFeatures*sizeof(ssrlcv::SIFT_Feature)));
-//
-//   thrust::device_ptr<ssrlcv::SIFT_Feature> arrayToCompact(features_device_temp);
-//   thrust::device_ptr<ssrlcv::SIFT_Feature> arrayOut(features_device);
-//   thrust::copy_if(arrayToCompact, arrayToCompact + beforeCompaction, arrayOut, feature_is_inbounds());
-//   CudaCheckError();
-//   CudaSafeCall(cudaFree(features_device_temp));
-//
-//
-//   CudaSafeCall(cudaMalloc((void**)&descriptors_device, this->image->numFeatures*this->numOrientations*sizeof(ssrlcv::SIFT_Descriptor)));
-//
-//   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
-//
-//   this->generateDescriptorsDensly(features_device, descriptors_device);
-//
-//   if(this->image->arrayStates[1] == both || this->image->arrayStates[1] == cpu){
-//     this->image->features = new ssrlcv::SIFT_Feature[this->image->numFeatures];
-//     CudaSafeCall(cudaMemcpy(this->image->features, features_device, this->image->numFeatures*sizeof(ssrlcv::SIFT_Feature), cudaMemcpyDeviceToHost));
-//   }
-//   else{
-//     this->image->features_device = features_device;
-//   }
-//   if(this->image->arrayStates[1] == cpu){
-//     CudaSafeCall(cudaFree(features_device));
-//   }
-//   if(this->image->arrayStates[2] == both || this->image->arrayStates[2] == cpu){
-//     this->image->featureDescriptors = new ssrlcv::SIFT_Descriptor[this->image->numFeatures];
-//     CudaSafeCall(cudaMemcpy(this->image->featureDescriptors, descriptors_device, this->image->numFeatures*this->numOrientations*sizeof(ssrlcv::SIFT_Descriptor), cudaMemcpyDeviceToHost));
-//   }
-//   else{
-//     this->image->featureDescriptors_device = descriptors_device;
-//   }
-//   if(this->image->arrayStates[2] == cpu){
-//     CudaSafeCall(cudaFree(descriptors_device));
 //   }
 // }

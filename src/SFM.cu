@@ -1,9 +1,10 @@
 #include "common_includes.h"
 #include "Image.cuh"
+#include "io_util.h"
 #include "FeatureFactory.cuh"
 #include "MatchFactory.cuh"
 #include "reprojection.cuh"
-#include "surface.cuh"
+#include "MeshFactory.cuh"
 
 //TODO across all methods in octree and surface use const __restrict__ to enable
 //https://stackoverflow.com/questions/31344454/can-a-const-restrict-increase-cuda-register-usage
@@ -48,7 +49,7 @@ int main(int argc, char *argv[]){
       exit(-1);
     }
     std::string path = argv[1];
-    std::vector<std::string> imagePaths = findFiles(path);
+    std::vector<std::string> imagePaths = ssrlcv::findFiles(path);
 
     int numImages = (int) imagePaths.size();
 
@@ -56,11 +57,10 @@ int main(int argc, char *argv[]){
     DENSE SIFT
     */
 
-    SIFT_FeatureFactory featureFactory = SIFT_FeatureFactory(1);
-    Image* images = new Image[numImages];
-    MemoryState pixFeatureDescriptorMemoryState[3] = {gpu,gpu,gpu};
+    ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1);
+    ssrlcv::Image* images = new ssrlcv::Image[numImages];
     for(int i = 0; i < numImages; ++i){
-      images[i] = Image(imagePaths[i], i);
+      images[i] = ssrlcv::Image(imagePaths[i], i);
       images[i].convertToBW();
 
     }

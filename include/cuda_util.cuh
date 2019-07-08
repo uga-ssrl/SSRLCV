@@ -8,22 +8,6 @@
 #include <stdio.h>
 #include <iostream>
 
-//TODO do this for all vector types and related type operations
-/*
-u&char1,2,3,4
-u&short1,2,3,4
-u&int1,2,3,4
-u&long1,2,3,4
-u&longlong1,2,3,4
-float1,2,3,4
-double1,2,3,4
-*/
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-#include <cuda.h>
-#include <stdio.h>
-#include <iostream>
-
 /*
 NOTE cannot use device inline statements (nvcc link issue)
 */

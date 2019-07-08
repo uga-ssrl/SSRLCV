@@ -18,14 +18,14 @@ NVCCFLAGS += ${COMMONFLAGS}
 NVCCFLAGS += -std=c++11 -gencode=arch=compute_61,code=sm_61
 
 LIB :=  -L/usr/local/cuda/lib64 -lcublas -lcuda -lcudart -lcusparse -lcusolver\
-        -L/opt/openblas/lib -lopenblas -lpng -Xcompiler -fopenmp
+        -lpng -Xcompiler -fopenmp
 
 SRCDIR = ./src
 OBJDIR = ./obj
 BINDIR = ./bin
 
 
-_OBJS = image_io.cpp.o
+_OBJS = io_util.cpp.o
 _OBJS += tinyply.cpp.o
 _OBJS += cuda_util.cu.o
 _OBJS += Feature.cu.o
@@ -33,8 +33,10 @@ _OBJS += Image.cu.o
 _OBJS += Quadtree.cu.o
 _OBJS += FeatureFactory.cu.o
 _OBJS += MatchFactory.cu.o
+_OBJS += PointCloudFactory.cu.o
 _OBJS += reprojection.cu.o
-_OBJS += Octree.cu.o surface.cu.o
+_OBJS += Octree.cu.o
+_OBJS += MeshFactory.cu.o
 _OBJS += SFM.cu.o
 
 OBJS = ${patsubst %, ${OBJDIR}/%, ${_OBJS}}

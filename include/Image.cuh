@@ -2,10 +2,15 @@
 #define IMAGE_CUH
 
 #include "common_includes.h"
-#include "image_io.h"
+#include "io_util.h"
 #include "Feature.cuh"
 #include "cuda_util.cuh"
 #include "Quadtree.cuh"
+#include "Unity.cuh"
+
+
+
+/* CUDA variable, method and kernel defintions */
 
 __device__ __forceinline__ unsigned long getGlobalIdx_2D_1D();
 __device__ __forceinline__ unsigned char bwaToBW(const uchar2 &color);

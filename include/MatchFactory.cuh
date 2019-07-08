@@ -9,73 +9,36 @@
 #include <thrust/copy.h>
 #include <thrust/scan.h>
 
-
-extern __constant__ float matchTreshold;
-extern __constant__ int splineHelper[4][4];
-extern __constant__ int splineHelperInv[4][4];
-
-//TODO make it so that this can be feature classes not just sift
-
-struct Spline{
-  float coeff[6][6][4][4];
-};
-typedef struct Spline Spline;
-
-struct SubpixelM7x7{
-  float M1[9][9];
-  float M2[9][9];
-};
-typedef struct SubpixelM7x7 SubpixelM7x7;
-
-struct Match{
-  SIFT_Feature features[2];
-  float distance;
-};
-typedef struct Match Match;
-
-struct match_above_cutoff{
-  __host__ __device__
-  bool operator()(Match m){
-    return m.distance > 0.0f;
-  }
-};
-
-struct SubPixelMatch : public Match{
-  float2 subLocations[2];
-};
-typedef struct SubPixelMatch SubPixelMatch;
-
-
-__device__ __host__ __forceinline__ float sum(const float3 &a);
-__device__ __forceinline__ float square(const float &a);
-__device__ __forceinline__ float calcElucid(const int2 &a, const int2 &b);
-__device__ __forceinline__ float calcElucid_SIFTDescriptor(const unsigned char a[128], const unsigned char b[128]);
-__device__ __forceinline__ float atomicMinFloat (float * addr, float value);
-__device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
-/*
-Pairwise stuff
-*/
-__global__ void matchFeaturesPairwiseBruteForce(int numFeaturesQuery, int numOrientationsQuery,
-int numFeaturesTarget, int numOrientationsTarget, SIFT_Descriptor* descriptorsQuery, SIFT_Feature* featuresQuery,
-SIFT_Descriptor* descriptorsTarget, SIFT_Feature* featuresTarget, Match* matches);
-
-__global__ void matchFeaturesPairwiseConstrained(int numFeaturesQuery, int numOrientationsQuery,
-int numFeaturesTarget, int numOrientationsTarget, SIFT_Descriptor* descriptorsQuery, SIFT_Feature* featuresQuery,
-SIFT_Descriptor* descriptorsTarget, SIFT_Feature* featuresTarget, Match* matches, float epsilon, float3 fundamental[3]);
-
-  //pairwise subPixelLocations //TODO fix
-  __global__ void initializeSubPixels(Image_Descriptor query, Image_Descriptor target, unsigned long numMatches, Match* matches, SubPixelMatch* subPixelMatches, SubpixelM7x7* subPixelDescriptors,
-  SIFT_Descriptor* queryDescriptors, int numFeaturesQuery, int numDescriptorsPerFeatureQuery, SIFT_Descriptor* targetDescriptors, int numFeaturesTarget, int numDescriptorsPerFeatureTarget);
-  __global__ void fillSplines(unsigned long numMatches, SubpixelM7x7* subPixelDescriptors, Spline* splines);
-  __global__ void determineSubPixelLocationsBruteForce(float increment, unsigned long numMatches, SubPixelMatch* subPixelMatches, Spline* splines);
-
-
-__global__ void refineWCutoffRatio(int numMatches, Match* matches, int* matchCounter, float2 minMax, float cutoffRatio);
-__global__ void refineWCutoffRatio(int numMatches, SubPixelMatch* matches, int* matchCounter, float2 minMax, float cutoffRatio);
-__global__ void copyMatches(int numMatches, int* matchCounter, Match* minimizedMatches, Match* matches);
-__global__ void copyMatches(int numMatches, int* matchCounter, SubPixelMatch* minimizedMatches, SubPixelMatch* matches);
-
 namespace ssrlcv{
+  struct Spline{
+    float coeff[6][6][4][4];
+  };
+  typedef struct Spline Spline;
+
+  struct SubpixelM7x7{
+    float M1[9][9];
+    float M2[9][9];
+  };
+  typedef struct SubpixelM7x7 SubpixelM7x7;
+
+  struct Match{
+    int features[2];//this needs to be a feature!!!!!!!!!!!!! TODODODODO
+    float distance;
+  };
+  typedef struct Match Match;
+
+  struct match_above_cutoff{
+    __host__ __device__
+    bool operator()(Match m){
+      return m.distance > 0.0f;
+    }
+  };
+
+  struct SubPixelMatch : public Match{
+    float2 subLocations[2];
+  };
+  typedef struct SubPixelMatch SubPixelMatch;
+
   /*
   Funundamental matrix stuff
   */
@@ -106,8 +69,43 @@ namespace ssrlcv{
 
 
   };
-}
+  /* CUDA variable, method and kernel defintions */
 
+  extern __constant__ float matchTreshold;
+  extern __constant__ int splineHelper[4][4];
+  extern __constant__ int splineHelperInv[4][4];
+
+  __device__ __host__ __forceinline__ float sum(const float3 &a);
+  __device__ __forceinline__ float square(const float &a);
+  __device__ __forceinline__ float calcElucid(const int2 &a, const int2 &b);
+  __device__ __forceinline__ float calcElucid_SIFTDescriptor(const unsigned char a[128], const unsigned char b[128]);
+  __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
+  __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
+  __device__ __forceinline__ int findSubPixelContributer(const int2 &loc, const int &width);
+  /*
+  Pairwise stuff
+  */
+  // __global__ void matchFeaturesPairwiseBruteForce(int numFeaturesQuery, int numOrientationsQuery,
+  // int numFeaturesTarget, int numOrientationsTarget, SIFT_Descriptor* descriptorsQuery, SIFT_Feature* featuresQuery,
+  // SIFT_Descriptor* descriptorsTarget, SIFT_Feature* featuresTarget, Match* matches);
+  //
+  // __global__ void matchFeaturesPairwiseConstrained(int numFeaturesQuery, int numOrientationsQuery,
+  // int numFeaturesTarget, int numOrientationsTarget, SIFT_Descriptor* descriptorsQuery, SIFT_Feature* featuresQuery,
+  // SIFT_Descriptor* descriptorsTarget, SIFT_Feature* featuresTarget, Match* matches, float epsilon, float3 fundamental[3]);
+  //
+  //   //pairwise subPixelLocations //TODO fix
+  //   __global__ void initializeSubPixels(Image_Descriptor query, Image_Descriptor target, unsigned long numMatches, Match* matches, SubPixelMatch* subPixelMatches, SubpixelM7x7* subPixelDescriptors,
+  //   SIFT_Descriptor* queryDescriptors, int numFeaturesQuery, int numDescriptorsPerFeatureQuery, SIFT_Descriptor* targetDescriptors, int numFeaturesTarget, int numDescriptorsPerFeatureTarget);
+  //   __global__ void fillSplines(unsigned long numMatches, SubpixelM7x7* subPixelDescriptors, Spline* splines);
+  //   __global__ void determineSubPixelLocationsBruteForce(float increment, unsigned long numMatches, SubPixelMatch* subPixelMatches, Spline* splines);
+  //
+  //
+  // __global__ void refineWCutoffRatio(int numMatches, Match* matches, int* matchCounter, float2 minMax, float cutoffRatio);
+  // __global__ void refineWCutoffRatio(int numMatches, SubPixelMatch* matches, int* matchCounter, float2 minMax, float cutoffRatio);
+  // __global__ void copyMatches(int numMatches, int* matchCounter, Match* minimizedMatches, Match* matches);
+  // __global__ void copyMatches(int numMatches, int* matchCounter, SubPixelMatch* minimizedMatches, SubPixelMatch* matches);
+  //
+}
 
 
 #endif /* MATCHFACTORY_CUH */

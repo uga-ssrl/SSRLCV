@@ -1,7 +1,7 @@
-#include "image_io.h"
+#include "io_util.h"
 
 
-void getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths){
+void ssrlcv::getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths){
   DIR* dir;
   if (nullptr == (dir = opendir(dirPath.c_str()))){
     printf("Error : Failed to open input directory %s\n",dirPath.c_str());
@@ -20,7 +20,7 @@ void getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths){
   closedir(dir);
   std::cout<<"found "<<imagePaths.size()<<std::endl;
 }
-std::vector<std::string> findFiles(std::string path){
+std::vector<std::string> ssrlcv::findFiles(std::string path){
   std::vector<std::string> imagePaths;
   if(path.find(".png") != std::string::npos){
     imagePaths.push_back(path);
@@ -32,7 +32,7 @@ std::vector<std::string> findFiles(std::string path){
   return imagePaths;
 }
 
-unsigned char* getPixelArray(unsigned char** &row_pointers, const int &width, const int &height, const int numValues){
+unsigned char* ssrlcv::getPixelArray(unsigned char** &row_pointers, const int &width, const int &height, const int numValues){
   if(numValues == 0){
     std::cout<<"ERROR: png color type not supported in parallel DSIFT"<<std::endl;
     exit(-1);
@@ -51,7 +51,7 @@ unsigned char* getPixelArray(unsigned char** &row_pointers, const int &width, co
   return imageMatrix;
 }
 
-unsigned char* readPNG(const char* filePath, int &height, int &width, unsigned int& colorDepth){
+unsigned char* ssrlcv::readPNG(const char* filePath, int &height, int &width, unsigned int& colorDepth){
   /* open file and test for it being a png */
   FILE* fp = fopen(filePath, "rb");
   std::cout<<"READING "<<filePath<<std::endl;
@@ -111,7 +111,7 @@ unsigned char* readPNG(const char* filePath, int &height, int &width, unsigned i
   return getPixelArray(row_pointers, width, height, numChannels);
 }
 
-void writePNG(const char* filePath, const unsigned char* &image, const int &width, const int &height){
+void ssrlcv::writePNG(const char* filePath, const unsigned char* &image, const int &width, const int &height){
 
   /* create file */
   FILE *fp = fopen(filePath, "wb");
