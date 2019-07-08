@@ -33,15 +33,8 @@
 #include <cstring>
 #include "tinyply.h"
 
+#include "Unity.cuh"
 
-//TODO change enum to 1 and 2 so both = cpu + gpu
-#define CPU 1
-#define GPU 2
-typedef enum MemoryState{
-  cpu = 0,
-  gpu = 1,
-  both = 2
-} MemoryState;
 
 #define PI 3.1415926535897932384626433832795028841971693993
 

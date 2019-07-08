@@ -36,17 +36,32 @@ _OBJS += MatchFactory.cu.o
 _OBJS += reprojection.cu.o
 _OBJS += Octree.cu.o surface.cu.o
 _OBJS += SFM.cu.o
+_DSIFT_OBJS = image_io.cpp.o cuda_util.cu.o Feature.cu.o Image.cu.o\
+FeatureFactory.cu.o MatchFactory.cu.o DSIFTFeatureMatching.cu.o
+_REPRO_OBJS = cuda_util.cu.o reprojection.cu.o 2ViewReprojection.cu.o
+_RECON_OBJS = tinyply.cpp.o cuda_util.cu.o Octree.cu.o surface.cu.o Reconstruction.cu.o
 
+
+DSIFT_OBJS = ${patsubst %, ${OBJDIR}/%, ${_DSIFT_OBJS}}
+REPRO_OBJS = ${patsubst %, ${OBJDIR}/%, ${_REPRO_OBJS}}
+RECON_OBJS = ${patsubst %, ${OBJDIR}/%, ${_RECON_OBJS}}
 OBJS = ${patsubst %, ${OBJDIR}/%, ${_OBJS}}
 
+
+TARGET_DSIFT = DSIFT_Matching
+TARGET_REPRO = Reprojection
+TARGET_RECON = SurfaceReconstruction
 TARGET = SFM
 
-LINKLINE = ${LINK} -gencode=arch=compute_61,code=sm_61 ${OBJS} ${LIB} -o ${BINDIR}/${TARGET}
+LINKLINE_DSIFT = ${LINK} -gencode=arch=compute_61,code=sm_61 ${DSIFT_OBJS} ${LIB} -o ${BINDIR}/${TARGET_DSIFT}
+LINKLINE_REPRO = ${LINK} -gencode=arch=compute_61,code=sm_61 ${REPRO_OBJS} ${LIB} -o ${BINDIR}/${TARGET_REPRO}
+LINKLINE_RECON = ${LINK} -gencode=arch=compute_61,code=sm_61 ${RECON_OBJS} ${LIB} -o ${BINDIR}/${TARGET_RECON}
+LINKLINE_SFM = ${LINK} -gencode=arch=compute_61,code=sm_61 ${OBJS} ${LIB} -o ${BINDIR}/${TARGET}
 
 
 .SUFFIXES: .cpp .cu .o
 
-all: ${BINDIR}/${TARGET}
+all: ${BINDIR}/${TARGET_DSIFT}  ${BINDIR}/${TARGET_REPRO}  ${BINDIR}/${TARGET_RECON}  ${BINDIR}/${TARGET}
 
 $(OBJDIR):
 	    -mkdir -p $(OBJDIR)
@@ -63,8 +78,11 @@ ${OBJDIR}/%.cu.o: ${SRCDIR}/%.cu
 ${OBJDIR}/%.cpp.o: ${SRCDIR}/%.cpp
 	${CXX} ${INCLUDES} ${CXXFLAGS} -c $< -o $@
 
-${BINDIR}/${TARGET}: ${OBJS} Makefile
-	${LINKLINE}
+${BINDIR}/%: ${DSIFT_OBJS} ${REPRO_OBJS} ${RECON_OBJS} ${OBJS} Makefile
+	${LINKLINE_DSIFT}
+	${LINKLINE_REPRO}
+	${LINKLINE_RECON}
+	${LINKLINE_SFM}
 
 clean:
 	rm -f out/*.ply

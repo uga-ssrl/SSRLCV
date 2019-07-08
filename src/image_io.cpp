@@ -3,12 +3,12 @@
 
 void getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths){
   DIR* dir;
-  if (NULL == (dir = opendir(dirPath.c_str()))){
+  if (nullptr == (dir = opendir(dirPath.c_str()))){
     printf("Error : Failed to open input directory %s\n",dirPath.c_str());
     exit(-1);
   }
   struct dirent* in_file;
-  while((in_file = readdir(dir)) != NULL){
+  while((in_file = readdir(dir)) != nullptr){
     std::string currentFileName = in_file->d_name;
 
     if (currentFileName == "." || currentFileName == ".." ||
@@ -51,7 +51,7 @@ unsigned char* getPixelArray(unsigned char** &row_pointers, const int &width, co
   return imageMatrix;
 }
 
-unsigned char* readPNG(const char* filePath, int &height, int &width, unsigned char& colorDepth){
+unsigned char* readPNG(const char* filePath, int &height, int &width, unsigned int& colorDepth){
   /* open file and test for it being a png */
   FILE* fp = fopen(filePath, "rb");
   std::cout<<"READING "<<filePath<<std::endl;
@@ -71,7 +71,7 @@ unsigned char* readPNG(const char* filePath, int &height, int &width, unsigned c
   }
 
   /* initialize stuff */
-  png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+  png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
 
   if (!png_ptr){
     std::cout<<"[read_png_file] png_create_read_struct failed"<<std::endl;
@@ -120,7 +120,7 @@ void writePNG(const char* filePath, const unsigned char* &image, const int &widt
   }
 
   /* initialize stuff */
-  png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+  png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
 
   if(!png_ptr){
     std::cout<<"[write_png_file] png_create_write_struct failed "<<std::endl;
@@ -167,7 +167,7 @@ void writePNG(const char* filePath, const unsigned char* &image, const int &widt
     std::cout<<"[write_png_file] Error during end of write "<<std::endl;
   }
 
-  png_write_end(png_ptr, NULL);
+  png_write_end(png_ptr, nullptr);
   fclose(fp);
   std::cout<<filePath<<" has been written"<<std::endl;
 }

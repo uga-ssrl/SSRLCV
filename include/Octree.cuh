@@ -14,13 +14,14 @@
 #include <thrust/copy.h>
 #include <cublas_v2.h>
 #include <cusolverDn.h>
+#include "Unity.cuh"
 
 extern __constant__ int3 coordPlacementIdentity[8];
 extern __constant__ int2 vertexEdgeIdentity[12];
 extern __constant__ int4 vertexFaceIdentity[6];
 extern __constant__ int4 edgeFaceIdentity[6];
 
-struct Vertex{
+struct Octree::Vertex{
   uchar3 color;
   float3 coord;
   int nodes[8];
@@ -30,7 +31,8 @@ struct Vertex{
 
 };
 
-struct Edge{
+//TODO make vertices int2
+struct Octree::Edge{
   uchar3 color;
   int v1;
   int v2;
@@ -41,7 +43,10 @@ struct Edge{
 
 };
 
-struct Face{
+//TODO make edges int4
+//TODO cont. or make more face types
+//TODO or make array
+struct Octree::Face{
   uchar3 color;
   int e1;
   int e2;
@@ -54,7 +59,7 @@ struct Face{
 
 };
 
-struct Node{
+struct Octree::Node{
   uchar3 color;
   int pointIndex;
   float3 center;
@@ -76,33 +81,35 @@ struct Node{
   __device__ __host__ Node();
 };
 
-
-
 /*
 HELPER METHODS AND CUDA KERNELS
 that do not have return types, they
 alter parameters
 */
+__device__ __host__ float3 getVoidCenter(const Node &node, int neighbor);
+__device__ __host__ float3 getVoidChildCenter(const Node &parent, int child);
 __device__ __forceinline__ int floatToOrderedInt(float floatVal);
 __device__ __forceinline__ float orderedIntToFloat(int intVal);
 //prints the bits of any data type
 __device__ __host__ void printBits(size_t const size, void const * const ptr);
 
 //gets the keys of each node in a top down manor
-__global__ void getNodeKeys(float3* points, float3* nodeCenters,int* nodeKeys, float3 c, float W, int N, int D);
+__global__ void getNodeKeys(float3* points, float3* nodeCenters, int* nodeKeys, float3 c, float W, int numPoints, int D);
 
 //following methods are used to fill in the node array in a top down manor
 __global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, Node* uniqueNodes);
 void calculateNodeAddresses(dim3 grid, dim3 block,int numUniqueNodes, Node* uniqueNodes, int* nodeAddresses_device, int* nodeNumbers_device);
 __global__ void fillBlankNodeArray(Node* uniqueNodes, int* nodeNumbers, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int currentDepth, float totalWidth);
-__global__ void fillFinestNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, int* pointNodeIndex);
+__global__ void fillFinestNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, int numUniqueNodes, unsigned int* pointNodeIndex);
 __global__ void fillNodeArrayWithUniques(Node* uniqueNodes, int* nodeAddresses, Node* outputNodeArray, Node* childNodeArray ,int numUniqueNodes);
 __global__ void generateParentalUniqueNodes(Node* uniqueNodes, Node* nodeArrayD, int numNodesAtDepth, float totalWidth);
-__global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depthIndex, int* parentLUT, int* childLUT, int* numNeighbors, int childDepthIndex);
+__global__ void computeNeighboringNodes(Node* nodeArray, int numNodes, int depthIndex, int* parentLUT, int* childLUT, int childDepthIndex);
 
+__global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors);
 __global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors);
 __global__ void transposeFloatMatrix(int m, int n, float* matrix);
 __global__ void setNormal(int currentPoint, float* s, float* vt, float3* normals);
+__global__ void checkForAbiguity(int numPoints, int numCameras, float3* normals, float3* points, float3* cameraPositions, bool* ambiguous);
 __global__ void checkForAbiguity(int numPoints, int numCameras, float3* normals, float3* points, float3* cameraPositions, bool* ambiguous);
 __global__ void reorient(int numNodesAtDepth, int depthIndex, Node* nodeArray, int* numNeighbors, int maxNeighbors, float3* normals, int* neighborIndices, bool* ambiguous);
 
@@ -113,212 +120,95 @@ __global__ void fillUniqueEdgeArray(Node* nodeArray, Edge* edgeArray, int numEdg
 __global__ void findFaceOwners(Node* nodeArray, int numNodes, int depthIndex, int* faceLUT, int* numFaces, int* ownerInidices, int* facePlacement);
 __global__ void fillUniqueFaceArray(Node* nodeArray, Face* faceArray, int numFaces, int faceIndex,int depthIndex, int depth, float width, int* faceLUT, int* ownerInidices, int* facePlacement);
 
-class Octree{
 
-private:
+namespace ssrlcv{
+  class Octree{
 
-  //prerequisite variables - freed in freePrereqArrays()
-  int numFinestUniqueNodes;
-  float3* finestNodeCenters;
-  int* finestNodePointIndexes;
-  int* finestNodeKeys;
-  Node* uniqueNodesAtFinestLevel;
-  float3* finestNodeCenters_device;
-  int* finestNodePointIndexes_device;
-  int* finestNodeKeys_device;
+  private:
 
-  /*
-  THESE ARE THE LOOK UP TABLES USED IN NEIGHBORHOOD, VERTEX ARRAY,
-  EDGE ARRAY, and FACE ARRAY GENERATION (indirect pointers)
-  ***device versions destroyed after being used***
-  (only needed once)
-  TODO make these constant cuda variables as they are never written to
-  TODO just make these flat to start with
-  */
-  int parentLUT[8][27];
-  int* parentLUT_device;
-  int childLUT[8][27];
-  int* childLUT_device;
-  int vertexLUT[8][7]{
-    {0,1,3,4,9,10,12},
-    {1,2,4,5,10,11,14},
-    {3,4,6,7,12,15,16},
-    {4,5,7,8,14,16,17},
-    {9,10,12,18,19,21,22},
-    {10,11,14,19,20,22,23},
-    {12,15,16,21,22,24,25},
-    {14,16,17,22,23,25,26}
+    /*
+    OCTREE GENERATION PREREQUISITE FUNCTIONS
+    */
+    void createFinestNodes();
+
+    /*
+    FILL OCTREE METHODS
+    */
+    void fillInCoarserDepths();//also allocates/copies deviceIndices
+    void fillNeighborhoods();
+
+    /*
+    OCTREE UNIT TESTING
+    */
+    void checkForGeneralNodeErrors();
+
+  public:
+
+    struct Node;
+    struct Vertex;
+    struct Edge;
+    struct Face;
+
+    std::string name;
+    std::string pathToFile;
+
+    float3 center;
+    float3 min;
+    float3 max;
+    float width;
+    int depth;
+
+    Unity<float3>* points;
+
+    Unity<float3>* normals;
+
+    Unity<Node>* nodes;
+    Unity<Vertex>* vertices;
+    Unity<Edge>* edges;
+    Unity<Face>* faces;
+
+    //length = # points, value = node containing point
+    //ie value = index of node point is in
+    Unity<unsigned int>* pointNodeIndex;
+
+    //depth index carriers
+    Unity<unsigned int>* nodeDepthIndex;
+    Unity<unsigned int>* vertexDepthIndex;
+    Unity<unsigned int>* edgeDepthIndex;
+    Unity<unsigned int>* faceDepthIndex;
+
+    Octree();
+    ~Octree();
+
+    Octree(std::string pathToFile, int depth);
+    Octree(int numfloat3s, float3* points, int depth, bool createVEF);
+    Octree(int numfloat3s, float3* points, float deepestWidth, bool createVEF);
+
+    Octree(Unity<float3>* points, int depth, bool createVEF);
+    Octree(Unity<float3>* points, float deepestWidth, bool createVEF);
+
+
+    void computeVertexArray();
+    void computeEdgeArray();
+    void computeFaceArray();
+    void createVEFArrays();
+
+    /*
+    NORMAL CALCULATION METHODS
+    */
+    void computeNormals(int minNeighForNorms, int maxNeighbors);
+    void computeNormals(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions);
+
+    /*
+    PLY WRITERS
+    */
+    void writeVertexPLY();
+    void writeEdgePLY();
+    void writeCenterPLY();
+    void writepointsPLY();
+    void writeNormalPLY();
+    void writeDepthPLY(int d);
   };
-  int* vertexLUT_device;
-  int edgeLUT[12][3]{
-    {1,4,10},
-    {3,4,12},
-    {4,5,14},
-    {4,7,16},
-    {9,10,12},
-    {10,11,14},
-    {12,15,16},
-    {14,16,17},
-    {10,19,22},
-    {12,21,22},
-    {14,22,23},
-    {16,22,25}
-  };
-  int* edgeLUT_device;
-  int faceLUT[6] = {4,10,12,14,16,22};
-  int* faceLUT_device;
+}
 
-public:
-  //global variables
-  std::string name;
-  std::string pathToFile;
-  bool normalsComputed;
-  bool hasColor;
-  bool simpleOctree;
-  float3* points;
-  float3* normals;
-  uchar3* colors;
-  float3 center;
-  int numPoints;
-  float3 min;
-  float3 max;
-  float width;
-  int depth;
-
-  int totalNodes;
-  Node* nodeArray;
-  Node* nodeArray_device;
-
-  int* depthIndex;
-  int* pointNodeIndex;
-  int totalVertices;
-  Vertex* vertexArray;
-  int totalEdges;
-  Edge* edgeArray;
-  int totalFaces;
-  Face* faceArray;
-
-  /*
-  THESE ARE DEVICE VARIABLES THAT ARE FREED AND ALLOCATED IN THEIR COPY METHODS
-  */
-
-  MemoryState nodes_state;
-  MemoryState points_state;
-  MemoryState faces_state;
-  MemoryState vertices_state;
-  MemoryState edges_state;
-  MemoryState normals_state;
-  MemoryState colors_state;
-  MemoryState pointNodes_state;
-
-  bool pointNodeDeviceReady;
-  bool vertexArrayDeviceReady;
-  bool edgeArrayDeviceReady;
-  bool faceArrayDeviceReady;
-  bool pointsDeviceReady;
-  bool normalsDeviceReady;
-  bool colorsDeviceReady;
-
-  int* pointNodeIndex_device;
-  Vertex* vertexArray_device;
-  int* vertexIndex;
-  Edge* edgeArray_device;
-  int* edgeIndex;
-  Face* faceArray_device;
-  int* faceIndex;
-  float3* points_device;
-  float3* normals_device;
-  uchar3* colors_device;
-
-
-
-
-
-  Octree();
-  ~Octree();
-
-  void parsePLY();
-  Octree(std::string pathToFile, int depth);
-  Octree(int numPoints, float3* points, int depth, bool simpleOctree);
-  Octree(int numPoints, float3* points, float maxDeepestWidth, bool simpleOctree);
-
-  /*
-  MEMORY OPERATIONS OF GLOBAL OCTREE VARIABLES (deleted when octree is destroyed)
-  */
-  void init_octree_gpu();
-  void copyPointsToDevice();
-  void copyPointsToHost();
-  void copyNormalsToDevice();
-  void copyNormalsToHost();
-  void copyColorsToDevice();
-  void copyColorsToHost();
-
-  /*
-  MEMORY OPERATIONS OF PREREQUISITE VARIABLES
-  */
-  void copyFinestNodeCentersToDevice();
-  void copyFinestNodeCentersToHost();
-  void copyFinestNodeKeysToDevice();
-  void copyFinestNodeKeysToHost();
-  void copyFinestNodePointIndexesToDevice();
-  void copyFinestNodePointIndexesToHost();
-  void freePrereqArrays();
-
-  /*
-  MEMORY OPERATIONS OF COMPUTED OCTREE VARIABLES
-  */
-  void copyNodesToDevice();
-  void copyNodesToHost();
-
-  void copyPointNodeIndexesToDevice();
-  void copyPointNodeIndexesToHost();
-
-  void copyVerticesToDevice();
-  void copyVerticesToHost();
-  void copyEdgesToDevice();
-  void copyEdgesToHost();
-  void copyFacesToDevice();
-  void copyFacesToHost();
-
-  /*
-  OCTREE GENERATION PREREQUISITE FUNCTIONS
-  */
-  void generateKeys();
-  void prepareFinestUniquNodes();
-
-  /*
-  FILL OCTREE METHODS
-  */
-  void createFinalNodeArray();//also allocates/copies deviceIndices
-  void printLUTs();
-  void fillLUTs();//aslo allocates the device versions
-  void fillNeighborhoods();
-
-  void computeVertexArray();
-  void computeEdgeArray();
-  void computeFaceArray();
-
-  void createVEFArrays();
-
-  void checkForGeneralNodeErrors();
-
-  /*
-  NORMAL CALCULATION METHODS
-  */
-  void computeNormals(int minNeighForNorms, int maxNeighbors);
-  void computeNormals(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions);
-
-  void writeVertexPLY();
-  void writeEdgePLY();
-  void writeCenterPLY();
-  void writeNormalPLY();
-  void writeDepthPLY(int d);
-
-  void writeVertexPLY(bool binary);
-  void writeEdgePLY(bool binary);
-  void writeCenterPLY(bool binary);
-  void writeNormalPLY(bool binary);
-  void writeDepthPLY(int d, bool binary);
-
-};
 #endif /* OCTREE_CUH */

@@ -4,6 +4,7 @@
 #include "common_includes.h"
 #include "Image.cuh"
 #include "Feature.cuh"
+#include "Unity.cuh"
 #include <thrust/device_ptr.h>
 #include <thrust/copy.h>
 #include <thrust/scan.h>
@@ -28,14 +29,14 @@ typedef struct SubpixelM7x7 SubpixelM7x7;
 
 struct Match{
   SIFT_Feature features[2];
-  float distance[2];
+  float distance;
 };
 typedef struct Match Match;
 
 struct match_above_cutoff{
   __host__ __device__
   bool operator()(Match m){
-    return m.distance[0] > 0.0f;
+    return m.distance > 0.0f;
   }
 };
 
@@ -43,23 +44,6 @@ struct SubPixelMatch : public Match{
   float2 subLocations[2];
 };
 typedef struct SubPixelMatch SubPixelMatch;
-
-
-//WARNING MATCHSET CANNOT HAVE MemoryState of both RIGHT NOW
-
-struct MatchSet{
-  Match* matches;
-  int numMatches;
-  MemoryState memoryState;
-};
-typedef struct MatchSet MatchSet;
-
-struct SubPixelMatchSet{
-  SubPixelMatch* matches;
-  int numMatches;
-  MemoryState memoryState;
-};
-typedef struct SubPixelMatchSet SubPixelMatchSet;
 
 
 __device__ __host__ __forceinline__ float sum(const float3 &a);
@@ -91,43 +75,39 @@ __global__ void refineWCutoffRatio(int numMatches, SubPixelMatch* matches, int* 
 __global__ void copyMatches(int numMatches, int* matchCounter, Match* minimizedMatches, Match* matches);
 __global__ void copyMatches(int numMatches, int* matchCounter, SubPixelMatch* minimizedMatches, SubPixelMatch* matches);
 
-/*
-Funundamental matrix stuff
-*/
-float3 multiply3x3x1(const float3 A[3], const float3 &B);
-void multiply3x3(const float3 A[3], const float3 B[3], float3 *C);
-void transpose3x3(const float3 M[3], float3 (&M_T)[3]);
-void inverse3x3(float3 M[3], float3 (&Minv)[3]);
-void calcFundamentalMatrix_2View(Image_Descriptor query, Image_Descriptor target, float3 *F);
+namespace ssrlcv{
+  /*
+  Funundamental matrix stuff
+  */
+  float3 multiply3x3x1(const float3 A[3], const float3 &B);
+  void multiply3x3(const float3 A[3], const float3 B[3], float3 *C);
+  void transpose3x3(const float3 M[3], float3 (&M_T)[3]);
+  void inverse3x3(float3 M[3], float3 (&Minv)[3]);
+  void calcFundamentalMatrix_2View(Image_Descriptor query, Image_Descriptor target, float3 *F);
 
-class MatchFactory{
+  class MatchFactory{
 
-protected:
-  unsigned long totalFeatures;
+  public:
 
-public:
+    MatchFactory();
 
-  float cutoffRatio;
-  int numImages;
+    //NOTE nothing for nview is implemented
+    //TODO consider making it so features are computed if they arent instead of throwing errors with image parameters
 
-  MatchFactory();
-
-  //NOTE nothing for nview is implemented
-  //TODO consider making it so features are computed if they arent instead of throwing errors with image parameters
-
-  void setCutOffRatio(float cutoffRatio);
-
-  void refineMatches(MatchSet* matchSet);
-  void refineMatches(SubPixelMatchSet* matchSet);
+    void refineMatches(Unity<Match>* matchSet, float cutoffRatio);
+    void refineMatches(Unity<SubPixelMatch>* matchSet, float cutoffRatio);
 
 
-  void generateMatchesPairwiseBruteForce(Image* query, Image* target, MatchSet* &matchSet, MemoryState return_state);
-  void generateMatchesPairwiseConstrained(Image* query, Image* target, float epsilon, MatchSet* &matchSet, MemoryState return_state);
-  //NOTE currently brute force
-  void generateSubPixelMatchesPairwiseBruteForce(Image* query, Image* target, SubPixelMatchSet* &matchSet, MemoryState return_state);
-  void generateSubPixelMatchesPairwiseConstrained(Image* query, Image* target, float epsilon, SubPixelMatchSet* &matchSet, MemoryState return_state);
+    Unity<Match>* generateMatchesPairwiseBruteForce(Image* query, Image* target);
+    Unity<Match>* generateMatchesPairwiseConstrained(Image* query, Image* target, float epsilon);
+    //NOTE currently brute force
+    Unity<SubPixelMatch>* generateSubPixelMatchesPairwiseBruteForce(Image* query, Image* target);
+    Unity<SubPixelMatch>* generateSubPixelMatchesPairwiseConstrained(Image* query, Image* target, float epsilon);
 
 
-};
+  };
+}
+
+
 
 #endif /* MATCHFACTORY_CUH */

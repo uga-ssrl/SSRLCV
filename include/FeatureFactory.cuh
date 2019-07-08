@@ -29,45 +29,40 @@ __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
 __device__ __forceinline__ float modulus(float &x, float &y);
 __device__ __forceinline__ float2 rotateAboutPoint(int2 &loc, float &theta, float2 &origin);
 
-__global__ void initFeatureArrayNoZeros(Image_Descriptor query, Image_Descriptor target, unsigned int totalFeatures, Image_Descriptor image, SIFT_Feature* features, int* numFeatureExtractor, unsigned char* pixels);
-__global__ void initFeatureArray(Image_Descriptor query, Image_Descriptor target, unsigned int totalFeatures, Image_Descriptor image, SIFT_Feature* features, int* numFeatureExtractor);
-__global__ void computeThetas(unsigned int totalFeatures, Image_Descriptor image, int numOrientations, unsigned char* pixels, SIFT_Feature* features, SIFT_Descriptor* descriptors);
-__global__ void fillDescriptorsDensly(unsigned int totalFeatures, Image_Descriptor image, int numOrientations, unsigned char* pixels, SIFT_Feature* features, SIFT_Descriptor* descriptors);
+__global__ void initFeatureArrayNoZeros(ssrlcv::Image_Descriptor query, ssrlcv::Image_Descriptor target, unsigned int totalFeatures, ssrlcv::Image_Descriptor image, ssrlcv::SIFT_Feature* features, int* numFeatureExtractor, unsigned char* pixels);
+__global__ void initFeatureArray(ssrlcv::Image_Descriptor query, ssrlcv::Image_Descriptor target, unsigned int totalFeatures, ssrlcv::Image_Descriptor image, ssrlcv::SIFT_Feature* features, int* numFeatureExtractor);
+__global__ void computeThetas(unsigned int totalFeatures, ssrlcv::Image_Descriptor image, int numOrientations, unsigned char* pixels, ssrlcv::SIFT_Feature* features, ssrlcv::SIFT_Descriptor* descriptors);
+__global__ void fillDescriptorsDensly(unsigned int totalFeatures, ssrlcv::Image_Descriptor image, int numOrientations, unsigned char* pixels, ssrlcv::SIFT_Feature* features, ssrlcv::SIFT_Descriptor* descriptors);
 
-class FeatureFactory{
 
-protected:
+//TODO make sure to implement methods without usage of Quadtree
 
-public:
-  bool allowZeros;
-  Image* image;
-  FeatureFactory();
-  void setImage(Image* image);
-};
+namespace ssrlcv{
+  class FeatureFactory{
 
-class SIFT_FeatureFactory : public FeatureFactory{
+  public:
+    FeatureFactory();
+  };
 
-private:
-  int numOrientations;
-  void generateDescriptors(SIFT_Feature* features_device, SIFT_Descriptor* descriptors_device);//NOTE not implemented
-  void generateDescriptorsDensly(SIFT_Feature* features_device, SIFT_Descriptor* descriptors_device);
+  class SIFT_FeatureFactory : public FeatureFactory{
 
-public:
-  SIFT_FeatureFactory();
-  SIFT_FeatureFactory(bool allowZeros);
-  SIFT_FeatureFactory(int numOrientations);
-  SIFT_FeatureFactory(bool allowZeros, int numOrientations);
-  void setZeroAllowance(bool allowZeros);
-  void setNumOrientations(int numOrientations);
-  void generateFeatures();//NOTE not implemented
-  void generateFeaturesDensly();
-};
+  private:
+    int numOrientations;
+    //the bool dense might need to be changed to some other metric as
+    // this could be where scale space is implemented
+    Unity<Feature<SIFT_Descriptor>>* generateBlankFeatures(Image* image, bool dense);
+    void fillDescriptors(Image* image, Unity<Feature<SIFT_Descriptor>>* features);
 
-class SURF_FeatureFactory : public FeatureFactory{
+  public:
+    SIFT_FeatureFactory();
+    SIFT_FeatureFactory(int numOrientations);
+    void setNumOrientations(int numOrientations);
+    Unity<Feature<SIFT_Descriptor>>* generateFeaturesDensly(Image* image);
+  };
 
-};
-class KAZE_FeatureFactory : public FeatureFactory{
-
-};
+  /*
+  TODO implement KAZE, SURF, and other feature detectors here
+  */
+}
 
 #endif /* FEATUREFACTORY_CUH */
