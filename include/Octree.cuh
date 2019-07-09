@@ -16,6 +16,8 @@
 #include <cusolverDn.h>
 #include "Unity.cuh"
 
+#include "tinyply.h"
+
 namespace ssrlcv{
   class Octree{
 

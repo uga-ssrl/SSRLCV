@@ -3,30 +3,7 @@
 /*
 CLASS AND STRUCT METHODS
 */
-template<typename T>
-ssrlcv::Quadtree<T>::Quadtree(uint2 imageSize, ssrlcv::Unity<T>* data){
-  this->nodes = nullptr;
-  this->edges = nullptr;
-  this->vertices = nullptr;
-  this->data = data;
-  this->imageSize = imageSize;
-  this->width = (imageSize.x > imageSize.y) ? imageSize.x : imageSize.y;
-  if(width % 2 != 0) this->width += 1;
-  this->generateLeafNodes();
-  this->generateParentNodes();
-}
 
-
-template<typename T>
-ssrlcv::Quadtree<T>::~Quadtree(){
-  if(this->nodes != nullptr) delete this->nodes;
-  if(this->vertices != nullptr) delete this->vertices;
-  if(this->edges != nullptr) delete this->edges;
-  if(this->data != nullptr) delete this->data;
-  if(this->nodeDepthIndex != nullptr) delete this->nodeDepthIndex;
-  if(this->vertexDepthIndex != nullptr) delete this->vertexDepthIndex;
-  if(this->edgeDepthIndex != nullptr) delete this->edgeDepthIndex;
-}
 
 template<typename T>
 __device__ __host__ ssrlcv::Quadtree<T>::Node::Node(){
@@ -64,7 +41,28 @@ ssrlcv::Quadtree<T>::Quadtree(){
   this->vertices = nullptr;
   this->imageSize = {0,0};
 }
-
+template<typename T>
+ssrlcv::Quadtree<T>::Quadtree(uint2 imageSize, ssrlcv::Unity<T>* data){
+  this->nodes = nullptr;
+  this->edges = nullptr;
+  this->vertices = nullptr;
+  this->data = data;
+  this->imageSize = imageSize;
+  this->width = (imageSize.x > imageSize.y) ? imageSize.x : imageSize.y;
+  if(width % 2 != 0) this->width += 1;
+  this->generateLeafNodes();
+  this->generateParentNodes();
+}
+template<typename T>
+ssrlcv::Quadtree<T>::~Quadtree(){
+  if(this->nodes != nullptr) delete this->nodes;
+  if(this->vertices != nullptr) delete this->vertices;
+  if(this->edges != nullptr) delete this->edges;
+  if(this->data != nullptr) delete this->data;
+  if(this->nodeDepthIndex != nullptr) delete this->nodeDepthIndex;
+  if(this->vertexDepthIndex != nullptr) delete this->vertexDepthIndex;
+  if(this->edgeDepthIndex != nullptr) delete this->edgeDepthIndex;
+}
 
 template<typename T>
 void ssrlcv::Quadtree<T>::generateLeafNodes(int depth){

@@ -32,21 +32,21 @@ void ssrlcv::MeshFactory::computeVertexImplicitJAX(int focusDepth){
     numConsideredVertices = this->octree->vertices->numElements;
   }
   else{
-    if(this->octree->vertexDepthIndex->state != cpu && this->octree->vertexDepthIndex->fore != cpu){
+    if(origin[0] != cpu && this->octree->vertexDepthIndex->fore != cpu){
       this->octree->vertexDepthIndex->transferMemoryTo(cpu);
     }
     numConsideredVertices = this->octree->vertexDepthIndex->host[this->octree->depth - focusDepth + 1];
   }
-  if(this->octree->vertices->state != gpu && this->octree->vertices->fore != gpu){
+  if(origin[1] != gpu && this->octree->vertices->fore != gpu){
     this->octree->vertices->transferMemoryTo(gpu);
   }
-  if(this->octree->points->state != gpu && this->octree->points->fore != gpu){
+  if(origin[2] != gpu && this->octree->points->fore != gpu){
     this->octree->points->transferMemoryTo(gpu);
   }
-  if(this->octree->normals->state != gpu && this->octree->normals->fore != gpu){
+  if(origin[3] != gpu && this->octree->normals->fore != gpu){
     this->octree->normals->transferMemoryTo(gpu);
   }
-  if(this->octree->nodes->state != gpu && this->octree->nodes->fore != gpu){
+  if(origin[4] != gpu && this->octree->nodes->fore != gpu){
     this->octree->nodes->transferMemoryTo(gpu);
   }
   CudaSafeCall(cudaMalloc((void**)&this->vertexImplicitDevice, numConsideredVertices*sizeof(float)));
@@ -69,11 +69,26 @@ void ssrlcv::MeshFactory::computeVertexImplicitJAX(int focusDepth){
   vertexImplicitFromNormals<<<grid,block>>>(numConsideredVertices, this->octree->vertices->device, this->octree->nodes->device, this->octree->normals->device, this->octree->points->device, this->vertexImplicitDevice);
   cudaDeviceSynchronize();//may not be necessary
   CudaCheckError();
-  this->octree->vertexDepthIndex->setMemoryState(origin[0]);
-  this->octree->vertices->setMemoryState(origin[1]);
-  this->octree->points->setMemoryState(origin[2]);
-  this->octree->normals->setMemoryState(origin[3]);
-  this->octree->nodes->setMemoryState(origin[4]);
+  this->octree->vertexDepthIndex->transferMemoryTo(origin[0]);
+  if(origin[0] == gpu){
+    this->octree->vertexDepthIndex->clear(cpu);
+  }
+  this->octree->vertices->transferMemoryTo(origin[1]);
+  if(origin[1] == cpu){
+    this->octree->vertices->clear(gpu);
+  }
+  this->octree->points->transferMemoryTo(origin[2]);
+  if(origin[2] == cpu){
+    this->octree->points->clear(gpu);
+  }
+  this->octree->normals->transferMemoryTo(origin[3]);
+  if(origin[3] == cpu){
+    this->octree->normals->clear(gpu);
+  }
+  this->octree->nodes->transferMemoryTo(origin[4]);
+  if(origin[4] == cpu){
+    this->octree->nodes->clear(gpu);
+  }
 
   timer = clock() - timer;
   printf("Computing Vertex Implicit Values with normals took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
@@ -128,7 +143,10 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  this->octree->nodeDepthIndex->setMemoryState(origin[2]);
+  this->octree->nodeDepthIndex->transferMemoryTo(origin[2]);
+  if(origin[2] == gpu){
+    this->octree->nodeDepthIndex->clear(cpu);
+  }
 
   dim3 gridEdge2 = {1,1,1};
   dim3 blockEdge2 = {4,1,1};
@@ -187,9 +205,14 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   CudaSafeCall(cudaMemcpy(this->surfaceVertices, surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3),cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaFree(surfaceVerticesDevice));
   CudaSafeCall(cudaFree(vertexNumbersDevice));
-  this->octree->edges->setMemoryState(origin[0]);
-  this->octree->vertices->setMemoryState(origin[3]);
-
+  this->octree->edges->transferMemoryTo(origin[0]);
+  if(origin[0] == cpu){
+    this->octree->edges->clear(gpu);
+  }
+  this->octree->vertices->transferMemoryTo(origin[3]);
+  if(origin[3] == cpu){
+    this->octree->vertices->clear(gpu);
+  }
   int3* surfaceTrianglesDevice;
 
   CudaSafeCall(cudaMalloc((void**)&surfaceTrianglesDevice, this->numSurfaceTriangles*sizeof(int3)));
@@ -216,7 +239,10 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
 
   this->surfaceTriangles = new int3[this->numSurfaceTriangles];
   CudaSafeCall(cudaMemcpy(this->surfaceTriangles, surfaceTrianglesDevice, this->numSurfaceTriangles*sizeof(int3),cudaMemcpyDeviceToHost));
-  this->octree->nodes->setMemoryState(origin[1]);
+  this->octree->nodes->transferMemoryTo(origin[1]);
+  if(origin[1] == cpu){
+    this->octree->nodes->clear(gpu);
+  }
   CudaSafeCall(cudaFree(surfaceTrianglesDevice));
   CudaSafeCall(cudaFree(vertexAddressesDevice));
   CudaSafeCall(cudaFree(triangleAddressesDevice));
@@ -249,7 +275,10 @@ void ssrlcv::MeshFactory::marchingCubes(){
     this->octree->edgeDepthIndex->transferMemoryTo(cpu);
   }
   int numFinestEdges = this->octree->edgeDepthIndex->host[1];
-  this->octree->edgeDepthIndex->setMemoryState(origin[4]);
+  this->octree->edgeDepthIndex->transferMemoryTo(origin[4]);
+  if(origin[4] == gpu){
+    this->octree->edgeDepthIndex->clear(cpu);
+  }
   int* vertexNumbersDevice;
   CudaSafeCall(cudaMalloc((void**)&vertexNumbersDevice, numFinestEdges*sizeof(int)));
   dim3 gridEdge = {1,1,1};
@@ -282,7 +311,10 @@ void ssrlcv::MeshFactory::marchingCubes(){
   //surround vertices with values less than 0
 
   int numFinestNodes = this->octree->nodeDepthIndex->host[1];
-  this->octree->nodeDepthIndex->setMemoryState(origin[2]);
+  this->octree->nodeDepthIndex->transferMemoryTo(origin[2]);
+  if(origin[2] == gpu){
+    this->octree->nodeDepthIndex->clear(cpu);
+  }
   int* triangleNumbersDevice;
   int* cubeCategoryDevice;
   CudaSafeCall(cudaMalloc((void**)&triangleNumbersDevice, numFinestNodes*sizeof(int)));
@@ -338,8 +370,14 @@ void ssrlcv::MeshFactory::marchingCubes(){
   CudaSafeCall(cudaMemcpy(this->surfaceVertices, surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3),cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaFree(surfaceVerticesDevice));
   CudaSafeCall(cudaFree(vertexNumbersDevice));
-  this->octree->edges->setMemoryState(origin[0]);
-  this->octree->vertices->setMemoryState(origin[3]);
+  this->octree->edges->transferMemoryTo(origin[0]);
+  if(origin[0] == cpu){
+    this->octree->edges->clear(gpu);
+  }
+  this->octree->vertices->transferMemoryTo(origin[3]);
+  if(origin[3] == cpu){
+    this->octree->vertices->clear(gpu);
+  }
 
   int3* surfaceTrianglesDevice;
 
@@ -366,7 +404,10 @@ void ssrlcv::MeshFactory::marchingCubes(){
 
   this->surfaceTriangles = new int3[this->numSurfaceTriangles];
   CudaSafeCall(cudaMemcpy(this->surfaceTriangles, surfaceTrianglesDevice, this->numSurfaceTriangles*sizeof(int3),cudaMemcpyDeviceToHost));
-  this->octree->nodes->setMemoryState(origin[1]);
+  this->octree->nodes->transferMemoryTo(origin[1]);
+  if(origin[1] == cpu){
+    this->octree->nodes->clear(gpu);
+  }
   CudaSafeCall(cudaFree(surfaceTrianglesDevice));
   CudaSafeCall(cudaFree(vertexAddressesDevice));
   CudaSafeCall(cudaFree(triangleAddressesDevice));
@@ -528,8 +569,14 @@ void ssrlcv::MeshFactory::jaxMeshing(){
   CudaSafeCall(cudaMemcpy(this->surfaceVertices, surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3),cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaFree(surfaceVerticesDevice));
   CudaSafeCall(cudaFree(vertexNumbersDevice));
-  this->octree->edges->setMemoryState(origin[0]);
-  this->octree->vertices->setMemoryState(origin[4]);
+  this->octree->edges->transferMemoryTo(origin[0]);
+  if(origin[0] == cpu){
+    this->octree->edges->clear(gpu);
+  }
+  this->octree->vertices->transferMemoryTo(origin[4]);
+  if(origin[4] == cpu){
+    this->octree->vertices->clear(gpu);
+  }
 
   int3* surfaceTrianglesDevice;
 
@@ -558,9 +605,19 @@ void ssrlcv::MeshFactory::jaxMeshing(){
 
   this->surfaceTriangles = new int3[this->numSurfaceTriangles];
   CudaSafeCall(cudaMemcpy(this->surfaceTriangles, surfaceTrianglesDevice, this->numSurfaceTriangles*sizeof(int3),cudaMemcpyDeviceToHost));
-  this->octree->edgeDepthIndex->setMemoryState(origin[1]);
-  this->octree->nodes->setMemoryState(origin[2]);
-  this->octree->nodeDepthIndex->setMemoryState(origin[3]);
+  this->octree->edgeDepthIndex->transferMemoryTo(origin[1]);
+  if(origin[1] == gpu){
+    this->octree->edgeDepthIndex->clear(cpu);
+  }
+  this->octree->nodes->transferMemoryTo(origin[2]);
+  if(origin[2] == cpu){
+    this->octree->nodes->clear(gpu);
+  }
+  this->octree->nodeDepthIndex->transferMemoryTo(origin[3]);
+  if(origin[3] == gpu){
+    this->octree->nodeDepthIndex->clear(cpu);
+  }
+
   CudaSafeCall(cudaFree(surfaceTrianglesDevice));
   CudaSafeCall(cudaFree(vertexAddressesDevice));
   CudaSafeCall(cudaFree(triangleAddressesDevice));
@@ -724,10 +781,22 @@ void ssrlcv::MeshFactory::generateMeshWithFinestEdges(){
     std::cout << "Unable to open: " + newFile<< std::endl;
     exit(1);
   }
-  this->octree->vertices->setMemoryState(origin[0]);
-  this->octree->vertexDepthIndex->setMemoryState(origin[1]);
-  this->octree->edges->setMemoryState(origin[2]);
-  this->octree->edgeDepthIndex->setMemoryState(origin[3]);
+  this->octree->vertices->transferMemoryTo(origin[0]);
+  if(origin[0] == gpu){
+    this->octree->vertices->clear(cpu);
+  }
+  this->octree->vertexDepthIndex->transferMemoryTo(origin[1]);
+  if(origin[1] == gpu){
+    this->octree->vertexDepthIndex->clear(cpu);
+  }
+  this->octree->edges->transferMemoryTo(origin[2]);
+  if(origin[2] == gpu){
+    this->octree->edges->clear(cpu);
+  }
+  this->octree->edgeDepthIndex->transferMemoryTo(origin[3]);
+  if(origin[3] == gpu){
+    this->octree->edgeDepthIndex->clear(cpu);
+  }
 }
 
 /*

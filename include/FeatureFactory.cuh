@@ -14,8 +14,6 @@
 
 #define SIFTBORDER 12
 
-//TODO make sure to implement methods without usage of Quadtree
-
 namespace ssrlcv{
   class FeatureFactory{
 
@@ -26,16 +24,12 @@ namespace ssrlcv{
   class SIFT_FeatureFactory : public FeatureFactory{
 
   private:
-    int numOrientations;
     //the bool dense might need to be changed to some other metric as
     // this could be where scale space is implemented
-    Unity<Feature<SIFT_Descriptor>>* generateBlankFeatures(Image* image, bool dense);
     void fillDescriptors(Image* image, Unity<Feature<SIFT_Descriptor>>* features);
 
   public:
     SIFT_FeatureFactory();
-    SIFT_FeatureFactory(int numOrientations);
-    void setNumOrientations(int numOrientations);
     Unity<Feature<SIFT_Descriptor>>* generateFeaturesDensly(Image* image);
   };
 
@@ -57,18 +51,17 @@ namespace ssrlcv{
   __device__ __forceinline__ float getTheta(const float2 &vector);
   __device__ __forceinline__ float getTheta(const float2 &vector, const float &offset);
   __device__ void trickleSwap(const float2 &compareWValue, float2* &arr, int index, const int &length);
-  __device__ __forceinline__ int4 getOrientationContributers(const int2 &loc, const int2 &imageSize);
+  __device__ __forceinline__ long4 getOrientationContributers(const long2 &loc, const int2 &imageSize);
   __device__ __forceinline__ int floatToOrderedInt(float floatVal);
   __device__ __forceinline__ float orderedIntToFloat(int intVal);
   __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
   __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
-  __device__ __forceinline__ float modulus(float &x, float &y);
-  __device__ __forceinline__ float2 rotateAboutPoint(int2 &loc, float &theta, float2 &origin);
+  __device__ __forceinline__ float modulus(const float &x, const float &y);
+  __device__ __forceinline__ float2 rotateAboutPoint(const int2 &loc, const float &theta, const float2 &origin);
 
-  // __global__ void initFeatureArrayNoZeros(ssrlcv::Image_Descriptor query, ssrlcv::Image_Descriptor target, unsigned int totalFeatures, ssrlcv::Image_Descriptor image, ssrlcv::SIFT_Feature* features, int* numFeatureExtractor, unsigned char* pixels);
-  // __global__ void initFeatureArray(ssrlcv::Image_Descriptor query, ssrlcv::Image_Descriptor target, unsigned int totalFeatures, ssrlcv::Image_Descriptor image, ssrlcv::SIFT_Feature* features, int* numFeatureExtractor);
-  // __global__ void computeThetas(unsigned int totalFeatures, ssrlcv::Image_Descriptor image, int numOrientations, unsigned char* pixels, ssrlcv::SIFT_Feature* features, ssrlcv::SIFT_Descriptor* descriptors);
-  // __global__ void fillDescriptorsDensly(unsigned int totalFeatures, ssrlcv::Image_Descriptor image, int numOrientations, unsigned char* pixels, ssrlcv::SIFT_Feature* features, ssrlcv::SIFT_Descriptor* descriptors);
+  __global__ void initFeatureArray(unsigned long totalFeatures, Image_Descriptor image, Feature<SIFT_Descriptor>* features);
+  __global__ void computeThetas(unsigned long totalFeatures, Image_Descriptor image, unsigned char* pixels, Feature<SIFT_Descriptor>* features);
+  __global__ void fillDescriptorsDensly(unsigned long totalFeatures, Image_Descriptor image, unsigned char* pixels, Feature<SIFT_Descriptor>* features);
 
 
 }

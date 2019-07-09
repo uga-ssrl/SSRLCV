@@ -45,7 +45,7 @@ int main(int argc, char *argv[]){
 
     //ARG PARSING
     if(argc < 2 || argc > 4){
-      std::cout<<"USAGE ./bin/dsift_parallel </path/to/image/directory/> <optional:numorientations>"<<std::endl;
+      std::cout<<"USAGE ./bin/dsift_parallel </path/to/image/directory/>"<<std::endl;
       exit(-1);
     }
     std::string path = argv[1];
@@ -57,16 +57,15 @@ int main(int argc, char *argv[]){
     DENSE SIFT
     */
 
-    ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1);
-    ssrlcv::Image* images = new ssrlcv::Image[numImages];
+    ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory();
+    std::vector<ssrlcv::Image> images;
+    std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> features;
     for(int i = 0; i < numImages; ++i){
-      images[i] = ssrlcv::Image(imagePaths[i], i);
+      images.push_back(ssrlcv::Image(imagePaths[i], i));
       images[i].convertToBW();
-
+      //features.push_back(featureFactory.generateFeaturesDensly(&images[i]));
+      images[i].pixels->clear();
     }
-    std::cout<<"image features are set"<<std::endl;
-
-
 
     return 0;
   }

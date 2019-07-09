@@ -45,27 +45,6 @@ inline void __cudaCheckError(const char *file, const int line) {
 }
 
 namespace ssrlcv{
-  struct IllegalUnityTransition{
-    std::string msg;
-    IllegalUnityTransition(){
-      msg = "Illegal Unity memory transfer";
-    }
-    IllegalUnityTransition(std::string msg) : msg("Illegal Unity memory transfer: " + msg){}
-    virtual const char* what() const throw(){
-      return msg.c_str();
-    }
-  };
-
-  struct NullUnityException{
-    std::string msg;
-    NullUnityException(){
-      msg = "Illegal attempt to use null set Unity";
-    }
-    NullUnityException(std::string msg) : msg("Illegal attempt to use null set Unity: " + msg){}
-    virtual const char* what() const throw(){
-      return msg.c_str();
-    }
-  };
 
   typedef enum MemoryState{
     null = 0,
@@ -75,19 +54,43 @@ namespace ssrlcv{
     pinned = 4
   } MemoryState;
 
-  inline std::string memoryStateToString(MemoryState state){
-    switch(state){
-      case null:
-        return "null";
-      case cpu:
-        return "cpu";
-      case gpu:
-        return "gpu";
-      case both:
-        return "both cpu & gpu";
-      default:
-        std::cerr<<"ERROR: unknown MemoryState when calling memoryStateToString()"<<std::endl;
-        exit(-1);
+  namespace{
+    struct IllegalUnityTransition{
+      std::string msg;
+      IllegalUnityTransition(){
+        msg = "Illegal Unity memory transfer";
+      }
+      IllegalUnityTransition(std::string msg) : msg("Illegal Unity memory transfer: " + msg){}
+      virtual const char* what() const throw(){
+        return msg.c_str();
+      }
+    };
+
+    struct NullUnityException{
+      std::string msg;
+      NullUnityException(){
+        msg = "Illegal attempt to use null set Unity";
+      }
+      NullUnityException(std::string msg) : msg("Illegal attempt to use null set Unity: " + msg){}
+      virtual const char* what() const throw(){
+        return msg.c_str();
+      }
+    };
+
+    inline std::string memoryStateToString(MemoryState state){
+      switch(state){
+        case null:
+          return "null";
+        case cpu:
+          return "cpu";
+        case gpu:
+          return "gpu";
+        case both:
+          return "both cpu & gpu";
+        default:
+          std::cerr<<"ERROR: unknown MemoryState when calling memoryStateToString()"<<std::endl;
+          exit(-1);
+      }
     }
   }
 
@@ -109,7 +112,6 @@ namespace ssrlcv{
     void clear(MemoryState state = both);//hard clear
     void transferMemoryTo(MemoryState state);//soft set - no deletes
     void setData(T* data, unsigned long numElements, MemoryState state);//hard set
-    void setMemoryState(MemoryState state);//hard set
   };
 
   template<typename T>
@@ -143,7 +145,7 @@ namespace ssrlcv{
       std::cerr<<"WARNING: Unity<T>::clear(ssrlcv::null) does nothing"<<std::endl;
       return;
     }
-    else if(state != both && this->state != state){
+    else if(state != both && this->state != both && this->state != state){
       std::cerr<<"WARNING: Attempt to clear null memory in location "
       <<memoryStateToString(state)<<"...action prevented"<<std::endl;
       return;
@@ -257,32 +259,6 @@ namespace ssrlcv{
     else{
       throw IllegalUnityTransition("cannot instantiate memory on device and host with only one pointer");
     }
-  }
-  template<typename T>
-  void Unity<T>::setMemoryState(MemoryState state){
-    if(this->state == null || this->numElements == 0){
-      throw NullUnityException("thrown in Unity<T>::setMemoryState()");
-    }
-    else if(this->state == state){
-      std::cerr<<"WARNING: attempt to set memory state to current state does nothing: "<<
-      memoryStateToString(state)<<std::endl;
-      return;
-    }
-    else if(state == null) this->clear();
-    else{
-      this->transferMemoryTo(state);
-      if(state == gpu){
-        this->clear(cpu);
-      }
-      else if(state == cpu){
-        this->clear(gpu);
-      }
-      else if(state != both){
-        throw IllegalUnityTransition("unkown memory state");
-      }
-    }
-    this->state = state;
-    this->fore = state;
   }
 }
 

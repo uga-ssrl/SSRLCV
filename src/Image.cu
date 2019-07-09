@@ -155,8 +155,10 @@ void ssrlcv::Image::convertToBW(){
   generateBW<<<grid,block>>>(numPixels, this->colorDepth, this->pixels->device, bwPixels_device);
   CudaCheckError();
 
-  this->pixels->clear();
   this->pixels->setData(bwPixels_device, numPixels, gpu);
-  this->pixels->setMemoryState(origin);
+  this->pixels->transferMemoryTo(origin);
+  if(origin == cpu){
+    this->pixels->clear(gpu);
+  }
   this->colorDepth = 1;
 }
