@@ -338,6 +338,7 @@ __device__ __host__ ssrlcv::Octree::Node::Node(){
 
 
 //TODO check if using iterator for nodePoint works
+//TODO make sure that thrust usage is GPU
 void ssrlcv::Octree::createFinestNodes(){
   this->points->transferMemoryTo(both);
   int* finestNodeKeys = new int[this->points->numElements]();
@@ -386,10 +387,10 @@ void ssrlcv::Octree::createFinestNodes(){
   CudaSafeCall(cudaFree(finestNodeKeys_device));
 
 
-  thrust::device_ptr<float3> sphs(this->points->device);
-  thrust::device_vector<float3> sortedSphs(this->points->numElements);
-  thrust::gather(indices.begin(), indices.end(), sphs, sortedSphs.begin());
-  CudaSafeCall(cudaMemcpy(this->points->host, thrust::raw_pointer_cast(sortedSphs.data()), this->points->numElements*sizeof(float3),cudaMemcpyDeviceToHost));
+  thrust::device_ptr<float3> pnts(this->points->device);
+  thrust::device_vector<float3> sortedPnts(this->points->numElements);
+  thrust::gather(indices.begin(), indices.end(), pnts, sortedPnts.begin());
+  CudaSafeCall(cudaMemcpy(this->points->host, thrust::raw_pointer_cast(sortedPnts.data()), this->points->numElements*sizeof(float3),cudaMemcpyDeviceToHost));
 
   this->points->clear(gpu);
 
@@ -408,7 +409,7 @@ void ssrlcv::Octree::createFinestNodes(){
   }
 
   thrust::pair<int*, unsigned int*> new_end;//the last value of these node arrays
-
+  //there shouldbe better way to do this
   new_end = thrust::unique_by_key(finestNodeKeys, finestNodeKeys + this->points->numElements, nodePointIndex);
 
   bool foundFirst = false;

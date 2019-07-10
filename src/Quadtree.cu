@@ -49,7 +49,8 @@ ssrlcv::Quadtree<T>::Quadtree(uint2 imageSize, ssrlcv::Unity<T>* data){
   this->data = data;
   this->imageSize = imageSize;
   this->width = (imageSize.x > imageSize.y) ? imageSize.x : imageSize.y;
-  if(width % 2 != 0) this->width += 1;
+  while(this->width % 4) ++this->width;
+  this->depth = {0, log2(this->width)};
   this->generateLeafNodes();
   this->generateParentNodes();
 }
@@ -64,52 +65,73 @@ ssrlcv::Quadtree<T>::~Quadtree(){
   if(this->edgeDepthIndex != nullptr) delete this->edgeDepthIndex;
 }
 
+
+//TODO ensure numLeafNodes cant go over max int (conditional usage of gridDim.y)
 template<typename T>
-void ssrlcv::Quadtree<T>::generateLeafNodes(int depth){
-  Node* leafNodes_device = nullptr;
-  CudaSafeCall(cudaMalloc((void**)&leafNodes_device, this->data->numElements*sizeof(Node)));
-  dim3 grid = {(this->data->numElements/1024) + 1,1,1};
+void ssrlcv::Quadtree<T>::generateLeafNodes(){
+  int* leafNodeKeys_device = nullptr;
+  float2* leafNodeCenters_device = nullptr;
+  unsigned int* nodeDataIndex_device = nullptr;
+
+  unsigned long numLeafNodes = 0;
+  numLeafNodes = this->data->numElements;
+  CudaSafeCall(cudaMalloc((void**)&leafNodeKeys_device, numLeafNodes*sizeof(int)));
+  CudaSafeCall(cudaMalloc((void**)&leafNodeCenters_device, numLeafNodes*sizeof(float2)));
+  dim3 grid = {(numLeafNodes/1024) + 1,1,1};
   dim3 block = {1024,1,1};
-  fillLeafNodesDensly<<<grid,block>>>(leafNodes_device, this->width, this->imageSize, depth);
+  getKeys<<<grid,block>>>(leafNodeKeys_device, leafNodeCenters_device, this->width, this->imageSize, this->depth.y);
   CudaCheckError();
-  this->nodes = new ssrlcv::Unity<Node>(leafNodes_device, this->data->numElements, ssrlcv::gpu);
-  // if(depth != -1){
-  //   //TO USE IN POINT BASED QUADTREE
-  //
-  //   thrust::counting_iterator<unsigned int> iter(0);
-  //   thrust::device_vector<unsigned int> indices(this->data->numElements);
-  //   thrust::copy(iter, iter + this->data->numElements, indices.begin());
-  //
-  //   unsigned int* nodePointIndex = new unsigned int[this->points->numElements]();
-  //   CudaSafeCall(cudaMemcpy(nodePointIndex, thrust::raw_pointer_cast(indices.data()), this->data->numElements*sizeof(unsigned int),cudaMemcpyDeviceToHost));
-  //
-  //   thrust::device_ptr<int> kys(nodeKeys_device);
-  //   thrust::sort_by_key(kys, kys + this->data->numElements, indices.begin());
-  //
-  //   if(this->data->fore != ssrlcv::gpu){
-  //     this->data->transferMemoryTo(ssrlcv::gpu);
-  //   }
-  //
-  //   thrust::device_ptr<float2> cnts(nodeCenters_device);
-  //   thrust::device_vector<float2> sortedCnts(this->data->numElements);
-  //   thrust::gather(indices.begin(), indices.end(), cnts, sortedCnts.begin());
-  //   CudaSafeCall(cudaMemcpy(nodeCenters_device, thrust::raw_pointer_cast(sortedCnts.data()), this->data->numElements*sizeof(float2),cudaMemcpyDeviceToDevice));
-  //
-  //   thrust::device_ptr<T> dataSorter(this->data->device);
-  //   thrust::device_vector<T> sortedData(this->data->numElements);
-  //   thrust::gather(indices.begin(), indices.end(), dataSorter, sortedData.begin());
-  //   //determine if this is necessary
-  //   this->data->setData(thrust::raw_pointer_cast(sortedData.data()), this->data->numElements, ssrlcv::gpu);
-  //   this->data->transferMemoryTo(ssrlcv::cpu);
-  //   this->data->clearDevice();
-  //
-  //   //there may be a faster way to do this
-  //   thrust::pair<int*, unsigned int*> new_end;//the last value of these node array
-  //   new_end = thrust::unique_by_key(kys,kys + this->data->numElements, indices.begin());
-  //
-  //   //now you need to copy over all the nonredudant nodes
-  //
-  // }
+
+  thrust::counting_iterator<unsigned int> iter(0);
+  thrust::device_vector<unsigned int> indices(this->data->numElements);
+  thrust::copy(iter, iter + this->data->numElements, indices.begin());
+
+  if(this->depth.y == log2(this->width)){
+    CudaSafeCall(cudaMalloc((void**)&nodeDataIndex_device, numLeafNodes*sizeof(unsigned int)));
+    CudaSafeCall(cudaMemcpy(nodeDataIndex_device, thrust::raw_pointer_cast(indices.data()), numLeafNodes*sizeof(unsigned int),cudaMemcpyDeviceToDevice));
+  }
+  else{
+    //TO USE IN POINT BASED QUADTREE
+
+    thrust::device_ptr<int> kys(leafNodeKeys_device);
+    thrust::sort_by_key(kys, kys + this->data->numElements, indices.begin());
+
+    if(this->data->fore != ssrlcv::gpu){
+      this->data->transferMemoryTo(ssrlcv::gpu);
+    }
+
+    thrust::device_ptr<float2> cnts(leafNodeCenters_device);
+    thrust::device_vector<float2> sortedCnts(this->data->numElements);
+    thrust::gather(indices.begin(), indices.end(), cnts, sortedCnts.begin());
+    CudaSafeCall(cudaMemcpy(leafNodeCenters_device, thrust::raw_pointer_cast(sortedCnts.data()), this->data->numElements*sizeof(float2),cudaMemcpyDeviceToDevice));
+
+    thrust::device_ptr<T> dataSorter(this->data->device);
+    thrust::device_vector<T> sortedData(this->data->numElements);
+    thrust::gather(indices.begin(), indices.end(), dataSorter, sortedData.begin());
+    //determine if this is necessary
+    this->data->setData(thrust::raw_pointer_cast(sortedData.data()), this->data->numElements, ssrlcv::gpu);
+    this->data->transferMemoryTo(ssrlcv::cpu);
+    this->data->clearDevice();
+
+    //there may be a faster way to do this
+    thrust::pair<int*, thrust::device_vector<unsigned int>::iterator> new_end;//the last value of these node array
+    new_end = thrust::unique_by_key(kys,kys + this->data->numElements, indices.begin());
+    numLeafNodes = thrust::get<1>(new_end) - indices.begin();
+
+    CudaSafeCall(cudaMalloc((void**)&nodeDataIndex_device, numLeafNodes*sizeof(unsigned int)));
+    CudaSafeCall(cudaMemcpy(nodeDataIndex_device, thrust::raw_pointer_cast(indices.data()), numLeafNodes*sizeof(unsigned int),cudaMemcpyDeviceToDevice));
+
+  }
+
+  Node leafNodes_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&leafNodes_device, numLeafNodes*sizeof(Node)));
+
+  grid = {(numLeafNodes/1024) + 1, 1,1};
+  block = {1024,1,1};
+
+  fillLeafNodes<<<grid,block>>>(numLeafNodes,leafNodes_device,leafNodeKeys_device,leafNodeCenters_device,nodeDataIndex_device);
+
+  this->nodes = new Unity<Node>(leafNodes_device, numLeafNodes, ssrlcv::gpu);
 }
 
 template<typename T>
@@ -124,8 +146,7 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
 /*
 CUDA implementations
 */
-template<typename T>
-__global__ void ssrlcv::fillLeafNodesDensly(typename Quadtree<T>::Node* leafNodes, unsigned int width, uint2 imageSize, int depth){
+__global__ void ssrlcv::getKeys(int* keys, float2* nodeCenters, unsigned int width, uint2 imageSize, int depth){
   int globalID = blockIdx.x *blockDim.x + threadIdx.x;
   if(globalID < imageSize.x*imageSize.y){
     int x = globalID%imageSize.x;
@@ -161,10 +182,21 @@ __global__ void ssrlcv::fillLeafNodesDensly(typename Quadtree<T>::Node* leafNode
       }
       currentDepth++;
     }
-    typename Quadtree<T>::Node leaf = typename Quadtree<T>::Node();
-    leaf.key = key;
-    leaf.center = {center.x + 0.5f, center.y + 0.5f};
-    leaf.depth = currentDepth;
-    leafNodes[globalID] = leaf;
+    keys[globalID] = key;
+    nodeCenters[globalID] = {center.x + 0.5f, center.y + 0.5f};
+  }
+}
+
+template<typename T>
+__global__ void ssrlcv::fillLeafNodes(unsigned long numLeafNodes, typename ssrlcv::Quadtree<T>::Node* leafNodes,
+int* keys, float2* nodeCenters, unsigned int* nodeDataIndex){
+
+  int globalID = blockIdx.x *blockDim.x + threadIdx.x;
+  if(globalID < numLeafNodes){
+    typename Quadtree<T>::Node node = typename Quadtree<T>::Node();
+    node.key = keys[globalID];
+    node.center = nodeCenters[globalID];
+    node.dataIndex = nodeDataIndex[globalID];
+    leafNodes[globalID] = node;
   }
 }

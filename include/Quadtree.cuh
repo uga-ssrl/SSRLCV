@@ -14,7 +14,8 @@
 #include <thrust/copy.h>
 
 namespace ssrlcv{
-  //look for better solution here
+
+  //consider putting in util
   template<typename D>
   struct LocalizedData{
     float2 loc;
@@ -30,9 +31,11 @@ namespace ssrlcv{
   template<typename T>
   class Quadtree{
 
-    void generateLeafNodes(int depth = -1);//Will generate dense tree
+    void generateLeafNodes();
 
     void generateParentNodes();
+
+
 
   public:
     struct Node{
@@ -63,8 +66,8 @@ namespace ssrlcv{
     };
 
     uint2 imageSize;
-    int width;
-    unsigned int depth;
+    unsigned int width;
+    uint2 depth;//{min,max}
 
     ssrlcv::Unity<T>* data;
     ssrlcv::Unity<Node>* nodes;
@@ -77,23 +80,23 @@ namespace ssrlcv{
 
     Quadtree();
 
+    //dense full octree
     Quadtree(uint2 imageSize, ssrlcv::Unity<T>* data);
-    Quadtree(uint2 imageSize, ssrlcv::Unity<bool>* hashMap, ssrlcv::Unity<T>* data);
-    Quadtree(ssrlcv::Unity<int2>* data);
-    Quadtree(ssrlcv::Unity<float2>* data);
-    Quadtree(ssrlcv::Unity<LocalizedData<T>>* data);
+
 
     ~Quadtree();
 
-    void setHashMap(ssrlcv::Unity<bool>* hashMap);
 
   };
 
   /*
   CUDA KERNEL DEFINITIONS
   */
+
+  __global__ void getKeys(int* keys, float2* nodeCenters, unsigned int width, uint2 imageSize, int depth);
+
   template<typename T>
-  __global__ void fillLeafNodesDensly(typename Quadtree<T>::Node* leafNodes, unsigned int width, uint2 imageSize, int depth);
+  __global__ void fillLeafNodes(unsigned long numLeafNodes, typename Quadtree<T>::Node* leafNodes,int* keys, float2* nodeCenters, unsigned int* nodeDataIndex);
 
 }
 
