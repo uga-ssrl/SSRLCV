@@ -21,7 +21,7 @@ __global__ void generateBW(int numPixels, unsigned int colorDepth, unsigned char
 namespace ssrlcv{
   struct Image_Descriptor{
     int id;
-    int2 size;
+    uint2 size;
     float3 cam_pos;
     float3 cam_vec;
     float fov;
@@ -29,8 +29,8 @@ namespace ssrlcv{
     float dpix;
     long long int timeStamp;//seconds since Jan 01, 1070
     __device__ __host__ Image_Descriptor();
-    __device__ __host__ Image_Descriptor(int id, int2 size);
-    __device__ __host__ Image_Descriptor(int id, int2 size, float3 cam_pos, float3 camp_dir);
+    __device__ __host__ Image_Descriptor(int id, uint2 size);
+    __device__ __host__ Image_Descriptor(int id, uint2 size, float3 cam_pos, float3 camp_dir);
   };
 
   void get_cam_params2view(Image_Descriptor &cam1, Image_Descriptor &cam2, std::string infile);
@@ -43,7 +43,6 @@ namespace ssrlcv{
     std::string filePath;
     unsigned int colorDepth;
     Unity<unsigned char>* pixels;
-    Unity<bool>* hashMap;//TODO maybe change to real image indices of the pixels?
     Quadtree<unsigned int>* quadtree;//holds indices to pixels, features or matches
 
     Image();

@@ -46,7 +46,7 @@ __device__ __host__ ssrlcv::Image_Descriptor::Image_Descriptor(){
   this->foc = 0;
   this->dpix = 0.0f;
 }
-__device__ __host__ ssrlcv::Image_Descriptor::Image_Descriptor(int id, int2 size){
+__device__ __host__ ssrlcv::Image_Descriptor::Image_Descriptor(int id, uint2 size){
   this->id = id;
   this->size = size;
   this->cam_vec = {0.0f,0.0f,0.0f};
@@ -55,7 +55,7 @@ __device__ __host__ ssrlcv::Image_Descriptor::Image_Descriptor(int id, int2 size
   this->foc = 0;
   this->dpix = 0.0f;
 }
-__device__ __host__ ssrlcv::Image_Descriptor::Image_Descriptor(int id, int2 size, float3 cam_pos, float3 camp_dir){
+__device__ __host__ ssrlcv::Image_Descriptor::Image_Descriptor(int id, uint2 size, float3 cam_pos, float3 camp_dir){
   this->id = id;
   this->size = size;
   this->cam_pos = cam_pos;

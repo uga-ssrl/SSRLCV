@@ -23,7 +23,8 @@ namespace ssrlcv{
   };
 
   //TODO make Quadtree exceptions and add to a namespace
-  //TODO make depth variable
+  //TODO consider allowing quadtrees that are not square
+
 
   /*
   BASE QUADTREE CLASS
@@ -65,8 +66,7 @@ namespace ssrlcv{
       __device__ __host__ Edge();
     };
 
-    uint2 imageSize;
-    unsigned int width;
+    uint2 size;
     uint2 depth;//{min,max}
 
     ssrlcv::Unity<T>* data;
@@ -80,8 +80,11 @@ namespace ssrlcv{
 
     Quadtree();
 
-    //dense full octree
-    Quadtree(uint2 imageSize, ssrlcv::Unity<T>* data);
+    //for full quadtrees only holding data indices
+    //can only be used with Quadtree<unsigned int>()
+    Quadtree(uint2 size);
+
+    Quadtree(uint2 size, ssrlcv::Unity<T>* data);
 
 
     ~Quadtree();
@@ -93,7 +96,7 @@ namespace ssrlcv{
   CUDA KERNEL DEFINITIONS
   */
 
-  __global__ void getKeys(int* keys, float2* nodeCenters, unsigned int width, uint2 imageSize, int depth);
+  __global__ void getKeys(int* keys, float2* nodeCenters, uint2 size, int depth);
 
   template<typename T>
   __global__ void fillLeafNodes(unsigned long numLeafNodes, typename Quadtree<T>::Node* leafNodes,int* keys, float2* nodeCenters, unsigned int* nodeDataIndex);

@@ -51,7 +51,7 @@ namespace ssrlcv{
   __device__ __forceinline__ float getTheta(const float2 &vector);
   __device__ __forceinline__ float getTheta(const float2 &vector, const float &offset);
   __device__ void trickleSwap(const float2 &compareWValue, float2* &arr, int index, const int &length);
-  __device__ __forceinline__ long4 getOrientationContributers(const long2 &loc, const int2 &imageSize);
+  __device__ __forceinline__ long4 getOrientationContributers(const long2 &loc, const uint2 &imageSize);
   __device__ __forceinline__ int floatToOrderedInt(float floatVal);
   __device__ __forceinline__ float orderedIntToFloat(int intVal);
   __device__ __forceinline__ float atomicMinFloat (float * addr, float value);

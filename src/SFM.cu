@@ -63,8 +63,8 @@ int main(int argc, char *argv[]){
     for(int i = 0; i < numImages; ++i){
       images.push_back(ssrlcv::Image(imagePaths[i], i));
       images[i].convertToBW();
-      //features.push_back(featureFactory.generateFeaturesDensly(&images[i]));
-      images[i].pixels->clear();
+      ssrlcv::Quadtree<unsigned int>* quadtree = new ssrlcv::Quadtree<unsigned int>(images[i].descriptor.size);
+      images[i].quadtree = quadtree;
     }
 
     return 0;

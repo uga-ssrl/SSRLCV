@@ -130,7 +130,7 @@ __device__ void ssrlcv::trickleSwap(const float2 &compareWValue, float2* &arr, i
     }
   }
 }
-__device__ __forceinline__ long4 ssrlcv::getOrientationContributers(const long2 &loc, const int2 &imageSize){
+__device__ __forceinline__ long4 ssrlcv::getOrientationContributers(const long2 &loc, const uint2 &imageSize){
   long4 orientationContributers;
   long pixelIndex = loc.y*imageSize.x + loc.x;
   orientationContributers.x = (loc.x == imageSize.x - 1) ? -1 : pixelIndex + 1;

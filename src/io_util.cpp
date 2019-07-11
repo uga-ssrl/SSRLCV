@@ -32,7 +32,7 @@ std::vector<std::string> ssrlcv::findFiles(std::string path){
   return imagePaths;
 }
 
-unsigned char* ssrlcv::getPixelArray(unsigned char** &row_pointers, const int &width, const int &height, const int numValues){
+unsigned char* ssrlcv::getPixelArray(unsigned char** &row_pointers, const unsigned int &width, const unsigned int &height, const int numValues){
   if(numValues == 0){
     std::cout<<"ERROR: png color type not supported in parallel DSIFT"<<std::endl;
     exit(-1);
@@ -51,7 +51,7 @@ unsigned char* ssrlcv::getPixelArray(unsigned char** &row_pointers, const int &w
   return imageMatrix;
 }
 
-unsigned char* ssrlcv::readPNG(const char* filePath, int &height, int &width, unsigned int& colorDepth){
+unsigned char* ssrlcv::readPNG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int& colorDepth){
   /* open file and test for it being a png */
   FILE* fp = fopen(filePath, "rb");
   std::cout<<"READING "<<filePath<<std::endl;
@@ -111,7 +111,7 @@ unsigned char* ssrlcv::readPNG(const char* filePath, int &height, int &width, un
   return getPixelArray(row_pointers, width, height, numChannels);
 }
 
-void ssrlcv::writePNG(const char* filePath, const unsigned char* &image, const int &width, const int &height){
+void ssrlcv::writePNG(const char* filePath, const unsigned char* &image, const unsigned int &width, const unsigned int &height){
 
   /* create file */
   FILE *fp = fopen(filePath, "wb");
