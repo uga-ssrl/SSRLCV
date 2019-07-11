@@ -186,8 +186,7 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
   unsigned int* pointNodeIndex_device;
   CudaSafeCall(cudaMalloc((void**)&pointNodeIndex_device, this->data->numElements*sizeof(unsigned int)));
 
-  for(int d = this->depth.y; d >= this->depth.x; --d){
-    
+  for(int d = this->depth.y; d >= (int)this->depth.x; --d){
 
 
   }
