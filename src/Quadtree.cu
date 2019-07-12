@@ -731,9 +731,9 @@ __global__ void ssrlcv::findVertexOwners(unsigned int numNodesAtDepth, unsigned 
     {0,1,3},
     {1,2,5},
     {3,6,7},
-    {5,8,7}
+    {5,7,8}
   };
-  unsigned int blockID = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockID = blockIdx.y * gridDim.x + blockIdx.x; 
   if(blockID < numNodesAtDepth){
     int vertexID = (blockID*4) + threadIdx.x;
     int sharesVertex = -1;
@@ -758,7 +758,7 @@ typename ssrlcv::Quadtree<T>::Vertex* vertices, int depth, int* ownerInidices, i
     {0,1,3},
     {1,2,5},
     {3,6,7},
-    {5,8,7}
+    {5,7,8}
   };
   int2 coordPlacementIdentity[4] = {
     {-1,-1},
