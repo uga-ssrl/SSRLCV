@@ -128,18 +128,18 @@ namespace ssrlcv{
   __global__ void computeNeighboringNodes(unsigned int numNodesAtDepth, unsigned int currentDepthIndex, unsigned int* parentLUT, unsigned int* childLUT, typename Quadtree<T>::Node* nodes);
 
   template<typename T>
-  __global__ void findVertexOwners(unsigned int numNodesAtDepth, unsigned int depthIndex, typename Quadtree<T>::Node* nodeArray, int* numVertices, int* ownerInidices, int* vertexPlacement);
+  __global__ void findVertexOwners(unsigned int numNodesAtDepth, unsigned int depthIndex, typename Quadtree<T>::Node* nodes, int* numVertices, int* ownerInidices, int* vertexPlacement);
 
   template<typename T>
-  __global__ void fillUniqueVertexArray(unsigned int depthIndex, typename Quadtree<T>::Node* nodeArray, unsigned long numVertices, int vertexIndex,
-  typename Quadtree<T>::Vertex* vertexArray, int depth, int* ownerInidices, int* vertexPlacement);
+  __global__ void fillUniqueVertexArray(unsigned int depthIndex, typename Quadtree<T>::Node* nodes, unsigned long numVertices, int vertexIndex,
+  typename Quadtree<T>::Vertex* vertices, int depth, int* ownerInidices, int* vertexPlacement, uint2 size);
 
   template<typename T>
-  __global__ void findEdgeOwners(unsigned int numNodesAtDepth, unsigned int depthIndex, typename Quadtree<T>::Node* nodeArray, int* numEdges, int* ownerInidices, int* edgePlacement);
+  __global__ void findEdgeOwners(unsigned int numNodesAtDepth, unsigned int depthIndex, typename Quadtree<T>::Node* nodes, int* numEdges, int* ownerInidices, int* edgePlacement);
 
   template<typename T>
-  __global__ void fillUniqueEdgeArray(unsigned int depthIndex, typename Quadtree<T>::Node* nodeArray, unsigned long numEdges, int edgeIndex,
-  typename Quadtree<T>::Edge* edgeArray, int depth, int* ownerInidices, int* edgePlacement);
+  __global__ void fillUniqueEdgeArray(unsigned int depthIndex, typename Quadtree<T>::Node* nodes, unsigned long numEdges, int edgeIndex,
+  typename Quadtree<T>::Edge* edges, int depth, int* ownerInidices, int* edgePlacement);
 
 
 }
