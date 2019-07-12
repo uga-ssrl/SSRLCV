@@ -36,8 +36,6 @@ namespace ssrlcv{
     void generateLeafNodes();
     void generateParentNodes();
     void fillNeighborhoods();
-    void generateVertices();
-    void generateEdges();
 
 
   public:
@@ -89,6 +87,9 @@ namespace ssrlcv{
 
     Quadtree(uint2 size, ssrlcv::Unity<T>* data);
 
+    void generateVertices();
+    void generateEdges();
+    void generateVerticesAndEdges();
 
     ~Quadtree();
 
@@ -98,6 +99,14 @@ namespace ssrlcv{
   /*
   CUDA KERNEL DEFINITIONS
   */
+
+  struct is_not_neg{
+    __host__ __device__
+    bool operator()(const int x)
+    {
+      return (x >= 0);
+    }
+  };
 
   __global__ void getKeys(int* keys, float2* nodeCenters, uint2 size, int depth);
 
@@ -123,8 +132,19 @@ namespace ssrlcv{
 
 
   template<typename T>
-  __global__ void computeNeighboringNodes(unsigned int numNodesAtDepth, unsigned int currentDepthIndex, unsigned int childDepthIndex, unsigned int* parentLUT, unsigned int* childLUT, typename Quadtree<T>::Node* nodes);
+  __global__ void computeNeighboringNodes(unsigned int numNodesAtDepth, unsigned int childDepthIndex, unsigned int* parentLUT, unsigned int* childLUT, typename Quadtree<T>::Node* nodes);
 
+  template<typename T>
+  __global__ void findVertexOwners(unsigned long numNodesAtDepth, int depthIndex, typename Quadtree<T>::Node* nodeArray, int* numVertices, int* ownerInidices, int* vertexPlacement);
+
+  template<typename T>
+  __global__ void fillUniqueVertexArray(typename Quadtree<T>::Node* nodeArray, unsigned long numVertices, int vertexIndex, typename Quadtree<T>::Vertex* vertexArray, int depthIndex, int depth, int* ownerInidices, int* vertexPlacement);
+
+  template<typename T>
+  __global__ void findEdgeOwners(unsigned long numNodesAtDepth, int depthIndex, typename Quadtree<T>::Node* nodeArray, int* numEdges, int* ownerInidices, int* edgePlacement);
+
+  template<typename T>
+  __global__ void fillUniqueEdgeArray(int depthIndex, typename Quadtree<T>::Node* nodeArray, unsigned long numEdges, int edgeIndex, typename Quadtree<T>::Edge* edgeArray, int depth, int* ownerInidices, int* edgePlacement);
 
 
 }
