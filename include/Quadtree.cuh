@@ -24,6 +24,7 @@ namespace ssrlcv{
 
   //TODO make Quadtree exceptions and add to a namespace
   //TODO consider allowing quadtrees that are not square
+  //TODO evaluate use of unsigned int or long for index holders
 
 
   /*
@@ -33,9 +34,10 @@ namespace ssrlcv{
   class Quadtree{
 
     void generateLeafNodes();
-
     void generateParentNodes();
-
+    void fillNeighborhoods();
+    void generateVertices();
+    void generateEdges();
 
 
   public:
@@ -44,7 +46,7 @@ namespace ssrlcv{
       int dataIndex;
       int numElements;
       float2 center;
-      int depth;//maybe remove as its derivable or change to char
+      int depth;//maybe remove as its derivable or change to char | can be used to calc width
       int parent;
       int children[4];
       int neighbors[9];
@@ -74,6 +76,7 @@ namespace ssrlcv{
     ssrlcv::Unity<Vertex>* vertices;
     ssrlcv::Unity<Edge>* edges;
 
+    ssrlcv::Unity<unsigned int>* dataNodeIndex;
     ssrlcv::Unity<unsigned int>* nodeDepthIndex;
     ssrlcv::Unity<unsigned int>* vertexDepthIndex;
     ssrlcv::Unity<unsigned int>* edgeDepthIndex;
@@ -100,6 +103,29 @@ namespace ssrlcv{
 
   template<typename T>
   __global__ void fillLeafNodes(unsigned long numLeafNodes, typename Quadtree<T>::Node* leafNodes,int* keys, float2* nodeCenters, unsigned int* nodeDataIndex);
+
+  template<typename T>
+  __global__ void findAllNodes(unsigned long numUniqueNodes, int* nodeNumbers, typename Quadtree<T>::Node* uniqueNodes);
+
+  template<typename T>
+  __global__ void fillNodesAtDepth(unsigned long numUniqueNodes, int* nodeNumbers, int* nodeAddresses, typename Quadtree<T>::Node* existingNodes,
+    typename Quadtree<T>::Node* allNodes, unsigned int currentDepth, unsigned int totalDepth);
+
+  template<typename T>
+  __global__ void buildParentalNodes(unsigned long numChildNodes, unsigned long childDepthIndex, typename Quadtree<T>::Node* childNodes, typename Quadtree<T>::Node* parentNodes, uint2 width);
+
+  //NOTE this is recursive
+  template<typename T>
+  __global__ void fillParentIndex(unsigned int numRootNodes, typename Quadtree<T>::Node* nodes, long nodeIndex);
+
+  template<typename T>
+  __global__ void fillDataNodeIndex(unsigned long numLeafNodes, typename Quadtree<T>::Node* nodes, unsigned int* dataNodeIndex);
+
+
+  template<typename T>
+  __global__ void computeNeighboringNodes(unsigned int numNodesAtDepth, unsigned int currentDepthIndex, unsigned int childDepthIndex, unsigned int* parentLUT, unsigned int* childLUT, typename Quadtree<T>::Node* nodes);
+
+
 
 }
 

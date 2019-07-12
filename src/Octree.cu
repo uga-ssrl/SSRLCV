@@ -666,7 +666,7 @@ void ssrlcv::Octree::fillNeighborhoods(){
   CudaSafeCall(cudaFree(childLUT_device));
   CudaSafeCall(cudaFree(parentLUT_device));
   if(this->nodes->state == both) this->nodes->transferMemoryTo(cpu);
-};
+}
 void ssrlcv::Octree::computeVertexArray(){
   clock_t cudatimer;
   cudatimer = clock();

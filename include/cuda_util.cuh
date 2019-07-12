@@ -149,6 +149,7 @@ __device__ __forceinline__ unsigned long getGlobalIdx_3D_3D(){
 */
 
 //TODO make grid and block setting max occupancy and add more overloaded methods for various situations
+//currently only supports up to grid.x grid.y
 void getFlatGridBlock(unsigned long size, dim3 &grid, dim3 &block);
 void getGrid(unsigned long size, dim3 &grid);
 __host__ void cusolverCheckError(cusolverStatus_t cusolver_status);
