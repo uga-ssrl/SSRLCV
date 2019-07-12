@@ -22,6 +22,14 @@ u&longlong1,2,3,4
 float1,2,3,4
 double1,2,3,4
 */
+
+struct is_not_neg{
+  __host__ __device__
+  bool operator()(const int x)
+  {
+    return (x >= 0);
+  }
+};
 __device__ __host__ float3 operator+(const float3 &a, const float3 &b);
 __device__ __host__ float3 operator-(const float3 &a, const float3 &b);
 __device__ __host__ float3 operator/(const float3 &a, const float3 &b);

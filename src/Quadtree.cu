@@ -362,8 +362,7 @@ void ssrlcv::Quadtree<T>::generateVertices(){
     prevCount = numVertices;
     vertexDepthIndex_host[i] = numVertices;
 
-    // findVertexOwners<<<grid, block>>>(this->nodes->device, numNodesAtDepth,
-    //   nodeDepthIndex_host[i], vertexLUT_device, atomicCounter, ownerInidices_device, vertexPlacement_device);
+    findVertexOwners<T><<<grid, block>>>(numNodesAtDepth, this->nodeDepthIndex->host[i], this->nodes->device, atomicCounter, ownerInidices_device, vertexPlacement_device);
     CudaCheckError();
     CudaSafeCall(cudaMemcpy(&numVertices, atomicCounter, sizeof(int), cudaMemcpyDeviceToHost));
     if(i == this->depth.y  && numVertices - prevCount != 4){
@@ -394,9 +393,8 @@ void ssrlcv::Quadtree<T>::generateVertices(){
     getGrid(numVertices - prevCount, grid);
 
 
-    // fillUniqueVertexArray<<<grid, block>>>(this->nodes->device, vertexArray2D[i],
-    //   numVertices - prevCount, vertexDepthIndex_host[i], nodeDepthIndex_host[i], this->depth - i,
-    //   this->width, vertexLUT_device, compactedOwnerArray_device, compactedVertexPlacement_device);
+    fillUniqueVertexArray<T><<<grid, block>>>(this->nodeDepthIndex->host[i], this->nodes->device, numVertices - prevCount,
+      vertexDepthIndex_host[i], vertexArray2D[i], this->depth.y - this->depth.x - i, compactedOwnerArray_device, compactedVertexPlacement_device);
     CudaCheckError();
     CudaSafeCall(cudaFree(compactedOwnerArray_device));
     CudaSafeCall(cudaFree(compactedVertexPlacement_device));
@@ -466,8 +464,7 @@ void ssrlcv::Quadtree<T>::generateEdges(){
     prevCount = numEdges;
     edgeDepthIndex_host[i] = numEdges;
 
-    // findEdgeOwners<<<grid, block>>>(this->nodes->device, numNodesAtDepth,
-    //   nodeDepthIndex_host[i], vertexLUT_device, atomicCounter, ownerInidices_device, vertexPlacement_device);
+    findEdgeOwners<T><<<grid, block>>>(numNodesAtDepth, this->nodeDepthIndex->host[i], this->nodes->device, atomicCounter, ownerInidices_device, edgePlacement_device);
     CudaCheckError();
     CudaSafeCall(cudaMemcpy(&numEdges, atomicCounter, sizeof(int), cudaMemcpyDeviceToHost));
     if(i == this->depth.y  && numEdges - prevCount != 4){
@@ -498,9 +495,8 @@ void ssrlcv::Quadtree<T>::generateEdges(){
     getGrid(numEdges - prevCount, grid);
 
 
-    // fillUniqueEdgeArray<<<grid, block>>>(this->nodes->device, vertexArray2D[i],
-    //   numVertices - prevCount, vertexDepthIndex_host[i], nodeDepthIndex_host[i], this->depth - i,
-    //   this->width, vertexLUT_device, compactedOwnerArray_device, compactedVertexPlacement_device);
+    fillUniqueEdgeArray<T><<<grid, block>>>(this->nodeDepthIndex->host[i], this->nodes->device, numEdges - prevCount,
+      edgeDepthIndex_host[i], edgeArray2D[i], this->depth.y - this->depth.x - i, compactedOwnerArray_device, compactedEdgePlacement_device);
     CudaCheckError();
     CudaSafeCall(cudaFree(compactedOwnerArray_device));
     CudaSafeCall(cudaFree(compactedEdgePlacement_device));
@@ -730,23 +726,23 @@ unsigned int* childLUT, typename ssrlcv::Quadtree<T>::Node* nodes){
 }
 
 template<typename T>
-__global__ void ssrlcv::findVertexOwners(unsigned long numNodesAtDepth, int depthIndex, typename ssrlcv::Quadtree<T>::Node* nodeArray, int* numVertices, int* ownerInidices, int* vertexPlacement){
+__global__ void ssrlcv::findVertexOwners(unsigned int numNodesAtDepth, unsigned int depthIndex, typename ssrlcv::Quadtree<T>::Node* nodeArray, int* numVertices, int* ownerInidices, int* vertexPlacement){
 
 }
 
 template<typename T>
-__global__ void ssrlcv::fillUniqueVertexArray(typename ssrlcv::Quadtree<T>::Node* nodeArray, unsigned long numVertices, int vertexIndex,
-typename ssrlcv::Quadtree<T>::Vertex* vertexArray, int depthIndex, int depth, int* ownerInidices, int* vertexPlacement){
+__global__ void ssrlcv::fillUniqueVertexArray(unsigned int depthIndex, typename ssrlcv::Quadtree<T>::Node* nodeArray, unsigned long numVertices, int vertexIndex,
+typename ssrlcv::Quadtree<T>::Vertex* vertexArray, int depth, int* ownerInidices, int* vertexPlacement){
 
 }
 
 template<typename T>
-__global__ void ssrlcv::findEdgeOwners(unsigned long numNodesAtDepth, int depthIndex, typename ssrlcv::Quadtree<T>::Node* nodeArray, int* numEdges, int* ownerInidices, int* edgePlacement){
+__global__ void ssrlcv::findEdgeOwners(unsigned int numNodesAtDepth, unsigned int depthIndex, typename ssrlcv::Quadtree<T>::Node* nodeArray, int* numEdges, int* ownerInidices, int* edgePlacement){
 
 }
 
 template<typename T>
-__global__ void ssrlcv::fillUniqueEdgeArray(int depthIndex, typename ssrlcv::Quadtree<T>::Node* nodeArray, unsigned long numEdges, int edgeIndex,
+__global__ void ssrlcv::fillUniqueEdgeArray(unsigned int depthIndex, typename ssrlcv::Quadtree<T>::Node* nodeArray, unsigned long numEdges, int edgeIndex,
 typename ssrlcv::Quadtree<T>::Edge* edgeArray, int depth, int* ownerInidices, int* edgePlacement){
 
 }
