@@ -91,6 +91,10 @@ namespace ssrlcv{
     void generateEdges();
     void generateVerticesAndEdges();
 
+    void writePLY(Unity<unsigned char>* pixels);
+    void writePLY();
+    void writePLY(Node* nodes_device, unsigned long numNodes);
+
     ~Quadtree();
 
 
@@ -104,7 +108,7 @@ namespace ssrlcv{
   __global__ void getKeys(int* keys, float2* nodeCenters, uint2 size, int depth);
 
   template<typename T>
-  __global__ void fillLeafNodes(unsigned long numLeafNodes, typename Quadtree<T>::Node* leafNodes,int* keys, float2* nodeCenters, unsigned int* nodeDataIndex);
+  __global__ void fillLeafNodes(unsigned long numDataElements, unsigned long numLeafNodes, typename Quadtree<T>::Node* leafNodes,int* keys, float2* nodeCenters, unsigned int* nodeDataIndex);
 
   template<typename T>
   __global__ void findAllNodes(unsigned long numUniqueNodes, int* nodeNumbers, typename Quadtree<T>::Node* uniqueNodes);

@@ -65,6 +65,8 @@ int main(int argc, char *argv[]){
       images[i].convertToBW();
       ssrlcv::Quadtree<unsigned int>* quadtree = new ssrlcv::Quadtree<unsigned int>(images[i].descriptor.size);
       images[i].quadtree = quadtree;
+      images[i].quadtree->writePLY(images[i].pixels);
+      exit(0);
     }
 
     return 0;

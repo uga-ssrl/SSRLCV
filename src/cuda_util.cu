@@ -20,6 +20,20 @@ u&longlong1,2,3,4
 float1,2,3,4
 double1,2,3,4
 */
+__device__ __host__ void printBits(size_t const size, void const * const ptr){
+  unsigned char *b = (unsigned char*) ptr;
+  unsigned char byte;
+  int i, j;
+  printf("bits - ");
+  for (i=size-1;i>=0;i--){
+    for (j=7;j>=0;j--){
+      byte = (b[i] >> j) & 1;
+      printf("%u", byte);
+    }
+  }
+  printf("\n");
+}
+
 __device__ __host__ float3 operator+(const float3 &a, const float3 &b) {
   return {a.x+b.x, a.y+b.y, a.z+b.z};
 }

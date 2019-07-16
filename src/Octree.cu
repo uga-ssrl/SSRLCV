@@ -1982,19 +1982,7 @@ __device__ __forceinline__ int ssrlcv::floatToOrderedInt(float floatVal){
 __device__ __forceinline__ float ssrlcv::orderedIntToFloat(int intVal){
  return __int_as_float( (intVal >= 0) ? intVal : intVal ^ 0x7FFFFFFF);
 }
-__device__ __host__ void ssrlcv::printBits(size_t const size, void const * const ptr){
-  unsigned char *b = (unsigned char*) ptr;
-  unsigned char byte;
-  int i, j;
-  printf("bits - ");
-  for (i=size-1;i>=0;i--){
-    for (j=7;j>=0;j--){
-      byte = (b[i] >> j) & 1;
-      printf("%u", byte);
-    }
-  }
-  printf("\n");
-}
+
 __global__ void ssrlcv::getNodeKeys(float3* points, float3* nodeCenters, int* nodeKeys, float3 c, float W, int numPoints, int D){
   int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   if(globalID < numPoints){
