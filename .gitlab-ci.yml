@@ -20,3 +20,12 @@
 #   script:
 #     - bash util/CI/unit_test01.sh
 #     - bash util/CI/unit_test02.sh
+
+stages:
+  - build
+
+compile:
+  stage: build
+  script:
+    - make -j4
+    - echo "Build successful"
