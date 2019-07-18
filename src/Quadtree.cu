@@ -113,7 +113,7 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(int2 border){
   CudaSafeCall(cudaMalloc((void**)&leafNodeCenters_device, numLeafNodes*sizeof(float2)));
   dim3 grid = {(numLeafNodes/1024) + 1,1,1};
   dim3 block = {1024,1,1};
-  getKeys<<<grid,block>>>(leafNodeKeys_device, leafNodeCenters_device, this->size, border, this->depth);
+  getKeys<<<grid,block>>>(leafNodeKeys_device, leafNodeCenters_device, this->size, border, this->depth.y);
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -680,21 +680,20 @@ void ssrlcv::Quadtree<T>::writePLY(float2* points_device, unsigned long numPoint
 CUDA implementations
 */
 //NOTE: THIS SHOULD ONLY BE USED FOR DENSE POINTER QUADTREE
-__global__ void ssrlcv::getKeys(int* keys, float2* nodeCenters, uint2 size, int2 border, uint2 depth){
+__global__ void ssrlcv::getKeys(int* keys, float2* nodeCenters, uint2 size, int2 border, unsigned int depth){
   int globalID = blockIdx.x *blockDim.x + threadIdx.x;
   if(globalID < (size.x - (border.x*2))*(size.y - (border.y*2))){
     float x = ((float)((globalID%(size.x - (border.x*2))) + border.x)) + 0.5f;
     float y = ((float)((globalID/(size.x - (border.x*2))) + border.y)) + 0.5f;
     int key = 0;
-    uint2 depth_reg = depth;
+    unsigned int depth_reg = depth;
     int currentDepth = 1;
     float2 reg_size = {((float)size.x)/2.0f, ((float)size.y)/2.0f};
     float2 center = reg_size;
-    while(depth_reg.y >= currentDepth){
+    while(depth_reg >= currentDepth){
       reg_size.x /= 2.0f;
       reg_size.y /= 2.0f;
       currentDepth++;
-      if(currentDepth <= depth_reg.x) continue;
       if(x < center.x){
         key <<= 1;
         center.x -= reg_size.x;
@@ -716,20 +715,19 @@ __global__ void ssrlcv::getKeys(int* keys, float2* nodeCenters, uint2 size, int2
     nodeCenters[globalID] = center;
   }
 }
-__global__ void ssrlcv::getKeys(unsigned int numPoints, float2* points, int* keys, float2* nodeCenters, uint2 size, uint2 depth){
+__global__ void ssrlcv::getKeys(unsigned int numPoints, float2* points, int* keys, float2* nodeCenters, uint2 size, unsigned int depth){
   int globalID = blockIdx.x*blockDim.x + threadIdx.x;
   if(globalID < numPoints){
     float2 point = points[globalID];
     int key = 0;
-    uint2 depth_reg = depth;
+    unsigned int depth_reg = depth;
     int currentDepth = 1;
     float2 reg_size = {((float)size.x)/2.0f, ((float)size.y)/2.0f};
     float2 center = reg_size;
-    while(depth_reg.y >= currentDepth){
+    while(depth_reg >= currentDepth){
       reg_size.x /= 2.0f;
       reg_size.y /= 2.0f;
       currentDepth++;
-      if(currentDepth <= depth_reg.x) continue;
       if(point.x < center.x){
         key <<= 1;
         center.x -= reg_size.x;
@@ -751,20 +749,19 @@ __global__ void ssrlcv::getKeys(unsigned int numPoints, float2* points, int* key
     nodeCenters[globalID] = center;
   }
 }
-__global__ void ssrlcv::getKeys(unsigned int numLocalizedPointers, ssrlcv::LocalizedData<unsigned int>* localizedPointers, int* keys, float2* nodeCenters, uint2 size, uint2 depth){
+__global__ void ssrlcv::getKeys(unsigned int numLocalizedPointers, ssrlcv::LocalizedData<unsigned int>* localizedPointers, int* keys, float2* nodeCenters, uint2 size, unsigned int depth){
   int globalID = blockIdx.x*blockDim.x + threadIdx.x;
   if(globalID < numLocalizedPointers){
     float2 point = localizedPointers[globalID].loc;
     int key = 0;
-    uint2 depth_reg = depth;
+    unsigned int depth_reg = depth;
     int currentDepth = 1;
     float2 reg_size = {((float)size.x)/2.0f, ((float)size.y)/2.0f};
     float2 center = reg_size;
-    while(depth_reg.y >= currentDepth){
+    while(depth_reg >= currentDepth){
       reg_size.x /= 2.0f;
       reg_size.y /= 2.0f;
       currentDepth++;
-      if(currentDepth <= depth_reg.x) continue;
       if(point.x < center.x){
         key <<= 1;
         center.x -= reg_size.x;

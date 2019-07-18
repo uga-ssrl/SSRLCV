@@ -74,9 +74,7 @@ int main(int argc, char *argv[]){
         depth.y = (unsigned int)floor(log2((float)images[i].descriptor.size.y));
       }
       depth.x = (depth.y <= 4) ? 0 : 4;
-      partialTimer = clock();
       quadtree = new ssrlcv::Quadtree<unsigned int>(images[i].descriptor.size,depth,border);
-      printf("quadtree took %f seconds.\n\n", ((float) clock() - partialTimer)/CLOCKS_PER_SEC);
       images[i].quadtree = quadtree;
     }
 

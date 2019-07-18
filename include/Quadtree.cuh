@@ -106,9 +106,9 @@ namespace ssrlcv{
   */
 
 
-  __global__ void getKeys(int* keys, float2* nodeCenters, uint2 size, int2 border, uint2 depth);
-  __global__ void getKeys(unsigned int numPoints, float2* points, int* keys, float2* nodeCenters, uint2 size, uint2 depth);
-  __global__ void getKeys(unsigned int numLocalizedPointers, ssrlcv::LocalizedData<unsigned int>* localizedPointers, int* keys, float2* nodeCenters, uint2 size, uint2 depth);
+  __global__ void getKeys(int* keys, float2* nodeCenters, uint2 size, int2 border, unsigned int depth);
+  __global__ void getKeys(unsigned int numPoints, float2* points, int* keys, float2* nodeCenters, uint2 size, unsigned int depth);
+  __global__ void getKeys(unsigned int numLocalizedPointers, ssrlcv::LocalizedData<unsigned int>* localizedPointers, int* keys, float2* nodeCenters, uint2 size, unsigned int depth);
 
   template<typename T>
   __global__ void fillLeafNodes(unsigned long numDataElements, unsigned long numLeafNodes, typename Quadtree<T>::Node* leafNodes,int* keys, float2* nodeCenters, unsigned int* nodeDataIndex);
