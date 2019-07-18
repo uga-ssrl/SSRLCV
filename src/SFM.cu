@@ -60,15 +60,24 @@ int main(int argc, char *argv[]){
     ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory();
     std::vector<ssrlcv::Image> images;
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> features;
-    int2 border = {100,100};
+    int2 border = {0,0};
+    uint2 depth = {0,0};
     for(int i = 0; i < numImages; ++i){
       images.push_back(ssrlcv::Image(imagePaths[i], i));
       images[i].convertToBW();
+      //should put quadtree generation in image.cu
       ssrlcv::Quadtree<unsigned int>* quadtree = nullptr;
-      quadtree = new ssrlcv::Quadtree<unsigned int>(images[i].descriptor.size,border);
+      if(images[i].descriptor.size.x > images[i].descriptor.size.y){
+        depth.y = (unsigned int)floor(log2((float)images[i].descriptor.size.x));
+      }
+      else{
+        depth.y = (unsigned int)floor(log2((float)images[i].descriptor.size.y));
+      }
+      depth.x = (depth.y <= 4) ? 0 : 4;
+      partialTimer = clock();
+      quadtree = new ssrlcv::Quadtree<unsigned int>(images[i].descriptor.size,depth,border);
+      printf("quadtree took %f seconds.\n\n", ((float) clock() - partialTimer)/CLOCKS_PER_SEC);
       images[i].quadtree = quadtree;
-      images[i].quadtree->writePLY(images[i].pixels);
-      exit(0);
     }
 
     return 0;

@@ -83,8 +83,8 @@ namespace ssrlcv{
 
     //for full quadtrees only holding data indices
     //can only be used with Quadtree<unsigned int>()
-    Quadtree(uint2 size, int2 border = {0,0}, uint2 depth = {0,0});
-    Quadtree(uint2 size, ssrlcv::Unity<T>* data, int2 border = {0,0}, uint2 depth = {0,0});
+    Quadtree(uint2 size, uint2 depth, int2 border = {0,0});
+    Quadtree(uint2 size, uint2 depth, ssrlcv::Unity<T>* data, int2 border = {0,0});
 
     //generally not necessary and takes up a lot of memory - useful for testing small scale
     void generateVertices();

@@ -55,9 +55,10 @@ ssrlcv::Quadtree<T>::Quadtree(){
   this->size = {0,0};
 }
 
-//specifically for index full quadtree mainly for testing
+//TODO throw error if depth.x is greater than depth.y
+//specifically for index full quadtree
 template<>
-ssrlcv::Quadtree<unsigned int>::Quadtree(uint2 size, int2 border, uint2 depth){
+ssrlcv::Quadtree<unsigned int>::Quadtree(uint2 size, uint2 depth, int2 border){
   this->nodes = nullptr;
   this->edges = nullptr;
   this->vertices = nullptr;
@@ -67,30 +68,20 @@ ssrlcv::Quadtree<unsigned int>::Quadtree(uint2 size, int2 border, uint2 depth){
   }
   this->data = new Unity<unsigned int>(data_host, size.x*size.y, cpu);
   this->size = {size.x + (border.x*2),size.y + (border.y*2)};
-  if(depth.x == 0 && depth.y == 0){
-    float fullDepth = 0.0f;
-    fullDepth = (this->size.x > this->size.y) ? this->size.x : this->size.y;
-    this->depth = {0, (unsigned int)floor(log2(fullDepth))};
-  }
-  else this->depth = depth;
+  this->depth = depth;
   printf("Building Quadtree with depth = {%d,%d}\n",this->depth.x,this->depth.y);
   this->generateLeafNodes(border);
   this->generateParentNodes();
   this->fillNeighborhoods();
 }
 template<typename T>
-ssrlcv::Quadtree<T>::Quadtree(uint2 size, ssrlcv::Unity<T>* data, int2 border, uint2 depth){
+ssrlcv::Quadtree<T>::Quadtree(uint2 size, uint2 depth, ssrlcv::Unity<T>* data, int2 border){
   this->nodes = nullptr;
   this->edges = nullptr;
   this->vertices = nullptr;
   this->data = data;
   this->size = {size.x + (border.x*2),size.y + (border.y*2)};
-  if(depth.x == 0 && depth.y == 0){
-    float fullDepth = 0.0f;
-    fullDepth = (this->size.x > this->size.y) ? this->size.x : this->size.y;
-    this->depth = {0, (unsigned int)floor(log2(fullDepth))};
-  }
-  else this->depth = depth;
+  this->depth = depth;
   printf("Building Quadtree with depth = {%d,%d}\n",this->depth.x,this->depth.y);
   this->generateLeafNodes(border);
   this->generateParentNodes();
@@ -222,9 +213,9 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
     CudaSafeCall(cudaMemcpy(&numNodesAtDepth, nodeAddresses_device + (numUniqueNodes - 1), sizeof(unsigned int), cudaMemcpyDeviceToHost));
     numNodesAtDepth = (d > 0) ? numNodesAtDepth + 4: 1;
 
-    CudaSafeCall(cudaMalloc((void**)&nodes2D[this->depth.y - this->depth.x - d], numNodesAtDepth*sizeof(Node)));
+    CudaSafeCall(cudaMalloc((void**)&nodes2D[this->depth.y - d], numNodesAtDepth*sizeof(Node)));
 
-    fillNodesAtDepth<T><<<grid,block>>>(numUniqueNodes, nodeNumbers_device, nodeAddresses_device, uniqueNodes_device, nodes2D[this->depth.y - this->depth.x - d], d, this->depth.y);
+    fillNodesAtDepth<T><<<grid,block>>>(numUniqueNodes, nodeNumbers_device, nodeAddresses_device, uniqueNodes_device, nodes2D[this->depth.y - d], d, this->depth.y);
     cudaDeviceSynchronize();
     CudaCheckError();
     CudaSafeCall(cudaFree(uniqueNodes_device));
@@ -232,15 +223,14 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
     CudaSafeCall(cudaFree(nodeNumbers_device));
 
     numUniqueNodes = numNodesAtDepth / 4;
-
     if(d != (int)this->depth.x){
       CudaSafeCall(cudaMalloc((void**)&uniqueNodes_device, numUniqueNodes*sizeof(Node)));
       getFlatGridBlock(numUniqueNodes, grid, block);
-      buildParentalNodes<T><<<grid,block>>>(numNodesAtDepth,totalNodes,nodes2D[this->depth.y - this->depth.x - d],uniqueNodes_device,this->size);
+      buildParentalNodes<T><<<grid,block>>>(numNodesAtDepth,totalNodes,nodes2D[this->depth.y - d],uniqueNodes_device,this->size);
       cudaDeviceSynchronize();
       CudaCheckError();
     }
-    this->nodeDepthIndex->host[this->depth.y - this->depth.x - d] = totalNodes;
+    this->nodeDepthIndex->host[this->depth.y - d] = totalNodes;
     totalNodes += numNodesAtDepth;
   }
   unsigned int numRootNodes = totalNodes - this->nodeDepthIndex->host[this->depth.y - this->depth.x];
@@ -248,7 +238,7 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
   CudaSafeCall(cudaMalloc((void**)&nodes_device,totalNodes*sizeof(Node)));
   this->nodes = new Unity<Node>(nodes_device, totalNodes, gpu);
   for(int i = 0; i <= this->depth.y - this->depth.x; ++i){
-    if(i < this->depth.y){
+    if(i < this->depth.y - this->depth.x){
       CudaSafeCall(cudaMemcpy(this->nodes->device + this->nodeDepthIndex->host[i], nodes2D[i],
         (this->nodeDepthIndex->host[i+1]-this->nodeDepthIndex->host[i])*sizeof(Node), cudaMemcpyDeviceToDevice));
     }
