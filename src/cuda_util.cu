@@ -170,6 +170,46 @@ __device__ __host__ float2 operator-(const int2 &a, const float &b){
   return {((float)a.x) - b, ((float)a.y) - b};
 }
 
+__device__ __host__ uint2 operator+(const uint2 &a, const uint2 &b){
+  return {a.x + b.x, a.y + b.y};
+}
+__device__ __host__ uint2 operator-(const uint2 &a, const uint2 &b){
+  return {a.x - b.x, a.y - b.y};
+}
+__device__ __host__ uint2 operator*(const uint2 &a, const uint2 &b){
+  return {a.x * b.x, a.y * b.y};
+}
+__device__ __host__ uint2 operator/(const uint2 &a, const uint2 &b){
+  return {a.x / b.x, a.y / b.y};
+}
+__device__ __host__ int2 operator+(const int2 &a, const uint2 &b){
+  return {a.x + b.x, a.y + b.y};
+}
+__device__ __host__ int2 operator-(const int2 &a, const uint2 &b){
+  return {a.x - b.x, a.y - b.y};
+}
+__device__ __host__ int2 operator*(const int2 &a, const uint2 &b){
+  return {a.x * b.x, a.y * b.y};
+}
+__device__ __host__ int2 operator/(const int2 &a, const uint2 &b){
+  return {a.x / b.x, a.y / b.y};
+}
+__device__ __host__ int2 operator+(const uint2 &a, const int2 &b){
+  return {a.x + b.x, a.y + b.y};
+}
+__device__ __host__ int2 operator-(const uint2 &a, const int2 &b){
+  return {a.x - b.x, a.y - b.y};
+}
+__device__ __host__ int2 operator*(const uint2 &a, const int2 &b){
+  return {a.x * b.x, a.y * b.y};
+}
+__device__ __host__ int2 operator/(const uint2 &a, const int2 &b){
+  return {a.x / b.x, a.y / b.y};
+}
+
+
+
+
 
 __device__ __host__ ulong2 operator+(const ulong2 &a, const int2 &b){
   return {a.x + (unsigned long)b.x, a.y + (unsigned long)b.y};

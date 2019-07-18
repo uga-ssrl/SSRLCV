@@ -33,7 +33,7 @@ namespace ssrlcv{
   template<typename T>
   class Quadtree{
 
-    void generateLeafNodes();
+    void generateLeafNodes(int2 border = {0,0});
     void generateParentNodes();
     void fillNeighborhoods();
 
@@ -83,10 +83,10 @@ namespace ssrlcv{
 
     //for full quadtrees only holding data indices
     //can only be used with Quadtree<unsigned int>()
-    Quadtree(uint2 size);
+    Quadtree(uint2 size, int2 border = {0,0}, uint2 depth = {0,0});
+    Quadtree(uint2 size, ssrlcv::Unity<T>* data, int2 border = {0,0}, uint2 depth = {0,0});
 
-    Quadtree(uint2 size, ssrlcv::Unity<T>* data);
-
+    //generally not necessary and takes up a lot of memory - useful for testing small scale
     void generateVertices();
     void generateEdges();
     void generateVerticesAndEdges();
@@ -94,6 +94,7 @@ namespace ssrlcv{
     void writePLY(Unity<unsigned char>* pixels);
     void writePLY();
     void writePLY(Node* nodes_device, unsigned long numNodes);
+    void writePLY(float2* points_device, unsigned long numPoints);
 
     ~Quadtree();
 
@@ -105,7 +106,9 @@ namespace ssrlcv{
   */
 
 
-  __global__ void getKeys(int* keys, float2* nodeCenters, uint2 size, int depth);
+  __global__ void getKeys(int* keys, float2* nodeCenters, uint2 size, int2 border, uint2 depth);
+  __global__ void getKeys(unsigned int numPoints, float2* points, int* keys, float2* nodeCenters, uint2 size, uint2 depth);
+  __global__ void getKeys(unsigned int numLocalizedPointers, ssrlcv::LocalizedData<unsigned int>* localizedPointers, int* keys, float2* nodeCenters, uint2 size, uint2 depth);
 
   template<typename T>
   __global__ void fillLeafNodes(unsigned long numDataElements, unsigned long numLeafNodes, typename Quadtree<T>::Node* leafNodes,int* keys, float2* nodeCenters, unsigned int* nodeDataIndex);

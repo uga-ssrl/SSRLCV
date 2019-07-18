@@ -77,6 +77,19 @@ __device__ __host__ int2 operator*(const int2 &a, const int2 &b);
 __device__ __host__ int dotProduct(const int2 &a, const int2 &b);
 __device__ __host__ float2 operator/(const int2 &a, const float &b);
 
+__device__ __host__ uint2 operator+(const uint2 &a, const uint2 &b);
+__device__ __host__ uint2 operator-(const uint2 &a, const uint2 &b);
+__device__ __host__ uint2 operator*(const uint2 &a, const uint2 &b);
+__device__ __host__ uint2 operator/(const uint2 &a, const uint2 &b);
+__device__ __host__ int2 operator+(const int2 &a, const uint2 &b);
+__device__ __host__ int2 operator-(const int2 &a, const uint2 &b);
+__device__ __host__ int2 operator*(const int2 &a, const uint2 &b);
+__device__ __host__ int2 operator/(const int2 &a, const uint2 &b);
+__device__ __host__ int2 operator+(const uint2 &a, const int2 &b);
+__device__ __host__ int2 operator-(const uint2 &a, const int2 &b);
+__device__ __host__ int2 operator*(const uint2 &a, const int2 &b);
+__device__ __host__ int2 operator/(const uint2 &a, const int2 &b);
+
 __device__ __host__ float2 operator+(const int2 &a, const float &b);
 __device__ __host__ float2 operator-(const int2 &a, const float &b);
 __device__ __host__ float2 operator/(const float2 &a, const float &b);

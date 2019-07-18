@@ -60,10 +60,13 @@ int main(int argc, char *argv[]){
     ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory();
     std::vector<ssrlcv::Image> images;
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> features;
+    int2 border = {100,100};
     for(int i = 0; i < numImages; ++i){
       images.push_back(ssrlcv::Image(imagePaths[i], i));
       images[i].convertToBW();
-      ssrlcv::Quadtree<unsigned int>* quadtree = new ssrlcv::Quadtree<unsigned int>(images[i].descriptor.size);
+      ssrlcv::Quadtree<unsigned int>* quadtree = nullptr;
+      quadtree = new ssrlcv::Quadtree<unsigned int>(images[i].descriptor.size,border);
+      quadtree->generateVerticesAndEdges();
       images[i].quadtree = quadtree;
       images[i].quadtree->writePLY(images[i].pixels);
       exit(0);
