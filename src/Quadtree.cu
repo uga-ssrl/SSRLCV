@@ -61,18 +61,18 @@ ssrlcv::Quadtree<unsigned int>::Quadtree(uint2 size, int2 border, uint2 depth){
   this->nodes = nullptr;
   this->edges = nullptr;
   this->vertices = nullptr;
-  this->size = {size.x + border.x,size.y + border.y};
+  unsigned int* data_host = new unsigned int[size.x*size.y];
+  for(int i = 0; i < size.x*size.y; ++i){
+    data_host[i] = i;
+  }
+  this->data = new Unity<unsigned int>(data_host, size.x*size.y, cpu);
+  this->size = {size.x + (border.x*2),size.y + (border.y*2)};
   if(depth.x == 0 && depth.y == 0){
     float fullDepth = 0.0f;
     fullDepth = (this->size.x > this->size.y) ? this->size.x : this->size.y;
     this->depth = {0, (unsigned int)floor(log2(fullDepth))};
   }
   else this->depth = depth;
-  unsigned int* data_host = new unsigned int[this->size.x*this->size.y];
-  for(int i = 0; i < this->size.x*this->size.y; ++i){
-    data_host[i] = i;
-  }
-  this->data = new Unity<unsigned int>(data_host, this->size.x*this->size.y, cpu);
   printf("Building Quadtree with depth = {%d,%d}\n",this->depth.x,this->depth.y);
   this->generateLeafNodes(border);
   this->generateParentNodes();
@@ -84,7 +84,7 @@ ssrlcv::Quadtree<T>::Quadtree(uint2 size, ssrlcv::Unity<T>* data, int2 border, u
   this->edges = nullptr;
   this->vertices = nullptr;
   this->data = data;
-  this->size = {size.x + border.x,size.y + border.y};
+  this->size = {size.x + (border.x*2),size.y + (border.y*2)};
   if(depth.x == 0 && depth.y == 0){
     float fullDepth = 0.0f;
     fullDepth = (this->size.x > this->size.y) ? this->size.x : this->size.y;
@@ -568,11 +568,10 @@ void ssrlcv::Quadtree<T>::writePLY(){
 
 template<>
 void ssrlcv::Quadtree<unsigned int>::writePLY(ssrlcv::Unity<unsigned char>* pixels){
-  cudaDeviceSynchronize();
   std::string newFile = "out/test_"+ std::to_string(rand())+ ".ply";
   std::ofstream plystream(newFile);
   if (plystream.is_open()) {
-    int verticesToWrite = this->nodeDepthIndex->host[1];
+    int verticesToWrite = this->nodes->numElements;
     this->nodes->transferMemoryTo(cpu);
     pixels->transferMemoryTo(cpu);
     this->data->transferMemoryTo(cpu);
@@ -599,14 +598,16 @@ void ssrlcv::Quadtree<unsigned int>::writePLY(ssrlcv::Unity<unsigned char>* pixe
         }
         for(int c = index; c < index + this->nodes->host[i].numElements; ++c){
           color += (int) pixels->host[c];
-          ++numNodes;
+          numNodes++;
         }
         if(numNodes > 1) color /= numNodes;
       }
       stringBuffer << color;
-      stringBuffer << " 0 0\n";
+      stringBuffer << " 0 0";
+      stringBuffer << "\n";
       plystream << stringBuffer.str();
     }
+
     std::cout<<newFile + " has been created.\n"<<std::endl;
   }
   else{
@@ -691,9 +692,9 @@ CUDA implementations
 //NOTE: THIS SHOULD ONLY BE USED FOR DENSE POINTER QUADTREE
 __global__ void ssrlcv::getKeys(int* keys, float2* nodeCenters, uint2 size, int2 border, uint2 depth){
   int globalID = blockIdx.x *blockDim.x + threadIdx.x;
-  if(globalID < (size.x - border.x)*(size.y - border.y)){
-    float x = ((float)((globalID%(size.x - border.x)) + border.x)) + 0.5f;
-    float y = ((float)((globalID/(size.x - border.x)) + border.y)) + 0.5f;
+  if(globalID < (size.x - (border.x*2))*(size.y - (border.y*2))){
+    float x = ((float)((globalID%(size.x - (border.x*2))) + border.x)) + 0.5f;
+    float y = ((float)((globalID/(size.x - (border.x*2))) + border.y)) + 0.5f;
     int key = 0;
     uint2 depth_reg = depth;
     int currentDepth = 1;
