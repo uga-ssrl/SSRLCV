@@ -13,6 +13,8 @@ template class ssrlcv::Quadtree<float2>;
 //for pointers to external data - must be flattened row wise and will be dense (dataIndex = y*dimX + x)
 //also requires size of container x,y
 template class ssrlcv::Quadtree<unsigned int>;
+//just image tree
+template class ssrlcv::Quadtree<unsigned char>;
 //for Localized Pointers to external data
 template class ssrlcv::Quadtree<ssrlcv::LocalizedData<unsigned int>>;
 
@@ -28,6 +30,7 @@ __device__ __host__ ssrlcv::Quadtree<T>::Node::Node(){
   this->center = {-1,-1};
   this->depth = -1;
   this->parent = -1;
+  this->flag = false;
   for(int i = 0; i < 4; ++i) this->children[i] = -1;
   for(int i = 0; i < 9; ++i) this->neighbors[i] = -1;
   for(int i = 0; i < 4; ++i) this->edges[i] = -1;
@@ -53,6 +56,7 @@ ssrlcv::Quadtree<T>::Quadtree(){
   this->edges = nullptr;
   this->vertices = nullptr;
   this->size = {0,0};
+  this->border = {0,0};
 }
 
 //TODO throw error if depth.x is greater than depth.y
@@ -67,42 +71,48 @@ ssrlcv::Quadtree<unsigned int>::Quadtree(uint2 size, uint2 depth, int2 border){
     data_host[i] = i;
   }
   this->data = new Unity<unsigned int>(data_host, size.x*size.y, cpu);
+  this->border = border;
   this->size = {size.x + (border.x*2),size.y + (border.y*2)};
   this->depth = depth;
   printf("Building Quadtree with depth = {%d,%d}\n",this->depth.x,this->depth.y);
-  this->generateLeafNodes(border);
+  this->generateLeafNodes();
   this->generateParentNodes();
   this->fillNeighborhoods();
 }
 template<typename T>
-ssrlcv::Quadtree<T>::Quadtree(uint2 size, uint2 depth, ssrlcv::Unity<T>* data, int2 border){
+ssrlcv::Quadtree<T>::Quadtree(uint2 size, uint2 depth, ssrlcv::Unity<T>* data, unsigned int colorDepth, int2 border){
   this->nodes = nullptr;
   this->edges = nullptr;
   this->vertices = nullptr;
   this->data = data;
+  this->colorDepth = colorDepth;
+  this->border = border;
   this->size = {size.x + (border.x*2),size.y + (border.y*2)};
   this->depth = depth;
   printf("Building Quadtree with depth = {%d,%d}\n",this->depth.x,this->depth.y);
-  this->generateLeafNodes(border);
+  this->generateLeafNodes();
   this->generateParentNodes();
   this->fillNeighborhoods();
 }
+
 template<typename T>
 ssrlcv::Quadtree<T>::~Quadtree(){
   if(this->nodes != nullptr) delete this->nodes;
   if(this->vertices != nullptr) delete this->vertices;
   if(this->edges != nullptr) delete this->edges;
-  if(this->data != nullptr) delete this->data;
+  //if(this->data != nullptr) delete this->data;
+  //this is removed due to pointer being shared by image(owner)
   if(this->nodeDepthIndex != nullptr) delete this->nodeDepthIndex;
   if(this->vertexDepthIndex != nullptr) delete this->vertexDepthIndex;
   if(this->edgeDepthIndex != nullptr) delete this->edgeDepthIndex;
+  if(this->dataNodeIndex != nullptr) delete this->dataNodeIndex;
 }
 
 
 //TODO ensure numLeafNodes cant go over max int (conditional usage of gridDim.y)
 //check if log2 will work
 template<typename T>
-void ssrlcv::Quadtree<T>::generateLeafNodes(int2 border){
+void ssrlcv::Quadtree<T>::generateLeafNodes(){
   int* leafNodeKeys_device = nullptr;
   float2* leafNodeCenters_device = nullptr;
   unsigned int* nodeDataIndex_device = nullptr;
@@ -111,11 +121,23 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(int2 border){
   numLeafNodes = this->data->numElements;
   CudaSafeCall(cudaMalloc((void**)&leafNodeKeys_device, numLeafNodes*sizeof(int)));
   CudaSafeCall(cudaMalloc((void**)&leafNodeCenters_device, numLeafNodes*sizeof(float2)));
-  dim3 grid = {(numLeafNodes/1024) + 1,1,1};
-  dim3 block = {1024,1,1};
-  getKeys<<<grid,block>>>(leafNodeKeys_device, leafNodeCenters_device, this->size, border, this->depth.y);
-  cudaDeviceSynchronize();
-  CudaCheckError();
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  if(this->colorDepth != 0){
+    getGrid(numLeafNodes/this->colorDepth,grid);
+    block = {this->colorDepth,1,1};
+    getKeys<<<grid,block>>>(leafNodeKeys_device, leafNodeCenters_device, this->size, this->border, this->depth.y, this->colorDepth);
+    cudaDeviceSynchronize();
+    CudaCheckError();
+  }
+  else{
+    grid = {(numLeafNodes/1024) + 1,1,1};
+    block = {1024,1,1};
+    getKeys<<<grid,block>>>(leafNodeKeys_device, leafNodeCenters_device, this->size, this->border, this->depth.y);
+    cudaDeviceSynchronize();
+    CudaCheckError();
+  }
+
 
   thrust::counting_iterator<unsigned int> iter(0);
   thrust::device_vector<unsigned int> indices(this->data->numElements);
@@ -166,6 +188,7 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(int2 border){
   CudaSafeCall(cudaFree(leafNodeCenters_device));
   CudaSafeCall(cudaFree(nodeDataIndex_device));
 }
+
 
 template<typename T>
 void ssrlcv::Quadtree<T>::generateParentNodes(){
@@ -523,6 +546,68 @@ void ssrlcv::Quadtree<T>::generateVerticesAndEdges(){
   this->generateEdges();
 }
 
+template<typename T>
+void ssrlcv::Quadtree<T>::setNodeFlags(ssrlcv::Unity<bool>* hashMap, uint2 depthRange){
+  if(hashMap == nullptr || hashMap->state == null){
+    throw NullUnityException("hashMap must be filled before setFlags is called");
+  }
+  if(!(depthRange.x == 0 && depthRange.y == 0) && (depthRange.x > depthRange.y || depthRange.x > this->depth.y ||
+    depthRange.x < this->depth.x || this->depth.y > depthRange.y ||
+    this->depth.y < depthRange.x)){
+    std::cout<<"ERROR: invalid depthRange in setFlags"<<std::endl;
+    exit(-1);
+  }
+  MemoryState origin[3] = {hashMap->state,this->nodes->state,this->nodeDepthIndex->state};
+  if(hashMap->fore != gpu) hashMap->transferMemoryTo(gpu);
+  if(this->nodes->fore != gpu) this->nodes->transferMemoryTo(gpu);
+  if(this->nodeDepthIndex->fore != cpu) this->nodeDepthIndex->transferMemoryTo(cpu);
+
+  unsigned int nodeDepthIndex = (depthRange.y == 0) ? this->nodeDepthIndex->host[0] : this->nodeDepthIndex->host[this->depth.y - this->depth.x - depthRange.y];
+  unsigned int numNodes = this->nodeDepthIndex->host[this->depth.y - this->depth.x - depthRange.x] - nodeDepthIndex;
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(numNodes, grid, block);
+
+  applyNodeFlags<T><<<grid,block>>>(numNodes,nodeDepthIndex,this->nodes->device,hashMap->device);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  hashMap->transferMemoryTo(origin[0]);
+  if(origin[0] == cpu) hashMap->clear(gpu);
+  this->nodes->transferMemoryTo(origin[1]);
+  if(origin[1] == cpu) this->nodes->clear(gpu);
+  this->nodeDepthIndex->transferMemoryTo(origin[2]);
+  if(origin[2] == gpu) this->nodeDepthIndex->clear(cpu);
+}
+template<typename T>
+void ssrlcv::Quadtree<T>::setNodeFlags(float2 flagBorder, uint2 depthRange){
+  if(!(depthRange.x == 0 && depthRange.y == 0) && (depthRange.x > depthRange.y || depthRange.x > this->depth.y ||
+    depthRange.x < this->depth.x || this->depth.y > depthRange.y ||
+    this->depth.y < depthRange.x)){
+    std::cout<<"ERROR: invalid depthRange in setFlags"<<std::endl;
+    exit(-1);
+  }
+  MemoryState origin[2] = {this->nodes->state,this->nodeDepthIndex->state};
+  if(this->nodes->fore != gpu) this->nodes->transferMemoryTo(gpu);
+  if(this->nodeDepthIndex->fore != cpu) this->nodeDepthIndex->transferMemoryTo(cpu);
+
+  unsigned int nodeDepthIndex = (depthRange.y == 0) ? this->nodeDepthIndex->host[0] : this->nodeDepthIndex->host[this->depth.y - this->depth.x - depthRange.y];
+  unsigned int numNodes = this->nodeDepthIndex->host[this->depth.y - this->depth.x - depthRange.x] - nodeDepthIndex;
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(numNodes, grid, block);
+
+  applyNodeFlags<T><<<grid,block>>>(numNodes,nodeDepthIndex,this->nodes->device,flagBorder,this->size);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  this->nodes->transferMemoryTo(origin[0]);
+  if(origin[0] == cpu) this->nodes->clear(gpu);
+  this->nodeDepthIndex->transferMemoryTo(origin[1]);
+  if(origin[1] == gpu) this->nodeDepthIndex->clear(cpu);
+}
 
 template<typename T>
 void ssrlcv::Quadtree<T>::writePLY(){
@@ -536,6 +621,7 @@ void ssrlcv::Quadtree<T>::writePLY(){
     stringBuffer << "element vertex ";
     stringBuffer << verticesToWrite;
     stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
+    stringBuffer << "property uchar red\nproperty uchar green\nproperty uchar blue\n";
     stringBuffer << "end_header\n";
     plystream << stringBuffer.str();
     for(int i = 0; i < verticesToWrite; ++i){
@@ -543,7 +629,13 @@ void ssrlcv::Quadtree<T>::writePLY(){
       stringBuffer << this->nodes->host[i].center.x;
       stringBuffer << " ";
       stringBuffer << this->nodes->host[i].center.y;
-      stringBuffer << " 0";
+      stringBuffer << " 0 ";
+      if(this->nodes->host[i].flag){
+        stringBuffer << "255 255 255";
+      }
+      else{
+        stringBuffer << "0 0 0";
+      }
       stringBuffer << "\n";
       plystream << stringBuffer.str();
     }
@@ -713,6 +805,41 @@ __global__ void ssrlcv::getKeys(int* keys, float2* nodeCenters, uint2 size, int2
     }
     keys[globalID] = key;
     nodeCenters[globalID] = center;
+  }
+}
+__global__ void ssrlcv::getKeys(int* keys, float2* nodeCenters, uint2 size, int2 border, unsigned int depth, unsigned int colorDepth){
+  int blockID = blockIdx.y* gridDim.x+ blockIdx.x;
+  if(blockID < (size.x - (border.x*2))*(size.y - (border.y*2))*colorDepth){
+    float x = ((float)((blockID%(size.x - (border.x*2))) + border.x)) + 0.5f;
+    float y = ((float)((blockID/(size.x - (border.x*2))) + border.y)) + 0.5f;
+    int key = 0;
+    unsigned int depth_reg = depth;
+    int currentDepth = 1;
+    float2 reg_size = {((float)size.x)/2.0f, ((float)size.y)/2.0f};
+    float2 center = reg_size;
+    while(depth_reg >= currentDepth){
+      reg_size.x /= 2.0f;
+      reg_size.y /= 2.0f;
+      currentDepth++;
+      if(x < center.x){
+        key <<= 1;
+        center.x -= reg_size.x;
+      }
+      else{
+        key = (key << 1) + 1;
+        center.x += reg_size.x;
+      }
+      if(y < center.y){
+        key <<= 1;
+        center.y -= reg_size.y;
+      }
+      else{
+        key = (key << 1) + 1;
+        center.y += reg_size.y;
+      }
+    }
+    keys[blockID*colorDepth + threadIdx.x] = key;
+    nodeCenters[blockID*colorDepth + threadIdx.x] = center;
   }
 }
 __global__ void ssrlcv::getKeys(unsigned int numPoints, float2* points, int* keys, float2* nodeCenters, uint2 size, unsigned int depth){
@@ -921,7 +1048,7 @@ __global__ void ssrlcv::fillParentIndex(unsigned int numRootNodes, typename ssrl
 
 template<typename T>
 __global__ void ssrlcv::fillDataNodeIndex(unsigned long numLeafNodes, typename ssrlcv::Quadtree<T>::Node* nodes, unsigned int* dataNodeIndex){
-  unsigned long globalID = (blockIdx.x+ blockIdx.y * gridDim.x) * (blockDim.x * blockDim.y)+ (threadIdx.y * blockDim.x)+ threadIdx.x;
+  unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x) * blockDim.x + threadIdx.x;
   if(globalID < numLeafNodes){//no need for depth index as leaf nodes come first in node ordering
     typename Quadtree<T>::Node node = nodes[globalID];
     for(int i = 0;node.dataIndex != -1 && i < node.numElements; ++i){
@@ -1067,5 +1194,28 @@ typename ssrlcv::Quadtree<T>::Edge* edges, int depth, int* ownerInidices, int* e
     edge.nodes[1] =  neighborSharingFace;
     if(neighborSharingFace != -1) nodes[neighborSharingFace].edges[3 - ownedIndex] = globalID + edgeIndex;
     edges[globalID] = edge;
+  }
+}
+
+template<typename T>
+__global__ void ssrlcv::applyNodeFlags(unsigned int numNodes, unsigned int depthIndex, typename ssrlcv::Quadtree<T>::Node* nodes, bool* hashMap){
+  unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)* blockDim.x + threadIdx.x;
+  if(globalID < numNodes){
+    nodes[globalID + depthIndex].flag = hashMap[globalID];
+  }
+}
+template<typename T>
+__global__ void ssrlcv::applyNodeFlags(unsigned int numNodes, unsigned int depthIndex, typename ssrlcv::Quadtree<T>::Node* nodes, float2 flagBorder, uint2 size){
+  unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)* blockDim.x + threadIdx.x;
+  if(globalID < numNodes){
+    globalID += depthIndex;
+    typename Quadtree<T>::Node node = nodes[globalID];
+    float4 bounds = {flagBorder.x, flagBorder.y, (float)size.x - flagBorder.x, (float)size.y - flagBorder.y};
+    if(node.center.x > bounds.x && node.center.y > bounds.y && node.center.x < bounds.z && node.center.y < bounds.w){
+      nodes[globalID].flag = true;
+    }
+    else{
+      nodes[globalID].flag = false;
+    }
   }
 }

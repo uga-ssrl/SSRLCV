@@ -36,7 +36,7 @@ void ssrlcv::SIFT_FeatureFactory::fillDescriptors(ssrlcv::Image* image, ssrlcv::
   block = {18,18,1};
   std::cout<<"generating feature descriptors..."<<std::endl;
   timer = clock();
-  fillDescriptorsDensly<<<grid,block>>>(features->numElements, image->descriptor, image->pixels->device, features->device);
+  fillDescriptorsDensly<<<grid,block>>>(features->numElements, image->descriptor, image->quadtree->nodes->device, image->pixels->device, features->device);
   cudaDeviceSynchronize();
   CudaCheckError();
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
@@ -183,6 +183,25 @@ __device__ __forceinline__ float2 ssrlcv::rotateAboutPoint(const int2 &loc, cons
 KERNELS
 */
 
+
+__global__ void ssrlcv::findValidFeatures(unsigned int numNodes, ssrlcv::Quadtree<unsigned char>::Node* nodes, int* featureNumbers, int* featureAddresses){
+  unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if(globalID < numNodes){
+    if(nodes[globalID].flag){
+      featureNumbers[globalID] = true;
+      featureAddresses[globalID] = globalID;
+    }
+  }
+}
+__global__ void ssrlcv::fillValidFeatures(unsigned int numFeatures, Feature<SIFT_Descriptor>* features, int* featureAddresses, ssrlcv::Quadtree<unsigned char>::Node* nodes){
+  unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if(globalID < numFeatures){
+
+  }
+}
+
+
+
 __global__ void ssrlcv::initFeatureArray(unsigned long totalFeatures, ssrlcv::Image_Descriptor image, ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* features){
   float2 locationInParent = {((float)blockIdx.y) + 0.5f,((float)blockIdx.x) + 0.5f};
   features[blockIdx.y*gridDim.x + blockIdx.x] = Feature<SIFT_Descriptor>(locationInParent, SIFT_Descriptor());
@@ -222,7 +241,7 @@ __global__ void ssrlcv::computeThetas(unsigned long totalFeatures, ssrlcv::Image
     //delete[] bestMagWThetas;
   }
 }
-__global__ void ssrlcv::fillDescriptorsDensly(unsigned long totalFeatures, ssrlcv::Image_Descriptor image, unsigned char* pixels, ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* features){
+__global__ void ssrlcv::fillDescriptorsDensly(unsigned long totalFeatures, ssrlcv::Image_Descriptor image, Quadtree<unsigned char>::Node* nodes, unsigned char* pixels, ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* features){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < totalFeatures){
 

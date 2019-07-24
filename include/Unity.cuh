@@ -55,7 +55,17 @@ namespace ssrlcv{
   } MemoryState;
 
   namespace{
-    struct IllegalUnityTransition{
+    struct UnityException{
+      std::string msg;
+      UnityException(){
+        msg = "Unknown Unity Exception";
+      }
+      UnityException(std::string msg) : msg("Unity Exception: " + msg){}
+      virtual const char* what() const throw(){
+        return msg.c_str();
+      }
+    };
+    struct IllegalUnityTransition : public UnityException{
       std::string msg;
       IllegalUnityTransition(){
         msg = "Illegal Unity memory transfer";
@@ -66,7 +76,7 @@ namespace ssrlcv{
       }
     };
 
-    struct NullUnityException{
+    struct NullUnityException : public UnityException{
       std::string msg;
       NullUnityException(){
         msg = "Illegal attempt to use null set Unity";

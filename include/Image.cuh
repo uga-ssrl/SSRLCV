@@ -8,16 +8,6 @@
 #include "Quadtree.cuh"
 #include "Unity.cuh"
 
-
-
-/* CUDA variable, method and kernel defintions */
-
-__device__ __forceinline__ unsigned long getGlobalIdx_2D_1D();
-__device__ __forceinline__ unsigned char bwaToBW(const uchar2 &color);
-__device__ __forceinline__ unsigned char rgbToBW(const uchar3 &color);
-__device__ __forceinline__ unsigned char rgbaToBW(const uchar4 &color);
-__global__ void generateBW(int numPixels, unsigned int colorDepth, unsigned char* colorPixels, unsigned char* bwPixels);
-
 namespace ssrlcv{
   struct Image_Descriptor{
     int id;
@@ -43,14 +33,23 @@ namespace ssrlcv{
     std::string filePath;
     unsigned int colorDepth;
     Unity<unsigned char>* pixels;
-    Quadtree<unsigned int>* quadtree;//holds indices to pixels, features or matches
+    Quadtree<unsigned char>* quadtree;//holds pixels
 
     Image();
     Image(std::string filePath, int id = -1);
     ~Image();
 
+    void generateQuadtree();
     void convertToBW();
   };
+  /* CUDA variable, method and kernel defintions */
+
+  __device__ __forceinline__ unsigned long getGlobalIdx_2D_1D();
+  __device__ __forceinline__ unsigned char bwaToBW(const uchar2 &color);
+  __device__ __forceinline__ unsigned char rgbToBW(const uchar3 &color);
+  __device__ __forceinline__ unsigned char rgbaToBW(const uchar4 &color);
+  __global__ void generateBW(int numPixels, unsigned int colorDepth, unsigned char* colorPixels, unsigned char* bwPixels);
+
 }
 
 #endif /* IMAGE_CUH */

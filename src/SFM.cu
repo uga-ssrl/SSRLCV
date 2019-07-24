@@ -35,6 +35,7 @@
 
 //TODO delete methods in images
 
+//TODO go through all global and block ID calculations in kernels to ensure there will be no overflow
 
 int main(int argc, char *argv[]){
   try{
@@ -58,29 +59,24 @@ int main(int argc, char *argv[]){
     */
 
     ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory();
-    std::vector<ssrlcv::Image> images;
-    std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> features;
-    int2 border = {0,0};
-    uint2 depth = {0,0};
+    std::vector<ssrlcv::Image*> images;
+    std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
     for(int i = 0; i < numImages; ++i){
-      images.push_back(ssrlcv::Image(imagePaths[i], i));
-      images[i].convertToBW();
-      //should put quadtree generation in image.cu
-      ssrlcv::Quadtree<unsigned int>* quadtree = nullptr;
-      if(images[i].descriptor.size.x > images[i].descriptor.size.y){
-        depth.y = (unsigned int)floor(log2((float)images[i].descriptor.size.x));
-      }
-      else{
-        depth.y = (unsigned int)floor(log2((float)images[i].descriptor.size.y));
-      }
-      depth.x = (depth.y <= 4) ? 0 : 4;
-      quadtree = new ssrlcv::Quadtree<unsigned int>(images[i].descriptor.size,depth,border);
-      images[i].quadtree = quadtree;
+      ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i], i);
+      image->convertToBW();
+      image->generateQuadtree();
+      image->quadtree->setNodeFlags({12.0f+image->quadtree->border.x,12.0f+image->quadtree->border.y});//sift border
+      images.push_back(image);
+      //ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeaturesDensly(&images[i]);
+      //allFeatures.push_back(features);
     }
-
     return 0;
   }
   catch (const std::exception &e){
+      std::cerr << "Caught exception: " << e.what() << '\n';
+      std::exit(1);
+  }
+  catch (const ssrlcv::UnityException &e){
       std::cerr << "Caught exception: " << e.what() << '\n';
       std::exit(1);
   }

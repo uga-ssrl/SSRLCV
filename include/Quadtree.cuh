@@ -32,8 +32,9 @@ namespace ssrlcv{
   */
   template<typename T>
   class Quadtree{
+    unsigned int colorDepth;
 
-    void generateLeafNodes(int2 border = {0,0});
+    void generateLeafNodes();
     void generateParentNodes();
     void fillNeighborhoods();
 
@@ -50,6 +51,7 @@ namespace ssrlcv{
       int neighbors[9];
       int edges[4];
       int vertices[4];
+      bool flag;
 
       __device__ __host__ Node();
     };
@@ -67,6 +69,7 @@ namespace ssrlcv{
     };
 
     uint2 size;
+    int2 border;
     uint2 depth;//{min,max}
 
     ssrlcv::Unity<T>* data;
@@ -84,12 +87,14 @@ namespace ssrlcv{
     //for full quadtrees only holding data indices
     //can only be used with Quadtree<unsigned int>()
     Quadtree(uint2 size, uint2 depth, int2 border = {0,0});
-    Quadtree(uint2 size, uint2 depth, ssrlcv::Unity<T>* data, int2 border = {0,0});
-
+    Quadtree(uint2 size, uint2 depth, ssrlcv::Unity<T>* data, unsigned int colorDepth = 0, int2 border = {0,0});
     //generally not necessary and takes up a lot of memory - useful for testing small scale
     void generateVertices();
     void generateEdges();
     void generateVerticesAndEdges();
+
+    void setNodeFlags(Unity<bool>* hashMap, uint2 depthRange = {0,0});
+    void setNodeFlags(float2 flagBorder, uint2 depthRange = {0,0});
 
     void writePLY(Unity<unsigned char>* pixels);
     void writePLY();
@@ -101,12 +106,20 @@ namespace ssrlcv{
 
   };
 
+  struct is_flagged{
+    template<typename T>
+    __host__ __device__
+    bool operator()(const typename Quadtree<T>::Node& n){
+      return (n.flag);
+    }
+  };
+
   /*
   CUDA KERNEL DEFINITIONS
   */
 
-
   __global__ void getKeys(int* keys, float2* nodeCenters, uint2 size, int2 border, unsigned int depth);
+  __global__ void getKeys(int* keys, float2* nodeCenters, uint2 size, int2 border, unsigned int depth, unsigned int colorDepth);
   __global__ void getKeys(unsigned int numPoints, float2* points, int* keys, float2* nodeCenters, uint2 size, unsigned int depth);
   __global__ void getKeys(unsigned int numLocalizedPointers, ssrlcv::LocalizedData<unsigned int>* localizedPointers, int* keys, float2* nodeCenters, uint2 size, unsigned int depth);
 
@@ -148,6 +161,10 @@ namespace ssrlcv{
   __global__ void fillUniqueEdgeArray(unsigned int depthIndex, typename Quadtree<T>::Node* nodes, unsigned long numEdges, int edgeIndex,
   typename Quadtree<T>::Edge* edges, int depth, int* ownerInidices, int* edgePlacement);
 
+  template<typename T>
+  __global__ void applyNodeFlags(unsigned int numNodes, unsigned int depthIndex, typename Quadtree<T>::Node* nodes, bool* hashMap);
+  template<typename T>
+  __global__ void applyNodeFlags(unsigned int numNodes, unsigned int depthIndex, typename Quadtree<T>::Node* nodes, float2 flagBorder,uint2 size);
 
 }
 

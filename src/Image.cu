@@ -1,41 +1,7 @@
 #include "Image.cuh"
 
 
-__device__ __forceinline__ unsigned long getGlobalIdx_2D_1D(){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
-  unsigned long threadId = blockId * blockDim.x + threadIdx.x;
-  return threadId;
-}
-__device__ __forceinline__ unsigned char bwaToBW(const uchar2 &color){
-  return color.x;
-}
-__device__ __forceinline__ unsigned char rgbToBW(const uchar3 &color){
-  return (color.x/4) + (color.y/2) + (color.z/4);
-}
-__device__ __forceinline__ unsigned char rgbaToBW(const uchar4 &color){
-  return rgbToBW({color.x,color.y,color.z});
-}
 
-__global__ void generateBW(int numPixels, unsigned int colorDepth, unsigned char* colorPixels, unsigned char* pixels){
-  unsigned long globalID = getGlobalIdx_2D_1D();
-  if(globalID < numPixels){
-    int numValues = colorDepth;
-    switch(numValues){
-      case 2:
-        pixels[globalID] = bwaToBW({colorPixels[globalID*numValues],colorPixels[globalID*numValues + 1]});
-        break;
-      case 3:
-        pixels[globalID] = rgbToBW({colorPixels[globalID*numValues],colorPixels[globalID*numValues + 1], colorPixels[globalID*numValues + 2]});
-        break;
-      case 4:
-        pixels[globalID] = rgbToBW({colorPixels[globalID*numValues],colorPixels[globalID*numValues + 1], colorPixels[globalID*numValues + 2]});
-        break;
-      default:
-        printf("ERROR colorDepth of %u is not supported\n",numValues);
-        asm("trap;");
-    }
-  }
-}
 
 __device__ __host__ ssrlcv::Image_Descriptor::Image_Descriptor(){
   this->id = 0;
@@ -120,6 +86,7 @@ ssrlcv::Image::Image(){
   this->colorDepth = 0;
   this->descriptor.id = -1;
   this->pixels = nullptr;
+  this->quadtree = nullptr;
 }
 
 ssrlcv::Image::Image(std::string filePath, int id){
@@ -129,12 +96,33 @@ ssrlcv::Image::Image(std::string filePath, int id){
   this->pixels = new Unity<unsigned char>(pixels_host,this->descriptor.size.y*this->descriptor.size.x*this->colorDepth,cpu);
 
   this->descriptor.id = id;
+  this->quadtree = nullptr;
 }
 
 ssrlcv::Image::~Image(){
-
+  if(this->quadtree != nullptr){
+    delete this->quadtree;
+  }
+  std::cout<<"destructing"<<std::endl;
+  if(this->pixels != nullptr){
+    delete this->pixels;
+  }
+  std::cout<<"destructing"<<std::endl;
 }
-
+void ssrlcv::Image::generateQuadtree(){
+  uint2 depth = {0,0};
+  int2 border = {0,0};
+  if(this->descriptor.size.x > this->descriptor.size.y){
+    depth.y = (unsigned int)ceil(log2((float)this->descriptor.size.x));
+  }
+  else{
+    depth.y = (unsigned int)ceil(log2((float)this->descriptor.size.y));
+  }
+  border.x = (pow(2,depth.y) - this->descriptor.size.x)/2;
+  border.y = (pow(2,depth.y) - this->descriptor.size.y)/2;
+  depth.x = (depth.y <= 4) ? 0 : 4;
+  this->quadtree = new Quadtree<unsigned char>(this->descriptor.size,depth,this->pixels,this->colorDepth,border);
+}
 void ssrlcv::Image::convertToBW(){
   if(this->colorDepth == 1){
     std::cout<<"Pixels are already bw"<<std::endl;
@@ -161,4 +149,39 @@ void ssrlcv::Image::convertToBW(){
     this->pixels->clear(gpu);
   }
   this->colorDepth = 1;
+}
+__device__ __forceinline__ unsigned long ssrlcv::getGlobalIdx_2D_1D(){
+  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned long threadId = blockId * blockDim.x + threadIdx.x;
+  return threadId;
+}
+__device__ __forceinline__ unsigned char ssrlcv::bwaToBW(const uchar2 &color){
+  return color.x;
+}
+__device__ __forceinline__ unsigned char ssrlcv::rgbToBW(const uchar3 &color){
+  return (color.x/4) + (color.y/2) + (color.z/4);
+}
+__device__ __forceinline__ unsigned char ssrlcv::rgbaToBW(const uchar4 &color){
+  return rgbToBW({color.x,color.y,color.z});
+}
+
+__global__ void ssrlcv::generateBW(int numPixels, unsigned int colorDepth, unsigned char* colorPixels, unsigned char* pixels){
+  unsigned long globalID = getGlobalIdx_2D_1D();
+  if(globalID < numPixels){
+    int numValues = colorDepth;
+    switch(numValues){
+      case 2:
+        pixels[globalID] = bwaToBW({colorPixels[globalID*numValues],colorPixels[globalID*numValues + 1]});
+        break;
+      case 3:
+        pixels[globalID] = rgbToBW({colorPixels[globalID*numValues],colorPixels[globalID*numValues + 1], colorPixels[globalID*numValues + 2]});
+        break;
+      case 4:
+        pixels[globalID] = rgbaToBW({colorPixels[globalID*numValues],colorPixels[globalID*numValues + 1], colorPixels[globalID*numValues + 2], colorPixels[globalID*numValues + 3]});
+        break;
+      default:
+        printf("ERROR colorDepth of %u is not supported\n",numValues);
+        asm("trap;");
+    }
+  }
 }

@@ -59,9 +59,16 @@ namespace ssrlcv{
   __device__ __forceinline__ float modulus(const float &x, const float &y);
   __device__ __forceinline__ float2 rotateAboutPoint(const int2 &loc, const float &theta, const float2 &origin);
 
+  //this method will fill a feature array where the first index in the sift descriptor is actually the pixel value
+  //NOTE THIS MAY BE WASTEFUL ^^^ and should think of better option here.
+  //numbers will be filled and then compressed by thrust stream compaction so that addresses are available for looking at real features
+  __global__ void findValidFeatures(unsigned int numNodes, Quadtree<unsigned char>::Node* nodes, int* featureNumbers, int* featureAddresses);
+  __global__ void fillValidFeatures(unsigned int numFeatures, Feature<SIFT_Descriptor>* features, int* featureAddresses, Quadtree<unsigned char>::Node* nodes);
+
+
   __global__ void initFeatureArray(unsigned long totalFeatures, Image_Descriptor image, Feature<SIFT_Descriptor>* features);
   __global__ void computeThetas(unsigned long totalFeatures, Image_Descriptor image, unsigned char* pixels, Feature<SIFT_Descriptor>* features);
-  __global__ void fillDescriptorsDensly(unsigned long totalFeatures, Image_Descriptor image, unsigned char* pixels, Feature<SIFT_Descriptor>* features);
+  __global__ void fillDescriptorsDensly(unsigned long totalFeatures, Image_Descriptor image, Quadtree<unsigned char>::Node* nodes, unsigned char* pixels, Feature<SIFT_Descriptor>* features);
 
 
 }
