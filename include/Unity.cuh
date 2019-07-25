@@ -44,6 +44,8 @@ inline void __cudaCheckError(const char *file, const int line) {
   return;
 }
 
+//TODO go back and make sure that fore is being set properly
+
 namespace ssrlcv{
 
   typedef enum MemoryState{
@@ -121,6 +123,7 @@ namespace ssrlcv{
 
     void clear(MemoryState state = both);//hard clear
     void transferMemoryTo(MemoryState state);//soft set - no deletes
+    void setMemoryState(MemoryState state);
     void setData(T* data, unsigned long numElements, MemoryState state);//hard set
   };
 
@@ -257,6 +260,33 @@ namespace ssrlcv{
     }
     this->state = both;
     this->fore = both;
+  }
+  template<typename T>
+  void Unity<T>::setMemoryState(MemoryState state){
+    if(state == this->state){
+      std::cerr<<"WARNING: hard setting of memory state to same memory state does nothing: "<<memoryStateToString(this->state)<<std::endl;
+    }
+    else if(this->state == null){
+      throw NullUnityException("Cannot setMemoryState of a null Unity");
+    }
+    else if(state == null) this->clear();
+    else if(this->state == both){
+      if(cpu == this->fore){
+        this->transferMemoryTo(gpu);
+      }
+      else{
+        this->transferMemoryTo(cpu);
+      }
+    }
+    else{
+      this->transferMemoryTo(state);
+      if(state == cpu){
+        this->clear(gpu);
+      }
+      else{
+        this->clear(cpu);
+      }
+    }
   }
   template<typename T>
   void Unity<T>::setData(T* data, unsigned long numElements, MemoryState state){

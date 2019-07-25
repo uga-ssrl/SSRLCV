@@ -37,6 +37,16 @@
 
 //TODO go through all global and block ID calculations in kernels to ensure there will be no overflow
 
+
+//TODO ADD AND USE MEMORY CONSTAINED VARIABLE TO FACTORIES - gives permission to delete parameters once used
+//use this or go back and make sure a unity never has a state of both
+
+//TODO go back and make sure thrust:: calls are all device
+
+//TODO in octree and quadtree change thrust::copy_if to thrust::remove
+
+//TODO go back and change all Unity<T>.transferMemoryTo(),Unity<T>.clear() to Unity<T>.setMemoryState
+
 int main(int argc, char *argv[]){
   try{
     //CUDA INITIALIZATION
@@ -61,14 +71,14 @@ int main(int argc, char *argv[]){
     ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory();
     std::vector<ssrlcv::Image*> images;
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
+    unsigned int convertColorDepthTo = 1;
     for(int i = 0; i < numImages; ++i){
-      ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i], i);
-      image->convertToBW();
-      image->generateQuadtree();
+      ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i,convertColorDepthTo);
       image->quadtree->setNodeFlags({12.0f+image->quadtree->border.x,12.0f+image->quadtree->border.y});//sift border
-      images.push_back(image);
-      //ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeaturesDensly(&images[i]);
+      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeaturesDensly(image);
+      exit(0);
       //allFeatures.push_back(features);
+      //images.push_back(image);
     }
     return 0;
   }

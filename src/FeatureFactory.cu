@@ -14,70 +14,103 @@ ssrlcv::SIFT_FeatureFactory::SIFT_FeatureFactory(){
 
 }
 
-void ssrlcv::SIFT_FeatureFactory::fillDescriptors(ssrlcv::Image* image, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features){
+ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFactory::generateFeaturesDensly(ssrlcv::Image* image){
+  Unity<Feature<SIFT_Descriptor>>* features = nullptr;
+
+  if(image->quadtree == nullptr){
+    std::cout<<"ERROR: generateFeaturesDensly for Feature<SIFT_Descriptor> requires an image in a quadtree"<<std::endl;
+    exit(-1);
+  }
+  std::cout<<"generating features"<<std::endl;
+  MemoryState origin[2] = {image->quadtree->nodes->state,image->quadtree->nodeDepthIndex->state};
+
+  if(origin[0] != gpu){
+    image->quadtree->nodes->transferMemoryTo(gpu);
+  }
+  if(origin[1] != cpu){
+    image->quadtree->nodeDepthIndex->transferMemoryTo(cpu);
+  }
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+
+  unsigned int* featureNumbers_device = nullptr;
+  unsigned int* featureAddresses_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&featureNumbers_device,image->quadtree->nodeDepthIndex->host[1]*sizeof(unsigned int)));
+  CudaSafeCall(cudaMalloc((void**)&featureAddresses_device,image->quadtree->nodeDepthIndex->host[1]*sizeof(unsigned int)));
+  getFlatGridBlock(image->quadtree->nodeDepthIndex->host[1],grid,block);
+  findValidFeatures<<<grid,block>>>(image->quadtree->nodeDepthIndex->host[1],image->quadtree->nodes->device,featureNumbers_device,featureAddresses_device);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  thrust::device_ptr<unsigned int> fN(featureNumbers_device);
+  thrust::inclusive_scan(fN, fN + image->quadtree->nodeDepthIndex->host[1], fN);
+
+  unsigned int numSIFTFeatures = 0;
+  CudaSafeCall(cudaMemcpy(&numSIFTFeatures,featureNumbers_device + (image->quadtree->nodeDepthIndex->host[1] - 1), sizeof(unsigned int), cudaMemcpyDeviceToHost));
+  CudaSafeCall(cudaFree(featureNumbers_device));
+
+  std::cout<<numSIFTFeatures<<" Feature<SIFT_Descriptor> were found during dense search"<<std::endl;
+
+  thrust::device_ptr<unsigned int> fA(featureAddresses_device);
+  thrust::remove(fA, fA + image->quadtree->nodeDepthIndex->host[1], 0);
+
+  grid = {1,1,1};
+  block = {1,1,1};
+  getFlatGridBlock(numSIFTFeatures, grid, block);
+  Feature<SIFT_Descriptor>* features_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&features_device,numSIFTFeatures*sizeof(Feature<SIFT_Descriptor>)));
+  features = new Unity<Feature<SIFT_Descriptor>>(features_device,numSIFTFeatures,gpu);
+
+  fillValidFeatures<<<grid,block>>>(features->numElements,features->device,featureAddresses_device,image->quadtree->nodes->device);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+
+  this->fillDescriptors(image, features, featureAddresses_device);
+  CudaSafeCall(cudaFree(featureAddresses_device));
+
+
+  if(origin[0] != image->quadtree->nodes->state){
+    image->quadtree->nodes->setMemoryState(origin[0]);
+  }
+  if(origin[1] != image->quadtree->nodeDepthIndex->state){
+    image->quadtree->nodeDepthIndex->setMemoryState(origin[1]);
+  }
+
+  return features;
+}
+void ssrlcv::SIFT_FeatureFactory::fillDescriptors(ssrlcv::Image* image, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features, unsigned int* featureAddresses_device){
+
+  MemoryState origin = image->quadtree->data->state;
+
   dim3 grid = {1,1,1};
   dim3 block = {9,1,1};
   getGrid(features->numElements, grid);
 
-  if(image->pixels->fore == cpu){
-    image->pixels->transferMemoryTo(gpu);
+  if(origin != gpu){
+    image->quadtree->data->transferMemoryTo(gpu);
   }
-  if(features->fore == cpu){
-    features->transferMemoryTo(gpu);
-  }
-
   std::cout<<"computing thetas for feature descriptors..."<<std::endl;
   clock_t timer = clock();
-  computeThetas<<<grid, block>>>(features->numElements, image->descriptor, image->pixels->device, features->device);
+  computeThetas<<<grid, block>>>(features->numElements, features->device, image->quadtree->nodes->device, featureAddresses_device, image->quadtree->data->device);
   cudaDeviceSynchronize();
   CudaCheckError();
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
-  block = {18,18,1};
-  std::cout<<"generating feature descriptors..."<<std::endl;
-  timer = clock();
-  fillDescriptorsDensly<<<grid,block>>>(features->numElements, image->descriptor, image->quadtree->nodes->device, image->pixels->device, features->device);
-  cudaDeviceSynchronize();
-  CudaCheckError();
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
-}
-ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFactory::generateFeaturesDensly(ssrlcv::Image* image){
-  Unity<Feature<SIFT_Descriptor>>* features = nullptr;
-  std::cout<<"generating features"<<std::endl;
-  if(image->pixels == nullptr || image->pixels->state == null){
-    std::cout<<"ERROR must have pixels for generating features"<<std::endl;
-    exit(-1);
+
+  //finish implementing kernel
+  // block = {16,16,1};
+  // std::cout<<"generating feature descriptors..."<<std::endl;
+  // timer = clock();
+  // fillDescriptorsDensly<<<grid,block>>>(features->numElements, image->descriptor, image->quadtree->nodes->device, image->pixels->device, features->device);
+  // cudaDeviceSynchronize();
+  // CudaCheckError();
+  // printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+
+  if(origin != image->quadtree->data->state){
+    image->quadtree->data->setMemoryState(origin);
   }
-  MemoryState origin = image->pixels->state;
-  if(origin != gpu || image->pixels->fore == cpu){
-    image->pixels->transferMemoryTo(gpu);
-  }
-  if(image->colorDepth != 1){
-    image->convertToBW();
-  }
-
-  Feature<SIFT_Descriptor>* features_device = nullptr;
-  CudaSafeCall(cudaMalloc((void**)&features_device, image->pixels->numElements*sizeof(Feature<SIFT_Descriptor>)));
-  features = new Unity<Feature<SIFT_Descriptor>>(features_device, image->pixels->numElements, gpu);
-
-
-  dim3 grid = {(unsigned int)image->descriptor.size.x,(unsigned int)image->descriptor.size.y,1};
-  dim3 block = {1,1,1};
-  clock_t timer = clock();
-  initFeatureArray<<<grid, block>>>(features->numElements, image->descriptor, features->device);
-  cudaDeviceSynchronize();
-  CudaCheckError();
-
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
-
-  this->fillDescriptors(image, features);
-
-  image->pixels->transferMemoryTo(origin);
-  if(origin == cpu){
-    image->pixels->clear(gpu);
-  }
-
-  return features;
 }
 
 /*
@@ -85,17 +118,6 @@ CUDA implementations
 */
 
 __constant__ float ssrlcv::pi = 3.1415926535897932384626433832795028841971693993751058209749445923078164062;
-__constant__ int2 ssrlcv::immediateNeighbors[9] = {
-  {-1, -1},
-  {-1, 0},
-  {-1, 1},
-  {0, -1},
-  {0, 0},
-  {0, 1},
-  {1, -1},
-  {1, 0},
-  {1, 1}
-};
 
 /*
 DEVICE METHODS
@@ -184,42 +206,56 @@ KERNELS
 */
 
 
-__global__ void ssrlcv::findValidFeatures(unsigned int numNodes, ssrlcv::Quadtree<unsigned char>::Node* nodes, int* featureNumbers, int* featureAddresses){
+__global__ void ssrlcv::findValidFeatures(unsigned int numNodes, Quadtree<unsigned char>::Node* nodes, unsigned int* featureNumbers, unsigned int* featureAddresses){
   unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < numNodes){
     if(nodes[globalID].flag){
-      featureNumbers[globalID] = true;
+      featureNumbers[globalID] = 1;
       featureAddresses[globalID] = globalID;
+    }
+    else{
+      featureNumbers[globalID] = 0;
+      featureAddresses[globalID] = 0;
     }
   }
 }
-__global__ void ssrlcv::fillValidFeatures(unsigned int numFeatures, Feature<SIFT_Descriptor>* features, int* featureAddresses, ssrlcv::Quadtree<unsigned char>::Node* nodes){
-  unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+__global__ void ssrlcv::fillValidFeatures(unsigned int numFeatures, Feature<SIFT_Descriptor>* features, unsigned int* featureAddresses, Quadtree<unsigned char>::Node* nodes){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < numFeatures){
-
+    Feature<SIFT_Descriptor> feature = Feature<SIFT_Descriptor>();
+    feature.loc = nodes[featureAddresses[globalID]].center;
   }
 }
 
-
-
-__global__ void ssrlcv::initFeatureArray(unsigned long totalFeatures, ssrlcv::Image_Descriptor image, ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* features){
-  float2 locationInParent = {((float)blockIdx.y) + 0.5f,((float)blockIdx.x) + 0.5f};
-  features[blockIdx.y*gridDim.x + blockIdx.x] = Feature<SIFT_Descriptor>(locationInParent, SIFT_Descriptor());
-}
 //possible to use this kernel for multiple orientations
 //NOTE currently not doing so
-__global__ void ssrlcv::computeThetas(unsigned long totalFeatures, ssrlcv::Image_Descriptor image, unsigned char* pixels, ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* features){
+__global__ void ssrlcv::computeThetas(unsigned long numFeatures, Feature<SIFT_Descriptor>* features, Quadtree<unsigned char>::Node* nodes, unsigned int* featureAddresses, unsigned char* pixels){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
-  if(blockId < totalFeatures){
-    ssrlcv::Feature<SIFT_Descriptor> feature = features[blockId];
+  if(blockId < numFeatures){
     __shared__ int2 orientationVectors[9];
-    ssrlcv::Image_Descriptor parentRef = image;
+    for(int i = 0; i < 9; ++i) orientationVectors[i] = {0,0};
+    __syncthreads();
+    Quadtree<unsigned char>::Node neighbor = nodes[nodes[featureAddresses[blockId]].neighbors[threadIdx.x]];
+    //contributers are neighbor of neighbors = 1,3,5,7
+    //7 - 1, 5 - 3
+    //vector = x-y,z-w
+    int4 pixelValues;
+    //need to assure this kernel that currentNeighbor will not be -1
+    int currentNeighbor = neighbor.neighbors[7];
+    for(int i = 0; i < nodes[currentNeighbor].numElements; ++i) pixelValues.x += pixels[nodes[currentNeighbor].dataIndex + i];
+    pixelValues.x /= nodes[currentNeighbor].numElements;
+    currentNeighbor = neighbor.neighbors[1];
+    for(int i = 0; i < nodes[currentNeighbor].numElements; ++i) pixelValues.y += pixels[nodes[currentNeighbor].dataIndex + i];
+    pixelValues.y /= nodes[currentNeighbor].numElements;
+    currentNeighbor = neighbor.neighbors[5];
+    for(int i = 0; i < nodes[currentNeighbor].numElements; ++i) pixelValues.z += pixels[nodes[currentNeighbor].dataIndex + i];
+    pixelValues.z /= nodes[currentNeighbor].numElements;
+    currentNeighbor = neighbor.neighbors[3];
+    for(int i = 0; i < nodes[currentNeighbor].numElements; ++i) pixelValues.w += pixels[nodes[currentNeighbor].dataIndex + i];
+    pixelValues.w /= nodes[currentNeighbor].numElements;
 
-    //vector = (x+1) - (x-1), (y+1) - (y-1)
-    long2 orientLoc = {lrintf(feature.loc.x + immediateNeighbors[threadIdx.x].x),lrintf(feature.loc.y + immediateNeighbors[threadIdx.x].y)};
-    long4 orientationContributers = getOrientationContributers(orientLoc, parentRef.size);
-    orientationVectors[threadIdx.x].x = pixels[orientationContributers.x] - pixels[orientationContributers.y];
-    orientationVectors[threadIdx.x].y = pixels[orientationContributers.z] - pixels[orientationContributers.w];
+    orientationVectors[threadIdx.x].x = pixelValues.x - pixelValues.y;
+    orientationVectors[threadIdx.x].y = pixelValues.z - pixelValues.w;
 
     __syncthreads();
 
@@ -241,12 +277,12 @@ __global__ void ssrlcv::computeThetas(unsigned long totalFeatures, ssrlcv::Image
     //delete[] bestMagWThetas;
   }
 }
-__global__ void ssrlcv::fillDescriptorsDensly(unsigned long totalFeatures, ssrlcv::Image_Descriptor image, Quadtree<unsigned char>::Node* nodes, unsigned char* pixels, ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* features){
+__global__ void ssrlcv::fillDescriptorsDensly(unsigned long numFeatures, Feature<SIFT_Descriptor>* features, Quadtree<unsigned char>::Node* nodes, unsigned int* featureAddresses, unsigned char* pixels){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < totalFeatures){
 
     ssrlcv::Feature<SIFT_Descriptor> feature = features[blockId];
-    __shared__ float2 descriptorGrid[18][18];
+    __shared__ float2 descriptorGrid[16][16];
     __shared__ float localMax;
     __shared__ float localMin;
     descriptorGrid[threadIdx.x][threadIdx.y] = {0.0f,0.0f};
@@ -260,25 +296,33 @@ __global__ void ssrlcv::fillDescriptorsDensly(unsigned long totalFeatures, ssrlc
       y' = ycos(theta) + xsin(theta) + feature.y
 
     */
-    ssrlcv::Image_Descriptor parentRef = image;
     float theta = feature.descriptor.theta;
 
-    float2 descriptorGridPoint = {0.0f, 0.0f};
-    descriptorGridPoint.x = (((threadIdx.x - 8.5f)*cosf(theta)) - ((threadIdx.y - 8.5f)*sinf(theta))) + feature.loc.x;
-    descriptorGridPoint.y = (((threadIdx.x - 8.5f)*sinf(theta)) + ((threadIdx.y - 8.5f)*cosf(theta))) + feature.loc.y;
-    float2 pixValueLoc = {((threadIdx.x - 8.5f) + feature.loc.x), ((threadIdx.y - 8.5f) + feature.loc.y)};
+    float2 descriptorGridPoint = {
+      (((((float)threadIdx.x) - 8.5f)*cosf(theta)) - ((((float)threadIdx.y) - 8.5f)*sinf(theta))) + feature.loc.x,
+      (((((float)threadIdx.x) - 8.5f)*sinf(theta)) + ((((float)threadIdx.y) - 8.5f)*cosf(theta))) + feature.loc.y
+    };
+
+
+    //try and use quadtree for this
+    float2 pixValueLoc = {
+      ((((float)threadIdx.x) - 8.5f) + feature.loc.x),
+      ((((float)threadIdx.y) - 8.5f) + feature.loc.y)
+    };
 
     float newValue = 0.0f;
     ulong4 pixContributers;
-    pixContributers.x = (((int)(pixValueLoc.y - 0.5f))*parentRef.size.x) + ((int)(pixValueLoc.x - 0.5f));
-    pixContributers.y = (((int)(pixValueLoc.y - 0.5f))*parentRef.size.x) + ((int)(pixValueLoc.x + 0.5f));
-    pixContributers.z = (((int)(pixValueLoc.y + 0.5f))*parentRef.size.x) + ((int)(pixValueLoc.x - 0.5f));
-    pixContributers.w = (((int)(pixValueLoc.y + 0.5f))*parentRef.size.x) + ((int)(pixValueLoc.x + 0.5f));
-    newValue += pixels[pixContributers.x];
-    newValue += pixels[pixContributers.y];
-    newValue += pixels[pixContributers.z];
-    newValue += pixels[pixContributers.w];
-    newValue /= 4.0f;
+    //this will be new method invloving quadtree
+    //could be recursive
+    // pixContributers.x = (((int)(pixValueLoc.y - 0.5f))*parentRef.size.x) + ((int)(pixValueLoc.x - 0.5f));
+    // pixContributers.y = (((int)(pixValueLoc.y - 0.5f))*parentRef.size.x) + ((int)(pixValueLoc.x + 0.5f));
+    // pixContributers.z = (((int)(pixValueLoc.y + 0.5f))*parentRef.size.x) + ((int)(pixValueLoc.x - 0.5f));
+    // pixContributers.w = (((int)(pixValueLoc.y + 0.5f))*parentRef.size.x) + ((int)(pixValueLoc.x + 0.5f));
+    // newValue += pixels[pixContributers.x];
+    // newValue += pixels[pixContributers.y];
+    // newValue += pixels[pixContributers.z];
+    // newValue += pixels[pixContributers.w];
+    // newValue /= 4.0f;
 
     descriptorGrid[threadIdx.x][threadIdx.y].x = newValue;
     __syncthreads();

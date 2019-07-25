@@ -31,6 +31,47 @@ __device__ __host__ ssrlcv::Image_Descriptor::Image_Descriptor(int id, uint2 siz
   this->dpix = 0.0f;
 }
 
+ssrlcv::Image::Image(){
+  this->descriptor.id = -1;
+  this->quadtree = nullptr;
+  this->filePath = "n/a";
+}
+
+ssrlcv::Image::Image(std::string filePath, int id, unsigned int convertColorDepthTo){
+  this->filePath = filePath;
+  this->descriptor.id = id;
+  unsigned int colorDepth = 1;
+  unsigned char* pixels_host = readPNG(filePath.c_str(), this->descriptor.size.y, this->descriptor.size.x, colorDepth);
+  Unity<unsigned char>* pixels = new Unity<unsigned char>(pixels_host,this->descriptor.size.y*this->descriptor.size.x*colorDepth,cpu);
+  if(convertColorDepthTo == 1){
+    convertToBW(pixels,colorDepth);
+    colorDepth = 1;
+  }
+  else if(convertColorDepthTo != 0){
+    std::cerr<<"ERROR: Image() does not currently support conversion to anything but BW"<<std::endl;
+    exit(-1);
+  }
+  uint2 depth = {0,0};
+  int2 border = {0,0};
+  if(this->descriptor.size.x > this->descriptor.size.y){
+    depth.y = (unsigned int)ceil(log2((float)this->descriptor.size.x));
+  }
+  else{
+    depth.y = (unsigned int)ceil(log2((float)this->descriptor.size.y));
+  }
+  border.x = (pow(2,depth.y) - this->descriptor.size.x)/2;
+  border.y = (pow(2,depth.y) - this->descriptor.size.y)/2;
+  depth.x = (depth.y <= 4) ? 0 : 4;
+  this->quadtree = new Quadtree<unsigned char>(this->descriptor.size,depth,pixels,colorDepth,border);
+}
+
+ssrlcv::Image::~Image(){
+  if(this->quadtree != nullptr){
+    delete this->quadtree;
+  }
+  std::cout<<"destructing"<<std::endl;
+}
+
 void ssrlcv::get_cam_params2view(Image_Descriptor &cam1, Image_Descriptor &cam2, std::string infile){
   std::ifstream input(infile);
   std::string line;
@@ -81,58 +122,16 @@ void ssrlcv::get_cam_params2view(Image_Descriptor &cam1, Image_Descriptor &cam2,
   cam1.dpix = (cam1.foc*tan(cam1.fov/2))/(res/2);
   cam2.dpix = (cam2.foc*tan(cam2.fov/2))/(res/2);
 }
-
-ssrlcv::Image::Image(){
-  this->colorDepth = 0;
-  this->descriptor.id = -1;
-  this->pixels = nullptr;
-  this->quadtree = nullptr;
-}
-
-ssrlcv::Image::Image(std::string filePath, int id){
-  this->filePath = filePath;
-
-  unsigned char* pixels_host = readPNG(filePath.c_str(), this->descriptor.size.y, this->descriptor.size.x, this->colorDepth);
-  this->pixels = new Unity<unsigned char>(pixels_host,this->descriptor.size.y*this->descriptor.size.x*this->colorDepth,cpu);
-
-  this->descriptor.id = id;
-  this->quadtree = nullptr;
-}
-
-ssrlcv::Image::~Image(){
-  if(this->quadtree != nullptr){
-    delete this->quadtree;
-  }
-  std::cout<<"destructing"<<std::endl;
-  if(this->pixels != nullptr){
-    delete this->pixels;
-  }
-  std::cout<<"destructing"<<std::endl;
-}
-void ssrlcv::Image::generateQuadtree(){
-  uint2 depth = {0,0};
-  int2 border = {0,0};
-  if(this->descriptor.size.x > this->descriptor.size.y){
-    depth.y = (unsigned int)ceil(log2((float)this->descriptor.size.x));
-  }
-  else{
-    depth.y = (unsigned int)ceil(log2((float)this->descriptor.size.y));
-  }
-  border.x = (pow(2,depth.y) - this->descriptor.size.x)/2;
-  border.y = (pow(2,depth.y) - this->descriptor.size.y)/2;
-  depth.x = (depth.y <= 4) ? 0 : 4;
-  this->quadtree = new Quadtree<unsigned char>(this->descriptor.size,depth,this->pixels,this->colorDepth,border);
-}
-void ssrlcv::Image::convertToBW(){
-  if(this->colorDepth == 1){
+void ssrlcv::convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth){
+  if(colorDepth == 1){
     std::cout<<"Pixels are already bw"<<std::endl;
     return;
   }
 
-  MemoryState origin = this->pixels->state;
-  this->pixels->transferMemoryTo(gpu);
+  MemoryState origin = pixels->state;
+  pixels->transferMemoryTo(gpu);
 
-  unsigned int numPixels = (this->pixels->numElements/this->colorDepth);
+  unsigned int numPixels = (pixels->numElements/colorDepth);
 
   unsigned char* bwPixels_device;
   CudaSafeCall(cudaMalloc((void**)&bwPixels_device, numPixels*sizeof(unsigned char)));
@@ -140,16 +139,16 @@ void ssrlcv::Image::convertToBW(){
   dim3 grid;
   dim3 block;
   getFlatGridBlock(numPixels, grid, block);
-  generateBW<<<grid,block>>>(numPixels, this->colorDepth, this->pixels->device, bwPixels_device);
+  generateBW<<<grid,block>>>(numPixels, colorDepth, pixels->device, bwPixels_device);
   CudaCheckError();
 
-  this->pixels->setData(bwPixels_device, numPixels, gpu);
-  this->pixels->transferMemoryTo(origin);
+  pixels->setData(bwPixels_device, numPixels, gpu);
+  pixels->transferMemoryTo(origin);
   if(origin == cpu){
-    this->pixels->clear(gpu);
+    pixels->clear(gpu);
   }
-  this->colorDepth = 1;
 }
+
 __device__ __forceinline__ unsigned long ssrlcv::getGlobalIdx_2D_1D(){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   unsigned long threadId = blockId * blockDim.x + threadIdx.x;

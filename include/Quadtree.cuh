@@ -78,6 +78,8 @@ namespace ssrlcv{
     ssrlcv::Unity<Edge>* edges;
 
     ssrlcv::Unity<unsigned int>* dataNodeIndex;
+
+    //TODO change these to strict host variables so no need for unity
     ssrlcv::Unity<unsigned int>* nodeDepthIndex;
     ssrlcv::Unity<unsigned int>* vertexDepthIndex;
     ssrlcv::Unity<unsigned int>* edgeDepthIndex;
@@ -124,13 +126,13 @@ namespace ssrlcv{
   __global__ void getKeys(unsigned int numLocalizedPointers, ssrlcv::LocalizedData<unsigned int>* localizedPointers, int* keys, float2* nodeCenters, uint2 size, unsigned int depth);
 
   template<typename T>
-  __global__ void fillLeafNodes(unsigned long numDataElements, unsigned long numLeafNodes, typename Quadtree<T>::Node* leafNodes,int* keys, float2* nodeCenters, unsigned int* nodeDataIndex);
+  __global__ void fillLeafNodes(unsigned long numDataElements, unsigned long numLeafNodes, typename Quadtree<T>::Node* leafNodes,int* keys, float2* nodeCenters, unsigned int* nodeDataIndex, unsigned int depth);
 
   template<typename T>
-  __global__ void findAllNodes(unsigned long numUniqueNodes, int* nodeNumbers, typename Quadtree<T>::Node* uniqueNodes);
+  __global__ void findAllNodes(unsigned long numUniqueNodes, unsigned int* nodeNumbers, typename Quadtree<T>::Node* uniqueNodes);
 
   template<typename T>
-  __global__ void fillNodesAtDepth(unsigned long numUniqueNodes, int* nodeNumbers, int* nodeAddresses, typename Quadtree<T>::Node* existingNodes,
+  __global__ void fillNodesAtDepth(unsigned long numUniqueNodes, unsigned int* nodeNumbers, unsigned int* nodeAddresses, typename Quadtree<T>::Node* existingNodes,
     typename Quadtree<T>::Node* allNodes, unsigned int currentDepth, unsigned int totalDepth);
 
   template<typename T>
@@ -164,7 +166,7 @@ namespace ssrlcv{
   template<typename T>
   __global__ void applyNodeFlags(unsigned int numNodes, unsigned int depthIndex, typename Quadtree<T>::Node* nodes, bool* hashMap);
   template<typename T>
-  __global__ void applyNodeFlags(unsigned int numNodes, unsigned int depthIndex, typename Quadtree<T>::Node* nodes, float2 flagBorder,uint2 size);
+  __global__ void applyNodeFlags(unsigned int numNodes, unsigned int depthIndex, typename Quadtree<T>::Node* nodes, float4 flagBounds);
 
 }
 

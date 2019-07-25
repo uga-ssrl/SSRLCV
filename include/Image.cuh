@@ -23,7 +23,6 @@ namespace ssrlcv{
     __device__ __host__ Image_Descriptor(int id, uint2 size, float3 cam_pos, float3 camp_dir);
   };
 
-  void get_cam_params2view(Image_Descriptor &cam1, Image_Descriptor &cam2, std::string infile);
 
   class Image{
 
@@ -31,17 +30,16 @@ namespace ssrlcv{
 
     Image_Descriptor descriptor;
     std::string filePath;
-    unsigned int colorDepth;
-    Unity<unsigned char>* pixels;
     Quadtree<unsigned char>* quadtree;//holds pixels
 
     Image();
-    Image(std::string filePath, int id = -1);
+    Image(std::string filePath, int id = -1, unsigned int convertColorDepthTo = 0);
     ~Image();
-
-    void generateQuadtree();
-    void convertToBW();
   };
+
+  void get_cam_params2view(Image_Descriptor &cam1, Image_Descriptor &cam2, std::string infile);
+  void convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth);
+
   /* CUDA variable, method and kernel defintions */
 
   __device__ __forceinline__ unsigned long getGlobalIdx_2D_1D();
