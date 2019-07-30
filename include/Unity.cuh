@@ -259,7 +259,6 @@ namespace ssrlcv{
       }
     }
     this->state = both;
-    this->fore = both;
   }
   template<typename T>
   void Unity<T>::setMemoryState(MemoryState state){

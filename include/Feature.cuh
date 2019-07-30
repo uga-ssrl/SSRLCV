@@ -8,6 +8,7 @@ namespace ssrlcv{
   */
   template<typename D>
   struct Feature{
+    int parent;
     float2 loc;
     D descriptor;
     __device__ __host__ Feature();
@@ -19,15 +20,18 @@ namespace ssrlcv{
   template<typename D>
   __device__ __host__ Feature<D>::Feature(){
     this->loc = {-1.0f,-1.0f};
+    this->parent = -1;
   }
   template<typename D>
   __device__ __host__ Feature<D>::Feature(float2 loc){
     this->loc = loc;
+    this->parent = -1;
   }
   template<typename D>
   __device__ __host__ Feature<D>::Feature(float2 loc, D descriptor){
     this->loc = loc;
     this->descriptor = descriptor;
+    this->parent = -1;
   }
 
   /*

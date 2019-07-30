@@ -26,11 +26,11 @@ namespace ssrlcv{
   private:
     //the bool dense might need to be changed to some other metric as
     // this could be where scale space is implemented
-    void fillDescriptors(Image* image, Unity<Feature<SIFT_Descriptor>>* features, unsigned int* featureAddresses_device);
+    void fillDescriptors(Image* image, Unity<Feature<SIFT_Descriptor>>* features);
 
   public:
     SIFT_FeatureFactory();
-    Unity<Feature<SIFT_Descriptor>>* generateFeaturesDensly(Image* image);
+    Unity<Feature<SIFT_Descriptor>>* generateFeaturesDensly(Image* image, unsigned int binDepth = 0);
   };
 
   /*
@@ -62,11 +62,11 @@ namespace ssrlcv{
   //this method will fill a feature array where the first index in the sift descriptor is actually the pixel value
   //NOTE THIS MAY BE WASTEFUL ^^^ and should think of better option here.
   //numbers will be filled and then compressed by thrust stream compaction so that addresses are available for looking at real features
-  __global__ void findValidFeatures(unsigned int numNodes, Quadtree<unsigned char>::Node* nodes, unsigned int* featureNumbers, unsigned int* featureAddresses);
+  __global__ void findValidFeatures(unsigned int numNodes, unsigned int nodeDepthIndex, Quadtree<unsigned char>::Node* nodes, unsigned int* featureNumbers, unsigned int* featureAddresses);
   __global__ void fillValidFeatures(unsigned int numFeatures, Feature<SIFT_Descriptor>* features, unsigned int* featureAddresses, Quadtree<unsigned char>::Node* nodes);
 
-  __global__ void computeThetas(unsigned long numFeatures, Feature<SIFT_Descriptor>* features, Quadtree<unsigned char>::Node* nodes, unsigned int* featureAddresses, unsigned char* pixels);
-  __global__ void fillDescriptorsDensly(unsigned long totalFeatures, Image_Descriptor image, Quadtree<unsigned char>::Node* nodes, unsigned char* pixels, Feature<SIFT_Descriptor>* features);
+  __global__ void computeThetas(unsigned long numFeatures, Feature<SIFT_Descriptor>* features, Quadtree<unsigned char>::Node* nodes, unsigned char* pixels);
+  __global__ void fillDescriptorsDensly(unsigned long numFeatures, Feature<SIFT_Descriptor>* features, Quadtree<unsigned char>::Node* nodes, unsigned char* pixels);
 
 
 }

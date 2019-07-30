@@ -70,7 +70,7 @@ namespace ssrlcv{
 
     uint2 size;
     int2 border;
-    uint2 depth;//{min,max}
+    unsigned int depth;
 
     ssrlcv::Unity<T>* data;
     ssrlcv::Unity<Node>* nodes;
@@ -88,15 +88,15 @@ namespace ssrlcv{
 
     //for full quadtrees only holding data indices
     //can only be used with Quadtree<unsigned int>()
-    Quadtree(uint2 size, uint2 depth, int2 border = {0,0});
-    Quadtree(uint2 size, uint2 depth, ssrlcv::Unity<T>* data, unsigned int colorDepth = 0, int2 border = {0,0});
+    Quadtree(uint2 size, unsigned int depth, int2 border = {0,0});
+    Quadtree(uint2 size, unsigned int depth, ssrlcv::Unity<T>* data, unsigned int colorDepth = 0, int2 border = {0,0});
     //generally not necessary and takes up a lot of memory - useful for testing small scale
     void generateVertices();
     void generateEdges();
     void generateVerticesAndEdges();
 
-    void setNodeFlags(Unity<bool>* hashMap, uint2 depthRange = {0,0});
-    void setNodeFlags(float2 flagBorder, uint2 depthRange = {0,0});
+    void setNodeFlags(Unity<bool>* hashMap, bool requireFullNeighbors = false, uint2 depthRange = {0,0});
+    void setNodeFlags(float2 flagBorder, bool requireFullNeighbors = false, uint2 depthRange = {0,0});
 
     void writePLY(Unity<unsigned char>* pixels);
     void writePLY();
@@ -138,9 +138,8 @@ namespace ssrlcv{
   template<typename T>
   __global__ void buildParentalNodes(unsigned long numChildNodes, unsigned long childDepthIndex, typename Quadtree<T>::Node* childNodes, typename Quadtree<T>::Node* parentNodes, uint2 width);
 
-  //NOTE this is recursive
   template<typename T>
-  __global__ void fillParentIndex(unsigned int numRootNodes, typename Quadtree<T>::Node* nodes, long nodeIndex);
+  __global__ void fillParentIndex(unsigned int numNodesAtDepth, unsigned int depthStartingIndex, typename Quadtree<T>::Node* nodes);
 
   template<typename T>
   __global__ void fillDataNodeIndex(unsigned long numLeafNodes, typename Quadtree<T>::Node* nodes, unsigned int* dataNodeIndex);
@@ -164,9 +163,9 @@ namespace ssrlcv{
   typename Quadtree<T>::Edge* edges, int depth, int* ownerInidices, int* edgePlacement);
 
   template<typename T>
-  __global__ void applyNodeFlags(unsigned int numNodes, unsigned int depthIndex, typename Quadtree<T>::Node* nodes, bool* hashMap);
+  __global__ void applyNodeFlags(unsigned int numNodes, unsigned int depthIndex, typename Quadtree<T>::Node* nodes, bool* hashMap, bool requireFullNeighbors);
   template<typename T>
-  __global__ void applyNodeFlags(unsigned int numNodes, unsigned int depthIndex, typename Quadtree<T>::Node* nodes, float4 flagBounds);
+  __global__ void applyNodeFlags(unsigned int numNodes, unsigned int depthIndex, typename Quadtree<T>::Node* nodes, float4 flagBounds, bool requireFullNeighbors);
 
 }
 

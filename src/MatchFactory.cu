@@ -265,13 +265,11 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* 
   matches->transferMemoryTo(cpu);
   matches->clear(gpu);
 
-  queryFeatures->transferMemoryTo(origin[0]);
-  if(origin[0] == cpu){
-    queryFeatures->clear(gpu);
+  if(origin[0] != queryFeatures->state){
+    queryFeatures->setMemoryState(origin[0]);
   }
-  targetFeatures->transferMemoryTo(origin[1]);
-  if(origin[1] == cpu){
-    targetFeatures->clear(gpu);
+  if(origin[1] != targetFeatures->state){
+    targetFeatures->setMemoryState(origin[1]);
   }
 
   return matches;

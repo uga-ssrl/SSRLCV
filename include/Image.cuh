@@ -33,7 +33,9 @@ namespace ssrlcv{
     Quadtree<unsigned char>* quadtree;//holds pixels
 
     Image();
-    Image(std::string filePath, int id = -1, unsigned int convertColorDepthTo = 0);
+    Image(std::string filePath, int id = -1);
+    Image(std::string filePath, unsigned int convertColorDepthTo, int id = -1);
+    Image(std::string filePath, unsigned int convertColorDepthTo, unsigned int quadtreeBinDepth, int id = -1);
     ~Image();
   };
 

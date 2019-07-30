@@ -47,6 +47,10 @@
 
 //TODO go back and change all Unity<T>.transferMemoryTo(),Unity<T>.clear() to Unity<T>.setMemoryState
 
+//TODO look for locations that cudaDeviceSynchronize is used before a cudaFree, cudaMalloc, or cudaMemcpy and think about removing them as they are blockers themselves\\
+
+//TODO go back and ensure that fore is being set based on previously edited
+
 int main(int argc, char *argv[]){
   try{
     //CUDA INITIALIZATION
@@ -73,13 +77,15 @@ int main(int argc, char *argv[]){
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
     unsigned int convertColorDepthTo = 1;
     for(int i = 0; i < numImages; ++i){
-      ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i,convertColorDepthTo);
-      image->quadtree->setNodeFlags({12.0f+image->quadtree->border.x,12.0f+image->quadtree->border.y});//sift border
-      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeaturesDensly(image);
-      exit(0);
-      //allFeatures.push_back(features);
-      //images.push_back(image);
+      ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],convertColorDepthTo,i);
+      //sift border is 24 due to 1xbin would normally be 12
+      image->quadtree->setNodeFlags({24.0f+image->quadtree->border.x,24.0f+image->quadtree->border.y},true);
+      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeaturesDensly(image,1);
+      allFeatures.push_back(features);
+      images.push_back(image);
     }
+    ssrlcv::MatchFactory matchFactory = ssrlcv::MatchFactory();
+    ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.generateMatchesBruteForce(images[0],allFeatures[0],images[1],allFeatures[1]);
     return 0;
   }
   catch (const std::exception &e){

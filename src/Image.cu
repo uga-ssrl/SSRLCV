@@ -36,8 +36,25 @@ ssrlcv::Image::Image(){
   this->quadtree = nullptr;
   this->filePath = "n/a";
 }
-
-ssrlcv::Image::Image(std::string filePath, int id, unsigned int convertColorDepthTo){
+ssrlcv::Image::Image(std::string filePath, int id){
+  this->filePath = filePath;
+  this->descriptor.id = id;
+  unsigned int colorDepth = 1;
+  unsigned char* pixels_host = readPNG(filePath.c_str(), this->descriptor.size.y, this->descriptor.size.x, colorDepth);
+  Unity<unsigned char>* pixels = new Unity<unsigned char>(pixels_host,this->descriptor.size.y*this->descriptor.size.x*colorDepth,cpu);
+  unsigned int depth = 0;
+  int2 border = {0,0};
+  if(this->descriptor.size.x > this->descriptor.size.y){
+    depth = (unsigned int)ceil(log2((float)this->descriptor.size.x));
+  }
+  else{
+    depth = (unsigned int)ceil(log2((float)this->descriptor.size.y));
+  }
+  border.x = (pow(2,depth) - this->descriptor.size.x)/2;
+  border.y = (pow(2,depth) - this->descriptor.size.y)/2;
+  this->quadtree = new Quadtree<unsigned char>(this->descriptor.size,depth,pixels,colorDepth,border);
+}
+ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int id){
   this->filePath = filePath;
   this->descriptor.id = id;
   unsigned int colorDepth = 1;
@@ -51,17 +68,47 @@ ssrlcv::Image::Image(std::string filePath, int id, unsigned int convertColorDept
     std::cerr<<"ERROR: Image() does not currently support conversion to anything but BW"<<std::endl;
     exit(-1);
   }
-  uint2 depth = {0,0};
+  unsigned int depth = 0;
   int2 border = {0,0};
   if(this->descriptor.size.x > this->descriptor.size.y){
-    depth.y = (unsigned int)ceil(log2((float)this->descriptor.size.x));
+    depth = (unsigned int)ceil(log2((float)this->descriptor.size.x));
   }
   else{
-    depth.y = (unsigned int)ceil(log2((float)this->descriptor.size.y));
+    depth = (unsigned int)ceil(log2((float)this->descriptor.size.y));
   }
-  border.x = (pow(2,depth.y) - this->descriptor.size.x)/2;
-  border.y = (pow(2,depth.y) - this->descriptor.size.y)/2;
-  depth.x = (depth.y <= 4) ? 0 : 4;
+  border.x = (pow(2,depth) - this->descriptor.size.x)/2;
+  border.y = (pow(2,depth) - this->descriptor.size.y)/2;
+  this->quadtree = new Quadtree<unsigned char>(this->descriptor.size,depth,pixels,colorDepth,border);
+}
+ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, unsigned int quadtreeBinDepth, int id){
+  this->filePath = filePath;
+  this->descriptor.id = id;
+  unsigned int colorDepth = 1;
+  unsigned char* pixels_host = readPNG(filePath.c_str(), this->descriptor.size.y, this->descriptor.size.x, colorDepth);
+  Unity<unsigned char>* pixels = new Unity<unsigned char>(pixels_host,this->descriptor.size.y*this->descriptor.size.x*colorDepth,cpu);
+  if(convertColorDepthTo == 1){
+    convertToBW(pixels,colorDepth);
+    colorDepth = 1;
+  }
+  else if(convertColorDepthTo != 0){
+    std::cerr<<"ERROR: Image() does not currently support conversion to anything but BW"<<std::endl;
+    exit(-1);
+  }
+  unsigned int depth = 0;
+  int2 border = {0,0};
+  if(this->descriptor.size.x > this->descriptor.size.y){
+    depth = (unsigned int)ceil(log2((float)this->descriptor.size.x));
+  }
+  else{
+    depth = (unsigned int)ceil(log2((float)this->descriptor.size.y));
+  }
+  border.x = (pow(2,depth) - this->descriptor.size.x)/2;
+  border.y = (pow(2,depth) - this->descriptor.size.y)/2;
+  if(quadtreeBinDepth == depth){
+    std::cerr<<"ERROR: invalid quadtree depth of "<<quadtreeBinDepth<<std::endl;
+    exit(-1);
+  }
+  depth -= quadtreeBinDepth;
   this->quadtree = new Quadtree<unsigned char>(this->descriptor.size,depth,pixels,colorDepth,border);
 }
 
@@ -69,7 +116,6 @@ ssrlcv::Image::~Image(){
   if(this->quadtree != nullptr){
     delete this->quadtree;
   }
-  std::cout<<"destructing"<<std::endl;
 }
 
 void ssrlcv::get_cam_params2view(Image_Descriptor &cam1, Image_Descriptor &cam2, std::string infile){
