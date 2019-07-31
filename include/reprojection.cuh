@@ -18,6 +18,7 @@
 #include <sstream>
 #include "common_includes.h"
 #include "cuda_util.cuh"
+#include "Unity.cuh"
 
 __device__ int getIndex_gpu(int x, int y);
 __device__ void multiply3x3x1_gpu(float A[9], float B[3], float (&C)[3]);

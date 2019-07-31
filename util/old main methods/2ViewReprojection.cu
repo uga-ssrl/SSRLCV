@@ -22,16 +22,16 @@ int main(int argc, char* argv[])
 {
 
 	//load and structure reprojection input
-	FeatureMatches* fMatches =NULL;
+	FeatureMatches* fMatches =nullptr;
 	loadMatchData(fMatches, "./data/repro_test/nk_matches.txt");
 	std::cout<<"made it here 1\n\n";
-	CameraData* cData = NULL;
+	CameraData* cData = nullptr;
 	loadCameraData(cData, "./data/repro_test/nk_cameras.txt");
 
 	std::cout<<"made it here 2\n\n";
 
 	//execute 2 view reprojection on gpu
-	PointCloud* pCloud = NULL;
+	PointCloud* pCloud = nullptr;
 	twoViewReprojection(fMatches, cData, pCloud);
 
 	//save output point cloud as a .ply file
