@@ -729,7 +729,9 @@ if (plystream.is_open()) {
     stringBuffer << this->nodes->host[i].center.x;
     stringBuffer << " ";
     stringBuffer << this->nodes->host[i].center.y;
-    stringBuffer << " 0 ";
+    stringBuffer << " ";
+    stringBuffer << this->nodes->host[i].depth*1000;
+    stringBuffer << " ";
     int color = 0;
     if(this->nodes->host[i].numElements != 0 && this->nodes->host[i].flag){
       int numNodes = 0;

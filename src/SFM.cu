@@ -80,12 +80,13 @@ int main(int argc, char *argv[]){
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],convertColorDepthTo,i);
       //sift border is 24 due to 1xbin would normally be 12
       image->quadtree->setNodeFlags({24.0f+image->quadtree->border.x,24.0f+image->quadtree->border.y},true);
+      image->quadtree->writePLY();
       ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeaturesDensly(image,1);
       allFeatures.push_back(features);
       images.push_back(image);
     }
     ssrlcv::MatchFactory matchFactory = ssrlcv::MatchFactory();
-    ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.generateMatchesBruteForce(images[0],allFeatures[0],images[1],allFeatures[1]);
+    //ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.generateMatchesBruteForce(images[0],allFeatures[0],images[1],allFeatures[1]);
     return 0;
   }
   catch (const std::exception &e){
