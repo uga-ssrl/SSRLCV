@@ -5,6 +5,8 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <cuda.h>
+#include "cuda_util.cuh"
+#include "MatrixUtil.cuh"
 
 #include <iostream>
 #include <string>
@@ -31,17 +33,8 @@
 #include <dirent.h>
 #include <cfloat>
 #include <cstring>
-#include "tinyply.h"
 
-
-//TODO change enum to 1 and 2 so both = cpu + gpu
-#define CPU 1
-#define GPU 2
-typedef enum MemoryState{
-  cpu = 0,
-  gpu = 1,
-  both = 2
-} MemoryState;
+#include "CVExceptions.hpp"
 
 #define PI 3.1415926535897932384626433832795028841971693993
 

@@ -2,42 +2,49 @@
 #define FEATURE_CUH
 #include "common_includes.h"
 
-struct Feature{
-  int2 loc;
-  bool real;
-  int parentImage;
-  int descriptorIndex;
-};
-
-struct SIFT_Feature : public Feature{
-  float sigma;
-  __device__ __host__ SIFT_Feature();
-  __device__ __host__ SIFT_Feature(int2 loc, int parentImage);
-  __device__ __host__ SIFT_Feature(int2 loc, int parentImage, bool real);
-  __device__ __host__ SIFT_Feature(int2 loc, int parentImage, bool real, float sigma);
-};
-
-struct Descriptor{
+namespace ssrlcv{
   /*
-  ADD COMMONALITIES BETWEEN TYPES OF DESCRIPTORS
+  BASE FEATURE STRUCT
   */
-};
+  template<typename D>
+  struct Feature{
+    int parent;
+    float2 loc;
+    D descriptor;
+    __device__ __host__ Feature();
+    __device__ __host__ Feature(float2 loc);
+    __device__ __host__ Feature(float2 loc, D descriptor);
+  };
 
-struct SIFT_Descriptor : public Descriptor{
-  float theta;//in radians
-  unsigned char descriptor[128];//ordered left to right, top to bottom, 0->360 egrees
-  __device__ __host__ SIFT_Descriptor();
-  __device__ __host__ SIFT_Descriptor(float theta);
-  __device__ __host__ SIFT_Descriptor(float theta, unsigned char descriptor[128]);
-};
-
-struct feature_is_inbounds{
-  __host__ __device__
-  bool operator()(Feature f){
-    return f.real;
+  //included in header to prevent linkage issues
+  template<typename D>
+  __device__ __host__ Feature<D>::Feature(){
+    this->loc = {-1.0f,-1.0f};
+    this->parent = -1;
   }
-};
+  template<typename D>
+  __device__ __host__ Feature<D>::Feature(float2 loc){
+    this->loc = loc;
+    this->parent = -1;
+  }
+  template<typename D>
+  __device__ __host__ Feature<D>::Feature(float2 loc, D descriptor){
+    this->loc = loc;
+    this->descriptor = descriptor;
+    this->parent = -1;
+  }
 
-
+  /*
+  DECLARATIONS OF DESCRIPTORS TO USE WITH FEATURE
+  */
+  //TODO add KAZE, SURF, ORB, etc
+  struct SIFT_Descriptor{
+    float theta;//in radians
+    unsigned char values[128];//ordered left to right, top to bottom, 0->360 degrees
+    __device__ __host__ SIFT_Descriptor();
+    __device__ __host__ SIFT_Descriptor(float theta);
+    __device__ __host__ SIFT_Descriptor(float theta, unsigned char values[128]);
+  };
+}
 
 #endif /* FEATURE_CUH */

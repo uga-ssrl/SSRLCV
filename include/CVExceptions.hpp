@@ -1,0 +1,8 @@
+#ifndef CVEXCEPTIONS_HPP
+#define CVEXCEPTIONS_HPP
+
+
+
+
+
+#endif /* CVEXCEPTIONS_HPP */

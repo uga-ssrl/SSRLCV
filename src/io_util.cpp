@@ -1,16 +1,14 @@
-#include "image_io.h"
-#include <iostream>
-#include <fstream>
+#include "io_util.h"
 
 
-void getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths){
+void ssrlcv::getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths){
   DIR* dir;
-  if (NULL == (dir = opendir(dirPath.c_str()))){
+  if (nullptr == (dir = opendir(dirPath.c_str()))){
     printf("Error : Failed to open input directory %s\n",dirPath.c_str());
     exit(-1);
   }
   struct dirent* in_file;
-  while((in_file = readdir(dir)) != NULL){
+  while((in_file = readdir(dir)) != nullptr){
     std::string currentFileName = in_file->d_name;
 
     if (currentFileName == "." || currentFileName == ".." ||
@@ -22,7 +20,7 @@ void getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths){
   closedir(dir);
   std::cout<<"found "<<imagePaths.size()<<std::endl;
 }
-std::vector<std::string> findFiles(std::string path){
+std::vector<std::string> ssrlcv::findFiles(std::string path){
   std::vector<std::string> imagePaths;
   if(path.find(".png") != std::string::npos){
     imagePaths.push_back(path);
@@ -34,7 +32,7 @@ std::vector<std::string> findFiles(std::string path){
   return imagePaths;
 }
 
-unsigned char* getPixelArray(unsigned char** &row_pointers, const int &width, const int &height, const int numValues){
+unsigned char* ssrlcv::getPixelArray(unsigned char** &row_pointers, const unsigned int &width, const unsigned int &height, const int numValues){
   if(numValues == 0){
     std::cout<<"ERROR: png color type not supported in parallel DSIFT"<<std::endl;
     exit(-1);
@@ -53,7 +51,7 @@ unsigned char* getPixelArray(unsigned char** &row_pointers, const int &width, co
   return imageMatrix;
 }
 
-unsigned char* readPNG(const char* filePath, int &height, int &width, unsigned char& colorDepth){
+unsigned char* ssrlcv::readPNG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int& colorDepth){
   /* open file and test for it being a png */
   FILE* fp = fopen(filePath, "rb");
   std::cout<<"READING "<<filePath<<std::endl;
@@ -73,7 +71,7 @@ unsigned char* readPNG(const char* filePath, int &height, int &width, unsigned c
   }
 
   /* initialize stuff */
-  png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+  png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
 
   if (!png_ptr){
     std::cout<<"[read_png_file] png_create_read_struct failed"<<std::endl;
@@ -113,7 +111,7 @@ unsigned char* readPNG(const char* filePath, int &height, int &width, unsigned c
   return getPixelArray(row_pointers, width, height, numChannels);
 }
 
-void writePNG(const char* filePath, const unsigned char* &image, const int &width, const int &height){
+void ssrlcv::writePNG(const char* filePath, const unsigned char* &image, const unsigned int &width, const unsigned int &height){
 
   /* create file */
   FILE *fp = fopen(filePath, "wb");
@@ -122,7 +120,7 @@ void writePNG(const char* filePath, const unsigned char* &image, const int &widt
   }
 
   /* initialize stuff */
-  png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+  png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
 
   if(!png_ptr){
     std::cout<<"[write_png_file] png_create_write_struct failed "<<std::endl;
@@ -169,44 +167,7 @@ void writePNG(const char* filePath, const unsigned char* &image, const int &widt
     std::cout<<"[write_png_file] Error during end of write "<<std::endl;
   }
 
-  png_write_end(png_ptr, NULL);
+  png_write_end(png_ptr, nullptr);
   fclose(fp);
   std::cout<<filePath<<" has been written"<<std::endl;
-}
-
-/**
- * Return the camera position and orientation vectors within the .meta file corresponding to the given path.
- * The .meta file, which I made to be outputted by the Blender sims, just has six floats separated by spaces.  3 position, 3 orientation, both xyz.
- * @author jake
- */
-image_meta readImageMeta(std::string image) {
-  std::string path = image.replace(image.length() - 4, std::string::npos, ".meta");
-  std::cout << "Reading meta: " << path << std::endl;
-  std::ifstream file(path);
-  image_meta res;
-
-  float f1, f2, f3;
-  file >> f1 >> f2 >> f3;
-  res.position = { f1, f2, f3 };
-
-  float d1, d2, d3;
-  file >> d1 >> d2 >> d3;
-  res.orientation = { d1, d2, d3 };
-
-  return res;
-}
-
-camera_meta readCameraMeta(std::string path) {
-  std::cout << "Reading camera meta from " << path << std::endl;
-  if(path.substr(path.length() - 1, 1) != "/") path += "/";
-  path += "camera.meta";
-
-  std::ifstream file(path);
-  camera_meta res;
-
-  float focal, fov;
-  file >> focal >> fov;
-  res.focal = focal;
-  res.fov = fov;
-  return res;
 }

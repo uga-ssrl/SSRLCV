@@ -1,9 +1,10 @@
 #include "common_includes.h"
 #include "Image.cuh"
+#include "io_util.h"
 #include "FeatureFactory.cuh"
 #include "MatchFactory.cuh"
-#include "PointCloudFactory.cuh" 
-#include "surface.cuh"
+#include "PointCloudFactory.cuh"
+#include "MeshFactory.cuh"
 
 //TODO across all methods in octree and surface use const __restrict__ to enable
 //https://stackoverflow.com/questions/31344454/can-a-const-restrict-increase-cuda-register-usage
@@ -34,6 +35,21 @@
 
 //TODO delete methods in images
 
+//TODO go through all global and block ID calculations in kernels to ensure there will be no overflow
+
+
+//TODO ADD AND USE MEMORY CONSTAINED VARIABLE TO FACTORIES - gives permission to delete parameters once used
+//use this or go back and make sure a unity never has a state of both
+
+//TODO go back and make sure thrust:: calls are all device
+
+//TODO in octree and quadtree change thrust::copy_if to thrust::remove
+
+//TODO go back and change all Unity<T>.transferMemoryTo(),Unity<T>.clear() to Unity<T>.setMemoryState
+
+//TODO look for locations that cudaDeviceSynchronize is used before a cudaFree, cudaMalloc, or cudaMemcpy and think about removing them as they are blockers themselves\\
+
+//TODO go back and ensure that fore is being set based on previously edited
 
 int main(int argc, char *argv[]){
   try{
@@ -44,97 +60,40 @@ int main(int argc, char *argv[]){
 
     //ARG PARSING
     if(argc < 2 || argc > 4){
-      std::cout<<"USAGE ./bin/dsift_parallel </path/to/image/directory/> <optional:numorientations>"<<std::endl;
+      std::cout<<"USAGE ./bin/SFM </path/to/image/directory/>"<<std::endl;
       exit(-1);
     }
     std::string path = argv[1];
-    std::vector<std::string> imagePaths = findFiles(path);
-    camera_meta cameraMeta = readCameraMeta(path); 
+    std::vector<std::string> imagePaths = ssrlcv::findFiles(path);
 
-    int numOrientations = (argc > 2) ? std::stoi(argv[2]) : 1;
     int numImages = (int) imagePaths.size();
 
     /*
     DENSE SIFT
     */
 
-    SIFT_FeatureFactory featureFactory = SIFT_FeatureFactory(numOrientations);
-    Image* images = new Image[numImages];
-    MemoryState pixFeatureDescriptorMemoryState[3] = {gpu,gpu,gpu};
-
+    ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory();
+    std::vector<ssrlcv::Image*> images;
+    std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
+    unsigned int convertColorDepthTo = 1;
     for(int i = 0; i < numImages; ++i){
-      std::string& path = imagePaths[i];
-      image_meta imageMeta = readImageMeta(path);
-      images[i] = Image(imagePaths[i], i, pixFeatureDescriptorMemoryState);
-      images[i].convertToBW();
-
-      images[i].descriptor.foc      = cameraMeta.focal;
-      images[i].descriptor.fov      = cameraMeta.fov; 
-      images[i].descriptor.cam_pos  = imageMeta.position;
-      images[i].descriptor.cam_vec  = imageMeta.orientation;
-
-      printf("%s size = %dx%d\n", imagePaths[i].c_str(), images[i].descriptor.size.x, images[i].descriptor.size.y);
-
-
-      featureFactory.setImage(&(images[i]));
-      featureFactory.generateFeaturesDensly();
+      ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],convertColorDepthTo,i);
+      //sift border is 24 due to 1xbin would normally be 12
+      image->quadtree->setNodeFlags({24.0f+image->quadtree->border.x,24.0f+image->quadtree->border.y},true);
+      image->quadtree->writePLY();
+      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeaturesDensly(image,1);
+      allFeatures.push_back(features);
+      images.push_back(image);
     }
-    std::cout<<"features are set"<<std::endl;
-
-    MatchFactory matchFactory = MatchFactory();
-    matchFactory.setCutOffRatio(0.1);
-    SubPixelMatchSet* matchSet = NULL;
-    matchFactory.generateSubPixelMatchesPairwiseConstrained(&(images[0]), &(images[1]), 5.0f, matchSet, cpu);
-    matchFactory.refineMatches(matchSet);
-
-    //TODO write method to clear all image featuresand descriptors
-    printf("\nParallel DSIFT took = %f seconds.\n\n",((float) clock() -  partialTimer)/CLOCKS_PER_SEC);
-
-    /*
-    REPROJECTION
-    */
-
-    std::cout<<"starting reprojection"<<std::endl;
-    partialTimer = clock();
-
-    // Point Cloud Factory 
-    PointCloud * pCloud = NULL; 
-    PointCloudFactory pointCloudFactory = PointCloudFactory(); 
-    pointCloudFactory.generatePointCloud(pCloud, images, numImages, matchSet);
-
-
-    printf("\nParallel Reprojection took %f seconds.\n\n",((float) clock() -  partialTimer)/CLOCKS_PER_SEC);
-
-    /*
-    SURFACE RECONSTRUCTION
-    */
-    std::cout<<"Starting surface reconstruction"<<std::endl;
-    partialTimer = clock();
-    int depth = 8;
-
-    std::cout<<"depth = "<<depth<<std::endl;
-    Octree octree = Octree(pCloud->numPoints, pCloud->points, depth, false);
-    float3* cameraPositions = new float3[2];
-    cameraPositions[0] = images[0].descriptor.cam_pos;
-    cameraPositions[1] = images[1].descriptor.cam_pos;
-    octree.name = "everest254";
-    octree.computeNormals(3, 20, 2, cameraPositions);
-    octree.writeVertexPLY();
-    octree.writeEdgePLY();
-    octree.writeCenterPLY();
-    octree.writeNormalPLY();
-    delete[] cameraPositions;
-    Surface surface = Surface(&octree);
-    surface.marchingCubes();
-
-    std::cout<<"---------------------------------------------------"<<std::endl;
-    printf("\nSurface Reconstruction took %f seconds.\n\n",((float) clock() -  partialTimer)/CLOCKS_PER_SEC);
-
-    printf("\nTOTAL TIME = %f seconds.\n\n",((float) clock() - totalTimer)/CLOCKS_PER_SEC);
-
+    ssrlcv::MatchFactory matchFactory = ssrlcv::MatchFactory();
+    //ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.generateMatchesBruteForce(images[0],allFeatures[0],images[1],allFeatures[1]);
     return 0;
   }
   catch (const std::exception &e){
+      std::cerr << "Caught exception: " << e.what() << '\n';
+      std::exit(1);
+  }
+  catch (const ssrlcv::UnityException &e){
       std::cerr << "Caught exception: " << e.what() << '\n';
       std::exit(1);
   }

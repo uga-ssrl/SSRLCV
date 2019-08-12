@@ -1,25 +1,29 @@
-#ifndef PCFACTORY_CUH
-#define PCFACTORY_CUH
+#ifndef POINTCLOUDFACTORY_CUH
+#define POINTCLOUDFACTORY_CUH
 
-
-/**
-	Point Cloud Factory - Factory pattern implementation of James Roach's reprojection code
-	@author Jake Conley
-
- */
-
-#include "reprojection.cuh" 
-#include "Image.cuh" 
+#include "common_includes.h"
+#include "MatrixUtil.cuh"
+#include "Image.cuh"
 #include "MatchFactory.cuh"
-
-class PointCloudFactory { 
-
-public:
-	PointCloudFactory(); 
-
-	void generatePointCloud(PointCloud * out, Image * images, int numImages, SubPixelMatchSet * matchSet);	
+#include "Unity.cuh"
 
 
-};
+namespace ssrlcv{
+  class PointCloudFactory {
 
-#endif 
+  public:
+  	PointCloudFactory();
+
+    Unity<float3>* reproject(Unity<Match>* matches, Image* target, Image* query);
+
+  };
+
+  __global__ void two_view_reproject(int numMatches, float4* matches, float cam1C[3],
+  	float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9],
+  	float rotationTranspose1[9], float rotationTranspose2[9], float3* points);
+
+
+}
+
+
+#endif /* POINTCLOUDFACTORY_CUH */

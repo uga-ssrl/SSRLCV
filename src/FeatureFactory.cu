@@ -1,84 +1,162 @@
 #include "FeatureFactory.cuh"
-// Define this to turn on error checking
-#define CUDA_ERROR_CHECK
 
-#define CudaSafeCall( err ) __cudaSafeCall( err, __FILE__, __LINE__ )
-#define CudaCheckError()    __cudaCheckError( __FILE__, __LINE__ )
+/*
+HOST METHODS
+*/
+//Base feature factory
 
 
-inline void __cudaSafeCall(cudaError err, const char *file, const int line) {
-#ifdef CUDA_ERROR_CHECK
-  if (cudaSuccess != err) {
-      fprintf(stderr, "cudaSafeCall() failed at %s:%i : %s\n",
-      file, line, cudaGetErrorString(err));
-      exit(-1);
-  }
-#endif
+ssrlcv::FeatureFactory::FeatureFactory(){
 
-  return;
 }
-inline void __cudaCheckError(const char *file, const int line) {
-#ifdef CUDA_ERROR_CHECK
-  cudaError err = cudaGetLastError();
-  if (cudaSuccess != err) {
-    fprintf(stderr, "cudaCheckError() failed at %s:%i : %s\n",
-    file, line, cudaGetErrorString(err));
+
+ssrlcv::SIFT_FeatureFactory::SIFT_FeatureFactory(){
+
+}
+
+ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFactory::generateFeaturesDensly(ssrlcv::Image* image, unsigned int binDepth){
+  Unity<Feature<SIFT_Descriptor>>* features = nullptr;
+
+  if(image->quadtree == nullptr){
+    std::cerr<<"ERROR: generateFeaturesDensly for Feature<SIFT_Descriptor> requires an image in a quadtree"<<std::endl;
     exit(-1);
   }
-
-  // More careful checking. However, this will affect performance.
-  // Comment away if needed.
-  // err = cudaDeviceSynchronize();
-  if (cudaSuccess != err) {
-    fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
-    file, line, cudaGetErrorString(err));
+  if(image->quadtree->depth <= binDepth){
+    std::cerr<<"ERROR: binDepth must be less than the quadtree depth"<<std::endl;
     exit(-1);
   }
-#endif
+  std::cout<<"generating features"<<std::endl;
+  MemoryState origin[2] = {image->quadtree->nodes->state,image->quadtree->nodeDepthIndex->state};
 
-  return;
+  if(image->quadtree->nodes->fore == cpu){
+    image->quadtree->nodes->transferMemoryTo(gpu);
+  }
+  if(image->quadtree->nodeDepthIndex->fore == gpu){
+    image->quadtree->nodeDepthIndex->transferMemoryTo(cpu);
+  }
+
+
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  unsigned int* featureNumbers_device = nullptr;
+  unsigned int* featureAddresses_device = nullptr;
+
+  unsigned int possibleFeatures = 0;
+  unsigned int depthIndex = 0;
+  if(binDepth == 0){
+    possibleFeatures = image->quadtree->nodeDepthIndex->host[1];
+  }
+  else{
+    depthIndex = image->quadtree->nodeDepthIndex->host[binDepth];
+    possibleFeatures = image->quadtree->nodeDepthIndex->host[binDepth + 1] - depthIndex;
+  }
+
+  CudaSafeCall(cudaMalloc((void**)&featureNumbers_device,possibleFeatures*sizeof(unsigned int)));
+  CudaSafeCall(cudaMalloc((void**)&featureAddresses_device,possibleFeatures*sizeof(unsigned int)));
+  getFlatGridBlock(image->quadtree->nodeDepthIndex->host[1],grid,block);
+  findValidFeatures<<<grid,block>>>(possibleFeatures,depthIndex,image->quadtree->nodes->device,featureNumbers_device,featureAddresses_device);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  thrust::device_ptr<unsigned int> fN(featureNumbers_device);
+  thrust::inclusive_scan(fN, fN + possibleFeatures, fN);
+
+  unsigned int numSIFTFeatures = 0;
+  CudaSafeCall(cudaMemcpy(&numSIFTFeatures,featureNumbers_device + (possibleFeatures - 1), sizeof(unsigned int), cudaMemcpyDeviceToHost));
+  CudaSafeCall(cudaFree(featureNumbers_device));
+
+  std::cout<<numSIFTFeatures<<" Feature<SIFT_Descriptor> were found during dense search"<<std::endl;
+
+  thrust::device_ptr<unsigned int> fA(featureAddresses_device);
+  thrust::remove(fA, fA + possibleFeatures, 0);
+
+  grid = {1,1,1};
+  block = {1,1,1};
+  getFlatGridBlock(numSIFTFeatures, grid, block);
+  Feature<SIFT_Descriptor>* features_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&features_device,numSIFTFeatures*sizeof(Feature<SIFT_Descriptor>)));
+  features = new Unity<Feature<SIFT_Descriptor>>(features_device,numSIFTFeatures,gpu);
+
+  fillValidFeatures<<<grid,block>>>(features->numElements,features->device,featureAddresses_device,image->quadtree->nodes->device);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  CudaSafeCall(cudaFree(featureAddresses_device));
+
+  this->fillDescriptors(image, features);
+
+
+  if(origin[0] != image->quadtree->nodes->state){
+    image->quadtree->nodes->setMemoryState(origin[0]);
+  }
+  if(origin[1] != image->quadtree->nodeDepthIndex->state){
+    image->quadtree->nodeDepthIndex->setMemoryState(origin[1]);
+  }
+
+  return features;
 }
-__constant__ float matchTreshold = 0.1;
-__constant__ float pi = 3.1415926535897932384626433832795028841971693993751058209749445923078164062;
-__constant__ int2 immediateNeighbors[9] = {
-  {-1, -1},
-  {-1, 0},
-  {-1, 1},
-  {0, -1},
-  {0, 0},
-  {0, 1},
-  {1, -1},
-  {1, 0},
-  {1, 1}
-};
+void ssrlcv::SIFT_FeatureFactory::fillDescriptors(ssrlcv::Image* image, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features){
+
+  MemoryState origin = image->quadtree->data->state;
+
+  dim3 grid = {1,1,1};
+  dim3 block = {9,1,1};
+  getGrid(features->numElements, grid);
+
+  if(image->quadtree->data->fore == cpu){
+    image->quadtree->data->transferMemoryTo(gpu);
+  }
+  std::cout<<"computing thetas for feature descriptors..."<<std::endl;
+  clock_t timer = clock();
+  computeThetas<<<grid, block>>>(features->numElements, features->device, image->quadtree->nodes->device, image->quadtree->data->device);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+
+  block = {16,16,1};
+  std::cout<<"generating feature descriptors..."<<std::endl;
+  timer = clock();
+  fillDescriptorsDensly<<<grid,block>>>(features->numElements, features->device, image->quadtree->nodes->device, image->quadtree->data->device);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+
+  if(origin != image->quadtree->data->state){
+    image->quadtree->data->setMemoryState(origin);
+  }
+}
+
+/*
+CUDA implementations
+*/
+
+__constant__ float ssrlcv::pi = 3.1415926535897932384626433832795028841971693993751058209749445923078164062;
 
 /*
 DEVICE METHODS
 */
-__device__ __forceinline__ unsigned long getGlobalIdx_2D_1D(){
+__device__ __forceinline__ unsigned long ssrlcv::getGlobalIdx_2D_1D(){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   unsigned long threadId = blockId * blockDim.x + threadIdx.x;
   return threadId;
 }
-__device__ __forceinline__ unsigned char rgbToBW(const uchar3 &color){
-  return (color.x/4) + (color.y/2) + (color.z/4);
-}
-__device__ __forceinline__ float getMagnitude(const int2 &vector){
+__device__ __forceinline__ float ssrlcv::getMagnitude(const int2 &vector){
   return sqrtf(dotProduct(vector, vector));
 }
-__device__ __forceinline__ float getTheta(const int2 &vector){
+__device__ __forceinline__ float ssrlcv::getTheta(const int2 &vector){
   float theta = atan2f((float)vector.y, (float)vector.x) + pi;
   return fmod(theta,2.0f*pi);
 }
-__device__ __forceinline__ float getTheta(const float2 &vector){
+__device__ __forceinline__ float ssrlcv::getTheta(const float2 &vector){
   float theta = atan2f(vector.y, vector.x) + pi;
   return fmod(theta,2.0f*pi);
 }
-__device__ __forceinline__ float getTheta(const float2 &vector, const float &offset){
+__device__ __forceinline__ float ssrlcv::getTheta(const float2 &vector, const float &offset){
   float theta = (atan2f(vector.y, vector.x) + pi) - offset;
   return fmod(theta + 2.0f*pi,2.0f*pi);
 }
-__device__ void trickleSwap(const float2 &compareWValue, float2* &arr, int index, const int &length){
+__device__ void ssrlcv::trickleSwap(const float2 &compareWValue, float2* &arr, int index, const int &length){
   for(int i = index; i < length; ++i){
     if(compareWValue.x > arr[i].x){
       float2 temp = arr[i];
@@ -88,8 +166,8 @@ __device__ void trickleSwap(const float2 &compareWValue, float2* &arr, int index
     }
   }
 }
-__device__ __forceinline__ int4 getOrientationContributers(const int2 &loc, const int2 &imageSize){
-  int4 orientationContributers;
+__device__ __forceinline__ long4 ssrlcv::getOrientationContributers(const long2 &loc, const uint2 &imageSize){
+  long4 orientationContributers;
   long pixelIndex = loc.y*imageSize.x + loc.x;
   orientationContributers.x = (loc.x == imageSize.x - 1) ? -1 : pixelIndex + 1;
   orientationContributers.y = (loc.x == 0) ? -1 : pixelIndex - 1;
@@ -97,26 +175,26 @@ __device__ __forceinline__ int4 getOrientationContributers(const int2 &loc, cons
   orientationContributers.w = (loc.y == 0) ? -1 : (loc.y - 1)*imageSize.x + loc.x;
   return orientationContributers;
 }
-__device__ __forceinline__ int floatToOrderedInt(float floatVal){
+__device__ __forceinline__ int ssrlcv::floatToOrderedInt(float floatVal){
  int intVal = __float_as_int( floatVal );
  return (intVal >= 0 ) ? intVal : intVal ^ 0x7FFFFFFF;
 }
-__device__ __forceinline__ float orderedIntToFloat(int intVal){
+__device__ __forceinline__ float ssrlcv::orderedIntToFloat(int intVal){
  return __int_as_float( (intVal >= 0) ? intVal : intVal ^ 0x7FFFFFFF);
 }
-__device__ __forceinline__ float atomicMinFloat (float * addr, float value) {
+__device__ __forceinline__ float ssrlcv::atomicMinFloat (float * addr, float value) {
   float old;
   old = (value >= 0) ? __int_as_float(atomicMin((int *)addr, __float_as_int(value))) :
     __uint_as_float(atomicMax((unsigned int *)addr, __float_as_uint(value)));
   return old;
 }
-__device__ __forceinline__ float atomicMaxFloat (float * addr, float value) {
+__device__ __forceinline__ float ssrlcv::atomicMaxFloat (float * addr, float value) {
   float old;
   old = (value >= 0) ? __int_as_float(atomicMax((int *)addr, __float_as_int(value))) :
     __uint_as_float(atomicMin((unsigned int *)addr, __float_as_uint(value)));
   return old;
 }
-__device__ __forceinline__ float modulus(const float &x, const float &y){
+__device__ __forceinline__ float ssrlcv::modulus(const float &x, const float &y){
     float z = x;
     int n;
     if(z < 0){
@@ -127,7 +205,7 @@ __device__ __forceinline__ float modulus(const float &x, const float &y){
     z -= n*y;
     return z;
 }
-__device__ __forceinline__ float2 rotateAboutPoint(const int2 &loc, const float &theta, const float2 &origin){
+__device__ __forceinline__ float2 ssrlcv::rotateAboutPoint(const int2 &loc, const float &theta, const float2 &origin){
   float2 rotatedPoint = {(float) loc.x, (float) loc.y};
   rotatedPoint = rotatedPoint - origin;
   float2 temp = rotatedPoint;
@@ -140,67 +218,89 @@ __device__ __forceinline__ float2 rotateAboutPoint(const int2 &loc, const float 
 /*
 KERNELS
 */
-__global__ void initFeatureArrayNoZeros(unsigned int totalFeatures, Image_Descriptor image, SIFT_Feature* features, int* numFeatureExtractor, unsigned char* pixels){
-  Image_Descriptor parentRef = image;
-  int2 locationInParent = {(int)blockIdx.y,(int)blockIdx.x};
-  bool real = ((locationInParent.x - 12) >= 0 && (locationInParent.y - 12) >= 0) && ((locationInParent + 12) < parentRef.size && pixels[blockIdx.y*gridDim.x + blockIdx.x] != 0);
-  features[blockIdx.y*gridDim.x + blockIdx.x] = SIFT_Feature(locationInParent, parentRef.id, real);
-  numFeatureExtractor[blockIdx.y*gridDim.x + blockIdx.x] = real;
-}
-__global__ void initFeatureArray(unsigned int totalFeatures, Image_Descriptor image, SIFT_Feature* features, int* numFeatureExtractor){
-  Image_Descriptor parentRef = image;
-  int2 locationInParent = {(int)blockIdx.y,(int)blockIdx.x};
-  bool real = ((locationInParent.x - 12) >= 0 && (locationInParent.y - 12) >= 0) && ((locationInParent + 12) < parentRef.size);
-  features[blockIdx.y*gridDim.x + blockIdx.x] = SIFT_Feature(locationInParent, parentRef.id, real);
-  numFeatureExtractor[blockIdx.y*gridDim.x + blockIdx.x] = real;
-}
-__global__ void computeThetas(unsigned int totalFeatures, Image_Descriptor image, int numOrientations, unsigned char* pixels, SIFT_Feature* features, SIFT_Descriptor* descriptors){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
-  if(blockId < totalFeatures){
-    SIFT_Feature feature = features[blockId];
-    __shared__ int2 orientationVectors[9];
-    Image_Descriptor parentRef = image;
-    int regNumOrient = numOrientations;
 
-    //vector = (x+1) - (x-1), (y+1) - (y-1)
-    int4 orientationContributers = getOrientationContributers(feature.loc + immediateNeighbors[threadIdx.x], parentRef.size);
-    orientationVectors[threadIdx.x].x = ((int)pixels[orientationContributers.x]) - ((int)pixels[orientationContributers.y]);
-    orientationVectors[threadIdx.x].y = ((int)pixels[orientationContributers.z]) - ((int)pixels[orientationContributers.w]);
+
+__global__ void ssrlcv::findValidFeatures(unsigned int numNodes, unsigned int nodeDepthIndex, Quadtree<unsigned char>::Node* nodes, unsigned int* featureNumbers, unsigned int* featureAddresses){
+  unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if(globalID < numNodes){
+    if(nodes[globalID + nodeDepthIndex].flag){
+      featureNumbers[globalID] = 1;
+      featureAddresses[globalID] = globalID + nodeDepthIndex;
+    }
+    else{
+      featureNumbers[globalID] = 0;
+      featureAddresses[globalID] = 0;
+    }
+  }
+}
+__global__ void ssrlcv::fillValidFeatures(unsigned int numFeatures, Feature<SIFT_Descriptor>* features, unsigned int* featureAddresses, Quadtree<unsigned char>::Node* nodes){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if(globalID < numFeatures){
+    Feature<SIFT_Descriptor> feature = Feature<SIFT_Descriptor>();
+    feature.parent = featureAddresses[globalID];
+    feature.loc = nodes[feature.parent].center;
+    features[globalID] = feature;
+  }
+}
+
+//NOTE currently not doing so
+__global__ void ssrlcv::computeThetas(unsigned long numFeatures, Feature<SIFT_Descriptor>* features, Quadtree<unsigned char>::Node* nodes, unsigned char* pixels){
+  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  if(blockId < numFeatures){
+    __shared__ int2 orientationVectors[9];
+    for(int i = 0; i < 9; ++i) orientationVectors[i] = {0,0};
+    __syncthreads();
+    Quadtree<unsigned char>::Node neighbor = nodes[nodes[features[blockId].parent].neighbors[threadIdx.x]];
+    //contributers are neighbor of neighbors = 1,3,5,7
+    //7 - 1, 5 - 3
+    //vector = x-y,z-w
+    int4 pixelValues;
+    //need to assure this kernel that currentNeighbor will not be -1
+    int currentNeighbor = neighbor.neighbors[7];
+    for(int i = 0; i < nodes[currentNeighbor].numElements; ++i) pixelValues.x += pixels[nodes[currentNeighbor].dataIndex + i];
+    pixelValues.x /= nodes[currentNeighbor].numElements;
+    currentNeighbor = neighbor.neighbors[1];
+    for(int i = 0; i < nodes[currentNeighbor].numElements; ++i) pixelValues.y += pixels[nodes[currentNeighbor].dataIndex + i];
+    pixelValues.y /= nodes[currentNeighbor].numElements;
+    currentNeighbor = neighbor.neighbors[5];
+    for(int i = 0; i < nodes[currentNeighbor].numElements; ++i) pixelValues.z += pixels[nodes[currentNeighbor].dataIndex + i];
+    pixelValues.z /= nodes[currentNeighbor].numElements;
+    currentNeighbor = neighbor.neighbors[3];
+    for(int i = 0; i < nodes[currentNeighbor].numElements; ++i) pixelValues.w += pixels[nodes[currentNeighbor].dataIndex + i];
+    pixelValues.w /= nodes[currentNeighbor].numElements;
+
+    orientationVectors[threadIdx.x].x = pixelValues.x - pixelValues.y;
+    orientationVectors[threadIdx.x].y = pixelValues.z - pixelValues.w;
 
     __syncthreads();
 
-
     if(threadIdx.x != 0) return;
-    float2* bestMagWThetas = new float2[numOrientations];
-    for(int i = 0; i < numOrientations; ++i) bestMagWThetas[i] = {0.0f,0.0f};
+
+    float2 bestMagWTheta = {0.0f,0.0f};
     float2 tempMagWTheta = {0.0f,0.0f};
     int2 currentOrientationVector = {0,0};
-    int2 currentLoc = feature.loc + immediateNeighbors[threadIdx.x];
     for(int i = 0; i < 9; ++i){
       currentOrientationVector = orientationVectors[i];
       tempMagWTheta = {getMagnitude(currentOrientationVector), getTheta(currentOrientationVector)};
-      trickleSwap(tempMagWTheta, bestMagWThetas, 0, regNumOrient);
+      if(tempMagWTheta.x > bestMagWTheta.x) bestMagWTheta = tempMagWTheta;
     }
-    for(int i = 0; i < regNumOrient; ++i){
-      descriptors[blockId*regNumOrient + i] = SIFT_Descriptor(bestMagWThetas[i].y);
-    }
-    features[blockId].descriptorIndex = blockId*regNumOrient;
-    delete[] bestMagWThetas;
+    features[blockId].descriptor.theta = bestMagWTheta.y;
   }
 }
-__global__ void fillSIFTDescriptorsDensly(unsigned int totalFeatures, Image_Descriptor image, int numOrientations, unsigned char* pixels, SIFT_Feature* features, SIFT_Descriptor* descriptors){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
-  int featureIndex = blockId/numOrientations;
-  if(blockId < totalFeatures*numOrientations){
 
-    Feature feature = features[featureIndex];
-    __shared__ float2 descriptorGrid[18][18];
+//TODO optimize memory usage in this kernel
+__global__ void ssrlcv::fillDescriptorsDensly(unsigned long numFeatures, Feature<SIFT_Descriptor>* features, Quadtree<unsigned char>::Node* nodes, unsigned char* pixels){
+  int neighborDirections[3][3] = {{0,1,2},{3,4,5},{6,7,8}};
+  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  if(blockId < numFeatures){
+
+    ssrlcv::Feature<SIFT_Descriptor> feature = features[blockId];
+    __shared__ float2 descriptorGrid[16][16];
     __shared__ float localMax;
     __shared__ float localMin;
     descriptorGrid[threadIdx.x][threadIdx.y] = {0.0f,0.0f};
     localMax = 0.0f;
     localMin = FLT_MAX;
-    __syncthreads();
     /*
     FIRST DEFINE HOG GRID
     (x,y) = [(-8.5,-8.5),(8.5,8.5)]
@@ -208,46 +308,54 @@ __global__ void fillSIFTDescriptorsDensly(unsigned int totalFeatures, Image_Desc
       y' = ycos(theta) + xsin(theta) + feature.y
 
     */
-    Image_Descriptor parentRef = image;
-    float theta = descriptors[blockId].theta;
+    float theta = feature.descriptor.theta;
+    int2 distFromOrigin = {((int)threadIdx.x) - 8,((int)threadIdx.y) - 8};
 
-    float2 descriptorGridPoint = {0.0f, 0.0f};
-    descriptorGridPoint.x = (((threadIdx.x - 8.5f)*cosf(theta)) - ((threadIdx.y - 8.5f)*sinf(theta))) + feature.loc.x;
-    descriptorGridPoint.y = (((threadIdx.x - 8.5f)*sinf(theta)) + ((threadIdx.y - 8.5f)*cosf(theta))) + feature.loc.y;
-    float2 pixValueLoc = {((threadIdx.x - 8.5f) + feature.loc.x), ((threadIdx.y - 8.5f) + feature.loc.y)};
+    float2 descriptorGridPoint = {
+      ((distFromOrigin.x*cosf(theta)) - (distFromOrigin.y*sinf(theta))) + feature.loc.x,
+      ((distFromOrigin.x*sinf(theta)) + (distFromOrigin.y*cosf(theta))) + feature.loc.y
+    };
 
-    float newValue = 0.0f;
-    ulong4 pixContributers;
-    pixContributers.x = (((int)(pixValueLoc.y - 0.5f))*parentRef.size.x) + ((int)(pixValueLoc.x - 0.5f));
-    pixContributers.y = (((int)(pixValueLoc.y - 0.5f))*parentRef.size.x) + ((int)(pixValueLoc.x + 0.5f));
-    pixContributers.z = (((int)(pixValueLoc.y + 0.5f))*parentRef.size.x) + ((int)(pixValueLoc.x - 0.5f));
-    pixContributers.w = (((int)(pixValueLoc.y + 0.5f))*parentRef.size.x) + ((int)(pixValueLoc.x + 0.5f));
-    newValue += pixels[pixContributers.x];
-    newValue += pixels[pixContributers.y];
-    newValue += pixels[pixContributers.z];
-    newValue += pixels[pixContributers.w];
-    newValue /= 4.0f;
+    Quadtree<unsigned char>::Node node = nodes[feature.parent];
+    int2 mover = {0,0};
 
-    descriptorGrid[threadIdx.x][threadIdx.y].x = newValue;
-    __syncthreads();
-
-    float2 grad = {0.0f, 0.0f};//magnitude, orientation
-    if(threadIdx.x > 0 && threadIdx.x < 17 && threadIdx.y > 0 && threadIdx.y < 17){
-      float2 vector = {descriptorGrid[threadIdx.x + 1][threadIdx.y].x -
-        descriptorGrid[threadIdx.x - 1][threadIdx.y].x,
-        descriptorGrid[threadIdx.x][threadIdx.y + 1].x -
-        descriptorGrid[threadIdx.x][threadIdx.y - 1].x};
-
-      //expf stuff is the gaussian weighting function
-      float expPow = -sqrtf(dotProduct(descriptorGridPoint - feature.loc,descriptorGridPoint - feature.loc))/16.0f;
-      grad.x = sqrtf(dotProduct(vector, vector))*expf(expPow);
-      grad.y = getTheta(vector,theta);
+    while(distFromOrigin.x != 0 || distFromOrigin.y != 0){
+      if(distFromOrigin.x != 0){
+        mover.x = (distFromOrigin.x > 0) ? 1 : -1;
+        distFromOrigin.x -= mover.x;
+      }
+      if(distFromOrigin.y != 0){
+        mover.y = (distFromOrigin.y > 0) ? 1 : -1;
+        distFromOrigin.y -= mover.y;
+      }
+      node = nodes[node.neighbors[neighborDirections[mover.x+1][mover.y+1]]];
     }
+
+    float4 pixelValues;
+    int currentNeighbor = node.neighbors[7];
+    for(int i = 0; i < nodes[currentNeighbor].numElements; ++i) pixelValues.x += pixels[nodes[currentNeighbor].dataIndex + i];
+    pixelValues.x /= nodes[currentNeighbor].numElements;
+    currentNeighbor = node.neighbors[1];
+    for(int i = 0; i < nodes[currentNeighbor].numElements; ++i) pixelValues.y += pixels[nodes[currentNeighbor].dataIndex + i];
+    pixelValues.y /= nodes[currentNeighbor].numElements;
+    currentNeighbor = node.neighbors[5];
+    for(int i = 0; i < nodes[currentNeighbor].numElements; ++i) pixelValues.z += pixels[nodes[currentNeighbor].dataIndex + i];
+    pixelValues.z /= nodes[currentNeighbor].numElements;
+    currentNeighbor = node.neighbors[3];
+    for(int i = 0; i < nodes[currentNeighbor].numElements; ++i) pixelValues.w += pixels[nodes[currentNeighbor].dataIndex + i];
+    pixelValues.w /= nodes[currentNeighbor].numElements;
+
+    float2 vector = {pixelValues.x - pixelValues.y,  pixelValues.z - pixelValues.w};
+
+    //expf stuff is the gaussian weighting function
+    float expPow = -sqrtf(dotProduct(descriptorGridPoint - feature.loc,descriptorGridPoint - feature.loc))/16.0f;
+    descriptorGrid[threadIdx.x][threadIdx.y] = {sqrtf(dotProduct(vector, vector))*expf(expPow),getTheta(vector,theta)};
+
     __syncthreads();
     /*
     NOW CREATE HOG AND GET DESCRIPTOR
     */
-    descriptorGrid[threadIdx.x][threadIdx.y] = grad;
+
     if(threadIdx.x >= 4 || threadIdx.y >= 4) return;
     int2 gradDomain = {((int) threadIdx.x*4) + 1, ((int) threadIdx.x + 1)*4};
     int2 gradRange = {((int) threadIdx.y*4) + 1, ((int) threadIdx.y + 1)*4};
@@ -274,179 +382,9 @@ __global__ void fillSIFTDescriptorsDensly(unsigned int totalFeatures, Image_Desc
     }
     __syncthreads();
     for(int d = 0; d < 8; ++d){
-      descriptors[blockId].descriptor[(threadIdx.y*4 + threadIdx.x)*8 + d] =
+      feature.descriptor.values[(threadIdx.y*4 + threadIdx.x)*8 + d] =
         __float2int_rn(255*(bin_descriptors[d]-localMin)/(localMax-localMin));
     }
-  }
-}
-
-/*
-START OF HOST METHODS
-*/
-//Base feature factory
-
-
-FeatureFactory::FeatureFactory(){
-  this->image = NULL;
-  this->allowZeros = true;
-}
-void FeatureFactory::setImage(Image* image){
-  this->image = image;
-  if(this->image->numDescriptorsPerFeature == 0){
-    this->image->numDescriptorsPerFeature = 1;
-  }
-}
-SIFT_FeatureFactory::SIFT_FeatureFactory(){
-  this->allowZeros = true;
-  this->image = NULL;
-  this->numOrientations = 0;
-}
-SIFT_FeatureFactory::SIFT_FeatureFactory(bool allowZeros){
-  this->allowZeros = true;
-  this->numOrientations = 0;
-  this->image = NULL;
-}
-
-SIFT_FeatureFactory::SIFT_FeatureFactory(int numOrientations){
-  this->numOrientations = numOrientations;
-  this->image = NULL;
-}
-SIFT_FeatureFactory::SIFT_FeatureFactory(bool allowZeros, int numOrientations){
-  this->allowZeros = allowZeros;
-  this->numOrientations = numOrientations;
-}
-void SIFT_FeatureFactory::setZeroAllowance(bool allowZeros){
-  this->allowZeros = allowZeros;
-}
-void SIFT_FeatureFactory::setNumOrientations(int numOrientations){
-  this->numOrientations = numOrientations;
-  if(this->image != NULL) this->image->numDescriptorsPerFeature = numOrientations;
-}
-
-//NOTE need to implement non dense
-void SIFT_FeatureFactory::generateDescriptors(SIFT_Feature* features_device, SIFT_Descriptor* descriptors_device){
-
-}
-void SIFT_FeatureFactory::generateFeatures(){
-  this->image->feature_size = sizeof(SIFT_Feature);
-  this->image->featureDescriptor_size = sizeof(SIFT_Descriptor);
-  if(this->image->totalPixels == 0){
-    std::cout<<"ERROR must have pixels for generating features"<<std::endl;
-    exit(-1);
-  }
-  if(this->image->colorDepth != 1){
-    this->image->convertToBW();
-  }
-  if(this->image->numDescriptorsPerFeature == 0){
-    this->image->numDescriptorsPerFeature = 1;
-  }
-}
-void SIFT_FeatureFactory::generateDescriptorsDensly(SIFT_Feature* features_device, SIFT_Descriptor* descriptors_device){
-  dim3 grid = {1,1,1};
-  dim3 block = {9,1,1};
-  getGrid(this->image->numFeatures, grid);
-  std::cout<<"computing thetas for feature descriptors..."<<std::endl;
-  clock_t timer = clock();
-  computeThetas<<<grid, block>>>(this->image->numFeatures, this->image->descriptor,
-    this->image->numDescriptorsPerFeature, this->image->pixels_device,
-    features_device, descriptors_device);
-  cudaDeviceSynchronize();
-  CudaCheckError();
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
-
-  block = {18,18,1};
-  getGrid(this->image->numFeatures*this->numOrientations, grid);
-  std::cout<<"generating feature descriptors..."<<std::endl;
-  timer = clock();
-  fillSIFTDescriptorsDensly<<<grid,block>>>(this->image->numFeatures, this->image->descriptor,
-    this->image->numDescriptorsPerFeature, this->image->pixels_device,
-    features_device, descriptors_device);
-  cudaDeviceSynchronize();
-  CudaCheckError();
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
-}
-void SIFT_FeatureFactory::generateFeaturesDensly(){
-  std::cout<<"generating features"<<std::endl;
-  this->image->feature_size = sizeof(SIFT_Feature);
-  this->image->featureDescriptor_size = sizeof(SIFT_Descriptor);
-  if(this->image->totalPixels == 0){
-    std::cout<<"ERROR must have pixels for generating features"<<std::endl;
-    exit(-1);
-  }
-  if(this->image->colorDepth != 1){
-    this->image->convertToBW();
-  }
-  if(this->image->numDescriptorsPerFeature == 0){
-    this->image->numDescriptorsPerFeature = 1;
-  }
-  if(this->image->arrayStates[0] == cpu){
-    this->image->setPixelState(gpu);
-    std::cout<<"NOTE pixels are now on GPU"<<std::endl;
-  }
-
-
-  SIFT_Feature* features_device_temp = NULL;
-  SIFT_Feature* features_device = NULL;
-  SIFT_Descriptor* descriptors_device = NULL;
-  CudaSafeCall(cudaMalloc((void**)&features_device_temp, this->image->totalPixels*sizeof(SIFT_Feature)));
-
-  int* numFeatureExtractor;
-  CudaSafeCall(cudaMalloc((void**)&numFeatureExtractor, this->image->totalPixels*sizeof(int)));
-  this->image->numFeatures = this->image->totalPixels;
-
-  dim3 grid = {(unsigned int)this->image->descriptor.size.x,(unsigned int)this->image->descriptor.size.y,1};
-  dim3 block = {1,1,1};
-  std::cout<<"initializing DSIFT feature array with "<<this->image->numFeatures<<" features..."<<std::endl;
-  clock_t timer = clock();
-  if(this->allowZeros){
-    initFeatureArray<<<grid, block>>>(this->image->numFeatures, this->image->descriptor, features_device_temp, numFeatureExtractor);
-  }
-  else{
-    initFeatureArrayNoZeros<<<grid, block>>>(this->image->numFeatures, this->image->descriptor, features_device_temp, numFeatureExtractor, this->image->pixels_device);
-  }
-  cudaDeviceSynchronize();
-  CudaCheckError();
-
-  thrust::device_ptr<int> sum(numFeatureExtractor);
-  thrust::inclusive_scan(sum, sum + this->image->numFeatures, sum);
-  unsigned long beforeCompaction = this->image->numFeatures;
-  CudaSafeCall(cudaMemcpy(&(this->image->numFeatures),numFeatureExtractor + (beforeCompaction - 1), sizeof(int), cudaMemcpyDeviceToHost));
-  CudaSafeCall(cudaFree(numFeatureExtractor));
-  printf("numFeatures after eliminating ambiguity = %d\n",this->image->numFeatures);
-
-  CudaSafeCall(cudaMalloc((void**)&features_device, this->image->numFeatures*sizeof(SIFT_Feature)));
-
-  thrust::device_ptr<SIFT_Feature> arrayToCompact(features_device_temp);
-  thrust::device_ptr<SIFT_Feature> arrayOut(features_device);
-  thrust::copy_if(arrayToCompact, arrayToCompact + beforeCompaction, arrayOut, feature_is_inbounds());
-  CudaCheckError();
-  CudaSafeCall(cudaFree(features_device_temp));
-
-
-  CudaSafeCall(cudaMalloc((void**)&descriptors_device, this->image->numFeatures*this->numOrientations*sizeof(SIFT_Descriptor)));
-
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
-
-  this->generateDescriptorsDensly(features_device, descriptors_device);
-
-  if(this->image->arrayStates[1] == both || this->image->arrayStates[1] == cpu){
-    this->image->features = new SIFT_Feature[this->image->numFeatures];
-    CudaSafeCall(cudaMemcpy(this->image->features, features_device, this->image->numFeatures*sizeof(SIFT_Feature), cudaMemcpyDeviceToHost));
-  }
-  else{
-    this->image->features_device = features_device;
-  }
-  if(this->image->arrayStates[1] == cpu){
-    CudaSafeCall(cudaFree(features_device));
-  }
-  if(this->image->arrayStates[2] == both || this->image->arrayStates[2] == cpu){
-    this->image->featureDescriptors = new SIFT_Descriptor[this->image->numFeatures];
-    CudaSafeCall(cudaMemcpy(this->image->featureDescriptors, descriptors_device, this->image->numFeatures*this->numOrientations*sizeof(SIFT_Descriptor), cudaMemcpyDeviceToHost));
-  }
-  else{
-    this->image->featureDescriptors_device = descriptors_device;
-  }
-  if(this->image->arrayStates[2] == cpu){
-    CudaSafeCall(cudaFree(descriptors_device));
+    features[blockId].descriptor = feature.descriptor;
   }
 }

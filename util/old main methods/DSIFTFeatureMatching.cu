@@ -8,7 +8,7 @@
 //TODO add versatility to image_io and use that to make Image constructors versatile
 
 //WARNING pointer_states are as follows
-//0 = NULL
+//0 = nullptr
 //1 = __host__
 //2 = __device__
 //3 = both
@@ -59,7 +59,7 @@ int main(int argc, char *argv[]){
 
     MatchFactory matchFactory = MatchFactory();
     matchFactory.setCutOffRatio(0.05);
-    SubPixelMatchSet* matchSet = NULL;
+    SubPixelMatchSet* matchSet = nullptr;
     matchFactory.generateSubPixelMatchesPairwiseConstrained(&(images[0]), &(images[1]), 5.0f, matchSet, cpu);
     matchFactory.refineMatches(matchSet);
 
