@@ -5,6 +5,7 @@
 #include "Image.cuh"
 #include "Feature.cuh"
 #include "Unity.cuh"
+#include "MatrixUtil.cuh"
 #include <thrust/device_ptr.h>
 #include <thrust/copy.h>
 #include <thrust/scan.h>
@@ -34,14 +35,6 @@ namespace ssrlcv{
     }
   };
 
-  /*
-  Funundamental matrix stuff
-  */
-  float3 multiply3x3x1(const float3 A[3], const float3 &B);
-  void multiply3x3(const float3 A[3], const float3 B[3], float3 *C);
-  void transpose3x3(const float3 M[3], float3 (&M_T)[3]);
-  void inverse3x3(float3 M[3], float3 (&Minv)[3]);
-  void calcFundamentalMatrix_2View(Image_Descriptor query, Image_Descriptor target, float3 *F);
 
   class MatchFactory{
 

@@ -3,6 +3,7 @@
 
 #include "common_includes.h"
 #include "io_util.h"
+#include "MatrixUtil.cuh"
 #include "Feature.cuh"
 #include "cuda_util.cuh"
 #include "Quadtree.cuh"
@@ -23,7 +24,6 @@ namespace ssrlcv{
     __device__ __host__ Image_Descriptor(int id, uint2 size, float3 cam_pos, float3 camp_dir);
   };
 
-
   class Image{
 
   public:
@@ -39,6 +39,7 @@ namespace ssrlcv{
     ~Image();
   };
 
+  void calcFundamentalMatrix_2View(Image_Descriptor query, Image_Descriptor target, float3 *F);
   void get_cam_params2view(Image_Descriptor &cam1, Image_Descriptor &cam2, std::string infile);
   void convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth);
 

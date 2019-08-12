@@ -5,7 +5,4 @@
 
 
 
-
-
-
 #endif /* CVEXCEPTIONS_HPP */

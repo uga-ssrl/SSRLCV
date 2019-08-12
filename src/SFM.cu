@@ -3,7 +3,7 @@
 #include "io_util.h"
 #include "FeatureFactory.cuh"
 #include "MatchFactory.cuh"
-#include "reprojection.cuh"
+#include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
 
 //TODO across all methods in octree and surface use const __restrict__ to enable

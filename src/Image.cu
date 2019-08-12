@@ -117,7 +117,142 @@ ssrlcv::Image::~Image(){
     delete this->quadtree;
   }
 }
+void ssrlcv::calcFundamentalMatrix_2View(Image_Descriptor query, Image_Descriptor target, float3 *F){
+  if(query.fov != target.fov || query.foc != target.foc){
+    std::cout<<"ERROR calculating fundamental matrix for 2view needs to bet taken with same camera (foc&fov are same)"<<std::endl;
+    exit(-1);
+  }
+  float angle1;
+  if(abs(query.cam_vec.z) < .00001) {
+    if(query.cam_vec.y > 0)  angle1 = PI/2;
+    else       angle1 = -1*PI/2;
+  }
+  else {
+    angle1 = atan(query.cam_vec.y / query.cam_vec.z);
+    if(query.cam_vec.z<0 && query.cam_vec.y>=0) {
+      angle1 += PI;
+    }
+    if(query.cam_vec.z<0 && query.cam_vec.y<0) {
+      angle1 -= PI;
+    }
+  }
+  float3 A1[3] = {
+    {1, 0, 0},
+    {0, cos(angle1), -sin(angle1)},
+    {0, sin(angle1), cos(angle1)}
+  };
 
+  float3 temp = multiply3x3x1(A1, query.cam_vec);
+
+  float angle2 = 0.0f;
+  if(abs(temp.z) < .00001) {
+    if(temp.x <= 0)  angle1 = PI/2;
+    else       angle1 = -1*PI/2;
+  }
+  else {
+    angle2 = atan(-1*temp.x / temp.z);
+    if(temp.z<0 && temp.x<0) {
+      angle1 += PI;
+    }
+    if(temp.z<0 && temp.x>0) {
+      angle2 -= PI;
+    }
+  }
+  float3 B1[3] = {
+    {cos(angle2), 0, sin(angle2)},
+    {0, 1, 0},
+    {-sin(angle2), 0, cos(angle2)}
+  };
+
+  float3 temp2 = multiply3x3x1(B1, temp);
+  float3 rot1[3];
+  multiply3x3(B1, A1, rot1);
+  float3 rot1Transpose[3];
+  transpose3x3(rot1,rot1Transpose);
+  temp = multiply3x3x1(rot1Transpose, temp2);
+
+  angle1 = 0.0f;
+  if(abs(target.cam_vec.z) < .00001) {
+    if(target.cam_vec.y > 0)  angle1 = PI/2;
+    else       angle1 = -1*PI/2;
+  }
+  else {
+    angle1 = atan(target.cam_vec.y / target.cam_vec.z);
+    if(target.cam_vec.z<0 && target.cam_vec.y>=0) {
+      angle1 += PI;
+    }
+    if(target.cam_vec.z<0 && target.cam_vec.y<0) {
+      angle1 -= PI;
+    }
+  }
+  float3 A2[3] = {
+    {1, 0, 0},
+    {0, cos(angle1), -sin(angle1)},
+    {0, sin(angle1), cos(angle1)}
+  };
+  temp2 = multiply3x3x1(A2, target.cam_vec);
+
+  angle2 = 0.0f;
+  if(abs(temp2.z) < .00001) {
+    if(temp2.x <= 0)  angle1 = PI/2;
+    else       angle1 = -1*PI/2;
+  }
+  else {
+    angle2 = atan(-1*temp2.x / temp2.z);
+    if(temp2.z<0 && temp2.x<0) {
+      angle1 += PI;
+    }
+    if(temp2.z<0 && temp2.x>0) {
+      angle2 -= PI;
+    }
+  }
+  float3 B2[3] = {
+    {cos(angle2), 0, sin(angle2)},
+    {0, 1, 0},
+    {-sin(angle2), 0, cos(angle2)}
+  };
+
+  temp = multiply3x3x1(B2, temp2);
+
+  float3 rot2[3];
+  multiply3x3(B2, A2, rot2);
+  float3 rot2Transpose[3];
+  transpose3x3(rot2, rot2Transpose);
+
+  temp2 = multiply3x3x1(rot2Transpose, temp);
+
+  float2 dpix = {query.foc*tan(query.fov/2)/(query.size.x/2),
+    query.foc*tan(query.fov/2)/(query.size.y/2)};
+
+  float3 K[3] = {
+    {query.foc/dpix.x, 0, ((float)query.size.x)/2.0f},
+    {0, query.foc/dpix.y, ((float)query.size.y)/2.0f},
+    {0, 0, 1}
+  };
+  float3 K_inv[3];
+  inverse3x3(K,K_inv);
+  float3 K_invTranspose[3];
+  transpose3x3(K_inv,K_invTranspose);
+
+  float3 R[3];
+  multiply3x3(rot2Transpose, rot1, R);
+  float3 S[3] = {
+    {0, query.cam_pos.z - target.cam_pos.z, target.cam_pos.y - query.cam_pos.y},
+    {query.cam_pos.z - target.cam_pos.z,0, query.cam_pos.x - target.cam_pos.x},
+    {query.cam_pos.y - target.cam_pos.y, target.cam_pos.x - query.cam_pos.x, 0}
+  };
+  float3 E[3];;
+  multiply3x3(R,S,E);
+  float3 tempF[3];
+  multiply3x3(K_invTranspose, E,tempF);
+  multiply3x3(tempF, K_inv, F);
+  std::cout << std::endl <<"between image "<<query.id<<" and "<<target.id
+  <<" the final fundamental matrix result is: " << std::endl;
+  for(int r = 0; r < 3; ++r) {
+    std::cout << F[r].x << "  " << F[r].y << " "<<  F[r].z << std::endl;
+  }
+  std::cout<<std::endl;
+}
 void ssrlcv::get_cam_params2view(Image_Descriptor &cam1, Image_Descriptor &cam2, std::string infile){
   std::ifstream input(infile);
   std::string line;
@@ -230,100 +365,3 @@ __global__ void ssrlcv::generateBW(int numPixels, unsigned int colorDepth, unsig
     }
   }
 }
-
-// TODO remove pass thru variables, they are not needed
-void Image::segment(int x_num, int y_num, int x_size, int y_size){
-  // TODO can this be done in a kernel?
-
-  int total_x = x_num * x_size;
-  int total_y = y_num * y_size;
-
-  // build the segments
-  this->segments = new Image[x_num*y_num];
-
-  std::cout << "setting up..." << std::endl;
-  for (int i = 0; i < x_num*y_num; i++){
-    segments[i] = new Image()[0]; // why did this work?
-    // needed for all segments
-    segments[i].descriptor.foc = 0.160;
-    segments[i].descriptor.fov = (11.4212*PI/180);
-    segments[i].descriptor.cam_pos = {7.81417, 0.0f, 44.3630};
-    segments[i].descriptor.cam_vec = {-0.173648, 0.0f, -0.984808};
-    // fill in the segment helper for this guy
-    segments[i].segment_helper.is_segment = true;
-    segments[i].segment_helper.segment_number = i;
-    segments[i].segment_helper.size.x = x_size;
-    segments[i].segment_helper.size.y = y_size;
-    segments[i].segment_helper.pix_filled = 0; // same thing as where to put next pix
-    segments[i].pixels = new unsigned char[x_size,y_size]; // empty image segments
-  }
-  //std::cout << "wow!" << std::endl;
-  //int total = total_x * total_y;
-  std::cout << "about to fill segs..." << std::endl;
-  unsigned char pix;
-  int tofill, seg_num, index;
-  for (int i = 0; i < total_y; i++) {
-    for (int j = 0; j < total_x; j++) {
-      index = j + i*total_x;
-      std::cout << "getting index..." << std::endl;
-      pix = this->pixels[index];
-      std::cout << "getting seg num..." << std::endl;
-      seg_num = getSegNum(j,i);
-      std::cout << "getting and setting..." << std::endl;
-      tofill = segments[seg_num].segment_helper.pix_filled;
-      segments[seg_num].pixels[tofill] = pix;
-      segments[seg_num].segment_helper.pix_filled++;
-    }
-  }
-
-}
-
-bool Image::isInSegment(int x_run, int y_run){
-  return false;
-}
-
-int Image::getSegNum(int x, int y){
-  int x_i = (x + 1) / this->descriptor.segment_size.x;
-  int y_i = (y + 1) / this->descriptor.segment_size.y;
-  return x_i + x_i * y_i;
-  // return -1;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//yee

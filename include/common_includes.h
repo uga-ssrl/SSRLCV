@@ -6,6 +6,7 @@
 #include "device_launch_parameters.h"
 #include <cuda.h>
 #include "cuda_util.cuh"
+#include "MatrixUtil.cuh"
 
 #include <iostream>
 #include <string>
