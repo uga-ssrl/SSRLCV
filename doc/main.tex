@@ -15,6 +15,9 @@
 % \usepackage[english]{babel}
 \usepackage{graphicx}
 \usepackage{biblatex}
+\usepackage{mathtools}
+\usepackage{amssymb}
+\usepackage{subfiles}
 \usepackage{titling}
 \usepackage{amssymb}
 \usepackage{algorithm}
@@ -24,6 +27,7 @@
 \usepackage[margin=1.5cm]{geometry}
 
 \usetikzlibrary{calc,arrows.meta,positioning,backgrounds}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
 
 %
 % stuff relating to the title
@@ -73,6 +77,7 @@
 \include{2viewreprojection}
 \include{nviewreprojection}
 \include{reconstruction}
+\include{BA}
 \include{pipelines}
 \include{bib}
 

@@ -4,8 +4,13 @@ src/*.txt
 out/*.ply
 data/*
 bin/*
+.csv
 *.ply
 .DS_Store
+*/.DS_Store
+*/*/.DS_Store
+*/*/*/.DS_Store
+*/*/*/*/.DS_Store
 util/.DS_Store
 src/.DS_Store
 data/.DS_Store
@@ -18,3 +23,6 @@ util/bolbi.jpg.temp.jpg
 data/._*
 util/._*
 util/io/._*
+
+*.sublime-workspace
+*.sublime-project

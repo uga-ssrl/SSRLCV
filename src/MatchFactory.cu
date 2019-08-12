@@ -178,6 +178,9 @@ void ssrlcv::calcFundamentalMatrix_2View(Image_Descriptor query, Image_Descripto
 ssrlcv::MatchFactory::MatchFactory(){
 
 }
+void MatchFactory::setCutOffEuclid(float cutoffEuclid){
+  this->cutoffEuclid = cutoffEuclid;
+}
 
 
 void ssrlcv::MatchFactory::refineMatches(ssrlcv::Unity<ssrlcv::Match>* matches, float cutoffRatio){
