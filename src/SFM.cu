@@ -6,20 +6,13 @@
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
 
-//TODO across all methods in octree and surface use const __restrict__ to enable
-//https://stackoverflow.com/questions/31344454/can-a-const-restrict-increase-cuda-register-usage
-
 //TODO to have further depth make octree node keys a long
-
-//TODO think of a better way to spread out color
 
 //TODO convert as many LUTs to be constant as possible, use __local__, __constant__, and __shared__
 
 //TODO add timers to copy methods?
 
 //TODO make method for getting grid and block dimensions
-
-//TODO use overload operators for cuda vector arithmetic in octree.cu
 
 //TODO make octree a class not a struct with private members and functions
 
@@ -36,10 +29,6 @@
 //TODO delete methods in images
 
 //TODO go through all global and block ID calculations in kernels to ensure there will be no overflow
-
-
-//TODO ADD AND USE MEMORY CONSTAINED VARIABLE TO FACTORIES - gives permission to delete parameters once used
-//use this or go back and make sure a unity never has a state of both
 
 //TODO go back and make sure thrust:: calls are all device
 
