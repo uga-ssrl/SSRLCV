@@ -3,7 +3,7 @@
 ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matches, Image* target, Image* query){
   float3* pointCloud_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&pointCloud_device, matches->numElements*sizeof(float3)));
-  Unity<float3>* pointCloud = new Unity(pointCloud_device,matches->numElements,gpu);
+  Unity<float3>* pointCloud = new Unity<float3>(pointCloud_device,matches->numElements,gpu);
 
   // //initiliaze camera matrices
   // Camera cam1 = cData->cameras[0];
@@ -308,6 +308,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matche
   // cudaFree(d_out_pointCloud);
 }
 
+__global__ void ssrlcv::stereo_disparity(float2* matches0, float2* matches1, float3* points, int n, float scale){
+  int id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (id < n) {
+    points[id].x = matches0[id].x;
+    points[id].y = matches0[id].y;
+    points[id].z = sqrtf(scale * ((matches0[id].x - matches1[id].x) * (matches0[id].x - matches1[id].x) +  (matches0[id].y - matches1[id].y) * (matches0[id].y - matches1[id].y)));
+  }
+} // dat disparity tho
 
 __global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, float cam1C[3], float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9], float rotationTranspose1[9], float rotationTranspose2[9], float3* points){
 

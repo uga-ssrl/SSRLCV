@@ -18,10 +18,12 @@ namespace ssrlcv{
 
   };
 
+  __global__ void stereo_disparity(float2* matches0, float2* matches1, float3* points,
+    int n, float scale);
+
   __global__ void two_view_reproject(int numMatches, float4* matches, float cam1C[3],
   	float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9],
   	float rotationTranspose1[9], float rotationTranspose2[9], float3* points);
-
 
 }
 
