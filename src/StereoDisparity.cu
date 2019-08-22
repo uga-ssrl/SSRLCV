@@ -40,8 +40,17 @@ int main(int argc, char *argv[]){
       allFeatures.push_back(features);
       images.push_back(image);
     }
+
     ssrlcv::MatchFactory matchFactory = ssrlcv::MatchFactory();
-    //ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.generateMatchesBruteForce(images[0],allFeatures[0],images[1],allFeatures[1]);
+    ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.generateMatchesBruteForce(images[0],allFeatures[0],images[1],allFeatures[1]);
+
+    //
+
+
+
+
+
+
     return 0;
   }
   catch (const std::exception &e){
