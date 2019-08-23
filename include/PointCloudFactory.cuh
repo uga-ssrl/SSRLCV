@@ -16,9 +16,11 @@ namespace ssrlcv{
 
     Unity<float3>* reproject(Unity<Match>* matches, Image* target, Image* query);
 
+    void stereo_disparity(float2* matches0, float2* matches1, float3* points, int n, float scale);
+
   };
 
-  __global__ void stereo_disparity(float2* matches0, float2* matches1, float3* points,
+  __global__ void h_stereo_disparity(float2* matches0, float2* matches1, float3* points,
     int n, float scale);
 
   __global__ void two_view_reproject(int numMatches, float4* matches, float cam1C[3],

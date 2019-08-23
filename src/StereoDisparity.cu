@@ -42,14 +42,50 @@ int main(int argc, char *argv[]){
     }
 
     ssrlcv::MatchFactory matchFactory = ssrlcv::MatchFactory();
+    std::cout << "Starting matching, this will take a while ..." << std::endl;
     ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.generateMatchesBruteForce(images[0],allFeatures[0],images[1],allFeatures[1]);
 
-    //
+    matches->transferMemoryTo(ssrlcv::cpu);
 
+    int n = matches->numElements;
+    // refile to float2
+    // TODO maybe add this to the match factory?
+    // TODO or add to point cloud factory
+    std::cout << "Copying matches" << std::endl;
+    float2* matches0;
+    float2* matches1;
+    size_t match_size = n*sizeof(float2);
+    matches0 = (float2*) malloc(match_size);
+    matches1 = (float2*) malloc(match_size);
+    for (int i = 0; i < n; i++){
+      matches0[i] = matches->host[i].features[0].loc;
+      matches1[i] = matches->host[i].features[1].loc;
+    }
 
+    std::cout << "starting disparity" << std::endl;
+    ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
 
+    float3* points;
+    size_t points_size = n*sizeof(float3);
+    points = (float3*) malloc(points_size);
+    demPoints.stereo_disparity(matches0,matches1,points,n,64.0);
 
+    free(matches0);
+    free(matches1);
 
+    // TODO use something else here for saving the PLY
+    std::ofstream outputFile1("test.ply");
+    outputFile1 << "ply\nformat ascii 1.0\nelement vertex ";
+    outputFile1 << n << "\n";
+    outputFile1 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
+    outputFile1 << "end_header\n";
+
+    for(int i = 0; i < n; i++){
+            outputFile1 << points[i].x << " " << points[i].y << " " << points[i].z << " " << 0 << " " << 254 << " " << 0 << "\n";
+    }
+    std::cout<<"test.ply has been written to repo root"<<std::endl;
+
+    free(points);
 
     return 0;
   }
