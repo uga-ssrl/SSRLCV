@@ -34,9 +34,8 @@ int main(int argc, char *argv[]){
     for(int i = 0; i < numImages; ++i){
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],convertColorDepthTo,i);
       //sift border is 24 due to 1xbin would normally be 12
-      image->quadtree->setNodeFlags({24.0f+image->quadtree->border.x,24.0f+image->quadtree->border.y},true);
-      image->quadtree->writePLY();
-      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeaturesDensly(image,1);
+      image->quadtree->setNodeFlags({12.0f+image->quadtree->border.x,12.0f+image->quadtree->border.y},true);
+      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeaturesDensly(image);
       allFeatures.push_back(features);
       images.push_back(image);
     }
@@ -60,15 +59,19 @@ int main(int argc, char *argv[]){
     for (int i = 0; i < n; i++){
       matches0[i] = matches->host[i].features[0].loc;
       matches1[i] = matches->host[i].features[1].loc;
+      //if (!(i%100)){
+      //   std::cout << matches0[i].x << " | " << matches1[i].x << std::endl;
+      //   std::cout << matches0[i].y << " | " << matches1[i].y << std::endl;
+      // //}
     }
 
-    std::cout << "starting disparity" << std::endl;
+    std::cout << "starting disparity with " << n << " matches ..." << std::endl;
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
 
     float3* points;
     size_t points_size = n*sizeof(float3);
     points = (float3*) malloc(points_size);
-    demPoints.stereo_disparity(matches0,matches1,points,n,64.0);
+    points = demPoints.stereo_disparity(matches0,matches1,points,n,1.0);
 
     free(matches0);
     free(matches1);

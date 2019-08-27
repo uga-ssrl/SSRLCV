@@ -16,7 +16,7 @@ namespace ssrlcv{
 
     Unity<float3>* reproject(Unity<Match>* matches, Image* target, Image* query);
 
-    void stereo_disparity(float2* matches0, float2* matches1, float3* points, int n, float scale);
+    float3* stereo_disparity(float2* matches0, float2* matches1, float3* points, int n, float scale);
 
   };
 

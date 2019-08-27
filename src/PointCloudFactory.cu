@@ -322,7 +322,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matche
 * @param n the number of matches
 * @param scale the scale factor that is multiplied
 */
-void ssrlcv::PointCloudFactory::stereo_disparity(float2* matches0, float2* matches1, float3* points, int n, float scale){
+float3* ssrlcv::PointCloudFactory::stereo_disparity(float2* matches0, float2* matches1, float3* points, int n, float scale){
   // matches
   float2 *d_matches0;
   float2 *d_matches1;
@@ -340,7 +340,7 @@ void ssrlcv::PointCloudFactory::stereo_disparity(float2* matches0, float2* match
 
   //
   cudaMemcpy(d_matches0, matches0, match_size, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_matches1, matches0, match_size, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_matches1, matches1, match_size, cudaMemcpyHostToDevice);
 
   //
   int blockSize = 1024;
@@ -357,7 +357,7 @@ void ssrlcv::PointCloudFactory::stereo_disparity(float2* matches0, float2* match
   cudaFree(d_matches1);
   cudaFree(d_points);
 
-  return;
+  return points;
 }
 
 // device methods
@@ -367,7 +367,7 @@ __global__ void ssrlcv::h_stereo_disparity(float2* matches0, float2* matches1, f
   if (id < n) {
     points[id].x = matches0[id].x;
     points[id].y = matches0[id].y;
-    points[id].z = sqrtf(scale * ((matches0[id].x - matches1[id].x) * (matches0[id].x - matches1[id].x) +  (matches0[id].y - matches1[id].y) * (matches0[id].y - matches1[id].y)));
+    points[id].z = sqrtf(scale * (((matches0[id].x - matches1[id].x) * (matches0[id].x - matches1[id].x)) +  ((matches0[id].y - matches1[id].y) * (matches0[id].y - matches1[id].y))));
   }
 } // dat disparity tho
 
