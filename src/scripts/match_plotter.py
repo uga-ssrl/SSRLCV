@@ -11,8 +11,8 @@ print('=========================')
 print('\n^C to quit...')
 
 
-img_left  = mpimg.imread('./data/img/everest254/img/ev001.png')
-img_right = mpimg.imread('./data/img/everest254/img/ev000.png')
+img_left  = mpimg.imread('./data/img/everest254/img/ev000.png')
+img_right = mpimg.imread('./data/img/everest254/img/ev001.png')
 
 match_data_src = "./data/img/everest254/everest254_matches.txt"
 
@@ -46,7 +46,7 @@ for m_i in sample:
     # print left
     # print 'right:'
     # print right
-    con = ConnectionPatch(xyA=left, xyB=right, coordsA="data", coordsB="data", axesA=a2, axesB=a1, color="red")
+    con = ConnectionPatch(xyA=right, xyB=left, coordsA="data", coordsB="data", axesA=a2, axesB=a1, color="red")
     a2.add_artist(con)
     a1.plot( left[0], left[1],'ro',markersize=10)
     a2.plot(right[0],right[1],'ro',markersize=10)

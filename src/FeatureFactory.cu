@@ -103,12 +103,6 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
   thrust::device_ptr<int> end = thrust::remove(tN, tN + keyPoints->numElements*this->maxOrientations, -1);
   int numFeatures = end - tN;
 
-  // float* thetas_host = new float[keyPoints->numElements*this->maxOrientations];
-  // CudaSafeCall(cudaMemcpy(thetas_host,thetas_device,keyPoints->numElements*this->maxOrientations*sizeof(float),cudaMemcpyDeviceToHost));
-  // for(int i = 0; i < keyPoints->numElements*this->maxOrientations; ++i){
-  //   printf("%d - %f\n",i/this->maxOrientations,thetas_host[i]);
-  // }
-
   thrust::device_ptr<float> t(thetas_device);
   thrust::device_ptr<float> new_end = thrust::remove(t, t + keyPoints->numElements*this->maxOrientations, -1.0f);
 
@@ -248,7 +242,6 @@ __global__ void ssrlcv::computeThetas(const unsigned long numKeyPoints, const un
     if(threadIdx.y*blockDim.x + threadIdx.x<36) orientationHist[threadIdx.y*blockDim.x + threadIdx.x] = 0.0f;
     __syncthreads();
     int regNumOrient = maxOrientations;
-    float pixelWidth = pixelWidth;
 
     //vector = (x+1) - (x-1), (y+1) - (y-1)
     int2 gradient = {0,0};
@@ -257,8 +250,8 @@ __global__ void ssrlcv::computeThetas(const unsigned long numKeyPoints, const un
     for(int y = (keyPoint.y - (windowWidth/2)) + threadIdx.y; y <= keyPoint.y + (windowWidth/2); y+=blockDim.y){
       for(int x = (keyPoint.x - (windowWidth/2)) + threadIdx.x; x <= keyPoint.x + (windowWidth/2); x+=blockDim.x){
         gradient = gradients[y*imageWidth + x];
-        temp2 = {x*pixelWidth - keyPoint.x,y*pixelWidth - keyPoint.y};
-        temp = -getMagnitude(temp2)/(2*lambda*lambda*sigma*sigma);
+        temp2 = {(float)x*pixelWidth - keyPoint.x,(float)y*pixelWidth - keyPoint.y};
+        temp = -getMagnitude(temp2)/(2.0f*lambda*lambda*sigma*sigma);
         atomicAdd(&orientationHist[(int) roundf(36.0f*getTheta(gradient)/(2.0f*pi))],expf(temp)*getMagnitude(gradient));
       }
     }
@@ -315,8 +308,6 @@ __global__ void ssrlcv::computeThetas(const unsigned long numKeyPoints, const un
       if(i >= numThetas) thetaNumbers[blockId*regNumOrient + i] = -1;
       else thetaNumbers[blockId*regNumOrient + i] = blockId;
     }
-
-    thetaNumbers[blockId*regNumOrient] = (numThetas > regNumOrient) ? regNumOrient : numThetas;
     for(int t = 0; t < regNumOrient; ++t){
       if(bestMagWThetas[t].x == 0.0f) thetas[blockId*regNumOrient + t] = -1.0f;
       else thetas[blockId*regNumOrient + t] = bestMagWThetas[t].y;
