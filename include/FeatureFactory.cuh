@@ -90,10 +90,11 @@ namespace ssrlcv{
 
   __device__ __forceinline__ unsigned long getGlobalIdx_2D_1D();
   __device__ __forceinline__ float getMagnitude(const int2 &vector);
+  __device__ __forceinline__ float getMagnitude(const float2 &vector);
   __device__ __forceinline__ float getTheta(const int2 &vector);
   __device__ __forceinline__ float getTheta(const float2 &vector);
   __device__ __forceinline__ float getTheta(const float2 &vector, const float &offset);
-  __device__ void trickleSwap(float2 compareWValue, float2* arr, int index, const int &length);
+  __device__ void trickleSwap(const float2 &compareWValue, float2* arr, const int &index, const int &length);
   __device__ __forceinline__ long4 getOrientationContributers(const long2 &loc, const uint2 &imageSize);
   __device__ __forceinline__ int floatToOrderedInt(float floatVal);
   __device__ __forceinline__ float orderedIntToFloat(int intVal);
@@ -103,11 +104,14 @@ namespace ssrlcv{
   __device__ __forceinline__ float2 rotateAboutPoint(const int2 &loc, const float &theta, const float2 &origin);
 
 
-  __global__ void computeThetas(unsigned long numKeyPoints, uint2 imageSize, float sigma, float pixelWidth, int contributerWindowWidth, float2* keyPointLocations, int2* gradients,
-    int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, float* thetas);
+  __global__ void computeThetas(const unsigned long numKeyPoints, const unsigned int imageWidth, const float sigma,
+    const float pixelWidth, const float lambda, const int windowWidth, const float2* __restrict__ keyPointLocations,
+    const int2* gradients, int* __restrict__ thetaNumbers, const unsigned int maxOrientations, const float orientationThreshold,
+    float* __restrict__ thetas);
 
-  __global__ void fillDescriptors(unsigned long numFeatures, uint2 imageSize, Feature<SIFT_Descriptor>* features, float sigma,
-    float pixelWidth, float lambda, int contributerWindowWidth, float* thetas, int* keyPointAddresses, float2* keyPointLocations, int2* gradients);
+  __global__ void fillDescriptors(const unsigned long numFeatures, const unsigned int imageWidth, Feature<SIFT_Descriptor>* features,
+    const float sigma, const float pixelWidth, const float lambda, const int windowWidth, const float* __restrict__ thetas,
+    const int* __restrict__ keyPointAddresses, const float2* __restrict__ keyPointLocations, const int2* __restrict__ gradients);
 }
 
 
