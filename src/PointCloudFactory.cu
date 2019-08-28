@@ -3,7 +3,7 @@
 ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matches, Image* target, Image* query){
   float3* pointCloud_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&pointCloud_device, matches->numElements*sizeof(float3)));
-  Unity<float3>* pointCloud = new Unity(pointCloud_device,matches->numElements,gpu);
+  Unity<float3>* pointCloud = new Unity<float3>(pointCloud_device,matches->numElements,gpu);
 
   // //initiliaze camera matrices
   // Camera cam1 = cData->cameras[0];

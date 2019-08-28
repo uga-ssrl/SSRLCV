@@ -13,7 +13,7 @@ namespace ssrlcv{
 
   unsigned char* readPNG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int& colorDepth);
 
-  void writePNG(const char* filePath, const unsigned char* &image, const unsigned int &width, const unsigned int &height);
+  void writePNG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
 
 }
 

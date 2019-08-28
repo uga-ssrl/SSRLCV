@@ -39,6 +39,7 @@ namespace ssrlcv{
   */
   //TODO add KAZE, SURF, ORB, etc
   struct SIFT_Descriptor{
+    float sigma;
     float theta;//in radians
     unsigned char values[128];//ordered left to right, top to bottom, 0->360 degrees
     __device__ __host__ SIFT_Descriptor();
