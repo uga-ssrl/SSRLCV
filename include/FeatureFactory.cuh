@@ -15,22 +15,65 @@
 #define SIFTBORDER 12
 
 namespace ssrlcv{
+
   class FeatureFactory{
 
   public:
+
+    //TODO implement after dense sift works again
+    struct ScaleSpace{
+
+      struct Octave{
+        int binRatio;//1 == parent | 1> is upsampled by bilinear interpolation
+        unsigned int numBlurs;
+        float* sigmas;
+        Unity<unsigned char>** blurs;
+        Octave();
+        Octave(unsigned int numBlurs, float* sigmas);
+        ~Octave();
+
+      };
+
+      unsigned int numOctaves;
+      Octave* octaves;
+      unsigned int parentOctave;
+      Image_Descriptor parentImageDescriptor;
+
+      ScaleSpace();
+      ScaleSpace(unsigned int numOctaves, int startingOctave, unsigned int numBlurs, Image* image);
+      ~ScaleSpace();
+
+    };
+
     FeatureFactory();
+
+    //TODO implement
+    ScaleSpace* generateScaleSpace(Image* image);//needs kernels too
+
   };
 
   class SIFT_FeatureFactory : public FeatureFactory{
 
   private:
-    //the bool dense might need to be changed to some other metric as
-    // this could be where scale space is implemented
-    void fillDescriptors(Image* image, Unity<Feature<SIFT_Descriptor>>* features);
+    bool dense;
+    unsigned int maxOrientations;
+    float orientationThreshold;
+    float orientationContribWidth;
+    float descriptorContribWidth;
+
+    void findKeyPoints(ScaleSpace::Octave* octave);//needs to be implemented
+    Unity<Feature<SIFT_Descriptor>>* createFeatures(uint2 imageSize, float pixelWidth, float sigma, Unity<int2>* gradients, Unity<float2>* keyPoints);
+
+    void buildFeatures();//2
 
   public:
-    SIFT_FeatureFactory();
-    Unity<Feature<SIFT_Descriptor>>* generateFeaturesDensly(Image* image, unsigned int binDepth = 0);
+
+    void setOrientationContribWidth(float orientationContribWidth);
+    void setDescriptorContribWidth(float descriptorContribWidth);
+
+    SIFT_FeatureFactory(bool dense = false, unsigned int maxOrientations = 2, float orientationThreshold = 0.8);
+
+    Unity<Feature<SIFT_Descriptor>>* generateFeatures(Image* image);
   };
 
   /*
@@ -47,10 +90,11 @@ namespace ssrlcv{
 
   __device__ __forceinline__ unsigned long getGlobalIdx_2D_1D();
   __device__ __forceinline__ float getMagnitude(const int2 &vector);
+  __device__ __forceinline__ float getMagnitude(const float2 &vector);
   __device__ __forceinline__ float getTheta(const int2 &vector);
   __device__ __forceinline__ float getTheta(const float2 &vector);
   __device__ __forceinline__ float getTheta(const float2 &vector, const float &offset);
-  __device__ void trickleSwap(const float2 &compareWValue, float2* &arr, int index, const int &length);
+  __device__ void trickleSwap(const float2 &compareWValue, float2* arr, const int &index, const int &length);
   __device__ __forceinline__ long4 getOrientationContributers(const long2 &loc, const uint2 &imageSize);
   __device__ __forceinline__ int floatToOrderedInt(float floatVal);
   __device__ __forceinline__ float orderedIntToFloat(int intVal);
@@ -59,16 +103,16 @@ namespace ssrlcv{
   __device__ __forceinline__ float modulus(const float &x, const float &y);
   __device__ __forceinline__ float2 rotateAboutPoint(const int2 &loc, const float &theta, const float2 &origin);
 
-  //this method will fill a feature array where the first index in the sift descriptor is actually the pixel value
-  //NOTE THIS MAY BE WASTEFUL ^^^ and should think of better option here.
-  //numbers will be filled and then compressed by thrust stream compaction so that addresses are available for looking at real features
-  __global__ void findValidFeatures(unsigned int numNodes, unsigned int nodeDepthIndex, Quadtree<unsigned char>::Node* nodes, unsigned int* featureNumbers, unsigned int* featureAddresses);
-  __global__ void fillValidFeatures(unsigned int numFeatures, Feature<SIFT_Descriptor>* features, unsigned int* featureAddresses, Quadtree<unsigned char>::Node* nodes);
 
-  __global__ void computeThetas(unsigned long numFeatures, Feature<SIFT_Descriptor>* features, Quadtree<unsigned char>::Node* nodes, unsigned char* pixels);
-  __global__ void fillDescriptorsDensly(unsigned long numFeatures, Feature<SIFT_Descriptor>* features, Quadtree<unsigned char>::Node* nodes, unsigned char* pixels);
+  __global__ void computeThetas(const unsigned long numKeyPoints, const unsigned int imageWidth, const float sigma,
+    const float pixelWidth, const float lambda, const int windowWidth, const float2* __restrict__ keyPointLocations,
+    const int2* gradients, int* __restrict__ thetaNumbers, const unsigned int maxOrientations, const float orientationThreshold,
+    float* __restrict__ thetas);
 
-
+  __global__ void fillDescriptors(const unsigned long numFeatures, const unsigned int imageWidth, Feature<SIFT_Descriptor>* features,
+    const float sigma, const float pixelWidth, const float lambda, const int windowWidth, const float* __restrict__ thetas,
+    const int* __restrict__ keyPointAddresses, const float2* __restrict__ keyPointLocations, const int2* __restrict__ gradients);
 }
+
 
 #endif /* FEATUREFACTORY_CUH */

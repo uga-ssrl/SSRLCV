@@ -61,16 +61,14 @@ int main(int argc, char *argv[]){
     DENSE SIFT
     */
 
-    ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory();
+    ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(true,1);
     std::vector<ssrlcv::Image*> images;
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
-    unsigned int convertColorDepthTo = 1;
+    featureFactory.setDescriptorContribWidth(6.0f);
+    featureFactory.setOrientationContribWidth(1.5f);
     for(int i = 0; i < numImages; ++i){
-      ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],convertColorDepthTo,i);
-      //sift border is 24 due to 1xbin would normally be 12
-      image->quadtree->setNodeFlags({24.0f+image->quadtree->border.x,24.0f+image->quadtree->border.y},true);
-      image->quadtree->writePLY();
-      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeaturesDensly(image,1);
+      ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
+      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image);
       allFeatures.push_back(features);
       images.push_back(image);
     }

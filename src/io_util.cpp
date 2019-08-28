@@ -111,7 +111,7 @@ unsigned char* ssrlcv::readPNG(const char* filePath, unsigned int &height, unsig
   return getPixelArray(row_pointers, width, height, numChannels);
 }
 
-void ssrlcv::writePNG(const char* filePath, const unsigned char* &image, const unsigned int &width, const unsigned int &height){
+void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height){
 
   /* create file */
   FILE *fp = fopen(filePath, "wb");
@@ -143,8 +143,19 @@ void ssrlcv::writePNG(const char* filePath, const unsigned char* &image, const u
     std::cout<<"[write_png_file] Error during writing header "<<std::endl;
   }
 
+  int colorType = PNG_COLOR_TYPE_GRAY;
+  if(colorDepth == 2){
+    colorType = PNG_COLOR_TYPE_GRAY_ALPHA;
+  }
+  else if(colorDepth == 3){
+    colorType = PNG_COLOR_TYPE_RGB;
+  }
+  else if(colorDepth == 4){
+    colorType = PNG_COLOR_TYPE_RGB_ALPHA;
+  }
+
   png_set_IHDR(png_ptr, info_ptr, width, height,
-               8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE,
+               8, colorType, PNG_INTERLACE_NONE,
                PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
 
   png_write_info(png_ptr, info_ptr);
@@ -156,8 +167,8 @@ void ssrlcv::writePNG(const char* filePath, const unsigned char* &image, const u
 
   unsigned char** row_pointers = new unsigned char*[height];
   for(int i = 0; i < height; ++i){
-    row_pointers[i] = new unsigned char[width];
-    std::memcpy(row_pointers[i], image + i*width, width*sizeof(unsigned char));
+    row_pointers[i] = new unsigned char[width*colorDepth];
+    std::memcpy(row_pointers[i], image + i*width*colorDepth, width*colorDepth*sizeof(unsigned char));
   }
 
   png_write_image(png_ptr, row_pointers);
