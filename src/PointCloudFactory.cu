@@ -1,5 +1,9 @@
 #include "PointCloudFactory.cuh"
 
+ssrlcv::PointCloudFactory::PointCloudFactory(){
+
+}
+
 ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matches, Image* target, Image* query){
   float3* pointCloud_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&pointCloud_device, matches->numElements*sizeof(float3)));
@@ -306,8 +310,66 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matche
   // cudaFree(d_in_cam2C);
   // cudaFree(d_in_cam2V);
   // cudaFree(d_out_pointCloud);
+  return pointCloud;
 }
 
+// TODO fillout
+/**
+* Preforms a Stereo Disparity
+* @param matches0
+* @param matches1
+* @param points assumes this has been allocated prior to method call
+* @param n the number of matches
+* @param scale the scale factor that is multiplied
+*/
+float3* ssrlcv::PointCloudFactory::stereo_disparity(float2* matches0, float2* matches1, float3* points, int n, float scale){
+  // matches
+  float2 *d_matches0;
+  float2 *d_matches1;
+  // depth points
+  float3 *d_points;
+
+  // the sizes
+  size_t match_size = n*sizeof(float2);
+  size_t point_size = n*sizeof(float3);
+
+  //
+  cudaMalloc((void**) &d_matches0, match_size);
+  cudaMalloc((void**) &d_matches1, match_size);
+  cudaMalloc((void**) &d_points, point_size);
+
+  //
+  cudaMemcpy(d_matches0, matches0, match_size, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_matches1, matches1, match_size, cudaMemcpyHostToDevice);
+
+  //
+  int blockSize = 1024;
+  int gridSize = (int) ceil((float) n / blockSize);
+
+  //
+  h_stereo_disparity<<<gridSize, blockSize>>>(d_matches0, d_matches1, d_points, n, scale);
+
+  //
+  cudaMemcpy(points, d_points, point_size, cudaMemcpyDeviceToHost);
+
+  //
+  cudaFree(d_matches0);
+  cudaFree(d_matches1);
+  cudaFree(d_points);
+
+  return points;
+}
+
+// device methods
+
+__global__ void ssrlcv::h_stereo_disparity(float2* matches0, float2* matches1, float3* points, int n, float scale){
+  int id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (id < n) {
+    points[id].x = matches0[id].x;
+    points[id].y = matches0[id].y;
+    points[id].z = sqrtf(scale * (((matches0[id].x - matches1[id].x) * (matches0[id].x - matches1[id].x)) +  ((matches0[id].y - matches1[id].y) * (matches0[id].y - matches1[id].y))));
+  }
+} // dat disparity tho
 
 __global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, float cam1C[3], float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9], float rotationTranspose1[9], float rotationTranspose2[9], float3* points){
 
