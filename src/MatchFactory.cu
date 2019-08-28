@@ -348,9 +348,12 @@ ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* featuresTarget, ssrlcv::Match* matches
     unsigned long numFeaturesTarget_register = numFeaturesQuery;
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 1024){
       currentDist = 0.0f;
-      for(int i = 0; i < 128; ++i){
-        currentDist +=  square(((float)feature.descriptor.values[i])-((float)featuresTarget[f].descriptor.values[i]));
+      for(int i = 0; i < 128 && currentDist < localDist[threadIdx.x]; ++i){
+        currentDist +=  square(((float)feature.descriptor.values[i]-featuresTarget[f].descriptor.values[i]));
       }
+      currentDist += dotProduct(feature.loc - featuresTarget[f].loc,feature.loc - featuresTarget[f].loc);
+      currentDist += square(feature.descriptor.theta - featuresTarget[f].descriptor.theta);
+      currentDist += square(feature.descriptor.sigma - featuresTarget[f].descriptor.sigma);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -405,9 +408,12 @@ ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* featuresTarget, ssrlcv::Match* matches
       p = -1*((epipolar.x*currentFeature.loc.x) + epipolar.z)/epipolar.y;
       if(abs(currentFeature.loc.y - p) >= regEpsilon) continue;
       currentDist = 0.0f;
-      for(int i = 0; i < 128; ++i){
-        currentDist +=  square(((float)feature.descriptor.values[i])-((float)currentFeature.descriptor.values[i]));
+      for(int i = 0; i < 128 && currentDist < localDist[threadIdx.x]; ++i){
+        currentDist +=  square(((float)feature.descriptor.values[i]-featuresTarget[f].descriptor.values[i]));
       }
+      currentDist += dotProduct(feature.loc - featuresTarget[f].loc,feature.loc - featuresTarget[f].loc);
+      currentDist += square(feature.descriptor.theta - featuresTarget[f].descriptor.theta);
+      currentDist += square(feature.descriptor.sigma - featuresTarget[f].descriptor.sigma);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -610,7 +616,7 @@ __global__ void ssrlcv::copyMatches(unsigned long numMatches, int* matchCounter,
   unsigned long globalId = blockIdx.x*blockDim.x + threadIdx.x;
   if(globalId < numMatches){
     int counterVal = matchCounter[globalId];
-    if(counterVal != 0 && counterVal > matchCounter[globalId - 1]){
+    if(counterVal != 0 && (globalId == 0 || counterVal > matchCounter[globalId - 1])){
       minimizedMatches[counterVal - 1] = matches[globalId];
     }
   }

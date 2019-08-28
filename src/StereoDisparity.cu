@@ -27,22 +27,27 @@ int main(int argc, char *argv[]){
     DENSE SIFT
     */
 
-    ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory();
+    ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(true,1);
     std::vector<ssrlcv::Image*> images;
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
-    unsigned int convertColorDepthTo = 1;
+    featureFactory.setDescriptorContribWidth(6.0f);
+    featureFactory.setOrientationContribWidth(1.5f);
     for(int i = 0; i < numImages; ++i){
-      ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],convertColorDepthTo,i);
-      //sift border is 24 due to 1xbin would normally be 12
-      image->quadtree->setNodeFlags({12.0f+image->quadtree->border.x,12.0f+image->quadtree->border.y},true);
-      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeaturesDensly(image);
+      ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
+      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image);
       allFeatures.push_back(features);
       images.push_back(image);
     }
-
+    allFeatures[0]->transferMemoryTo(ssrlcv::cpu);
+    // for(int i = 0; i < allFeatures[0]->numElements; ++i){
+    //   printf("%d-%f,%f\n",i,allFeatures[0]->host[i].loc.x,allFeatures[0]->host[i].loc.y);
+    //   std::cout<<std::endl;
+    // }
     ssrlcv::MatchFactory matchFactory = ssrlcv::MatchFactory();
     std::cout << "Starting matching, this will take a while ..." << std::endl;
     ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.generateMatchesBruteForce(images[0],allFeatures[0],images[1],allFeatures[1]);
+
+    //matchFactory.refineMatches(matches, 0.0001);
 
     matches->transferMemoryTo(ssrlcv::cpu);
 
@@ -56,13 +61,21 @@ int main(int argc, char *argv[]){
     size_t match_size = n*sizeof(float2);
     matches0 = (float2*) malloc(match_size);
     matches1 = (float2*) malloc(match_size);
+    std::ofstream outputFileMatch("./data/img/everest254/everest254_matches.txt");
     for (int i = 0; i < n; i++){
+      outputFileMatch << matches->host[i].features[0].loc.x<<",";
+      outputFileMatch << matches->host[i].features[0].loc.y<<",";
+      outputFileMatch << matches->host[i].features[1].loc.x<<",";
+      outputFileMatch << matches->host[i].features[1].loc.y<<"\n";
+
+      // std::cout << matches->host[i].features[0].loc.x<<",";
+      // std::cout << matches->host[i].features[0].loc.y<<",";
+      // std::cout << matches->host[i].features[1].loc.x<<",";
+      // std::cout << matches->host[i].features[1].loc.y<<"-"<<matches->host[i].distance<<"\n";
+
       matches0[i] = matches->host[i].features[0].loc;
       matches1[i] = matches->host[i].features[1].loc;
-      //if (!(i%100)){
-      //   std::cout << matches0[i].x << " | " << matches1[i].x << std::endl;
-      //   std::cout << matches0[i].y << " | " << matches1[i].y << std::endl;
-      // //}
+
     }
 
     std::cout << "starting disparity with " << n << " matches ..." << std::endl;
@@ -71,7 +84,7 @@ int main(int argc, char *argv[]){
     float3* points;
     size_t points_size = n*sizeof(float3);
     points = (float3*) malloc(points_size);
-    points = demPoints.stereo_disparity(matches0,matches1,points,n,1.0);
+    points = demPoints.stereo_disparity(matches0,matches1,points,n,64.0f);
 
     free(matches0);
     free(matches1);
