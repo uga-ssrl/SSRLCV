@@ -78,6 +78,11 @@ int main(int argc, char *argv[]){
     unsigned int convertColorDepthTo = 1;
     for(int i = 0; i < numImages; ++i){
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],convertColorDepthTo,i);
+
+      // Reading image parameters [Gitlab #58]
+      ssrlcv::bcpFormat bcp; 
+      if(ssrlcv::readImageMeta(imagePaths[i], bcp)) image->bcp_in(bcp); 
+
       //sift border is 24 due to 1xbin would normally be 12
       image->quadtree->setNodeFlags({24.0f+image->quadtree->border.x,24.0f+image->quadtree->border.y},true);
       image->quadtree->writePLY();

@@ -37,6 +37,21 @@ namespace ssrlcv{
     Image(std::string filePath, unsigned int convertColorDepthTo, int id = -1);
     Image(std::string filePath, unsigned int convertColorDepthTo, unsigned int quadtreeBinDepth, int id = -1);
     ~Image();
+
+    // Binary camera params [Gitlab #58] 
+    void bcp_in(bcpFormat data) {
+      this->descriptor.cam_pos.x  = data.pos[0];
+      this->descriptor.cam_pos.y  = data.pos[1];
+      this->descriptor.cam_pos.z  = data.pos[2];
+
+      this->descriptor.cam_vec.x  = data.vec[0];
+      this->descriptor.cam_vec.y  = data.vec[1];
+      this->descriptor.cam_vec.z  = data.vec[2];
+
+      this->descriptor.fov        = data.fov;
+      this->descriptor.foc        = data.foc;
+      this->descriptor.dpix       = data.dpix; 
+    }
   };
 
   void calcFundamentalMatrix_2View(Image_Descriptor query, Image_Descriptor target, float3 *F);

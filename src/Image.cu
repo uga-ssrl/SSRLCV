@@ -117,6 +117,8 @@ ssrlcv::Image::~Image(){
     delete this->quadtree;
   }
 }
+
+
 void ssrlcv::calcFundamentalMatrix_2View(Image_Descriptor query, Image_Descriptor target, float3 *F){
   if(query.fov != target.fov || query.foc != target.foc){
     std::cout<<"ERROR calculating fundamental matrix for 2view needs to bet taken with same camera (foc&fov are same)"<<std::endl;

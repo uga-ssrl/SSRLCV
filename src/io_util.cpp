@@ -1,5 +1,7 @@
 #include "io_util.h"
 
+#include <stdio.h>
+
 
 void ssrlcv::getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths){
   DIR* dir;
@@ -170,4 +172,97 @@ void ssrlcv::writePNG(const char* filePath, const unsigned char* &image, const u
   png_write_end(png_ptr, nullptr);
   fclose(fp);
   std::cout<<filePath<<" has been written"<<std::endl;
+}
+
+
+//
+// Binary files - Gitlab #58
+//
+
+/**
+ * Replaces the file's extension with .bcp (binary camera parameters) 
+ * @return NEW std::string with the resultant file path
+ */
+std::string getImageMetaName(std::string imgpath) 
+{ 
+  for(std::string::iterator it = imgpath.end(); it != imgpath.begin(); it--) { 
+    if(*it == '.') return std::string(imgpath.replace(it, imgpath.end(), ".bcp"));
+  }
+  return std::string();
+}
+
+
+
+/**
+ * Reads the binary 
+ * 
+ */
+bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out) 
+{ 
+
+  std::string path = getImageMetaName(imgpath); 
+  if(path.empty()) return false; 
+
+  FILE * file = fopen(path.c_str(), "r"); 
+  if(file == nullptr) { 
+    std::cerr << "Couldn't open " << path << std::endl; 
+    return false; 
+  }
+
+
+  // Reading the file - for now, the official spec of this format is the layout of the struct bcpFormat,
+  //  detailed in io_util.h 
+  //
+  // Try to keep this code as smart and modular as possible to make it easy to tinker with later on
+
+  //
+  // I have the below macros to help this.
+  // They should be able to be moved around, inserted and deleted as needed to match the spec in io_util.h
+  // They will clean up and return false on error
+
+  /* 
+   * BIN_VAL(name)          - Reads the next value into the struct field named `name` 
+   * EOF_CHECK              - Checks for end-of-file - Call this after every BIN_* read except the last one
+   * EOF_EXPECT             - Expects end-of-file.  Call this after the last read 
+   */
+
+// -- Macros -- //
+#define BIN_VAL(name) \
+  fread((void *) &(out.name), sizeof(out.name), 1, file); \
+  if(ferror(file)) { std::cerr << "Error reading " << path << std::endl; fclose(file); return false; }
+
+#define EOF_CHECK if(feof(file)) { std::cerr << "Error in " << path << ": Unexpected EOF" << std::endl; fclose(file); return false; }
+#define EOF_EXPECT \
+  bool __fread; \
+  fread((void *) &__fread, sizeof(__fread), 1, file); \
+  if(! feof(file)) { std::cerr << "Error in " << path << ": Expected EOF.  Format invalid, ignoring this file" << std::endl; fclose(file); return false; }
+// -- -- -- // 
+  
+
+  BIN_VAL(pos) 
+  EOF_CHECK 
+
+  BIN_VAL(vec)
+  EOF_CHECK
+
+  BIN_VAL(fov)
+  EOF_CHECK
+
+  BIN_VAL(foc)
+  EOF_CHECK
+
+  BIN_VAL(dpix)
+  EOF_EXPECT
+
+
+  fclose(file);
+  return true; 
+
+#undef BIN_VAL
+#undef EOF_CHECK
+#undef EOF_EXPECT 
+
+
+  // I guess we could try some sort of binary reading/writing the entire struct,
+  //  but I think it's best to shy away from that as we don't know how the compiler will handle struct padding
 }
