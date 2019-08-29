@@ -559,9 +559,7 @@ __global__ void ssrlcv::applyBorder(uint2 imageSize, unsigned int* featureNumber
 __global__ void ssrlcv::getPixelCenters(unsigned int numValidPixels, uint2 imageSize, unsigned int* pixelAddresses, float2* pixelCenters){
   unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < numValidPixels){
-    float x = ((float)(pixelAddresses[globalID]%imageSize.x));//+0.5f;
-    float y = ((float)(pixelAddresses[globalID]/imageSize.x));//+0.5f
-    pixelCenters[globalID] = {x,y};
+    pixelCenters[globalID] = {((float)(pixelAddresses[globalID]%imageSize.x)),((float)(pixelAddresses[globalID]/imageSize.x))};
   }
 }
 

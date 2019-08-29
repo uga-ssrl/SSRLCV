@@ -86,11 +86,12 @@ namespace ssrlcv{
   /* CUDA variable, method and kernel defintions */
 
   extern __constant__ float pi;
-  extern __constant__ int2 immediateNeighbors[9];
 
   __device__ __forceinline__ unsigned long getGlobalIdx_2D_1D();
   __device__ __forceinline__ float getMagnitude(const int2 &vector);
   __device__ __forceinline__ float getMagnitude(const float2 &vector);
+  __device__ __forceinline__ float getMagnitudeSq(const int2 &vector);
+  __device__ __forceinline__ float getMagnitudeSq(const float2 &vector);
   __device__ __forceinline__ float getTheta(const int2 &vector);
   __device__ __forceinline__ float getTheta(const float2 &vector);
   __device__ __forceinline__ float getTheta(const float2 &vector, const float &offset);
@@ -105,12 +106,12 @@ namespace ssrlcv{
 
 
   __global__ void computeThetas(const unsigned long numKeyPoints, const unsigned int imageWidth, const float sigma,
-    const float pixelWidth, const float lambda, const int windowWidth, const float2* __restrict__ keyPointLocations,
+    const float pixelWidth, const float lambda, const float windowWidth, const float2* __restrict__ keyPointLocations,
     const int2* gradients, int* __restrict__ thetaNumbers, const unsigned int maxOrientations, const float orientationThreshold,
     float* __restrict__ thetas);
 
   __global__ void fillDescriptors(const unsigned long numFeatures, const unsigned int imageWidth, Feature<SIFT_Descriptor>* features,
-    const float sigma, const float pixelWidth, const float lambda, const int windowWidth, const float* __restrict__ thetas,
+    const float sigma, const float pixelWidth, const float lambda, const float windowWidth, const float* __restrict__ thetas,
     const int* __restrict__ keyPointAddresses, const float2* __restrict__ keyPointLocations, const int2* __restrict__ gradients);
 }
 
