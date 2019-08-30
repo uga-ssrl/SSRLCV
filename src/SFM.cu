@@ -72,8 +72,32 @@ int main(int argc, char *argv[]){
       allFeatures.push_back(features);
       images.push_back(image);
     }
-    ssrlcv::MatchFactory matchFactory = ssrlcv::MatchFactory();
-    //ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.generateMatchesBruteForce(images[0],allFeatures[0],images[1],allFeatures[1]);
+    if(allFeatures[0]->numElements != allFeatures[1]->numElements){
+      std::cerr<<"identical images do not have same number of features"<<std::endl;
+    }
+    int numWrongDescriptor = 0;
+    int numWrongTheta = 0;
+    allFeatures[0]->transferMemoryTo(ssrlcv::cpu);
+    allFeatures[1]->transferMemoryTo(ssrlcv::cpu);
+    for(int i = 0; i < allFeatures[0]->numElements; ++i){
+      if(allFeatures[0]->host[i].descriptor.theta != allFeatures[1]->host[i].descriptor.theta){
+        printf("feature @ {%f,%f} has different thetas",allFeatures[0]->host[i].loc.x,allFeatures[0]->host[i].loc.y);
+        std::cout<<"\t[0] = "<<(int)allFeatures[0]->host[i].descriptor.theta<<" ";
+        std::cout<<"[1] = "<<(int)allFeatures[1]->host[i].descriptor.theta<<std::endl;
+        numWrongTheta++;
+      }
+      for(int d = 0; d < 128; ++d){
+        if(allFeatures[0]->host[i].descriptor.values[d] != allFeatures[1]->host[i].descriptor.values[d]){
+          printf("feature @ {%f,%f} has different descriptors @ %d",allFeatures[0]->host[i].loc.x,allFeatures[0]->host[i].loc.y,d);
+          std::cout<<"\t[0] = "<<(int)allFeatures[0]->host[i].descriptor.values[d]<<" ";
+          std::cout<<"[1] = "<<(int)allFeatures[1]->host[i].descriptor.values[d]<<std::endl;
+          numWrongDescriptor++;
+        }
+      }
+    }
+    std::cout<<"number of mismatched feature descriptors = "<<numWrongDescriptor<<std::endl;
+    std::cout<<"number of mismatched thetas = "<<numWrongTheta<<std::endl;
+
     return 0;
   }
   catch (const std::exception &e){

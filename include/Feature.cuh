@@ -23,14 +23,11 @@ namespace ssrlcv{
     this->parent = -1;
   }
   template<typename D>
-  __device__ __host__ Feature<D>::Feature(float2 loc){
-    this->loc = loc;
+  __device__ __host__ Feature<D>::Feature(float2 loc) : loc(loc){
     this->parent = -1;
   }
   template<typename D>
-  __device__ __host__ Feature<D>::Feature(float2 loc, D descriptor){
-    this->loc = loc;
-    this->descriptor = descriptor;
+  __device__ __host__ Feature<D>::Feature(float2 loc, D descriptor) : loc(loc), descriptor(descriptor){
     this->parent = -1;
   }
 

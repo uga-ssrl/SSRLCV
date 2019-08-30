@@ -62,22 +62,18 @@ int main(int argc, char *argv[]){
     matches0 = (float2*) malloc(match_size);
     matches1 = (float2*) malloc(match_size);
     std::ofstream outputFileMatch("./data/img/everest254/everest254_matches.txt");
+    int numWrong = 0;
+    float maxDist = 0.0f;
     for (int i = 0; i < n; i++){
       outputFileMatch << matches->host[i].features[0].loc.x<<",";
       outputFileMatch << matches->host[i].features[0].loc.y<<",";
       outputFileMatch << matches->host[i].features[1].loc.x<<",";
       outputFileMatch << matches->host[i].features[1].loc.y<<"\n";
 
-      // std::cout << matches->host[i].features[0].loc.x<<",";
-      // std::cout << matches->host[i].features[0].loc.y<<",";
-      // std::cout << matches->host[i].features[1].loc.x<<",";
-      // std::cout << matches->host[i].features[1].loc.y<<"-"<<matches->host[i].distance<<"\n";
-
       matches0[i] = matches->host[i].features[0].loc;
       matches1[i] = matches->host[i].features[1].loc;
-
     }
-
+    std::cout<<numWrong<<std::endl;
     std::cout << "starting disparity with " << n << " matches ..." << std::endl;
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
 
