@@ -348,12 +348,12 @@ ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* featuresTarget, ssrlcv::Match* matches
     unsigned long numFeaturesTarget_register = numFeaturesQuery;
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 1024){
       currentDist = 0.0f;
-      // for(int i = 0; i < 128 && currentDist < localDist[threadIdx.x]; ++i){
-      //   currentDist +=  square(((float)feature.descriptor.values[i]-featuresTarget[f].descriptor.values[i]));
-      // }
+      for(int i = 0; i < 128 && currentDist < localDist[threadIdx.x]; ++i){
+        currentDist +=  square(((float)feature.descriptor.values[i]-featuresTarget[f].descriptor.values[i]));
+      }
       currentDist += dotProduct(feature.loc - featuresTarget[f].loc,feature.loc - featuresTarget[f].loc);
       currentDist += square(feature.descriptor.theta - featuresTarget[f].descriptor.theta);
-      //currentDist += square(feature.descriptor.sigma - featuresTarget[f].descriptor.sigma);
+      currentDist += square(feature.descriptor.sigma - featuresTarget[f].descriptor.sigma);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;

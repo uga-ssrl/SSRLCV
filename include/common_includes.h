@@ -33,6 +33,7 @@
 #include <dirent.h>
 #include <cfloat>
 #include <cstring>
+#include <iomanip>
 
 #include "CVExceptions.hpp"
 

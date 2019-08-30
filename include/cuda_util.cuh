@@ -32,6 +32,7 @@ struct is_not_neg{
 };
 
 __device__ __host__ void printBits(size_t const size, void const * const ptr);
+__device__ void orderInt3(int3 &toOrder);
 __device__ __host__ float3 operator+(const float3 &a, const float3 &b);
 __device__ __host__ float3 operator-(const float3 &a, const float3 &b);
 __device__ __host__ float3 operator/(const float3 &a, const float3 &b);

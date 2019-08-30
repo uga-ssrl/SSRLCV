@@ -5,7 +5,6 @@
 #include "MatchFactory.cuh"
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
-#include <iomanip>
 
 int main(int argc, char *argv[]){
   try{
@@ -71,43 +70,34 @@ int main(int argc, char *argv[]){
       outputFileMatch << matches->host[i].features[1].loc.x<<",";
       outputFileMatch << matches->host[i].features[1].loc.y<<"\n";
 
-      std::cout << matches->host[i].features[0].loc.x<<",";
-      std::cout << matches->host[i].features[0].loc.y<<",";
-      std::cout << matches->host[i].features[1].loc.x<<",";
-      std::cout << matches->host[i].features[1].loc.y<<"-"<< std::setprecision(100)<<matches->host[i].distance<<"\n";
-      if(matches->host[i].distance != 0.0f){
-        ++numWrong;
-        if(matches->host[i].distance > maxDist) maxDist = matches->host[i].distance;
-      }
       matches0[i] = matches->host[i].features[0].loc;
       matches1[i] = matches->host[i].features[1].loc;
     }
     std::cout<<numWrong<<std::endl;
-    std::cout<<"max dist error "<< std::setprecision(100)<<maxDist<<std::endl;
-    // std::cout << "starting disparity with " << n << " matches ..." << std::endl;
-    // ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
-    //
-    // float3* points;
-    // size_t points_size = n*sizeof(float3);
-    // points = (float3*) malloc(points_size);
-    // points = demPoints.stereo_disparity(matches0,matches1,points,n,64.0f);
-    //
-    // free(matches0);
-    // free(matches1);
-    //
-    // // TODO use something else here for saving the PLY
-    // std::ofstream outputFile1("test.ply");
-    // outputFile1 << "ply\nformat ascii 1.0\nelement vertex ";
-    // outputFile1 << n << "\n";
-    // outputFile1 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
-    // outputFile1 << "end_header\n";
-    //
-    // for(int i = 0; i < n; i++){
-    //         outputFile1 << points[i].x << " " << points[i].y << " " << points[i].z << " " << 0 << " " << 254 << " " << 0 << "\n";
-    // }
-    // std::cout<<"test.ply has been written to repo root"<<std::endl;
-    //
-    // free(points);
+    std::cout << "starting disparity with " << n << " matches ..." << std::endl;
+    ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
+
+    float3* points;
+    size_t points_size = n*sizeof(float3);
+    points = (float3*) malloc(points_size);
+    points = demPoints.stereo_disparity(matches0,matches1,points,n,64.0f);
+
+    free(matches0);
+    free(matches1);
+
+    // TODO use something else here for saving the PLY
+    std::ofstream outputFile1("test.ply");
+    outputFile1 << "ply\nformat ascii 1.0\nelement vertex ";
+    outputFile1 << n << "\n";
+    outputFile1 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
+    outputFile1 << "end_header\n";
+
+    for(int i = 0; i < n; i++){
+            outputFile1 << points[i].x << " " << points[i].y << " " << points[i].z << " " << 0 << " " << 254 << " " << 0 << "\n";
+    }
+    std::cout<<"test.ply has been written to repo root"<<std::endl;
+
+    free(points);
 
     return 0;
   }

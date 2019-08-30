@@ -34,6 +34,24 @@ __device__ __host__ void printBits(size_t const size, void const * const ptr){
   printf("\n");
 }
 
+__device__ void orderInt3(int3 &toOrder){
+  if(toOrder.x > toOrder.y){
+    toOrder.x ^= toOrder.y;
+    toOrder.y ^= toOrder.x;
+    toOrder.x ^= toOrder.y;
+  }
+  if(toOrder.x > toOrder.z){
+    toOrder.x ^= toOrder.z;
+    toOrder.z ^= toOrder.x;
+    toOrder.x ^= toOrder.z;
+  }
+  if(toOrder.y > toOrder.z){
+    toOrder.y ^= toOrder.z;
+    toOrder.z ^= toOrder.y;
+    toOrder.y ^= toOrder.z;
+  }
+}
+
 __device__ __host__ float3 operator+(const float3 &a, const float3 &b) {
   return {a.x+b.x, a.y+b.y, a.z+b.z};
 }
