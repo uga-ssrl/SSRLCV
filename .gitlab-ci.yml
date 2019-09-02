@@ -35,9 +35,10 @@ pages:
   stage: documentation
   script:
   - doxygen ./doc/doxygen/Doxyfile
-  - mv ./doc/doxygen/documentation/html/ ./doc/doxygen/public/
+  - mkdir public
+  - mv ./doc/doxygen/documentation/html/ public
   artifacts:
     paths:
-    - ./doc/doxygen/public
+    - public
   only:
   - master
