@@ -1,3 +1,6 @@
+/** @file MatchFactory.cuh
+* @brief this file contains all feature matching methods
+*/
 #ifndef MATCHFACTORY_CUH
 #define MATCHFACTORY_CUH
 
@@ -5,7 +8,6 @@
 #include "Image.cuh"
 #include "Feature.cuh"
 #include "Unity.cuh"
-#include "MatrixUtil.cuh"
 #include <thrust/device_ptr.h>
 #include <thrust/copy.h>
 #include <thrust/scan.h>

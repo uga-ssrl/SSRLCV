@@ -1,4 +1,4 @@
-#include "MatrixUtil.cuh"
+#include "matrix_util.cuh"
 
 __device__ __host__ float ssrlcv::sum(const float3 &a){
   return a.x + a.y + a.z;

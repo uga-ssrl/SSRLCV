@@ -1,8 +1,10 @@
+/** @file PointCloudFactory.cuh
+* @brief this file contains methods for deriving point clouds
+*/
 #ifndef POINTCLOUDFACTORY_CUH
 #define POINTCLOUDFACTORY_CUH
 
 #include "common_includes.h"
-#include "MatrixUtil.cuh"
 #include "Image.cuh"
 #include "MatchFactory.cuh"
 #include "Unity.cuh"

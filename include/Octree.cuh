@@ -1,3 +1,6 @@
+/** @file Octree.cuh
+* @brief This file contains everything related to the CUDA Octree
+*/
 #ifndef OCTREE_CUH
 #define OCTREE_CUH
 

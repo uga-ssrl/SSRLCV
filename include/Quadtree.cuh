@@ -1,3 +1,6 @@
+/** @file Quadtree.cuh
+ * @brief File contains all things related to CUDA Quadtree.
+*/
 #ifndef QUADTREE_CUH
 #define QUADTREE_CUH
 
@@ -15,7 +18,11 @@
 
 namespace ssrlcv{
 
-  //consider putting in util
+  /**
+   * @brief simple struct for holding float2 as location and
+   * data of anytype.
+   * @todo find better place for this struct
+  */
   template<typename D>
   struct LocalizedData{
     float2 loc;
@@ -27,8 +34,9 @@ namespace ssrlcv{
   //TODO evaluate use of unsigned int or long for index holders
 
 
-  /*
-  BASE QUADTREE CLASS
+  /**
+  * @brief Class that can hold the following classes:
+  * float2, LocalizedData<T>, unsigned int, unsigned char
   */
   template<typename T>
   class Quadtree{
@@ -40,6 +48,9 @@ namespace ssrlcv{
 
 
   public:
+    /**
+    * @brief Quadtree<T>::Node class for GPU and CPU utilization
+    */
     struct Node{
       int key;
       int dataIndex;
@@ -55,12 +66,18 @@ namespace ssrlcv{
 
       __device__ __host__ Node();
     };
+    /**
+    * @brief Quadtree<T>::Vertex class for GPU and CPU utilization
+    */
     struct Vertex{
       float2 loc;
       int nodes[4];
       int depth;
       __device__ __host__ Vertex();
     };
+    /**
+    * @brief Quadtree<T>::Edge class for GPU and CPU utilization
+    */
     struct Edge{
       int2 vertices;
       int nodes[2];

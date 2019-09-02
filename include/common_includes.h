@@ -1,3 +1,8 @@
+/** @file common_includes.h
+* @brief common location for global includes
+* @todo remove non-global includes
+*/
+
 #ifndef COMMON_INCLUDES_H
 #define COMMON_INCLUDES_H
 
@@ -6,7 +11,7 @@
 #include "device_launch_parameters.h"
 #include <cuda.h>
 #include "cuda_util.cuh"
-#include "MatrixUtil.cuh"
+#include "matrix_util.cuh"
 
 #include <iostream>
 #include <string>
@@ -38,7 +43,6 @@
 #include "CVExceptions.hpp"
 
 #define PI 3.1415926535897932384626433832795028841971693993
-
 
 
 

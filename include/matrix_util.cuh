@@ -1,3 +1,6 @@
+/** @file matrix_util.cuh
+ * @brief file for housing matrix utility functions
+*/
 #ifndef MATRIXUTIL_CUH
 #define MATRIXUTIL_CUH
 
