@@ -1,3 +1,9 @@
+/** @file   Unity.cuh
+ * @author  Jackson Parker
+ * @date    1 Sep 2019
+ * @brief   File containing Unity class and CUDA error handlers
+ */
+
 #ifndef UNITY_CUH
 #define UNITY_CUH
 
@@ -5,12 +11,19 @@
 #include "device_launch_parameters.h"
 #include <cuda.h>
 
+
+
+
 // Define this to turn on error checking
 #define CUDA_ERROR_CHECK
 
 #define CudaSafeCall( err ) __cudaSafeCall( err, __FILE__, __LINE__ )
 #define CudaCheckError()    __cudaCheckError( __FILE__, __LINE__ )
 
+/**
+ * @brief CudaSafeCall called as a function wrapper will
+ * identify CUDA errors associated with internal call
+ */
 inline void __cudaSafeCall(cudaError err, const char *file, const int line) {
 #ifdef CUDA_ERROR_CHECK
   if (cudaSuccess != err) {
@@ -22,6 +35,12 @@ inline void __cudaSafeCall(cudaError err, const char *file, const int line) {
 
   return;
 }
+/**
+ * @brief CudaCheckError() called after CUDA kernel execution will
+ * identify CUDA errors occuring during the kernel. Uncommenting
+ * err = cudaDeviceSynchronize(); on line 55 will allow for more
+ * careful checking.
+ */
 inline void __cudaCheckError(const char *file, const int line) {
 #ifdef CUDA_ERROR_CHECK
   cudaError err = cudaGetLastError();
@@ -44,10 +63,12 @@ inline void __cudaCheckError(const char *file, const int line) {
   return;
 }
 
-//TODO go back and make sure that fore is being set properly
-
 namespace ssrlcv{
 
+  /**
+  * @brief Internal way of representing pointer location and
+  * CUDA memory type.
+  */
   typedef enum MemoryState{
     null = 0,
     cpu = 1,
@@ -57,6 +78,9 @@ namespace ssrlcv{
   } MemoryState;
 
   namespace{
+    /**
+    * @brief base unity exception.
+    */
     struct UnityException{
       std::string msg;
       UnityException(){
@@ -67,6 +91,10 @@ namespace ssrlcv{
         return msg.c_str();
       }
     };
+    /**
+    * @brief Custom exception called when attempting to transition
+    * Unity memory to state that would cause segfault.
+    */
     struct IllegalUnityTransition : public UnityException{
       std::string msg;
       IllegalUnityTransition(){
@@ -77,7 +105,10 @@ namespace ssrlcv{
         return msg.c_str();
       }
     };
-
+    /**
+    * @brief Custom exception used when an action would lead to
+    * segfault due to nullptr.
+    */
     struct NullUnityException : public UnityException{
       std::string msg;
       NullUnityException(){
@@ -89,6 +120,9 @@ namespace ssrlcv{
       }
     };
 
+    /**
+    * @brief returns a string based on the MemoryState type it is fed.
+    */
     inline std::string memoryStateToString(MemoryState state){
       switch(state){
         case null:
@@ -106,6 +140,14 @@ namespace ssrlcv{
     }
   }
 
+
+  /**
+  * @brief SSRLCV CUDA memory handler class.
+  *
+  *
+  * @todo implement pinned and unified memory methods for this class
+  * @warning User must keep track of the fore member or it is useless.
+  */
   template<typename T>
   class Unity{
 
