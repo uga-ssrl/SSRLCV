@@ -189,6 +189,10 @@ namespace ssrlcv{
     this->clear();
   }
 
+  /**
+  * This method will clear memory in a specified location.
+  * @param MemoryState - location to clear
+  */
   template<typename T>
   void Unity<T>::clear(MemoryState state){
     if(state == null){
@@ -248,6 +252,11 @@ namespace ssrlcv{
     this->fore = null;
     this->numElements = 0;
   }
+  /**
+  * This method will transfer memory to a specified location.
+  * @param MemoryState - location to transfer too
+  * @warning this method will not delete memory in previous location
+  */
   template<typename T>
   void Unity<T>::transferMemoryTo(MemoryState state){
     if(this->state == null || sizeof(T)*this->numElements == 0){
@@ -297,6 +306,11 @@ namespace ssrlcv{
     }
     this->state = both;
   }
+  /**
+  * This method will set the memory state to a specified location.
+  * @param MemoryState - location to set memory to
+  * @warning this is a hard set and will delete memory in previous location
+  */
   template<typename T>
   void Unity<T>::setMemoryState(MemoryState state){
     if(state == this->state){
@@ -324,6 +338,12 @@ namespace ssrlcv{
       }
     }
   }
+  /**
+  * This method will clear data and set to parameterized data.
+  * @param data - must be of previous type
+  * @param numElements - size of new data
+  * @param MemoryState - location of new data
+  */
   template<typename T>
   void Unity<T>::setData(T* data, unsigned long numElements, MemoryState state){
     this->clear();

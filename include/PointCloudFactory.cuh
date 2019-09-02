@@ -11,6 +11,10 @@
 
 
 namespace ssrlcv{
+  /**
+  * @brief This class contains methods to generate point clouds from a set of Match structs.
+  * @param Array of Matches
+  */
   class PointCloudFactory {
 
   public:
