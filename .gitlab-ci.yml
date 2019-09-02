@@ -2,7 +2,7 @@
 #   - build
 #   - cube_reproject
 #   - evaluate
-# 
+#
 # before_script:
 #   - export PATH=/usr/local/cuda-9.0/bin${PATH:+:${PATH}}
 #   - export PATH=$PATH:/usr/local/cuda-9.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
@@ -23,9 +23,21 @@
 
 stages:
   - build
+  - documentation
 
 compile:
   stage: build
   script:
     - make -j4
     - echo "Build successful"
+
+pages:
+  stage: documentation
+  script:
+  - doxygen ./doc/doxygen/Doxyfile
+  - mv ./doc/doxygen/documentation/html/ ./doc/doxygen/public/
+  artifacts:
+    paths:
+    - ./doc/doxygen/public
+  only:
+  - master
