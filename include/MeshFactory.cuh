@@ -41,20 +41,23 @@ namespace ssrlcv{
 
   /* CUDA variable, method and kernel defintions */
 
-  struct is_not_neg_int{
-    __host__ __device__
-    bool operator()(const int x)
-    {
-      return (x >= 0);
-    }
-  };
-  struct is_not_zero_float{
-    __host__ __device__
-    bool operator()(const float x)
-    {
-      return (x != 0.0f);
-    }
-  };
+  namespace{
+    struct is_not_neg_int{
+      __host__ __device__
+      bool operator()(const int x)
+      {
+        return (x >= 0);
+      }
+    };
+    struct is_not_zero_float{
+      __host__ __device__
+      bool operator()(const float x)
+      {
+        return (x != 0.0f);
+      }
+    };
+  }
+
 
   extern __constant__ int cubeCategoryTrianglesFromEdges[256][15];
   extern __constant__ int cubeCategoryEdgeIdentity[256];

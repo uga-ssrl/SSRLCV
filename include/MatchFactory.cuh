@@ -30,13 +30,14 @@ namespace ssrlcv{
   };
   typedef struct Match Match;
 
-  struct match_above_cutoff{
-    __host__ __device__
-    bool operator()(Match m){
-      return m.distance > 0.0f;
-    }
-  };
-
+  namespace{
+    struct match_above_cutoff{
+      __host__ __device__
+      bool operator()(Match m){
+        return m.distance > 0.0f;
+      }
+    };
+  }
 
   class MatchFactory{
 

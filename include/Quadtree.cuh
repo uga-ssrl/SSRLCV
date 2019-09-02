@@ -125,13 +125,16 @@ namespace ssrlcv{
 
   };
 
-  struct is_flagged{
-    template<typename T>
-    __host__ __device__
-    bool operator()(const typename Quadtree<T>::Node& n){
-      return (n.flag);
-    }
-  };
+  namespace{
+    struct is_flagged{
+      template<typename T>
+      __host__ __device__
+      bool operator()(const typename Quadtree<T>::Node& n){
+        return (n.flag);
+      }
+    };
+  }
+
 
   /*
   CUDA KERNEL DEFINITIONS

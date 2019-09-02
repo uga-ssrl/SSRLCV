@@ -152,13 +152,15 @@ namespace ssrlcv{
 
   /* CUDA variable, method and kernel defintions */
 
-  struct is_not_neg{
-    __host__ __device__
-    bool operator()(const int x)
-    {
-      return (x >= 0);
-    }
-  };
+  namespace{
+    struct is_not_neg{
+      __host__ __device__
+      bool operator()(const int x)
+      {
+        return (x >= 0);
+      }
+    };
+  }
 
   extern __constant__ int3 coordPlacementIdentity[8];
   extern __constant__ int2 vertexEdgeIdentity[12];
