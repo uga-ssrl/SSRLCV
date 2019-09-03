@@ -59,6 +59,22 @@ ssrlcv::Quadtree<T>::Quadtree(){
   this->border = {0,0};
 }
 
+template<>
+ssrlcv::Quadtree<unsigned char>::Quadtree(Image* image, unsigned int depth, int2 border){
+  this->edges = nullptr;
+  this->vertices = nullptr;
+  this->data = image->pixels;
+  this->colorDepth = image->descriptor.colorDepth;
+  this->border = border;
+  this->size = {image->descriptor.size.x + (border.x*2),image->descriptor.size.y + (border.y*2)};
+  this->depth = depth;
+  printf("Building Quadtree with following characteristics:\ndepth = %d",this->depth);
+  printf("\nsize = {%d,%d}\nborder = {%d,%d}\n",this->size.x,this->size.y,this->border.x,this->border.y);
+  this->generateLeafNodes();
+  this->generateParentNodes();
+  this->fillNeighborhoods();
+}
+
 //TODO throw error if depth.x is greater than depth.y
 //specifically for index full quadtree
 template<>

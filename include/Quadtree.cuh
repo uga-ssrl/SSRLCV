@@ -5,6 +5,7 @@
 #define QUADTREE_CUH
 
 #include "common_includes.h"
+#include "Image.cuh"
 #include "Unity.cuh"
 #include <thrust/sort.h>
 #include <thrust/pair.h>
@@ -103,6 +104,14 @@ namespace ssrlcv{
     ssrlcv::Unity<unsigned int>* edgeDepthIndex;
 
     Quadtree();
+
+    /**
+    * \brief Constructor for quadtree holding pixels of an Image
+    * \param image Image holding pixels
+    * \param depth depth of quadtree
+    * \param border size of border (optional parameter)
+    */
+    Quadtree(Image* image, unsigned int depth, int2 border = {0,0});
 
     /**
     * \brief Constructor for full quadtrees holding indices to each pixel

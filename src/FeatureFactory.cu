@@ -53,9 +53,9 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
   if(image->pixels->fore == cpu){
     image->pixels->transferMemoryTo(gpu);
   }
-  if(image->colorDepth != 1){
-    convertToBW(image->pixels,image->colorDepth);
-    image->colorDepth = 1;
+  if(image->descriptor.colorDepth != 1){
+    convertToBW(image->pixels,image->descriptor.colorDepth);
+    image->descriptor.colorDepth = 1;
   }
 
   if(this->dense){

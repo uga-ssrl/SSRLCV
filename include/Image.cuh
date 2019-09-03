@@ -8,8 +8,13 @@
 #include "io_util.h"
 #include "Feature.cuh"
 #include "cuda_util.cuh"
-#include "Quadtree.cuh"
 #include "Unity.cuh"
+#include <thrust/sort.h>
+#include <thrust/unique.h>
+#include <thrust/device_vector.h>
+#include <thrust/scan.h>
+#include <thrust/device_ptr.h>
+#include <thrust/copy.h>
 
 namespace ssrlcv{
   /**
@@ -17,6 +22,7 @@ namespace ssrlcv{
   */
   struct Image_Descriptor{
     int id;
+    unsigned int colorDepth;
     uint2 size;
     float3 cam_pos;
     float3 cam_vec;
@@ -36,10 +42,8 @@ namespace ssrlcv{
 
   public:
 
-    Image_Descriptor descriptor;
     std::string filePath;
-    Quadtree<unsigned int>* quadtree;//quadtree->data = pixel ref
-    unsigned int colorDepth;//consider moving to Image_Descriptor
+    Image_Descriptor descriptor;
     Unity<unsigned char>* pixels;
 
     Image();
@@ -47,7 +51,6 @@ namespace ssrlcv{
     Image(std::string filePath, unsigned int convertColorDepthTo, int id = -1);
     ~Image();
 
-    void generateQuadtree(unsigned int depth = 0);
     void alterSize(int binDepth);
   };
 

@@ -11,6 +11,7 @@ __device__ __host__ ssrlcv::Image_Descriptor::Image_Descriptor(){
   this->fov = 0;
   this->foc = 0;
   this->dpix = 0.0f;
+  this->colorDepth = 1;
 }
 __device__ __host__ ssrlcv::Image_Descriptor::Image_Descriptor(int id, uint2 size){
   this->id = id;
@@ -20,6 +21,7 @@ __device__ __host__ ssrlcv::Image_Descriptor::Image_Descriptor(int id, uint2 siz
   this->fov = 0;
   this->foc = 0;
   this->dpix = 0.0f;
+  this->colorDepth = 1;
 }
 __device__ __host__ ssrlcv::Image_Descriptor::Image_Descriptor(int id, uint2 size, float3 cam_pos, float3 camp_dir){
   this->id = id;
@@ -29,31 +31,29 @@ __device__ __host__ ssrlcv::Image_Descriptor::Image_Descriptor(int id, uint2 siz
   this->fov = 0;
   this->foc = 0;
   this->dpix = 0.0f;
+  this->colorDepth = 1;
 }
 
 ssrlcv::Image::Image(){
   this->descriptor.id = -1;
-  this->quadtree = nullptr;
   this->filePath = "n/a";
 }
 ssrlcv::Image::Image(std::string filePath, int id){
-  this->quadtree = nullptr;
   this->filePath = filePath;
   this->descriptor.id = id;
-  this->colorDepth = 1;
-  unsigned char* pixels_host = readPNG(filePath.c_str(), this->descriptor.size.y, this->descriptor.size.x, this->colorDepth);
-  this->pixels = new Unity<unsigned char>(pixels_host,this->descriptor.size.y*this->descriptor.size.x*this->colorDepth,cpu);
+  this->descriptor.colorDepth = 1;
+  unsigned char* pixels_host = readPNG(filePath.c_str(), this->descriptor.size.y, this->descriptor.size.x, this->descriptor.colorDepth);
+  this->pixels = new Unity<unsigned char>(pixels_host,this->descriptor.size.y*this->descriptor.size.x*this->descriptor.colorDepth,cpu);
 }
 ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int id){
-  this->quadtree = nullptr;
   this->filePath = filePath;
   this->descriptor.id = id;
-  this->colorDepth = 1;
-  unsigned char* pixels_host = readPNG(filePath.c_str(), this->descriptor.size.y, this->descriptor.size.x, this->colorDepth);
-  this->pixels = new Unity<unsigned char>(pixels_host,this->descriptor.size.y*this->descriptor.size.x*this->colorDepth,cpu);
+  this->descriptor.colorDepth = 1;
+  unsigned char* pixels_host = readPNG(filePath.c_str(), this->descriptor.size.y, this->descriptor.size.x, this->descriptor.colorDepth);
+  this->pixels = new Unity<unsigned char>(pixels_host,this->descriptor.size.y*this->descriptor.size.x*this->descriptor.colorDepth,cpu);
   if(convertColorDepthTo == 1){
-    convertToBW(this->pixels, this->colorDepth);
-    this->colorDepth = 1;
+    convertToBW(this->pixels, this->descriptor.colorDepth);
+    this->descriptor.colorDepth = 1;
   }
   else if(convertColorDepthTo != 0){
     std::cerr<<"ERROR: Image() does not currently support conversion to anything but BW"<<std::endl;
@@ -62,28 +62,11 @@ ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int
 }
 
 ssrlcv::Image::~Image(){
-  if(this->quadtree != nullptr){
-    delete this->quadtree;
-  }
   if(this->pixels != nullptr){
     delete this->pixels;
   }
 }
 
-void ssrlcv::Image::generateQuadtree(unsigned int depth){
-  if(depth == 0){
-    if(this->descriptor.size.x > this->descriptor.size.y){
-      depth = (unsigned int)ceil(log2((float)this->descriptor.size.x));
-    }
-    else{
-      depth = (unsigned int)ceil(log2((float)this->descriptor.size.y));
-    }
-  }
-  int2 border;
-  border.x = (pow(2,depth) - this->descriptor.size.x)/2;
-  border.y = (pow(2,depth) - this->descriptor.size.y)/2;
-  this->quadtree = new Quadtree<unsigned int>(this->descriptor.size,depth,border);
-}
 void ssrlcv::Image::alterSize(int binDepth){
   if(binDepth <= 0){
     std::cerr<<"Image::alterSize does not currently support upsampling"<<std::endl;
@@ -92,7 +75,7 @@ void ssrlcv::Image::alterSize(int binDepth){
   MemoryState origin = this->pixels->state;
   if(origin == cpu || this->pixels->fore == cpu) this->pixels->transferMemoryTo(gpu);
 
-  Unity<unsigned char>* alteredPixels = bin(this->descriptor.size,this->colorDepth,this->pixels);
+  Unity<unsigned char>* alteredPixels = bin(this->descriptor.size,this->descriptor.colorDepth,this->pixels);
   delete this->pixels;
   this->pixels = alteredPixels;
   this->descriptor.size.x /= pow(2,binDepth);
