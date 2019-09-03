@@ -1,5 +1,5 @@
-/** @file MatchFactory.cuh
-* @brief this file contains all feature matching methods
+/** \file MatchFactory.cuh
+* \brief this file contains all feature matching methods
 */
 #ifndef MATCHFACTORY_CUH
 #define MATCHFACTORY_CUH
@@ -13,24 +13,34 @@
 #include <thrust/scan.h>
 
 namespace ssrlcv{
-  struct Spline{
-    float coeff[6][6][4][4];
-  };
-  typedef struct Spline Spline;
 
-  struct SubpixelM7x7{
-    float M1[9][9];
-    float M2[9][9];
-  };
-  typedef struct SubpixelM7x7 SubpixelM7x7;
-
+  /**
+  * \brief represents pair of features of template unsigned int
+  */
   struct Match{
     Feature<unsigned int> features[2];//descriptor == parentImage id
     float distance;
   };
   typedef struct Match Match;
 
+  // template<typename T>
+  // struct Match{
+  //   int parentId[2];
+  //   Feature<T> features[2];
+  // };
+
   namespace{
+    struct Spline{
+      float coeff[6][6][4][4];
+    };
+    typedef struct Spline Spline;
+
+    struct SubpixelM7x7{
+      float M1[9][9];
+      float M2[9][9];
+    };
+    typedef struct SubpixelM7x7 SubpixelM7x7;
+
     struct match_above_cutoff{
       __host__ __device__
       bool operator()(Match m){
@@ -39,6 +49,10 @@ namespace ssrlcv{
     };
   }
 
+  /**
+  * \brief Factory for generating matches for accepted features
+  * \todo implement feature matching for various types of features
+  */
   class MatchFactory{
 
   public:
@@ -50,10 +64,21 @@ namespace ssrlcv{
 
     void refineMatches(Unity<Match>* matches, float cutoffRatio);
 
+    /**
+    * \brief Generates matches between sift features
+    */
     Unity<Match>* generateMatchesBruteForce(Image* query, Unity<Feature<SIFT_Descriptor>>* queryFeatures, Image* target, Unity<Feature<SIFT_Descriptor>>* targetFeatures);
+    /**
+    * \brief Generates matches between sift features constrained by epipolar line
+    */
     Unity<Match>* generateMatchesConstrained(Image* query, Unity<Feature<SIFT_Descriptor>>* queryFeatures, Image* target, Unity<Feature<SIFT_Descriptor>>* targetFeatures, float epsilon);
-    //NOTE currently brute force
+    /**
+    * \brief Generates subpixel matches between sift features
+    */
     Unity<Match>* generateSubPixelMatchesBruteForce(Image* query, Unity<Feature<SIFT_Descriptor>>* queryFeatures, Image* target, Unity<Feature<SIFT_Descriptor>>* targetFeatures);
+    /**
+    * \brief Generates subpixel matches between sift features constrained by the epipolar line
+    */
     Unity<Match>* generateSubPixelMatchesConstrained(Image* query, Unity<Feature<SIFT_Descriptor>>* queryFeatures, Image* target, Unity<Feature<SIFT_Descriptor>>* targetFeatures, float epsilon);
 
 

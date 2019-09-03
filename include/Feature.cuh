@@ -1,5 +1,5 @@
-/** @file Feature.cuh
-* @brief this file contains all feature/feature descriptor definitions
+/** \file Feature.cuh
+* \brief this file contains all feature/feature descriptor definitions
 */
 #ifndef FEATURE_CUH
 #define FEATURE_CUH
@@ -7,9 +7,7 @@
 
 namespace ssrlcv{
   /**
-  * @brief the base feature struct for ssrlcv
-  * It can hold any type of descriptor and will be
-  * associated with a float2 location and a int parent id.
+  * \brief The base feature struct that can contain any descriptor type.
   */
   template<typename D>
   struct Feature{
@@ -35,11 +33,8 @@ namespace ssrlcv{
     this->parent = -1;
   }
 
-  /*
-  DECLARATIONS OF DESCRIPTORS TO USE WITH FEATURE
-  */
   /**
-  * @brief a descriptor for unsigned char[128] SIFT feature descriptor.
+  * \brief a descriptor for unsigned char[128] SIFT feature descriptor.
   */
   struct SIFT_Descriptor{
     float sigma;

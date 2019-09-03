@@ -86,7 +86,7 @@ int main(int argc, char *argv[]){
     free(matches1);
 
     // TODO use something else here for saving the PLY
-    std::ofstream outputFile1("test.ply");
+    std::ofstream outputFile1("./out/test.ply");
     outputFile1 << "ply\nformat ascii 1.0\nelement vertex ";
     outputFile1 << n << "\n";
     outputFile1 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";

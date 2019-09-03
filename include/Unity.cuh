@@ -1,7 +1,7 @@
-/** @file   Unity.cuh
- * @author  Jackson Parker
- * @date    1 Sep 2019
- * @brief   File containing Unity class and CUDA error handlers
+/** \file   Unity.cuh
+ * \author  Jackson Parker
+ * \date    1 Sep 2019
+ * \brief   File containing Unity class and CUDA error handlers
  */
 
 #ifndef UNITY_CUH
@@ -16,7 +16,7 @@
 #define CudaCheckError()    __cudaCheckError( __FILE__, __LINE__ )
 
 /**
- * @brief CudaSafeCall called as a function wrapper will
+ * \brief CudaSafeCall called as a function wrapper will
  * identify CUDA errors associated with internal call
  */
 inline void __cudaSafeCall(cudaError err, const char *file, const int line) {
@@ -31,7 +31,7 @@ inline void __cudaSafeCall(cudaError err, const char *file, const int line) {
   return;
 }
 /**
- * @brief CudaCheckError() called after CUDA kernel execution will
+ * \brief CudaCheckError() called after CUDA kernel execution will
  * identify CUDA errors occuring during the kernel. Uncommenting
  * err = cudaDeviceSynchronize(); on line 55 will allow for more
  * careful checking.
@@ -61,7 +61,7 @@ inline void __cudaCheckError(const char *file, const int line) {
 namespace ssrlcv{
 
   /**
-  * @brief Internal way of representing pointer location and
+  * \brief Internal way of representing pointer location and
   * CUDA memory type.
   */
   typedef enum MemoryState{
@@ -74,7 +74,7 @@ namespace ssrlcv{
 
   namespace{
     /**
-    * @brief base unity exception.
+    * \brief base unity exception.
     */
     struct UnityException{
       std::string msg;
@@ -87,7 +87,7 @@ namespace ssrlcv{
       }
     };
     /**
-    * @brief Custom exception called when attempting to transition
+    * \brief Custom exception called when attempting to transition
     * Unity memory to state that would cause segfault.
     */
     struct IllegalUnityTransition : public UnityException{
@@ -101,7 +101,7 @@ namespace ssrlcv{
       }
     };
     /**
-    * @brief Custom exception used when an action would lead to
+    * \brief Custom exception used when an action would lead to
     * segfault due to nullptr.
     */
     struct NullUnityException : public UnityException{
@@ -116,7 +116,7 @@ namespace ssrlcv{
     };
 
     /**
-    * @brief returns a string based on the MemoryState type it is fed.
+    * \brief returns a string based on the MemoryState type it is fed.
     */
     inline std::string memoryStateToString(MemoryState state){
       switch(state){
@@ -137,30 +137,65 @@ namespace ssrlcv{
 
 
   /**
-  * @brief SSRLCV CUDA memory handler class.
-  *
-  *
-  * @todo implement pinned and unified memory methods for this class
-  * @warning User must keep track of the fore member or it is useless.
+  * \class Unity
+  * \brief SSRLCV CUDA memory handler class.
+  * \todo implement pinned and unified memory methods for this class
   */
   template<typename T>
   class Unity{
 
   public:
-    MemoryState fore;//can be used to keep track of recently updated memory
-    MemoryState state;
+    /**
+    * used to keep track of most up to date memory
+    * \warning user must keep track of this on their own to be useful
+    */
+    MemoryState fore;
+    MemoryState state;/**\brief current state of data*/
 
-    T* device;
-    T* host;
-    unsigned long numElements;
+    T* device;/**\brief pointer to device memory (gpu)*/
+    T* host;/**brief pointer to host memory (cpu)*/
+    unsigned long numElements;/**\brief number of elements in *device or *host*/
 
+    /**
+    * \brief default constructor
+    */
     Unity();
+    /**
+    * \brief constructor
+    * \tparam T datatype of data
+    * \param data pointer to dynamically allocated array on host or device
+    * \param numElements number of elements inside data pointer
+    * \param state MemoryState of data
+    */
     Unity(T* data, unsigned long numElements, MemoryState state);
+    /**
+    * \brief destructor
+    */
     ~Unity();
 
-    void clear(MemoryState state = both);//hard clear
-    void transferMemoryTo(MemoryState state);//soft set - no deletes
+    /**
+    * This method will clear memory in a specified location.
+    * \param MemoryState - location to clear
+    */
+    void clear(MemoryState state = both);
+    /**
+    * This method will transfer memory to a specified location.
+    * \param MemoryState - location to transfer too
+    * \warning this method will not delete memory in previous location
+    */
+    void transferMemoryTo(MemoryState state);
+    /**
+    * This method will set the memory state to a specified location.
+    * \param MemoryState - location to set memory to
+    * \warning this is a hard set and will delete memory in previous location
+    */
     void setMemoryState(MemoryState state);
+    /**
+    * This method will clear data and set to parameterized data.
+    * \param data - must be of previous type
+    * \param numElements - size of new data
+    * \param MemoryState - location of new data
+    */
     void setData(T* data, unsigned long numElements, MemoryState state);//hard set
   };
 
@@ -189,10 +224,6 @@ namespace ssrlcv{
     this->clear();
   }
 
-  /**
-  * This method will clear memory in a specified location.
-  * @param MemoryState - location to clear
-  */
   template<typename T>
   void Unity<T>::clear(MemoryState state){
     if(state == null){
@@ -252,11 +283,7 @@ namespace ssrlcv{
     this->fore = null;
     this->numElements = 0;
   }
-  /**
-  * This method will transfer memory to a specified location.
-  * @param MemoryState - location to transfer too
-  * @warning this method will not delete memory in previous location
-  */
+
   template<typename T>
   void Unity<T>::transferMemoryTo(MemoryState state){
     if(this->state == null || sizeof(T)*this->numElements == 0){
@@ -306,11 +333,7 @@ namespace ssrlcv{
     }
     this->state = both;
   }
-  /**
-  * This method will set the memory state to a specified location.
-  * @param MemoryState - location to set memory to
-  * @warning this is a hard set and will delete memory in previous location
-  */
+
   template<typename T>
   void Unity<T>::setMemoryState(MemoryState state){
     if(state == this->state){
@@ -338,12 +361,6 @@ namespace ssrlcv{
       }
     }
   }
-  /**
-  * This method will clear data and set to parameterized data.
-  * @param data - must be of previous type
-  * @param numElements - size of new data
-  * @param MemoryState - location of new data
-  */
   template<typename T>
   void Unity<T>::setData(T* data, unsigned long numElements, MemoryState state){
     this->clear();

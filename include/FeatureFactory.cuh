@@ -1,5 +1,5 @@
-/** @file FeatureFactory.cuh
- * @brief This file contains the base feature class definition.
+/** \file FeatureFactory.cuh
+ * \brief This file contains the base feature class definition.
  * All feature factories should be derivative of this class
  * and should include this file.
 */
@@ -23,7 +23,7 @@
 namespace ssrlcv{
 
   /**
-  * @brief This is the base Feauture Factory.
+  * \brief This is the base Feauture Factory.
   * Contains methods and members that could be useful
   * for any type of feature factory.
   */
@@ -32,14 +32,14 @@ namespace ssrlcv{
   public:
 
     /**
-    * @brief this is a struct to house a scale space.
-    * @todo implement
+    * \brief this is a struct to house a scale space.
+    * \todo implement
     */
     struct ScaleSpace{
 
       /**
-      * @brief this is a struct to house an octave of a scale space.
-      * @todo implement
+      * \brief this is a struct to house an octave of a scale space.
+      * \todo implement
       */
       struct Octave{
         int binRatio;//1 == parent | 1> is upsampled by bilinear interpolation
@@ -71,8 +71,8 @@ namespace ssrlcv{
   };
 
   /**
-  * @brief this class create SIFT features
-  * @todo move to a SIFT_FeatureFactory.cuh file
+  * \brief this class create SIFT features
+  * \todo move to a SIFT_FeatureFactory.cuh file
   */
   class SIFT_FeatureFactory : public FeatureFactory{
 

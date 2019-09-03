@@ -13,6 +13,9 @@
 #include <thrust/device_ptr.h>
 
 namespace ssrlcv{
+  /**
+  * \brief Factory for generating meshes from PointClouds.
+  */
   class MeshFactory{
 
   public:
