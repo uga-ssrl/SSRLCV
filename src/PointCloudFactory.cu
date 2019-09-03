@@ -313,6 +313,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match<SIFT_Des
   return pointCloud;
 }
 
+
+
 // TODO fillout
 /**
 * Preforms a Stereo Disparity
@@ -322,7 +324,21 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match<SIFT_Des
 * @param n the number of matches
 * @param scale the scale factor that is multiplied
 */
-float3* ssrlcv::PointCloudFactory::stereo_disparity(float2* matches0, float2* matches1, float3* points, int n, float scale){
+template<typename T>
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match<T>>* matches, float scale){
+
+  MemoryState origin = matches->state;
+  if(origin == gpu){
+    matches->transferMemoryTo(cpu);
+  }
+
+  float2* matches0 = new float2[matches->numElements];
+  float2* matches1 = new float2[matches->numElements];
+
+  for(int i = 0; i < matches->numElements; ++i){
+    matches0[i] = matches->host[i].features[0].loc;
+    matches1[i] = matches->host[i].features[1].loc;
+  }
   // matches
   float2 *d_matches0;
   float2 *d_matches1;
@@ -330,8 +346,8 @@ float3* ssrlcv::PointCloudFactory::stereo_disparity(float2* matches0, float2* ma
   float3 *d_points;
 
   // the sizes
-  size_t match_size = n*sizeof(float2);
-  size_t point_size = n*sizeof(float3);
+  size_t match_size = matches->numElements*sizeof(float2);
+  size_t point_size = matches->numElements*sizeof(float3);
 
   //
   cudaMalloc((void**) &d_matches0, match_size);
@@ -344,21 +360,22 @@ float3* ssrlcv::PointCloudFactory::stereo_disparity(float2* matches0, float2* ma
 
   //
   int blockSize = 1024;
-  int gridSize = (int) ceil((float) n / blockSize);
+  int gridSize = (int) ceil((float) matches->numElements / blockSize);
 
   //
-  h_stereo_disparity<<<gridSize, blockSize>>>(d_matches0, d_matches1, d_points, n, scale);
+  h_stereo_disparity<<<gridSize, blockSize>>>(d_matches0, d_matches1, d_points, matches->numElements, scale);
 
-  //
-  cudaMemcpy(points, d_points, point_size, cudaMemcpyDeviceToHost);
-
-  //
   cudaFree(d_matches0);
   cudaFree(d_matches1);
-  cudaFree(d_points);
+
+  Unity<float3>* points = new Unity<float3>(d_points, matches->numElements,gpu);
+  points->setMemoryState(cpu);
+  if(origin == gpu) matches->setMemoryState(gpu);
 
   return points;
 }
+template ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity<ssrlcv::SIFT_Descriptor>(Unity<Match<SIFT_Descriptor>>* matches, float scale);
+
 
 // device methods
 

@@ -22,7 +22,8 @@ namespace ssrlcv{
 
     Unity<float3>* reproject(Unity<Match<SIFT_Descriptor>>* matches, Image* target, Image* query);
 
-    float3* stereo_disparity(float2* matches0, float2* matches1, float3* points, int n, float scale);
+    template<typename T>
+    ssrlcv::Unity<float3>* stereo_disparity(Unity<Match<T>>* matches, float scale);
 
   };
 

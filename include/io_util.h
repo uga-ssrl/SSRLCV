@@ -5,6 +5,8 @@
 #define IO_UTIL_H
 
 #include "common_includes.h"
+#include "Unity.cuh"
+#include "tinyply.h"
 
 
 namespace ssrlcv{
@@ -17,6 +19,8 @@ namespace ssrlcv{
   unsigned char* readPNG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int& colorDepth);
 
   void writePNG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
+
+  void writePLY(const char* filePath, Unity<float3>* points, bool binary = false);
 
 }
 

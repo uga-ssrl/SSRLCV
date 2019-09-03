@@ -26,7 +26,7 @@ namespace ssrlcv{
 
 
   /**
-  * \brief represents pair of features of template unsigned int
+  * \brief represents pair of features
   */
   template<typename T>
   struct Match{

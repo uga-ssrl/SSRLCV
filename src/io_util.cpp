@@ -182,3 +182,29 @@ void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned
   fclose(fp);
   std::cout<<filePath<<" has been written"<<std::endl;
 }
+
+void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
+  MemoryState origin = points->state;
+  points->transferMemoryTo(cpu);
+  tinyply::PlyFile ply;
+  ply.get_comments().push_back("SSRL Test");
+  ply.add_properties_to_element("vertex",{"x","y","z"},tinyply::Type::FLOAT32, points->numElements, reinterpret_cast<uint8_t*>(points->host), tinyply::Type::INVALID, 0);
+
+  std::filebuf fb_binary;
+  if(binary){
+    fb_binary.open(filePath, std::ios::out | std::ios::binary);
+    std::ostream outstream_binary(&fb_binary);
+    if (outstream_binary.fail()) throw std::runtime_error("failed to write ply");
+    ply.write(outstream_binary, true);
+  }
+  else{
+    std::filebuf fb_ascii;
+  	fb_ascii.open(filePath, std::ios::out);
+  	std::ostream outstream_ascii(&fb_ascii);
+  	if (outstream_ascii.fail()) throw std::runtime_error("failed to write ply");
+    ply.write(outstream_ascii, false);
+  }
+
+
+  if(origin == gpu) points->setMemoryState(gpu);
+}

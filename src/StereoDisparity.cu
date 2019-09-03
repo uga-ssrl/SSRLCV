@@ -38,11 +38,6 @@ int main(int argc, char *argv[]){
       allFeatures.push_back(features);
       images.push_back(image);
     }
-    allFeatures[0]->transferMemoryTo(ssrlcv::cpu);
-    // for(int i = 0; i < allFeatures[0]->numElements; ++i){
-    //   printf("%d-%f,%f\n",i,allFeatures[0]->host[i].loc.x,allFeatures[0]->host[i].loc.y);
-    //   std::cout<<std::endl;
-    // }
     ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>();
     std::cout << "Starting matching, this will take a while ..." << std::endl;
     ssrlcv::Unity<ssrlcv::Match<ssrlcv::SIFT_Descriptor>>* matches = matchFactory.generateMatchesBruteForce(images[0],allFeatures[0],images[1],allFeatures[1]);
@@ -51,50 +46,16 @@ int main(int argc, char *argv[]){
 
     matches->transferMemoryTo(ssrlcv::cpu);
 
-    int n = matches->numElements;
-    // refile to float2
-    // TODO maybe add this to the match factory?
-    // TODO or add to point cloud factory
-    std::cout << "Copying matches" << std::endl;
-    float2* matches0;
-    float2* matches1;
-    size_t match_size = n*sizeof(float2);
-    matches0 = (float2*) malloc(match_size);
-    matches1 = (float2*) malloc(match_size);
-    std::ofstream outputFileMatch("./data/img/everest254/everest254_matches.txt");
-    for (int i = 0; i < n; i++){
-      outputFileMatch << matches->host[i].features[0].loc.x<<",";
-      outputFileMatch << matches->host[i].features[0].loc.y<<",";
-      outputFileMatch << matches->host[i].features[1].loc.x<<",";
-      outputFileMatch << matches->host[i].features[1].loc.y<<"\n";
-
-      matches0[i] = matches->host[i].features[0].loc;
-      matches1[i] = matches->host[i].features[1].loc;
-    }
-    std::cout << "starting disparity with " << n << " matches ..." << std::endl;
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
+    ssrlcv::Unity<float3>* points = demPoints.stereo_disparity(matches,64.0f);
 
-    float3* points;
-    size_t points_size = n*sizeof(float3);
-    points = (float3*) malloc(points_size);
-    points = demPoints.stereo_disparity(matches0,matches1,points,n,64.0f);
+    delete matches;
+    delete allFeatures[0];
+    delete allFeatures[1];
 
-    free(matches0);
-    free(matches1);
+    ssrlcv::writePLY("out/test.ply",points);
 
-    // TODO use something else here for saving the PLY
-    std::ofstream outputFile1("./out/test.ply");
-    outputFile1 << "ply\nformat ascii 1.0\nelement vertex ";
-    outputFile1 << n << "\n";
-    outputFile1 << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n";
-    outputFile1 << "end_header\n";
-
-    for(int i = 0; i < n; i++){
-            outputFile1 << points[i].x << " " << points[i].y << " " << points[i].z << " " << 0 << " " << 254 << " " << 0 << "\n";
-    }
-    std::cout<<"test.ply has been written to ./out/"<<std::endl;
-
-    free(points);
+    delete points;
 
     return 0;
   }
