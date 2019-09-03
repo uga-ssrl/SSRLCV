@@ -23,24 +23,25 @@ namespace ssrlcv{
   void writePLY(const char* filePath, Unity<float3>* points, bool binary = false);
 
   //
-  // Binary files - Gitlab #58 
+  // Binary files - Gitlab #58
   //
 
   /*
    * Since the Image class and Image_Descriptor struct are both CUDified, I'll leave them that way for now and make this struct here
    *
    * Until further documentation is established, this struct declaration is the official specification of the .bcp format.
-   * A .bcp file will be a binary serialization of the structure below in order from top to bottom. 
+   * A .bcp file will be a binary serialization of the structure below in order from top to bottom.
    *
-   * This definition is coupled with the reading method in io_util.cpp and the loading method in Image.cuh 
+   * This definition is coupled with the reading method in io_util.cpp and the loading method in Image.cuh
    */
-  struct bcpFormat { 
+  struct bcpFormat {
   	float pos[3];
-  	float vec[3];  
-  	float fov, foc, dpix; 
+  	float vec[3];
+  	float fov, foc;
+    float dpix[2]; 
   };
 
-  bool readImageMeta(std::string imgpath, bcpFormat & out); 
+  bool readImageMeta(std::string imgpath, bcpFormat & out);
 }
 
 #endif /* IO_UTIL_H */
