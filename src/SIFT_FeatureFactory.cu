@@ -42,9 +42,9 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
   if(image->pixels->fore == cpu){
     image->pixels->transferMemoryTo(gpu);
   }
-  if(image->descriptor.colorDepth != 1){
-    convertToBW(image->pixels,image->descriptor.colorDepth);
-    image->descriptor.colorDepth = 1;
+  if(image->colorDepth != 1){
+    convertToBW(image->pixels,image->colorDepth);
+    image->colorDepth = 1;
   }
 
   if(this->dense){
@@ -54,13 +54,13 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     clock_t timer = clock();
 
     Unity<int2>* gradients = generatePixelGradients(image);
-    Unity<float2>* keyPoints = getLocationsWithinBorder(image->descriptor.size, {12.0f,12.0f});
+    Unity<float2>* keyPoints = getLocationsWithinBorder(image->size, {12.0f,12.0f});
 
     printf("\nDense SIFT prep done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
     image->pixels->clear(gpu);//may want to nullify pixels for space
 
-    features = this->createFeatures(image->descriptor.size,1,sqrtf(2),gradients,keyPoints);
+    features = this->createFeatures(image->size,1,sqrtf(2),gradients,keyPoints);
 
     delete gradients;
     delete keyPoints;

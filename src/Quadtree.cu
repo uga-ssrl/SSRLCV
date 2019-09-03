@@ -64,9 +64,9 @@ ssrlcv::Quadtree<unsigned char>::Quadtree(Image* image, unsigned int depth, int2
   this->edges = nullptr;
   this->vertices = nullptr;
   this->data = image->pixels;
-  this->colorDepth = image->descriptor.colorDepth;
+  this->colorDepth = image->colorDepth;
   this->border = border;
-  this->size = {image->descriptor.size.x + (border.x*2),image->descriptor.size.y + (border.y*2)};
+  this->size = {image->size.x + (border.x*2),image->size.y + (border.y*2)};
   this->depth = depth;
   printf("Building Quadtree with following characteristics:\ndepth = %d",this->depth);
   printf("\nsize = {%d,%d}\nborder = {%d,%d}\n",this->size.x,this->size.y,this->border.x,this->border.y);

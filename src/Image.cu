@@ -1,59 +1,47 @@
 #include "Image.cuh"
 
-
-
-
-__device__ __host__ ssrlcv::Image_Descriptor::Image_Descriptor(){
-  this->id = 0;
-  this->size = {0,0};
+__device__ __host__ ssrlcv::Image::Camera::Camera(){
   this->cam_vec = {0.0f,0.0f,0.0f};
   this->cam_pos = {0.0f,0.0f,0.0f};
   this->fov = 0;
   this->foc = 0;
-  this->dpix = 0.0f;
-  this->colorDepth = 1;
+  this->dpix = {0.0f,0.0f};
 }
-__device__ __host__ ssrlcv::Image_Descriptor::Image_Descriptor(int id, uint2 size){
-  this->id = id;
-  this->size = size;
+__device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size){
   this->cam_vec = {0.0f,0.0f,0.0f};
   this->cam_pos = {0.0f,0.0f,0.0f};
   this->fov = 0;
   this->foc = 0;
-  this->dpix = 0.0f;
-  this->colorDepth = 1;
+  this->dpix = {0.0f,0.0f};
 }
-__device__ __host__ ssrlcv::Image_Descriptor::Image_Descriptor(int id, uint2 size, float3 cam_pos, float3 camp_dir){
-  this->id = id;
-  this->size = size;
+__device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size, float3 cam_pos, float3 camp_dir){
   this->cam_pos = cam_pos;
   this->cam_vec = cam_vec;
   this->fov = 0;
   this->foc = 0;
-  this->dpix = 0.0f;
-  this->colorDepth = 1;
+  this->dpix = {0.0f,0.0f};
 }
 
 ssrlcv::Image::Image(){
-  this->descriptor.id = -1;
+  this->id = -1;
   this->filePath = "n/a";
 }
 ssrlcv::Image::Image(std::string filePath, int id){
   this->filePath = filePath;
-  this->descriptor.id = id;
-  this->descriptor.colorDepth = 1;
-  unsigned char* pixels_host = readPNG(filePath.c_str(), this->descriptor.size.y, this->descriptor.size.x, this->descriptor.colorDepth);
-  this->pixels = new Unity<unsigned char>(pixels_host,this->descriptor.size.y*this->descriptor.size.x*this->descriptor.colorDepth,cpu);
+  this->id = id;
+  this->colorDepth = 1;
+  unsigned char* pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
 }
 ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int id){
   this->filePath = filePath;
-  this->descriptor.id = id;
-  this->descriptor.colorDepth = 1;
-  unsigned char* pixels_host = readPNG(filePath.c_str(), this->descriptor.size.y, this->descriptor.size.x, this->descriptor.colorDepth);
-  this->pixels = new Unity<unsigned char>(pixels_host,this->descriptor.size.y*this->descriptor.size.x*this->descriptor.colorDepth,cpu);
+  this->id = id;
+  this->colorDepth = 1;
+  unsigned char* pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
   if(convertColorDepthTo == 1){
-    convertToBW(this->pixels, this->descriptor.colorDepth);
-    this->descriptor.colorDepth = 1;
+    convertToBW(this->pixels, this->colorDepth);
+    this->colorDepth = 1;
   }
   else if(convertColorDepthTo != 0){
     std::cerr<<"ERROR: Image() does not currently support conversion to anything but BW"<<std::endl;
@@ -75,11 +63,11 @@ void ssrlcv::Image::alterSize(int binDepth){
   MemoryState origin = this->pixels->state;
   if(origin == cpu || this->pixels->fore == cpu) this->pixels->transferMemoryTo(gpu);
 
-  Unity<unsigned char>* alteredPixels = bin(this->descriptor.size,this->descriptor.colorDepth,this->pixels);
+  Unity<unsigned char>* alteredPixels = bin(this->size,this->colorDepth,this->pixels);
   delete this->pixels;
   this->pixels = alteredPixels;
-  this->descriptor.size.x /= pow(2,binDepth);
-  this->descriptor.size.y /= pow(2,binDepth);
+  this->size.x /= pow(2,binDepth);
+  this->size.y /= pow(2,binDepth);
 
   this->pixels->fore = gpu;
   if(origin == cpu) this->pixels->setMemoryState(cpu);
@@ -146,7 +134,7 @@ ssrlcv::Unity<unsigned int>* ssrlcv::applyBorder(Image* image, float2 border){
   CudaSafeCall(cudaMalloc((void**)&pixelNumbers_device,image->pixels->numElements*sizeof(unsigned int)));
   CudaSafeCall(cudaMalloc((void**)&pixelAddresses_device,image->pixels->numElements*sizeof(unsigned int)));
 
-  applyBorder<<<grid,block>>>(image->descriptor.size, pixelNumbers_device, pixelAddresses_device, border);
+  applyBorder<<<grid,block>>>(image->size, pixelNumbers_device, pixelAddresses_device, border);
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -207,7 +195,7 @@ ssrlcv::Unity<float2>* ssrlcv::getLocationsWithinBorder(Image* image, float2 bor
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   getFlatGridBlock(pixelAddresses->numElements,grid,block);
-  getPixelCenters<<<grid,block>>>(pixelAddresses->numElements,image->descriptor.size,pixelAddresses->device,pixelCenters_device);
+  getPixelCenters<<<grid,block>>>(pixelAddresses->numElements,image->size,pixelAddresses->device,pixelCenters_device);
   CudaCheckError();
   unsigned long numPixels = pixelAddresses->numElements;
   delete pixelAddresses;
@@ -237,7 +225,7 @@ ssrlcv::Unity<int2>* ssrlcv::generatePixelGradients(Image* image){
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   getFlatGridBlock(image->pixels->numElements,grid,block);
-  calculatePixelGradients<<<grid,block>>>(image->descriptor.size,image->pixels->device,gradients_device);
+  calculatePixelGradients<<<grid,block>>>(image->size,image->pixels->device,gradients_device);
   CudaCheckError();
   if(origin == cpu) image->pixels->setMemoryState(cpu);
 
@@ -263,22 +251,22 @@ ssrlcv::Unity<int2>* ssrlcv::generatePixelGradients(uint2 imageSize, Unity<unsig
 
 //convolve host method goes here - will call convolveImage
 
-void ssrlcv::calcFundamentalMatrix_2View(Image_Descriptor query, Image_Descriptor target, float3 *F){
-  if(query.fov != target.fov || query.foc != target.foc){
+void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 *F){
+  if(query->camera.fov != target->camera.fov || query->camera.foc != target->camera.foc){
     std::cout<<"ERROR calculating fundamental matrix for 2view needs to bet taken with same camera (foc&fov are same)"<<std::endl;
     exit(-1);
   }
   float angle1;
-  if(abs(query.cam_vec.z) < .00001) {
-    if(query.cam_vec.y > 0)  angle1 = PI/2;
+  if(abs(query->camera.cam_vec.z) < .00001) {
+    if(query->camera.cam_vec.y > 0)  angle1 = PI/2;
     else       angle1 = -1*PI/2;
   }
   else {
-    angle1 = atan(query.cam_vec.y / query.cam_vec.z);
-    if(query.cam_vec.z<0 && query.cam_vec.y>=0) {
+    angle1 = atan(query->camera.cam_vec.y / query->camera.cam_vec.z);
+    if(query->camera.cam_vec.z<0 && query->camera.cam_vec.y>=0) {
       angle1 += PI;
     }
-    if(query.cam_vec.z<0 && query.cam_vec.y<0) {
+    if(query->camera.cam_vec.z<0 && query->camera.cam_vec.y<0) {
       angle1 -= PI;
     }
   }
@@ -288,7 +276,7 @@ void ssrlcv::calcFundamentalMatrix_2View(Image_Descriptor query, Image_Descripto
     {0, sin(angle1), cos(angle1)}
   };
 
-  float3 temp = multiply3x3x1(A1, query.cam_vec);
+  float3 temp = multiply3x3x1(A1, query->camera.cam_vec);
 
   float angle2 = 0.0f;
   if(abs(temp.z) < .00001) {
@@ -318,16 +306,16 @@ void ssrlcv::calcFundamentalMatrix_2View(Image_Descriptor query, Image_Descripto
   temp = multiply3x3x1(rot1Transpose, temp2);
 
   angle1 = 0.0f;
-  if(abs(target.cam_vec.z) < .00001) {
-    if(target.cam_vec.y > 0)  angle1 = PI/2;
+  if(abs(target->camera.cam_vec.z) < .00001) {
+    if(target->camera.cam_vec.y > 0)  angle1 = PI/2;
     else       angle1 = -1*PI/2;
   }
   else {
-    angle1 = atan(target.cam_vec.y / target.cam_vec.z);
-    if(target.cam_vec.z<0 && target.cam_vec.y>=0) {
+    angle1 = atan(target->camera.cam_vec.y / target->camera.cam_vec.z);
+    if(target->camera.cam_vec.z<0 && target->camera.cam_vec.y>=0) {
       angle1 += PI;
     }
-    if(target.cam_vec.z<0 && target.cam_vec.y<0) {
+    if(target->camera.cam_vec.z<0 && target->camera.cam_vec.y<0) {
       angle1 -= PI;
     }
   }
@@ -336,7 +324,7 @@ void ssrlcv::calcFundamentalMatrix_2View(Image_Descriptor query, Image_Descripto
     {0, cos(angle1), -sin(angle1)},
     {0, sin(angle1), cos(angle1)}
   };
-  temp2 = multiply3x3x1(A2, target.cam_vec);
+  temp2 = multiply3x3x1(A2, target->camera.cam_vec);
 
   angle2 = 0.0f;
   if(abs(temp2.z) < .00001) {
@@ -367,12 +355,9 @@ void ssrlcv::calcFundamentalMatrix_2View(Image_Descriptor query, Image_Descripto
 
   temp2 = multiply3x3x1(rot2Transpose, temp);
 
-  float2 dpix = {query.foc*tan(query.fov/2)/(query.size.x/2),
-    query.foc*tan(query.fov/2)/(query.size.y/2)};
-
   float3 K[3] = {
-    {query.foc/dpix.x, 0, ((float)query.size.x)/2.0f},
-    {0, query.foc/dpix.y, ((float)query.size.y)/2.0f},
+    {query->camera.foc/query->camera.dpix.x, 0, ((float)query->size.x)/2.0f},
+    {0, query->camera.foc/query->camera.dpix.y, ((float)query->size.y)/2.0f},
     {0, 0, 1}
   };
   float3 K_inv[3];
@@ -383,23 +368,23 @@ void ssrlcv::calcFundamentalMatrix_2View(Image_Descriptor query, Image_Descripto
   float3 R[3];
   multiply3x3(rot2Transpose, rot1, R);
   float3 S[3] = {
-    {0, query.cam_pos.z - target.cam_pos.z, target.cam_pos.y - query.cam_pos.y},
-    {query.cam_pos.z - target.cam_pos.z,0, query.cam_pos.x - target.cam_pos.x},
-    {query.cam_pos.y - target.cam_pos.y, target.cam_pos.x - query.cam_pos.x, 0}
+    {0, query->camera.cam_pos.z - target->camera.cam_pos.z, target->camera.cam_pos.y - query->camera.cam_pos.y},
+    {query->camera.cam_pos.z - target->camera.cam_pos.z,0, query->camera.cam_pos.x - target->camera.cam_pos.x},
+    {query->camera.cam_pos.y - target->camera.cam_pos.y, target->camera.cam_pos.x - query->camera.cam_pos.x, 0}
   };
   float3 E[3];;
   multiply3x3(R,S,E);
   float3 tempF[3];
   multiply3x3(K_invTranspose, E,tempF);
   multiply3x3(tempF, K_inv, F);
-  std::cout << std::endl <<"between image "<<query.id<<" and "<<target.id
+  std::cout << std::endl <<"between image "<<query->id<<" and "<<target->id
   <<" the final fundamental matrix result is: " << std::endl;
   for(int r = 0; r < 3; ++r) {
     std::cout << F[r].x << "  " << F[r].y << " "<<  F[r].z << std::endl;
   }
   std::cout<<std::endl;
 }
-void ssrlcv::get_cam_params2view(Image_Descriptor &cam1, Image_Descriptor &cam2, std::string infile){
+void ssrlcv::get_cam_params2view(Image* cam1, Image* cam2, std::string infile){
   std::ifstream input(infile);
   std::string line;
   float res = 0.0f;
@@ -411,43 +396,46 @@ void ssrlcv::get_cam_params2view(Image_Descriptor &cam1, Image_Descriptor &cam2,
     float arg3;
     iss >> param >> arg1;
     if(param.compare("foc") == 0) {
-      cam1.foc = arg1;
-      cam2.foc = arg1;
+      cam1->camera.foc = arg1;
+      cam2->camera.foc = arg1;
     }
     else if(param.compare("fov") == 0) {
-      cam1.fov = arg1;
-      cam2.fov = arg1;
+      cam1->camera.fov = arg1;
+      cam2->camera.fov = arg1;
     }
     else if(param.compare("res") == 0) {
       res = arg1;
     }
     else if(param.compare("cam1C") == 0) {
       iss >> arg2 >> arg3;
-      cam1.cam_pos.x = arg1;
-      cam1.cam_pos.y = arg2;
-      cam1.cam_pos.z = arg3;
+      cam1->camera.cam_pos.x = arg1;
+      cam1->camera.cam_pos.y = arg2;
+      cam1->camera.cam_pos.z = arg3;
     }
     else if(param.compare("cam1V") == 0) {
       iss >> arg2 >> arg3;
-      cam1.cam_vec.x = arg1;
-      cam1.cam_vec.y = arg2;
-      cam1.cam_vec.z = arg3;
+      cam1->camera.cam_vec.x = arg1;
+      cam1->camera.cam_vec.y = arg2;
+      cam1->camera.cam_vec.z = arg3;
     }
     else if(param.compare("cam2C") == 0) {
       iss >> arg2 >> arg3;
-      cam2.cam_pos.x = arg1;
-      cam2.cam_pos.y = arg2;
-      cam2.cam_pos.z = arg3;
+      cam2->camera.cam_pos.x = arg1;
+      cam2->camera.cam_pos.y = arg2;
+      cam2->camera.cam_pos.z = arg3;
     }
     else if(param.compare("cam2V") == 0) {
       iss >> arg2 >> arg3;
-      cam2.cam_vec.x = arg1;
-      cam2.cam_vec.y = arg2;
-      cam2.cam_vec.z = arg3;
+      cam2->camera.cam_vec.x = arg1;
+      cam2->camera.cam_vec.y = arg2;
+      cam2->camera.cam_vec.z = arg3;
     }
   }
-  cam1.dpix = (cam1.foc*tan(cam1.fov/2))/(res/2);
-  cam2.dpix = (cam2.foc*tan(cam2.fov/2))/(res/2);
+
+  cam1->camera.dpix = {cam1->camera.foc*tan(cam1->camera.fov/2)/(cam1->size.x/2),
+    cam1->camera.foc*tan(cam1->camera.fov/2)/(cam1->size.y/2)};
+  cam2->camera.dpix = {cam2->camera.foc*tan(cam2->camera.fov/2)/(cam2->size.x/2),
+    cam2->camera.foc*tan(cam2->camera.fov/2)/(cam2->size.y/2)};
 }
 
 __device__ __forceinline__ unsigned long ssrlcv::getGlobalIdx_2D_1D(){

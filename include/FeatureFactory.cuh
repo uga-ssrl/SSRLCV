@@ -44,6 +44,7 @@ namespace ssrlcv{
       */
       struct Octave{
         int binRatio;/**\brief 1 == parent | 1> is upsampled by bilinear interpolation*/
+        uint2 size;
         unsigned int numBlurs;
         float* sigmas;/**\brief values used to generate gaussian kernel for each blur*/
         Unity<unsigned char>** blurs;/**\brief array of Unity structs holding pixel values*/
@@ -56,7 +57,6 @@ namespace ssrlcv{
       unsigned int numOctaves;
       Octave* octaves;
       unsigned int parentOctave;
-      Image_Descriptor parentImageDescriptor;
 
       ScaleSpace();
       ScaleSpace(unsigned int numOctaves, int startingOctave, unsigned int numBlurs, Image* image);

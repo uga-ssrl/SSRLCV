@@ -124,8 +124,8 @@ namespace ssrlcv{
 
   template<typename T>
   __global__ void initializeSubPixels(unsigned long numMatches, Match<T>* matches, SubpixelM7x7* subPixelDescriptors,
-    Image_Descriptor query, unsigned long numFeaturesQuery, Feature<T>* featuresQuery,
-    Image_Descriptor target, unsigned long numFeaturesTarget, Feature<T>* featuresTarget);
+    uint2 querySize, unsigned long numFeaturesQuery, Feature<T>* featuresQuery,
+    uint2 targetSize, unsigned long numFeaturesTarget, Feature<T>* featuresTarget);
 
   __global__ void fillSplines(unsigned long numMatches, SubpixelM7x7* subPixelDescriptors, Spline* splines);
   template<typename T>

@@ -85,8 +85,8 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures){
 
   clock_t timer = clock();
 
-  matchFeaturesBruteForce<T><<<grid, block>>>(query->descriptor.id, queryFeatures->numElements, queryFeatures->device,
-    target->descriptor.id, targetFeatures->numElements, targetFeatures->device, matches->device);
+  matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
+    target->id, targetFeatures->numElements, targetFeatures->device, matches->device);
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -128,14 +128,14 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
 
   clock_t timer = clock();
   float3* fundamental = new float3[3];
-  calcFundamentalMatrix_2View(query->descriptor, target->descriptor, fundamental);
+  calcFundamentalMatrix_2View(query, target, fundamental);
 
   float3* fundamental_device;
   CudaSafeCall(cudaMalloc((void**)&fundamental_device, 3*sizeof(float3)));
   CudaSafeCall(cudaMemcpy(fundamental_device, fundamental, 3*sizeof(float3), cudaMemcpyHostToDevice));
 
-  matchFeaturesConstrained<T><<<grid, block>>>(query->descriptor.id, queryFeatures->numElements, queryFeatures->device,
-    target->descriptor.id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device);
+  matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
+    target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device);
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -180,8 +180,8 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures){
   std::cout<<"initializing subPixelMatches..."<<std::endl;
   clock_t timer = clock();
   initializeSubPixels<T><<<grid, block>>>(matches->numElements, matches->device, subDescriptors_device,
-    query->descriptor, queryFeatures->numElements, queryFeatures->device,
-    target->descriptor, targetFeatures->numElements, targetFeatures->device);
+    query->size, queryFeatures->numElements, queryFeatures->device,
+    target->size, targetFeatures->numElements, targetFeatures->device);
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -245,8 +245,8 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
   std::cout<<"initializing subPixelMatches..."<<std::endl;
   clock_t timer = clock();
   initializeSubPixels<T><<<grid, block>>>(matches->numElements, matches->device, subDescriptors_device,
-    query->descriptor, queryFeatures->numElements, queryFeatures->device,
-    target->descriptor, targetFeatures->numElements, targetFeatures->device);
+    query->size, queryFeatures->numElements, queryFeatures->device,
+    target->size, targetFeatures->numElements, targetFeatures->device);
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -457,8 +457,8 @@ subpixel stuff
 //NOTE THIS MIGHT ONLY WORK FOR DENSE SIFT
 template<typename T>
 __global__ void ssrlcv::initializeSubPixels(unsigned long numMatches, ssrlcv::Match<T>* matches, ssrlcv::SubpixelM7x7* subPixelDescriptors,
-ssrlcv::Image_Descriptor query, unsigned long numFeaturesQuery, ssrlcv::Feature<T>* featuresQuery,
-ssrlcv::Image_Descriptor target, unsigned long numFeaturesTarget, ssrlcv::Feature<T>* featuresTarget){
+uint2 querySize, unsigned long numFeaturesQuery, ssrlcv::Feature<T>* featuresQuery,
+uint2 targetSize, unsigned long numFeaturesTarget, ssrlcv::Feature<T>* featuresTarget){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numMatches){
     __shared__ SubpixelM7x7 subDescriptor;
@@ -466,10 +466,10 @@ ssrlcv::Image_Descriptor target, unsigned long numFeaturesTarget, ssrlcv::Featur
 
     //this now needs to be actual indices to contributers
     int2 contrib = {((int)threadIdx.x) - 4, ((int)threadIdx.y) - 4};
-    int contribQuery = findSubPixelContributer(match.features[0].loc + contrib, query.size.x);
-    int contribTarget = findSubPixelContributer(match.features[1].loc + contrib, target.size.x);
+    int contribQuery = findSubPixelContributer(match.features[0].loc + contrib, querySize.x);
+    int contribTarget = findSubPixelContributer(match.features[1].loc + contrib, targetSize.x);
 
-    int pairedMatchIndex = findSubPixelContributer(match.features[1].loc, target.size.x);
+    int pairedMatchIndex = findSubPixelContributer(match.features[1].loc, targetSize.x);
 
     bool foundM1 = false;
     bool foundM2 = false;

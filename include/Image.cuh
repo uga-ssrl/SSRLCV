@@ -17,23 +17,6 @@
 #include <thrust/copy.h>
 
 namespace ssrlcv{
-  /**
-  * \brief this struct is meant to house image and camera parameters.
-  */
-  struct Image_Descriptor{
-    int id;
-    unsigned int colorDepth;
-    uint2 size;
-    float3 cam_pos;
-    float3 cam_vec;
-    float fov;
-    float foc;
-    float dpix;
-    long long int timeStamp;//seconds since Jan 01, 1070
-    __device__ __host__ Image_Descriptor();
-    __device__ __host__ Image_Descriptor(int id, uint2 size);
-    __device__ __host__ Image_Descriptor(int id, uint2 size, float3 cam_pos, float3 camp_dir);
-  };
 
   /**
   * \brief this class holds the information necessary to describe an image
@@ -41,10 +24,27 @@ namespace ssrlcv{
   class Image{
 
   public:
+    /**
+    * \brief this struct is meant to house image and camera parameters.
+    */
+    struct Camera{
+      float3 cam_pos;/**\brief position of camera*/
+      float3 cam_vec;/**\brief pointing vector of camera*/
+      float fov;/**\brief feild of fiew of camera*/
+      float foc;/**\brief focal length of camera*/
+      float2 dpix;/**\brief real world size of each pixel*/
+      long long int timeStamp;/**\brief seconds since Jan 01, 1070*/
+      __device__ __host__ Camera();
+      __device__ __host__ Camera(uint2 size);
+      __device__ __host__ Camera(uint2 size, float3 cam_pos, float3 camp_dir);
+    };
 
-    std::string filePath;
-    Image_Descriptor descriptor;
-    Unity<unsigned char>* pixels;
+    std::string filePath;/**\brief path to image file*/
+    int id;/**\brief parent image id*/
+    uint2 size;/**\brief size of image*/
+    unsigned int colorDepth;/**\brief colorDepth of image*/
+    Camera camera;/**\brief Camera struct holding all camera parameters*/
+    Unity<unsigned char>* pixels;/**\brief pixels of image flattened row-wise*/
 
     Image();
     Image(std::string filePath, int id = -1);
@@ -70,8 +70,8 @@ namespace ssrlcv{
   //consider returning an Image
   Unity<unsigned char>* convolve(uint2 imageSize, Unity<unsigned char>* pixels, unsigned int colorDepth, unsigned int kernelSize, float* kernel);
 
-  void calcFundamentalMatrix_2View(Image_Descriptor query, Image_Descriptor target, float3 *F);
-  void get_cam_params2view(Image_Descriptor &cam1, Image_Descriptor &cam2, std::string infile);
+  void calcFundamentalMatrix_2View(Image* query, Image* target, float3 *F);
+  void get_cam_params2view(Image* cam1, Image* cam2, std::string infile);
 
 
   /* CUDA variable, method and kernel defintions */

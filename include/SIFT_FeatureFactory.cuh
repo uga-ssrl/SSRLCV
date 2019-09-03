@@ -10,6 +10,7 @@
 namespace ssrlcv{
   /**
   * \brief this class creates a Feature array with SIFT_Descriptor's
+  * \note default configurations = {dense=false, maxOrientations=2,orientationThreshold=0.8,orientationContribWidth=1.5,descriptorContribWidth=6}
   */
   class SIFT_FeatureFactory : public FeatureFactory{
 
