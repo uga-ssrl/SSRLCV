@@ -20,10 +20,9 @@ namespace ssrlcv{
   public:
   	PointCloudFactory();
 
-    Unity<float3>* reproject(Unity<Match<SIFT_Descriptor>>* matches, Image* target, Image* query);
+    Unity<float3>* reproject(Unity<Match>* matches, Image* target, Image* query);
 
-    template<typename T>
-    ssrlcv::Unity<float3>* stereo_disparity(Unity<Match<T>>* matches, float scale);
+    ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float scale);
 
   };
 

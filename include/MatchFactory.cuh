@@ -28,11 +28,15 @@ namespace ssrlcv{
   /**
   * \brief represents pair of features
   */
-  template<typename T>
+
   struct Match{
-    int parentId[2];
-    Feature<T> features[2];
+    int parentIds[2];
+    float2 locations[2];
     float distance;
+  };
+  template<typename T>
+  struct FeatureMatch : Match{
+    T descriptors[2];
   };
 
   namespace{
@@ -50,7 +54,7 @@ namespace ssrlcv{
     template<typename T>
     struct match_above_cutoff{
       __host__ __device__
-      bool operator()(Match<T> m){
+      bool operator()(Match m){
         return m.distance > 0.0f;
       }
     };
@@ -74,30 +78,35 @@ namespace ssrlcv{
     //NOTE nothing for nview is implemented
     //TODO consider making it so features are computed if they arent instead of throwing errors with image parameters
 
-    void refineMatches(Unity<Match<T>>* matches, float cutoffRatio);
+    void refineMatches(Unity<Match>* matches, float cutoffRatio);
+    void refineMatches(Unity<FeatureMatch<T>>* matches, float cutoffRatio);
 
     /**
     * \brief sorts all matches by mismatch distance
     * \note this is a cpu version
     */
-    Unity<Match<T>>* sortMatches(Unity<Match<T>>* allMatches);
+    Unity<Match>* sortMatches(Unity<Match>* allMatches);
+    Unity<FeatureMatch<T>>* sortMatches(Unity<FeatureMatch<T>>* allMatches);
+
+
+    Unity<Match>* getRawMatches(Unity<FeatureMatch<T>>* matches);
 
     /**
     * \brief Generates matches between sift features
     */
-    Unity<Match<T>>* generateMatchesBruteForce(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures);
+    Unity<FeatureMatch<T>>* generateMatchesBruteForce(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures);
     /**
     * \brief Generates matches between sift features constrained by epipolar line
     */
-    Unity<Match<T>>* generateMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon);
+    Unity<FeatureMatch<T>>* generateMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon);
     /**
     * \brief Generates subpixel matches between sift features
     */
-    Unity<Match<T>>* generateSubPixelMatchesBruteForce(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures);
+    Unity<FeatureMatch<T>>* generateSubPixelMatchesBruteForce(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures);
     /**
     * \brief Generates subpixel matches between sift features constrained by the epipolar line
     */
-    Unity<Match<T>>* generateSubPixelMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon);
+    Unity<FeatureMatch<T>>* generateSubPixelMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon);
 
 
   };
@@ -121,26 +130,29 @@ namespace ssrlcv{
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, Match<T>* matches);
+    Feature<T>* featuresTarget, FeatureMatch<T>* matches);
 
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, Match<T>* matches, float epsilon, float3 fundamental[3]);
+    Feature<T>* featuresTarget, FeatureMatch<T>* matches, float epsilon, float3 fundamental[3]);
 
   template<typename T>
-  __global__ void initializeSubPixels(unsigned long numMatches, Match<T>* matches, SubpixelM7x7* subPixelDescriptors,
+  __global__ void initializeSubPixels(unsigned long numMatches, FeatureMatch<T>* matches, SubpixelM7x7* subPixelDescriptors,
     uint2 querySize, unsigned long numFeaturesQuery, Feature<T>* featuresQuery,
     uint2 targetSize, unsigned long numFeaturesTarget, Feature<T>* featuresTarget);
 
   __global__ void fillSplines(unsigned long numMatches, SubpixelM7x7* subPixelDescriptors, Spline* splines);
   template<typename T>
-  __global__ void determineSubPixelLocationsBruteForce(float increment, unsigned long numMatches, Match<T>* matches, Spline* splines);
+  __global__ void determineSubPixelLocationsBruteForce(float increment, unsigned long numMatches, FeatureMatch<T>* matches, Spline* splines);
+
+  __global__ void refineWCutoffRatio(unsigned long numMatches, Match* matches, int* matchCounter, float2 minMax, float cutoffRatio);
+  __global__ void copyMatches(unsigned long numMatches, int* matchCounter, Match* minimizedMatches, Match* matches);
 
   template<typename T>
-  __global__ void refineWCutoffRatio(unsigned long numMatches, Match<T>* matches, int* matchCounter, float2 minMax, float cutoffRatio);
+  __global__ void refineWCutoffRatio(unsigned long numMatches, FeatureMatch<T>* matches, int* matchCounter, float2 minMax, float cutoffRatio);
   template<typename T>
-  __global__ void copyMatches(unsigned long numMatches, int* matchCounter, Match<T>* minimizedMatches, Match<T>* matches);
+  __global__ void copyMatches(unsigned long numMatches, int* matchCounter, FeatureMatch<T>* minimizedMatches, ssrlcv::FeatureMatch<T>* matches);
 
 }
 

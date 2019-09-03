@@ -4,7 +4,7 @@ ssrlcv::PointCloudFactory::PointCloudFactory(){
 
 }
 
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match<SIFT_Descriptor>>* matches, Image* target, Image* query){
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matches, Image* target, Image* query){
   float3* pointCloud_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&pointCloud_device, matches->numElements*sizeof(float3)));
   Unity<float3>* pointCloud = new Unity<float3>(pointCloud_device,matches->numElements,gpu);
@@ -324,8 +324,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match<SIFT_Des
 * @param n the number of matches
 * @param scale the scale factor that is multiplied
 */
-template<typename T>
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match<T>>* matches, float scale){
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>* matches, float scale){
 
   MemoryState origin = matches->state;
   if(origin == gpu){
@@ -336,8 +335,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match<T
   float2* matches1 = new float2[matches->numElements];
 
   for(int i = 0; i < matches->numElements; ++i){
-    matches0[i] = matches->host[i].features[0].loc;
-    matches1[i] = matches->host[i].features[1].loc;
+    matches0[i] = matches->host[i].locations[0];
+    matches1[i] = matches->host[i].locations[1];
   }
   // matches
   float2 *d_matches0;
@@ -374,7 +373,6 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match<T
 
   return points;
 }
-template ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity<ssrlcv::SIFT_Descriptor>(Unity<Match<SIFT_Descriptor>>* matches, float scale);
 
 
 // device methods
