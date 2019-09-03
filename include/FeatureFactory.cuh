@@ -23,8 +23,9 @@
 namespace ssrlcv{
 
   /**
-  * \brief This is the base Feauture Factory.
-  * Contains methods and members that could be useful
+  * \brief Parent factory for generating a Feature array from an Image
+  *
+  * \detail Contains methods and members that could be useful
   * for any type of feature factory.
   */
   class FeatureFactory{
@@ -32,20 +33,20 @@ namespace ssrlcv{
   public:
 
     /**
-    * \brief this is a struct to house a scale space.
+    * \brief this is a struct to house a set of octaves making a scale space
     * \todo implement
     */
     struct ScaleSpace{
 
       /**
-      * \brief this is a struct to house an octave of a scale space.
+      * \brief this represents an iterative convolutional sample of a ScaleSpace
       * \todo implement
       */
       struct Octave{
-        int binRatio;//1 == parent | 1> is upsampled by bilinear interpolation
+        int binRatio;/**\brief 1 == parent | 1> is upsampled by bilinear interpolation*/
         unsigned int numBlurs;
-        float* sigmas;
-        Unity<unsigned char>** blurs;
+        float* sigmas;/**\brief values used to generate gaussian kernel for each blur*/
+        Unity<unsigned char>** blurs;/**\brief array of Unity structs holding pixel values*/
         Octave();
         Octave(unsigned int numBlurs, float* sigmas);
         ~Octave();
@@ -62,16 +63,22 @@ namespace ssrlcv{
       ~ScaleSpace();
 
     };
-
+    /**
+    * \brief Empty Constructor
+    *
+    */
     FeatureFactory();
 
-    //TODO implement
-    ScaleSpace* generateScaleSpace(Image* image);//needs kernels too
+    /**
+    * \breif creates ScaleSpace from an Image
+    * \todo implement
+    */
+    ScaleSpace* generateScaleSpace(Image* image, int numOctaves, int numBlurs, float initialSigma, float sigmaMultiplier);
 
   };
 
   /**
-  * \brief this class create SIFT features
+  * \brief this class creates a Feature array with SIFT_Descriptor(s)
   * \todo move to a SIFT_FeatureFactory.cuh file
   */
   class SIFT_FeatureFactory : public FeatureFactory{
@@ -90,22 +97,46 @@ namespace ssrlcv{
 
   public:
 
+    /**
+    * \brief if setting true then all pixels will be represented  as keypoints
+    */
+    void setDensity(bool dense);
+    /**
+    * \brief set maximum number Feature's a keypoint can generate
+    */
+    void setMaxOrientations(unsigned int maxOrientations);
+    /**
+    * \brief set threshold for a keypoint orientation to make a new Feature
+    */
+    void setOrientationThreshold(float orientationThreshold);
+    /**
+    * \brief set contributer window width for orientation computation
+    */
     void setOrientationContribWidth(float orientationContribWidth);
+    /**
+    * \brief set contributer window width for descriptor computation
+    */
     void setDescriptorContribWidth(float descriptorContribWidth);
 
+    /**
+    * \brief constructor for SIFT_FeatureFactory
+    * \detail All parameters are optional
+    * \param dense if true consider all pixels keyPoints (default = false)
+    * \param maxOrientations maximum number of Feature's a keypoint can generate (default = 2)
+    * \param orientationThreshold threshold in orientation histogram for consideration as a Feature  (defualt = 0.8)
+    */
     SIFT_FeatureFactory(bool dense = false, unsigned int maxOrientations = 2, float orientationThreshold = 0.8);
 
+    /**
+    * \brief generate an array of Feature's with SIFT_Descriptor's from an Image
+    */
     Unity<Feature<SIFT_Descriptor>>* generateFeatures(Image* image);
   };
 
-  /*
-  TODO implement KAZE, SURF, and other feature detectors here
-  */
 
   /*
   CUDA variables, methods and kernels
   */
-  /* CUDA variable, method and kernel defintions */
 
   extern __constant__ float pi;
 

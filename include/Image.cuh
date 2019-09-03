@@ -1,5 +1,5 @@
-/** @file Image.cuh
-* @brief Image related structs, methods and CUDA kernels
+/** \file Image.cuh
+* \brief Image related structs, methods and CUDA kernels
 */
 #ifndef IMAGE_CUH
 #define IMAGE_CUH
@@ -13,7 +13,7 @@
 
 namespace ssrlcv{
   /**
-  * @brief this struct is meant to house image and camera parameters.
+  * \brief this struct is meant to house image and camera parameters.
   */
   struct Image_Descriptor{
     int id;
@@ -30,7 +30,7 @@ namespace ssrlcv{
   };
 
   /**
-  * @brief this class holds the information necessary to describe and image
+  * \brief this class holds the information necessary to describe an image
   */
   class Image{
 

@@ -1,12 +1,12 @@
-/** @file common_includes.h
-* @brief common location for global includes
-* @todo remove non-global includes
+/** \file common_includes.h
+* \brief common location for global includes
+* \todo remove non-global includes
 */
 
 #ifndef COMMON_INCLUDES_H
 #define COMMON_INCLUDES_H
 
-// our boiz @ nvidia
+// our boiz \ nvidia
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <cuda.h>

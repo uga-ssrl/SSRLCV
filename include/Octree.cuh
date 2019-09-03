@@ -1,5 +1,5 @@
-/** @file Octree.cuh
-* @brief This file contains everything related to the CUDA Octree
+/** \file Octree.cuh
+* \brief This file contains everything related to the CUDA Octree
 */
 #ifndef OCTREE_CUH
 #define OCTREE_CUH
@@ -24,8 +24,10 @@
 namespace ssrlcv{
   /**
   * \brief data parallel octree
+  *
   * \detail this class is used for quick near neighbor searches
   * as well as a tool for surface reconstruction
+  * \todo update with new unity
   */
   class Octree{
 

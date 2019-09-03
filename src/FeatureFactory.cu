@@ -18,6 +18,24 @@ dense(dense), maxOrientations(maxOrientations), orientationThreshold(orientation
   this->descriptorContribWidth = 6.0;
 }
 
+void ssrlcv::SIFT_FeatureFactory::setDensity(bool dense){
+  this->dense = dense;
+}
+void ssrlcv::SIFT_FeatureFactory::setMaxOrientations(unsigned int maxOrientations){
+  if(maxOrientations == 0){
+    std::cerr<<"ERROR cannot set maxOrientations to 0"<<std::endl;
+    exit(-1);
+  }
+  this->maxOrientations = maxOrientations;
+}
+void ssrlcv::SIFT_FeatureFactory::setOrientationThreshold(float orientationThreshold){
+  if(orientationThreshold == 0.0f){
+    std::cerr<<"ERROR cannot set orientation threshold to 0.0f"<<std::endl;
+    exit(-1);
+  }
+  this->orientationThreshold = orientationThreshold;
+}
+
 void ssrlcv::SIFT_FeatureFactory::setOrientationContribWidth(float orientationContribWidth){
   this->orientationContribWidth = orientationContribWidth;
 }

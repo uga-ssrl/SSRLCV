@@ -17,6 +17,7 @@ namespace ssrlcv{
   /**
   * \brief represents pair of features of template unsigned int
   */
+  template<typename T>
   struct Match{
     Feature<unsigned int> features[2];//descriptor == parentImage id
     float distance;

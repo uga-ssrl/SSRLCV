@@ -757,7 +757,7 @@ void PlyFile::PlyFileImpl::parse_data(std::istream & is, bool firstPass)
     // but we need the correct little-endian list count as we read the file.
     auto read_list_binary = [this](const Type & t, void * dst, size_t & destOffset, std::istream & _is)
     {
-        const size_t stride = PropertyTable[t].stride; // @todo - this is already precomputed
+        const size_t stride = PropertyTable[t].stride; // \todo - this is already precomputed
         destOffset += stride;
         _is.read((char*)dst, stride);
 

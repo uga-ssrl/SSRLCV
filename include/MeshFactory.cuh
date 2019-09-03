@@ -1,5 +1,5 @@
-/** @file MeshFactory.cuh
-* @brief this file contains all mesh generation methods
+/** \file MeshFactory.cuh
+* \brief this file contains all mesh generation methods
 */
 #ifndef MESHFACTORY_CUH
 #define MESHFACTORY_CUH
