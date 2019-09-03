@@ -1,11 +1,16 @@
 #include "MatchFactory.cuh"
 
+template class ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>;
 
-ssrlcv::MatchFactory::MatchFactory(){
+
+
+template<typename T>
+ssrlcv::MatchFactory<T>::MatchFactory(){
 
 }
 
-void ssrlcv::MatchFactory::refineMatches(ssrlcv::Unity<ssrlcv::Match>* matches, float cutoffRatio){
+template<typename T>
+void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::Match<T>>* matches, float cutoffRatio){
   if(cutoffRatio == 0.0f){
     std::cout<<"ERROR illegal value used for cutoff ratio: 0.0"<<std::endl;
     exit(-1);
@@ -30,7 +35,7 @@ void ssrlcv::MatchFactory::refineMatches(ssrlcv::Unity<ssrlcv::Match>* matches, 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   getFlatGridBlock(matches->numElements, grid, block);
-  refineWCutoffRatio<<<grid,block>>>(matches->numElements, matches->device, matchCounter_device, {min, max}, cutoffRatio);
+  refineWCutoffRatio<T><<<grid,block>>>(matches->numElements, matches->device, matchCounter_device, {min, max}, cutoffRatio);
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -39,10 +44,10 @@ void ssrlcv::MatchFactory::refineMatches(ssrlcv::Unity<ssrlcv::Match>* matches, 
   unsigned long afterCompaction = 0;
   CudaSafeCall(cudaMemcpy(&(afterCompaction),matchCounter_device + (matches->numElements - 1), sizeof(int), cudaMemcpyDeviceToHost));
 
-  Match* minimizedMatches_device = nullptr;
-  CudaSafeCall(cudaMalloc((void**)&minimizedMatches_device, afterCompaction*sizeof(Match)));
+  Match<T>* minimizedMatches_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&minimizedMatches_device, afterCompaction*sizeof(Match<T>)));
 
-  copyMatches<<<grid,block>>>(matches->numElements, matchCounter_device, minimizedMatches_device, matches->device);
+  copyMatches<T><<<grid,block>>>(matches->numElements, matchCounter_device, minimizedMatches_device, matches->device);
   cudaDeviceSynchronize();
   CudaCheckError();
   unsigned long beforeCompaction = matches->numElements;
@@ -58,8 +63,9 @@ void ssrlcv::MatchFactory::refineMatches(ssrlcv::Unity<ssrlcv::Match>* matches, 
   }
 }
 
-ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory::generateMatchesBruteForce(ssrlcv::Image* query, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* queryFeatures,
-ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* targetFeatures){
+template<typename T>
+ssrlcv::Unity<ssrlcv::Match<T>>* ssrlcv::MatchFactory<T>::generateMatchesBruteForce(ssrlcv::Image* query, ssrlcv::Unity<ssrlcv::Feature<T>>* queryFeatures,
+ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures){
 
   MemoryState origin[2] = {queryFeatures->state, targetFeatures->state};
 
@@ -68,10 +74,10 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* 
 
   unsigned int numPossibleMatches = queryFeatures->numElements;
 
-  Match* matches_device = nullptr;
-  CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(Match)));
+  Match<T>* matches_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(Match<T>)));
 
-  Unity<Match>* matches = new Unity<Match>(matches_device, numPossibleMatches, gpu);
+  Unity<Match<T>>* matches = new Unity<Match<T>>(matches_device, numPossibleMatches, gpu);
 
   dim3 grid = {1,1,1};
   dim3 block = {1024,1,1};
@@ -79,7 +85,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* 
 
   clock_t timer = clock();
 
-  matchFeaturesBruteForce<<<grid, block>>>(query->descriptor.id, queryFeatures->numElements, queryFeatures->device,
+  matchFeaturesBruteForce<T><<<grid, block>>>(query->descriptor.id, queryFeatures->numElements, queryFeatures->device,
     target->descriptor.id, targetFeatures->numElements, targetFeatures->device, matches->device);
 
   cudaDeviceSynchronize();
@@ -100,8 +106,9 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* 
   return matches;
 }
 
-ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory::generateMatchesConstrained(ssrlcv::Image* query, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* queryFeatures,
-ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* targetFeatures, float epsilon){
+template<typename T>
+ssrlcv::Unity<ssrlcv::Match<T>>* ssrlcv::MatchFactory<T>::generateMatchesConstrained(ssrlcv::Image* query, ssrlcv::Unity<ssrlcv::Feature<T>>* queryFeatures,
+ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float epsilon){
 
   MemoryState origin[2] = {queryFeatures->state, targetFeatures->state};
 
@@ -110,10 +117,10 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* 
 
   unsigned int numPossibleMatches = queryFeatures->numElements;
 
-  Match* matches_device = nullptr;
-  CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(Match)));
+  Match<T>* matches_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(Match<T>)));
 
-  Unity<Match>* matches = new Unity<Match>(matches_device, numPossibleMatches, gpu);
+  Unity<Match<T>>* matches = new Unity<Match<T>>(matches_device, numPossibleMatches, gpu);
 
   dim3 grid = {1,1,1};
   dim3 block = {1024,1,1};
@@ -127,7 +134,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* 
   CudaSafeCall(cudaMalloc((void**)&fundamental_device, 3*sizeof(float3)));
   CudaSafeCall(cudaMemcpy(fundamental_device, fundamental, 3*sizeof(float3), cudaMemcpyHostToDevice));
 
-  matchFeaturesConstrained<<<grid, block>>>(query->descriptor.id, queryFeatures->numElements, queryFeatures->device,
+  matchFeaturesConstrained<T><<<grid, block>>>(query->descriptor.id, queryFeatures->numElements, queryFeatures->device,
     target->descriptor.id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device);
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -152,15 +159,16 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* 
 
 }
 
-ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory::generateSubPixelMatchesBruteForce(ssrlcv::Image* query, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* queryFeatures,
-ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* targetFeatures){
+template<typename T>
+ssrlcv::Unity<ssrlcv::Match<T>>* ssrlcv::MatchFactory<T>::generateSubPixelMatchesBruteForce(ssrlcv::Image* query, ssrlcv::Unity<ssrlcv::Feature<T>>* queryFeatures,
+ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures){
 
   MemoryState origin[2] = {queryFeatures->state, targetFeatures->state};
 
   if(queryFeatures->fore == cpu) queryFeatures->transferMemoryTo(gpu);
   if(targetFeatures->fore == cpu) targetFeatures->transferMemoryTo(gpu);
 
-  Unity<Match>* matches = this->generateMatchesBruteForce(query, queryFeatures, target, targetFeatures);
+  Unity<Match<T>>* matches = this->generateMatchesBruteForce(query, queryFeatures, target, targetFeatures);
   matches->transferMemoryTo(gpu);
 
   SubpixelM7x7* subDescriptors_device;
@@ -171,7 +179,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* 
   getGrid(matches->numElements, grid);
   std::cout<<"initializing subPixelMatches..."<<std::endl;
   clock_t timer = clock();
-  initializeSubPixels<<<grid, block>>>(matches->numElements, matches->device, subDescriptors_device,
+  initializeSubPixels<T><<<grid, block>>>(matches->numElements, matches->device, subDescriptors_device,
     query->descriptor, queryFeatures->numElements, queryFeatures->device,
     target->descriptor, targetFeatures->numElements, targetFeatures->device);
 
@@ -196,7 +204,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* 
 
   std::cout<<"determining subpixel locations..."<<std::endl;
   timer = clock();
-  determineSubPixelLocationsBruteForce<<<grid,block>>>(0.1, matches->numElements, matches->device, splines_device);
+  determineSubPixelLocationsBruteForce<T><<<grid,block>>>(0.1, matches->numElements, matches->device, splines_device);
   cudaDeviceSynchronize();
   CudaCheckError();
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
@@ -217,14 +225,15 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* 
   return matches;
 }
 
-ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory::generateSubPixelMatchesConstrained(ssrlcv::Image* query, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* queryFeatures,
-ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* targetFeatures, float epsilon){
+template<typename T>
+ssrlcv::Unity<ssrlcv::Match<T>>* ssrlcv::MatchFactory<T>::generateSubPixelMatchesConstrained(ssrlcv::Image* query, ssrlcv::Unity<ssrlcv::Feature<T>>* queryFeatures,
+ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float epsilon){
   MemoryState origin[2] = {queryFeatures->state, targetFeatures->state};
 
   if(queryFeatures->fore == cpu) queryFeatures->transferMemoryTo(gpu);
   if(targetFeatures->fore == cpu) targetFeatures->transferMemoryTo(gpu);
 
-  Unity<Match>* matches = this->generateMatchesConstrained(query, queryFeatures, target, targetFeatures, epsilon);
+  Unity<Match<T>>* matches = this->generateMatchesConstrained(query, queryFeatures, target, targetFeatures, epsilon);
   matches->transferMemoryTo(gpu);
 
   SubpixelM7x7* subDescriptors_device;
@@ -235,7 +244,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* 
   getGrid(matches->numElements, grid);
   std::cout<<"initializing subPixelMatches..."<<std::endl;
   clock_t timer = clock();
-  initializeSubPixels<<<grid, block>>>(matches->numElements, matches->device, subDescriptors_device,
+  initializeSubPixels<T><<<grid, block>>>(matches->numElements, matches->device, subDescriptors_device,
     query->descriptor, queryFeatures->numElements, queryFeatures->device,
     target->descriptor, targetFeatures->numElements, targetFeatures->device);
 
@@ -260,7 +269,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* 
 
   std::cout<<"determining subpixel locations..."<<std::endl;
   timer = clock();
-  determineSubPixelLocationsBruteForce<<<grid,block>>>(0.1, matches->numElements, matches->device, splines_device);
+  determineSubPixelLocationsBruteForce<T><<<grid,block>>>(0.1, matches->numElements, matches->device, splines_device);
   cudaDeviceSynchronize();
   CudaCheckError();
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
@@ -304,41 +313,50 @@ __device__ __host__ __forceinline__ float ssrlcv::sum(const float3 &a){
 __device__ __forceinline__ float ssrlcv::square(const float &a){
   return a*a;
 }
-__device__ __forceinline__ float ssrlcv::calcElucid(const int2 &a, const int2 &b){
-  return sqrtf(dotProduct(a-b, a-b));
-}
-__device__ __forceinline__ float ssrlcv::calcElucid(const unsigned char a[128], const unsigned char b[128]){
-  float dist = 0.0f;
-  for(int i = 0; i < 128; ++i){
-    dist += sqrtf(((float)(a[i] - b[i]))*((float)(a[i] - b[i])));
-  }
-  return dist;
-}
 __device__ __forceinline__ float ssrlcv::atomicMinFloat (float * addr, float value) {
   float old;
   old = (value >= 0) ? __int_as_float(atomicMin((int *)addr, __float_as_int(value))) :
     __uint_as_float(atomicMax((unsigned int *)addr, __float_as_uint(value)));
   return old;
 }
-__device__ __forceinline__ float ssrlcv::atomicMaxFloat (float * addr, float value) {
-  float old;
-  old = (value >= 0) ? __int_as_float(atomicMax((int *)addr, __float_as_int(value))) :
-    __uint_as_float(atomicMin((unsigned int *)addr, __float_as_uint(value)));
-  return old;
-}
 __device__ __forceinline__ float ssrlcv::findSubPixelContributer(const float2 &loc, const int &width){
   return ((loc.y - 12)*(width - 24)) + (loc.x - 12);
 }
 
+__device__ __forceinline__ float ssrlcv::calcElucidSq(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b){
+  float dist = 0.0f;
+  for(int i = 0; i < 128; ++i){
+    dist += square(((float)a.descriptor.values[i]-b.descriptor.values[i]));
+  }
+  dist += a.descriptor.theta - b.descriptor.theta;
+  dist += a.descriptor.sigma - b.descriptor.sigma;
+  dist += dotProduct(a.loc - b.loc,a.loc - b.loc);
+  return dist;
+}
+__device__ __forceinline__ float ssrlcv::calcElucidSq(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b, const float &bestMatch){
+  float dist = 0.0f;
+  for(int i = 0; i < 128 && dist < bestMatch; ++i){
+    dist += square(((float)a.descriptor.values[i]-b.descriptor.values[i]));
+  }
+  if(dist < bestMatch) dist += a.descriptor.theta - b.descriptor.theta;
+  else return dist;
+  if(dist < bestMatch) dist += a.descriptor.sigma - b.descriptor.sigma;
+  else return dist;
+  if(dist < bestMatch) dist += dotProduct(a.loc - b.loc,a.loc - b.loc);
+  return dist;
+}
+
+
 /*
 matching
 */
+template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
-ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* featuresTarget, ssrlcv::Match* matches){
+ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+ssrlcv::Feature<T>* featuresTarget, ssrlcv::Match<T>* matches){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
-    Feature<SIFT_Descriptor> feature = featuresQuery[blockId];
+    Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[1024];
     __shared__ float localDist[1024];
     localMatch[threadIdx.x] = -1;
@@ -347,13 +365,7 @@ ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* featuresTarget, ssrlcv::Match* matches
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesQuery;
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 1024){
-      currentDist = 0.0f;
-      for(int i = 0; i < 128 && currentDist < localDist[threadIdx.x]; ++i){
-        currentDist +=  square(((float)feature.descriptor.values[i]-featuresTarget[f].descriptor.values[i]));
-      }
-      currentDist += dotProduct(feature.loc - featuresTarget[f].loc,feature.loc - featuresTarget[f].loc);
-      currentDist += square(feature.descriptor.theta - featuresTarget[f].descriptor.theta);
-      currentDist += square(feature.descriptor.sigma - featuresTarget[f].descriptor.sigma);
+      currentDist = calcElucidSq(feature,featuresTarget[f],localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -369,20 +381,23 @@ ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* featuresTarget, ssrlcv::Match* matches
         matchIndex = localMatch[i];
       }
     }
-    Match match;
-    match.features[0] = Feature<unsigned int>(feature.loc,queryImageID);
-    match.features[1] = Feature<unsigned int>(featuresTarget[matchIndex].loc,targetImageID);
+    Match<T> match;
+    match.features[0] = feature;
+    match.features[1] = featuresTarget[matchIndex];
+    match.parentId[0] = queryImageID;
+    match.parentId[1] = targetImageID;
     match.distance = currentDist;
     matches[blockId] = match;
   }
 }
 
+template<typename T>
 __global__ void ssrlcv::matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
-ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* featuresTarget, ssrlcv::Match* matches, float epsilon, float3 fundamental[3]){
+ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+ssrlcv::Feature<T>* featuresTarget, ssrlcv::Match<T>* matches, float epsilon, float3 fundamental[3]){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
-    Feature<SIFT_Descriptor> feature = featuresQuery[blockId];
+    Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[1024];
     __shared__ float localDist[1024];
     localMatch[threadIdx.x] = -1;
@@ -398,7 +413,7 @@ ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* featuresTarget, ssrlcv::Match* matches
 
     float p = 0.0f;
 
-    Feature<SIFT_Descriptor> currentFeature;
+    Feature<T> currentFeature;
     float regEpsilon = epsilon;
 
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 1024){
@@ -407,13 +422,7 @@ ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* featuresTarget, ssrlcv::Match* matches
       //ax + by + c = 0
       p = -1*((epipolar.x*currentFeature.loc.x) + epipolar.z)/epipolar.y;
       if(abs(currentFeature.loc.y - p) >= regEpsilon) continue;
-      currentDist = 0.0f;
-      for(int i = 0; i < 128 && currentDist < localDist[threadIdx.x]; ++i){
-        currentDist +=  square(((float)feature.descriptor.values[i]-featuresTarget[f].descriptor.values[i]));
-      }
-      currentDist += dotProduct(feature.loc - featuresTarget[f].loc,feature.loc - featuresTarget[f].loc);
-      currentDist += square(feature.descriptor.theta - featuresTarget[f].descriptor.theta);
-      currentDist += square(feature.descriptor.sigma - featuresTarget[f].descriptor.sigma);
+      currentDist = calcElucidSq(feature,currentFeature,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -429,9 +438,11 @@ ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* featuresTarget, ssrlcv::Match* matches
         matchIndex = localMatch[i];
       }
     }
-    Match match;
-    match.features[0] = Feature<unsigned int>(feature.loc,queryImageID);
-    match.features[1] = Feature<unsigned int>(featuresTarget[matchIndex].loc,targetImageID);
+    Match<T> match;
+    match.features[0] = feature;
+    match.features[1] = featuresTarget[matchIndex];
+    match.parentId[0] = queryImageID;
+    match.parentId[1] = targetImageID;
     match.distance = currentDist;
     matches[blockId] = match;
   }
@@ -444,13 +455,14 @@ subpixel stuff
 //TODO overload this kernel for different types of descriptors
 
 //NOTE THIS MIGHT ONLY WORK FOR DENSE SIFT
-__global__ void ssrlcv::initializeSubPixels(unsigned long numMatches, ssrlcv::Match* matches, ssrlcv::SubpixelM7x7* subPixelDescriptors,
-ssrlcv::Image_Descriptor query, unsigned long numFeaturesQuery, ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* featuresQuery,
-ssrlcv::Image_Descriptor target, unsigned long numFeaturesTarget, ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* featuresTarget){
+template<typename T>
+__global__ void ssrlcv::initializeSubPixels(unsigned long numMatches, ssrlcv::Match<T>* matches, ssrlcv::SubpixelM7x7* subPixelDescriptors,
+ssrlcv::Image_Descriptor query, unsigned long numFeaturesQuery, ssrlcv::Feature<T>* featuresQuery,
+ssrlcv::Image_Descriptor target, unsigned long numFeaturesTarget, ssrlcv::Feature<T>* featuresTarget){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numMatches){
     __shared__ SubpixelM7x7 subDescriptor;
-    Match match = matches[blockId];
+    Match<T> match = matches[blockId];
 
     //this now needs to be actual indices to contributers
     int2 contrib = {((int)threadIdx.x) - 4, ((int)threadIdx.y) - 4};
@@ -463,11 +475,11 @@ ssrlcv::Image_Descriptor target, unsigned long numFeaturesTarget, ssrlcv::Featur
     bool foundM2 = false;
 
     if(contribTarget >= 0 && contribTarget < numFeaturesTarget){
-      subDescriptor.M1[threadIdx.x][threadIdx.y] = calcElucid(featuresQuery[blockId].descriptor.values, featuresTarget[contribTarget].descriptor.values);
+      subDescriptor.M1[threadIdx.x][threadIdx.y] = calcElucidSq(featuresQuery[blockId], featuresTarget[contribTarget]);
       foundM1 = true;
     }
     if(contribQuery >= 0 && contribQuery < numFeaturesQuery){
-      subDescriptor.M2[threadIdx.x][threadIdx.y] = calcElucid(featuresQuery[contribQuery].descriptor.values, featuresTarget[pairedMatchIndex].descriptor.values);
+      subDescriptor.M2[threadIdx.x][threadIdx.y] = calcElucidSq(featuresQuery[contribQuery], featuresTarget[pairedMatchIndex]);
       foundM2 = true;
     }
     __syncthreads();
@@ -556,7 +568,8 @@ __global__ void ssrlcv::fillSplines(unsigned long numMatches, SubpixelM7x7* subP
 }
 
 //NOTE THIS UPDATES FEATURE.LOC in MATCH
-__global__ void ssrlcv::determineSubPixelLocationsBruteForce(float increment, unsigned long numMatches, ssrlcv::Match* matches, ssrlcv::Spline* splines){
+template<typename T>
+__global__ void ssrlcv::determineSubPixelLocationsBruteForce(float increment, unsigned long numMatches, ssrlcv::Match<T>* matches, ssrlcv::Spline* splines){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numMatches*2){
     __shared__ float minimum;
@@ -600,7 +613,8 @@ MATCH REFINEMENT
 */
 
 //NOTE may be able to replace this with thrust stream compaction
-__global__ void ssrlcv::refineWCutoffRatio(unsigned long numMatches, ssrlcv::Match* matches, int* matchCounter, float2 minMax, float cutoffRatio){
+template<typename T>
+__global__ void ssrlcv::refineWCutoffRatio(unsigned long numMatches, ssrlcv::Match<T>* matches, int* matchCounter, float2 minMax, float cutoffRatio){
   unsigned long globalId = blockIdx.x*blockDim.x + threadIdx.x;
   if(globalId < numMatches){
     float2 regMinMax = minMax;
@@ -612,7 +626,8 @@ __global__ void ssrlcv::refineWCutoffRatio(unsigned long numMatches, ssrlcv::Mat
     }
   }
 }
-__global__ void ssrlcv::copyMatches(unsigned long numMatches, int* matchCounter, ssrlcv::Match* minimizedMatches, ssrlcv::Match* matches){
+template<typename T>
+__global__ void ssrlcv::copyMatches(unsigned long numMatches, int* matchCounter, ssrlcv::Match<T>* minimizedMatches, ssrlcv::Match<T>* matches){
   unsigned long globalId = blockIdx.x*blockDim.x + threadIdx.x;
   if(globalId < numMatches){
     int counterVal = matchCounter[globalId];

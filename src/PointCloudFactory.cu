@@ -4,7 +4,7 @@ ssrlcv::PointCloudFactory::PointCloudFactory(){
 
 }
 
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matches, Image* target, Image* query){
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match<SIFT_Descriptor>>* matches, Image* target, Image* query){
   float3* pointCloud_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&pointCloud_device, matches->numElements*sizeof(float3)));
   Unity<float3>* pointCloud = new Unity<float3>(pointCloud_device,matches->numElements,gpu);

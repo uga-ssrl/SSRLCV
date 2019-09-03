@@ -43,9 +43,9 @@ int main(int argc, char *argv[]){
     //   printf("%d-%f,%f\n",i,allFeatures[0]->host[i].loc.x,allFeatures[0]->host[i].loc.y);
     //   std::cout<<std::endl;
     // }
-    ssrlcv::MatchFactory matchFactory = ssrlcv::MatchFactory();
+    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>();
     std::cout << "Starting matching, this will take a while ..." << std::endl;
-    ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.generateMatchesBruteForce(images[0],allFeatures[0],images[1],allFeatures[1]);
+    ssrlcv::Unity<ssrlcv::Match<ssrlcv::SIFT_Descriptor>>* matches = matchFactory.generateMatchesBruteForce(images[0],allFeatures[0],images[1],allFeatures[1]);
 
     //matchFactory.refineMatches(matches, 0.0001);
 
@@ -62,8 +62,6 @@ int main(int argc, char *argv[]){
     matches0 = (float2*) malloc(match_size);
     matches1 = (float2*) malloc(match_size);
     std::ofstream outputFileMatch("./data/img/everest254/everest254_matches.txt");
-    int numWrong = 0;
-    float maxDist = 0.0f;
     for (int i = 0; i < n; i++){
       outputFileMatch << matches->host[i].features[0].loc.x<<",";
       outputFileMatch << matches->host[i].features[0].loc.y<<",";
@@ -73,7 +71,6 @@ int main(int argc, char *argv[]){
       matches0[i] = matches->host[i].features[0].loc;
       matches1[i] = matches->host[i].features[1].loc;
     }
-    std::cout<<numWrong<<std::endl;
     std::cout << "starting disparity with " << n << " matches ..." << std::endl;
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
 
@@ -95,7 +92,7 @@ int main(int argc, char *argv[]){
     for(int i = 0; i < n; i++){
             outputFile1 << points[i].x << " " << points[i].y << " " << points[i].z << " " << 0 << " " << 254 << " " << 0 << "\n";
     }
-    std::cout<<"test.ply has been written to repo root"<<std::endl;
+    std::cout<<"test.ply has been written to ./out/"<<std::endl;
 
     free(points);
 
