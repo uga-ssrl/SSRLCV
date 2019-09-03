@@ -42,7 +42,13 @@ int main(int argc, char *argv[]){
     std::cout << "Starting matching, this will take a while ..." << std::endl;
     ssrlcv::Unity<ssrlcv::Match<ssrlcv::SIFT_Descriptor>>* matches = matchFactory.generateMatchesBruteForce(images[0],allFeatures[0],images[1],allFeatures[1]);
 
-    //matchFactory.refineMatches(matches, 0.0001);
+    matchFactory.refineMatches(matches, 0.25);
+    matches =  matchFactory.sortMatches(matches);
+    // just checking if the first 15 are sorted
+    std::cout << "starting sort..." << std::endl << "Top Sorted:" << std::endl;
+    for (int i = 0; i < 15; i++){
+      std::cout << "[" << i << "]\t" << matches->host[i].distance << std::endl;
+    }
 
     matches->transferMemoryTo(ssrlcv::cpu);
 
