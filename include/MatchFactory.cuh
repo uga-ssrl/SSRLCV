@@ -77,6 +77,12 @@ namespace ssrlcv{
     void refineMatches(Unity<Match<T>>* matches, float cutoffRatio);
 
     /**
+    * \brief sorts all matches by mismatch distance
+    * \note this is a cpu version
+    */
+    Unity<Match<T>>* sortMatches(Unity<Match<T>>* allMatches);
+
+    /**
     * \brief Generates matches between sift features
     */
     Unity<Match<T>>* generateMatchesBruteForce(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures);

@@ -64,6 +64,28 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::Match<T>>* mat
 }
 
 template<typename T>
+ssrlcv::Unity<ssrlcv::Match<T>>* ssrlcv::MatchFactory<T>::sortMatches(Unity<Match<T>>* allMatches){
+  unsigned long len = allMatches->numElements;
+  // insertion sort
+  // each match element is accessed with allMatches->host[]
+  unsigned long i = 0;
+  unsigned long j = 0;
+  ssrlcv::Match<T> temp;
+  while (i < len){
+    j = i;
+    while (j > 0 && allMatches->host[j-1].distance > allMatches->host[j].distance){
+      temp = allMatches->host[j];
+      allMatches->host[j] = allMatches->host[j-1];
+      allMatches->host[j-1] = temp;
+      j--;
+    }
+    i++;
+  }
+  return allMatches;
+}
+
+
+template<typename T>
 ssrlcv::Unity<ssrlcv::Match<T>>* ssrlcv::MatchFactory<T>::generateMatchesBruteForce(ssrlcv::Image* query, ssrlcv::Unity<ssrlcv::Feature<T>>* queryFeatures,
 ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures){
 
