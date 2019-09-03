@@ -43,7 +43,6 @@ namespace ssrlcv{
       * \todo implement
       */
       struct Octave{
-        int binRatio;/**\brief 1 == parent | 1> is upsampled by bilinear interpolation*/
         uint2 size;
         unsigned int numBlurs;
         float* sigmas;/**\brief values used to generate gaussian kernel for each blur*/
@@ -68,7 +67,7 @@ namespace ssrlcv{
     *
     */
     FeatureFactory();
-
+    ~FeatureFactory();
     /**
     * \breif creates ScaleSpace from an Image
     * \todo implement
