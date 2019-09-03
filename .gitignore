@@ -26,3 +26,6 @@ util/io/._*
 
 *.sublime-workspace
 *.sublime-project
+doc/doxygen/documentation/*
+
+doc/doxygen/documentation/*

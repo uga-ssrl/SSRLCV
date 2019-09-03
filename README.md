@@ -25,6 +25,10 @@ If you are running this for the first time you need to make a `bin` folder in th
 Depending on how cuda are installed on your system you make have to change the first few
 lines in the Makefile to specify the location of the library.
 
+## Documentation
+* Generate Doxygen by executing `doxygen doc/doxygen/Doxyfile` from within the projects root directory
+* index.html will be available in doc/doxygen/documentation/html and will allow traversal of the documentation
+
 ## Running
 ### Full Pipeline
 

@@ -113,7 +113,7 @@ unsigned char* ssrlcv::readPNG(const char* filePath, unsigned int &height, unsig
   return getPixelArray(row_pointers, width, height, numChannels);
 }
 
-void ssrlcv::writePNG(const char* filePath, const unsigned char* &image, const unsigned int &width, const unsigned int &height){
+void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height){
 
   /* create file */
   FILE *fp = fopen(filePath, "wb");
@@ -145,8 +145,19 @@ void ssrlcv::writePNG(const char* filePath, const unsigned char* &image, const u
     std::cout<<"[write_png_file] Error during writing header "<<std::endl;
   }
 
+  int colorType = PNG_COLOR_TYPE_GRAY;
+  if(colorDepth == 2){
+    colorType = PNG_COLOR_TYPE_GRAY_ALPHA;
+  }
+  else if(colorDepth == 3){
+    colorType = PNG_COLOR_TYPE_RGB;
+  }
+  else if(colorDepth == 4){
+    colorType = PNG_COLOR_TYPE_RGB_ALPHA;
+  }
+
   png_set_IHDR(png_ptr, info_ptr, width, height,
-               8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE,
+               8, colorType, PNG_INTERLACE_NONE,
                PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
 
   png_write_info(png_ptr, info_ptr);
@@ -158,8 +169,8 @@ void ssrlcv::writePNG(const char* filePath, const unsigned char* &image, const u
 
   unsigned char** row_pointers = new unsigned char*[height];
   for(int i = 0; i < height; ++i){
-    row_pointers[i] = new unsigned char[width];
-    std::memcpy(row_pointers[i], image + i*width, width*sizeof(unsigned char));
+    row_pointers[i] = new unsigned char[width*colorDepth];
+    std::memcpy(row_pointers[i], image + i*width*colorDepth, width*colorDepth*sizeof(unsigned char));
   }
 
   png_write_image(png_ptr, row_pointers);
@@ -175,17 +186,18 @@ void ssrlcv::writePNG(const char* filePath, const unsigned char* &image, const u
 }
 
 
+
 //
 // Binary files - Gitlab #58
 //
 
 /**
- * Replaces the file's extension with .bcp (binary camera parameters) 
+ * Replaces the file's extension with .bcp (binary camera parameters)
  * @return NEW std::string with the resultant file path
  */
-std::string getImageMetaName(std::string imgpath) 
-{ 
-  for(std::string::iterator it = imgpath.end(); it != imgpath.begin(); it--) { 
+std::string getImageMetaName(std::string imgpath)
+{
+  for(std::string::iterator it = imgpath.end(); it != imgpath.begin(); it--) {
     if(*it == '.') return std::string(imgpath.replace(it, imgpath.end(), ".bcp"));
   }
   return std::string();
@@ -194,24 +206,24 @@ std::string getImageMetaName(std::string imgpath)
 
 
 /**
- * Reads the binary 
- * 
+ * Reads the binary
+ *
  */
-bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out) 
-{ 
+bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out)
+{
 
-  std::string path = getImageMetaName(imgpath); 
-  if(path.empty()) return false; 
+  std::string path = getImageMetaName(imgpath);
+  if(path.empty()) return false;
 
-  FILE * file = fopen(path.c_str(), "r"); 
-  if(file == nullptr) { 
-    std::cerr << "Couldn't open " << path << std::endl; 
-    return false; 
+  FILE * file = fopen(path.c_str(), "r");
+  if(file == nullptr) {
+    std::cerr << "Couldn't open " << path << std::endl;
+    return false;
   }
 
 
   // Reading the file - for now, the official spec of this format is the layout of the struct bcpFormat,
-  //  detailed in io_util.h 
+  //  detailed in io_util.h
   //
   // Try to keep this code as smart and modular as possible to make it easy to tinker with later on
 
@@ -220,10 +232,10 @@ bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out)
   // They should be able to be moved around, inserted and deleted as needed to match the spec in io_util.h
   // They will clean up and return false on error
 
-  /* 
-   * BIN_VAL(name)          - Reads the next value into the struct field named `name` 
+  /*
+   * BIN_VAL(name)          - Reads the next value into the struct field named `name`
    * EOF_CHECK              - Checks for end-of-file - Call this after every BIN_* read except the last one
-   * EOF_EXPECT             - Expects end-of-file.  Call this after the last read 
+   * EOF_EXPECT             - Expects end-of-file.  Call this after the last read
    */
 
 // -- Macros -- //
@@ -236,11 +248,11 @@ bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out)
   bool __fread; \
   fread((void *) &__fread, sizeof(__fread), 1, file); \
   if(! feof(file)) { std::cerr << "Error in " << path << ": Expected EOF.  Format invalid, ignoring this file" << std::endl; fclose(file); return false; }
-// -- -- -- // 
-  
+// -- -- -- //
 
-  BIN_VAL(pos) 
-  EOF_CHECK 
+
+  BIN_VAL(pos)
+  EOF_CHECK
 
   BIN_VAL(vec)
   EOF_CHECK
@@ -256,13 +268,39 @@ bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out)
 
 
   fclose(file);
-  return true; 
+  return true;
 
 #undef BIN_VAL
 #undef EOF_CHECK
-#undef EOF_EXPECT 
+#undef EOF_EXPECT
 
 
   // I guess we could try some sort of binary reading/writing the entire struct,
   //  but I think it's best to shy away from that as we don't know how the compiler will handle struct padding
+}
+
+void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
+  MemoryState origin = points->state;
+  points->transferMemoryTo(cpu);
+  tinyply::PlyFile ply;
+  ply.get_comments().push_back("SSRL Test");
+  ply.add_properties_to_element("vertex",{"x","y","z"},tinyply::Type::FLOAT32, points->numElements, reinterpret_cast<uint8_t*>(points->host), tinyply::Type::INVALID, 0);
+
+  std::filebuf fb_binary;
+  if(binary){
+    fb_binary.open(filePath, std::ios::out | std::ios::binary);
+    std::ostream outstream_binary(&fb_binary);
+    if (outstream_binary.fail()) throw std::runtime_error("failed to write ply");
+    ply.write(outstream_binary, true);
+  }
+  else{
+    std::filebuf fb_ascii;
+  	fb_ascii.open(filePath, std::ios::out);
+  	std::ostream outstream_ascii(&fb_ascii);
+  	if (outstream_ascii.fail()) throw std::runtime_error("failed to write ply");
+    ply.write(outstream_ascii, false);
+  }
+
+
+  if(origin == gpu) points->setMemoryState(gpu);
 }
