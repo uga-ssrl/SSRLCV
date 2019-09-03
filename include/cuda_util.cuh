@@ -1,3 +1,6 @@
+/** @file cuda_util.cuh
+* @brief file for simple utility methods surrounding CUDA device code
+*/
 #ifndef CUDA_UTIL_CUH
 #define CUDA_UTIL_CUH
 

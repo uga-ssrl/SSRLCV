@@ -1,14 +1,20 @@
+/** @file PointCloudFactory.cuh
+* @brief this file contains methods for deriving point clouds
+*/
 #ifndef POINTCLOUDFACTORY_CUH
 #define POINTCLOUDFACTORY_CUH
 
 #include "common_includes.h"
-#include "MatrixUtil.cuh"
 #include "Image.cuh"
 #include "MatchFactory.cuh"
 #include "Unity.cuh"
 
 
 namespace ssrlcv{
+  /**
+  * @brief This class contains methods to generate point clouds from a set of Match structs.
+  * @param Array of Matches
+  */
   class PointCloudFactory {
 
   public:

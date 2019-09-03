@@ -1,15 +1,20 @@
+/** @file Image.cuh
+* @brief Image related structs, methods and CUDA kernels
+*/
 #ifndef IMAGE_CUH
 #define IMAGE_CUH
 
 #include "common_includes.h"
 #include "io_util.h"
-#include "MatrixUtil.cuh"
 #include "Feature.cuh"
 #include "cuda_util.cuh"
 #include "Quadtree.cuh"
 #include "Unity.cuh"
 
 namespace ssrlcv{
+  /**
+  * @brief this struct is meant to house image and camera parameters.
+  */
   struct Image_Descriptor{
     int id;
     uint2 size;
@@ -24,6 +29,9 @@ namespace ssrlcv{
     __device__ __host__ Image_Descriptor(int id, uint2 size, float3 cam_pos, float3 camp_dir);
   };
 
+  /**
+  * @brief this class holds the information necessary to describe and image
+  */
   class Image{
 
   public:

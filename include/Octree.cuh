@@ -1,3 +1,6 @@
+/** @file Octree.cuh
+* @brief This file contains everything related to the CUDA Octree
+*/
 #ifndef OCTREE_CUH
 #define OCTREE_CUH
 
@@ -19,6 +22,11 @@
 #include "tinyply.h"
 
 namespace ssrlcv{
+  /**
+  * \brief data parallel octree
+  * \detail this class is used for quick near neighbor searches
+  * as well as a tool for surface reconstruction
+  */
   class Octree{
 
   private:
@@ -41,6 +49,7 @@ namespace ssrlcv{
 
   public:
 
+    /** \brief most basic part of octree*/
     struct Node{
       uchar3 color;
       int pointIndex;
@@ -59,6 +68,7 @@ namespace ssrlcv{
       int faces[6];
       __device__ __host__ Node();
     };
+    /** \brief holds cubic vertex data */
     struct Vertex{
       uchar3 color;
       float3 coord;
@@ -66,6 +76,7 @@ namespace ssrlcv{
       int depth;
       __device__ __host__ Vertex();
     };
+    /** \brief holds cubic edge data */
     struct Edge{
       uchar3 color;
       int v1;
@@ -74,6 +85,7 @@ namespace ssrlcv{
       int nodes[4];
       __device__ __host__ Edge();
     };
+    /** \brief hold cubic face data */
     struct Face{
       uchar3 color;
       int e1;
@@ -149,13 +161,15 @@ namespace ssrlcv{
 
   /* CUDA variable, method and kernel defintions */
 
-  struct is_not_neg{
-    __host__ __device__
-    bool operator()(const int x)
-    {
-      return (x >= 0);
-    }
-  };
+  namespace{
+    struct is_not_neg{
+      __host__ __device__
+      bool operator()(const int x)
+      {
+        return (x >= 0);
+      }
+    };
+  }
 
   extern __constant__ int3 coordPlacementIdentity[8];
   extern __constant__ int2 vertexEdgeIdentity[12];
