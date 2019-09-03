@@ -185,7 +185,7 @@ void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned
 
 void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
   MemoryState origin = points->state;
-  points->transferMemoryTo(cpu);
+  if(origin == gpu) points->transferMemoryTo(cpu);
   tinyply::PlyFile ply;
   ply.get_comments().push_back("SSRL Test");
   ply.add_properties_to_element("vertex",{"x","y","z"},tinyply::Type::FLOAT32, points->numElements, reinterpret_cast<uint8_t*>(points->host), tinyply::Type::INVALID, 0);
