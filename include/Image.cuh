@@ -51,7 +51,24 @@ namespace ssrlcv{
     Image(std::string filePath, unsigned int convertColorDepthTo, int id = -1);
     ~Image();
 
-    void alterSize(int binDepth);
+    // Binary camera params [Gitlab #58]
+    void bcp_in(bcpFormat data) {
+      this->camera.cam_pos.x  = data.pos[0];
+      this->camera.cam_pos.y  = data.pos[1];
+      this->camera.cam_pos.z  = data.pos[2];
+
+      this->camera.cam_vec.x  = data.vec[0];
+      this->camera.cam_vec.y  = data.vec[1];
+      this->camera.cam_vec.z  = data.vec[2];
+
+      this->camera.fov        = data.fov;
+      this->camera.foc        = data.foc;
+
+      this->camera.dpix.x     = data.dpix[0];
+      this->camera.dpix.y     = data.dpix[1];
+    }
+
+      void alterSize(int binDepth);
   };
 
 
