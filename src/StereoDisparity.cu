@@ -1,7 +1,7 @@
 #include "common_includes.h"
 #include "Image.cuh"
 #include "io_util.h"
-#include "FeatureFactory.cuh"
+#include "SIFT_FeatureFactory.cuh"
 #include "MatchFactory.cuh"
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
