@@ -11,6 +11,16 @@
 
 
 namespace ssrlcv{
+
+   /**
+    * \brief A structure to define a line my a vector and a point in R3
+    */
+  struct Line {
+    float3 vec; // vector in R3
+    float3 pnt; // point in R3
+  };
+
+
   /**
   * \brief This class contains methods to generate point clouds from a set of Match structs.
   * \param Array of Matches
@@ -20,7 +30,10 @@ namespace ssrlcv{
   public:
   	PointCloudFactory();
 
-    Unity<float3>* reproject(Unity<Match>* matches, Image* target, Image* query);
+    // this is not a good name anymore
+    //Unity<float3>* reproject(Unity<Match>* matches, Image* target, Image* query);
+
+    ssrlcv::Unity<Line>* getLinesFromMatches(Unity<Match>* matches, Unity<Image>* images);
 
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float scale);
 

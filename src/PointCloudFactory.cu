@@ -4,6 +4,7 @@ ssrlcv::PointCloudFactory::PointCloudFactory(){
 
 }
 
+/*
 ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matches, Image* target, Image* query){
   float3* pointCloud_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&pointCloud_device, matches->numElements*sizeof(float3)));
@@ -312,7 +313,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matche
   // cudaFree(d_out_pointCloud);
   return pointCloud;
 }
+*/
 
+ssrlcv::Unity<ssrlcv::Line>* ssrlcv::PointCloudFactory::getLinesFromMatches(Unity<Match>* matches, Unity<Image>* images){
+
+  Unity<Line>* lines = new Unity<Line>(NULL, NULL,cpu);
+  return lines;
+}
 
 
 // TODO fillout
