@@ -300,7 +300,7 @@ void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
   	if (outstream_ascii.fail()) throw std::runtime_error("failed to write ply");
     ply.write(outstream_ascii, false);
   }
-
+  std::cout<<filePath<<" has successfully been written"<<std::endl;
 
   if(origin == gpu) points->setMemoryState(gpu);
 }

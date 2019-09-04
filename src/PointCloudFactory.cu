@@ -327,64 +327,37 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matche
 ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>* matches, float scale){
 
   MemoryState origin = matches->state;
-  if(origin == gpu){
-    matches->transferMemoryTo(cpu);
-  }
+  if(origin == cpu) matches->transferMemoryTo(gpu);
 
-  float2* matches0 = new float2[matches->numElements];
-  float2* matches1 = new float2[matches->numElements];
-
-  for(int i = 0; i < matches->numElements; ++i){
-    matches0[i] = matches->host[i].locations[0];
-    matches1[i] = matches->host[i].locations[1];
-  }
-  // matches
-  float2 *d_matches0;
-  float2 *d_matches1;
   // depth points
-  float3 *d_points;
+  float3 *points_device = nullptr;
 
-  // the sizes
-  size_t match_size = matches->numElements*sizeof(float2);
-  size_t point_size = matches->numElements*sizeof(float3);
-
-  //
-  cudaMalloc((void**) &d_matches0, match_size);
-  cudaMalloc((void**) &d_matches1, match_size);
-  cudaMalloc((void**) &d_points, point_size);
-
-  //
-  cudaMemcpy(d_matches0, matches0, match_size, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_matches1, matches1, match_size, cudaMemcpyHostToDevice);
+  cudaMalloc((void**) &points_device, matches->numElements*sizeof(float3));
 
   //
   int blockSize = 1024;
   int gridSize = (int) ceil((float) matches->numElements / blockSize);
 
   //
-  h_stereo_disparity<<<gridSize, blockSize>>>(d_matches0, d_matches1, d_points, matches->numElements, scale);
+  computeStereo<<<gridSize, blockSize>>>(matches->numElements, matches->device, points_device, scale);
 
-  cudaFree(d_matches0);
-  cudaFree(d_matches1);
-
-  Unity<float3>* points = new Unity<float3>(d_points, matches->numElements,gpu);
-  points->setMemoryState(cpu);
-  if(origin == gpu) matches->setMemoryState(gpu);
+  Unity<float3>* points = new Unity<float3>(points_device, matches->numElements,gpu);
+  if(origin == cpu) matches->setMemoryState(cpu);
 
   return points;
 }
 
 
 // device methods
-
-__global__ void ssrlcv::h_stereo_disparity(float2* matches0, float2* matches1, float3* points, int n, float scale){
-  int id = blockIdx.x * blockDim.x + threadIdx.x;
-  if (id < n) {
-    points[id].x = matches0[id].x;
-    points[id].y = matches0[id].y;
-    points[id].z = sqrtf(scale * (((matches0[id].x - matches1[id].x) * (matches0[id].x - matches1[id].x)) +  ((matches0[id].y - matches1[id].y) * (matches0[id].y - matches1[id].y))));
+__global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, float3* points, float scale){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID < numMatches) {
+    Match match = matches[globalID];
+    float3 point = {match.locations[0].x,match.locations[0].y,0.0f};
+    point.z = sqrtf(scale*dotProduct({match.locations[0]-match.locations[1]},{match.locations[0]-match.locations[1]}));
+    points[globalID] = point;
   }
-} // dat disparity tho
+}
 
 __global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, float cam1C[3], float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9], float rotationTranspose1[9], float rotationTranspose2[9], float3* points){
 
