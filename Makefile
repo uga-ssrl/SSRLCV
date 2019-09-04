@@ -15,7 +15,7 @@ CXXFLAGS += -Wall -std=c++11
 # compute_<#> and sm_<#> will need to change depending on the device
 # if this is not done you will receive a no kernel image is availabe error
 NVCCFLAGS += ${COMMONFLAGS}
-NVCCFLAGS += -std=c++11 -gencode=arch=compute_53,code=sm_53 -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61
+NVCCFLAGS += -std=c++11 -gencode=arch=compute_53,code=sm_53 -gencode=arch=compute_53,code=compute_53 -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61
 
 LIB :=  -L/usr/local/cuda/lib64 -lcublas -lcuda -lcudart -lcusparse -lcusolver\
         -lpng -Xcompiler -fopenmp
@@ -61,8 +61,8 @@ SD_OBJS = ${patsubst %, ${OBJDIR}/%, ${_SD_OBJS}}
 TARGET = SFM
 TARGET_SD = StereoDisparity
 
-LINKLINE = ${LINK} -gencode=arch=compute_53,code=sm_53 -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 ${OBJS} ${LIB} -o ${BINDIR}/${TARGET}
-LINKLINE_SD = ${LINK} -gencode=arch=compute_53,code=sm_53 -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 ${SD_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SD}
+LINKLINE = ${LINK} -gencode=arch=compute_53,code=sm_53 -gencode=arch=compute_53,code=compute_53 -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 ${OBJS} ${LIB} -o ${BINDIR}/${TARGET}
+LINKLINE_SD = ${LINK} -gencode=arch=compute_53,code=sm_53 -gencode=arch=compute_53,code=compute_53 -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 ${SD_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SD}
 
 .SUFFIXES: .cpp .cu .o
 
