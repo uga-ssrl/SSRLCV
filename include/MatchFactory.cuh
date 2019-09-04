@@ -22,16 +22,26 @@ namespace ssrlcv{
   * \brief method that allows Feature's with SIFT_Descriptor's to be matching in this class
   */
   __device__ __forceinline__ float calcElucidSq(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b, const float &bestMatch);
+  /**
+  * \brief method that allows SIFT_Descriptor's to be matching in this class
+  */
+  __device__ __forceinline__ float calcElucidSq(const SIFT_Descriptor& a, const SIFT_Descriptor& b);
+  /**
+  * \brief method that allows SIFT_Descriptor's to be matching in this class
+  */
+  __device__ __forceinline__ float calcElucidSq(const SIFT_Descriptor& a, const SIFT_Descriptor& b, const float &bestMatch);
+
 
 
 
   /**
   * \brief represents pair of features
   */
-
-  struct Match{
+  struct PointPair2D{
     int parentIds[2];
     float2 locations[2];
+  };
+  struct Match : PointPair2D{
     float distance;
   };
   template<typename T>
@@ -51,11 +61,25 @@ namespace ssrlcv{
     };
     typedef struct SubpixelM7x7 SubpixelM7x7;
 
-    template<typename T>
     struct match_above_cutoff{
       __host__ __device__
       bool operator()(Match m){
         return m.distance > 0.0f;
+      }
+    };
+
+    struct distance_thresholder{
+      float threshold;
+      distance_thresholder(float threshold) : threshold(threshold){};
+      __host__ __device__
+      bool operator()(Match m){
+        return (m.distance > threshold);
+      }
+    };
+    struct match_comparator{
+      __host__ __device__
+      bool operator()(const Match& a, const Match& b){
+        return a.distance < b.distance;
       }
     };
   }
@@ -85,10 +109,8 @@ namespace ssrlcv{
     * \brief sorts all matches by mismatch distance
     * \note this is a cpu version
     */
-    Unity<Match>* sortMatches(Unity<Match>* allMatches);
-    Unity<FeatureMatch<T>>* sortMatches(Unity<FeatureMatch<T>>* allMatches);
-
-
+    void sortMatches(Unity<Match>* matches);
+    void sortMatches(Unity<FeatureMatch<T>>* matches);
     Unity<Match>* getRawMatches(Unity<FeatureMatch<T>>* matches);
 
     /**
@@ -123,20 +145,28 @@ namespace ssrlcv{
 
 
 
-
-  /*
-  Pairwise stuff
-  */
+  //base matching kernels
+  template<typename T>
+  __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, Match* matches);
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
     Feature<T>* featuresTarget, FeatureMatch<T>* matches);
+  template<typename T>
+  __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, Match* matches, float epsilon, float3 fundamental[3]);
 
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
     Feature<T>* featuresTarget, FeatureMatch<T>* matches, float epsilon, float3 fundamental[3]);
 
+
+
+  //subpixel kernels
   template<typename T>
   __global__ void initializeSubPixels(unsigned long numMatches, FeatureMatch<T>* matches, SubpixelM7x7* subPixelDescriptors,
     uint2 querySize, unsigned long numFeaturesQuery, Feature<T>* featuresQuery,
@@ -145,14 +175,6 @@ namespace ssrlcv{
   __global__ void fillSplines(unsigned long numMatches, SubpixelM7x7* subPixelDescriptors, Spline* splines);
   template<typename T>
   __global__ void determineSubPixelLocationsBruteForce(float increment, unsigned long numMatches, FeatureMatch<T>* matches, Spline* splines);
-
-  __global__ void refineWCutoffRatio(unsigned long numMatches, Match* matches, int* matchCounter, float2 minMax, float cutoffRatio);
-  __global__ void copyMatches(unsigned long numMatches, int* matchCounter, Match* minimizedMatches, Match* matches);
-
-  template<typename T>
-  __global__ void refineWCutoffRatio(unsigned long numMatches, FeatureMatch<T>* matches, int* matchCounter, float2 minMax, float cutoffRatio);
-  template<typename T>
-  __global__ void copyMatches(unsigned long numMatches, int* matchCounter, FeatureMatch<T>* minimizedMatches, ssrlcv::FeatureMatch<T>* matches);
 
 }
 
