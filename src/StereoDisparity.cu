@@ -40,21 +40,21 @@ int main(int argc, char *argv[]){
     }
     ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>();
     std::cout << "Starting matching, this will take a while ..." << std::endl;
-    ssrlcv::Unity<ssrlcv::FeatureMatch<ssrlcv::SIFT_Descriptor>>* featureMatches = matchFactory.generateMatchesBruteForce(images[0],allFeatures[0],images[1],allFeatures[1]);
+    ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1]);
 
-    matchFactory.refineMatches(featureMatches, 0.25);
+    matchFactory.refineMatches(distanceMatches, 0.25);
+    if(distanceMatches->state != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
 
-    ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(featureMatches);
-    delete featureMatches;
-    matches->setMemoryState(ssrlcv::gpu);
-    matchFactory.sortMatches(matches);
-    matches->setMemoryState(ssrlcv::cpu);
-
-    // just checking if the first 15 are sorted
+    matchFactory.sortMatches(distanceMatches);
+    distanceMatches->transferMemoryTo(ssrlcv::cpu);
     std::cout << "starting sort..." << std::endl << "Top Sorted:" << std::endl;
     for (int i = 0; i < 15; i++){
-      std::cout << "[" << i << "]\t" << matches->host[i].distance << std::endl;
+      std::cout << "[" << i << "]\t" << distanceMatches->host[i].distance << std::endl;
     }
+    distanceMatches->setMemoryState(ssrlcv::gpu);
+
+    ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
+    delete distanceMatches;
 
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
     ssrlcv::Unity<float3>* points = demPoints.stereo_disparity(matches,64.0f);

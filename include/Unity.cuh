@@ -242,11 +242,15 @@ namespace ssrlcv{
       case cpu:
         if(this->host != nullptr){
           delete[] this->host;
+          this->state = null;
+          this->fore = null;
         }
         break;
       case gpu:
         if(this->device != nullptr){
           CudaSafeCall(cudaFree(this->device));
+          this->state = null;
+          this->fore = null;
         }
         break;
       case both:
@@ -332,6 +336,7 @@ namespace ssrlcv{
       }
     }
     this->state = both;
+    this->fore = both;
   }
 
   template<typename T>
@@ -347,17 +352,20 @@ namespace ssrlcv{
       if(cpu == this->fore){
         this->transferMemoryTo(gpu);
       }
-      else{
+      else if(gpu == this->fore){
         this->transferMemoryTo(cpu);
       }
+      this->fore = both;
     }
     else{
       this->transferMemoryTo(state);
       if(state == cpu){
         this->clear(gpu);
+        this->fore = cpu;
       }
       else{
         this->clear(cpu);
+        this->fore = gpu;
       }
     }
   }
