@@ -54,19 +54,36 @@ _SD_OBJS += PointCloudFactory.cu.o
 _SD_OBJS += Octree.cu.o
 _SD_OBJS += MeshFactory.cu.o
 _SD_OBJS += StereoDisparity.cu.o
+_T_OBJS = io_util.cpp.o
+_T_OBJS += tinyply.cpp.o
+_T_OBJS += cuda_util.cu.o
+_T_OBJS += Feature.cu.o
+_T_OBJS += Image.cu.o
+_T_OBJS += Quadtree.cu.o
+_T_OBJS += FeatureFactory.cu.o
+_T_OBJS += SIFT_FeatureFactory.cu.o
+_T_OBJS += MatchFactory.cu.o
+_T_OBJS += matrix_util.cu.o
+_T_OBJS += PointCloudFactory.cu.o
+_T_OBJS += Octree.cu.o
+_T_OBJS += MeshFactory.cu.o
+_T_OBJS += Tester.cu.o
 
 OBJS = ${patsubst %, ${OBJDIR}/%, ${_OBJS}}
 SD_OBJS = ${patsubst %, ${OBJDIR}/%, ${_SD_OBJS}}
+T_OBJS = ${patsubst %, ${OBJDIR}/%, ${_T_OBJS}}
 
 TARGET = SFM
 TARGET_SD = StereoDisparity
+TARGET_T = Tester
 
 LINKLINE = ${LINK} -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 ${OBJS} ${LIB} -o ${BINDIR}/${TARGET}
 LINKLINE_SD = ${LINK} -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 ${SD_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SD}
+LINKLINE_T = ${LINK} -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 ${T_OBJS} ${LIB} -o ${BINDIR}/${TARGET_T}
 
 .SUFFIXES: .cpp .cu .o
 
-all: ${BINDIR}/${TARGET} ${BINDIR}/${TARGET_SD}
+all: ${BINDIR}/${TARGET} ${BINDIR}/${TARGET_SD} ${BINDIR}/${TARGET_T}
 
 $(OBJDIR):
 	    -mkdir -p $(OBJDIR)
@@ -86,9 +103,10 @@ ${OBJDIR}/%.cu.o: ${SRCDIR}/%.cu
 ${OBJDIR}/%.cpp.o: ${SRCDIR}/%.cpp
 	${CXX} ${INCLUDES} ${CXXFLAGS} -c $< -o $@
 
-${BINDIR}/%: ${OBJS} ${SD_OBJS} Makefile
+${BINDIR}/%: ${OBJS} ${SD_OBJS} ${T_OBJS} Makefile
 	${LINKLINE}
 	${LINKLINE_SD}
+	${LINKLINE_T}
 
 clean:
 	rm -f out/*.ply

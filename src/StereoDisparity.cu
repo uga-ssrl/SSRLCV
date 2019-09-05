@@ -15,7 +15,7 @@ int main(int argc, char *argv[]){
 
     //ARG PARSING
     if(argc < 2 || argc > 4){
-      std::cout<<"USAGE ./bin/SFM </path/to/image/directory/>"<<std::endl;
+      std::cout<<"USAGE ./bin/StereoDisparity </path/to/image/directory/>"<<std::endl;
       exit(-1);
     }
     std::string path = argv[1];
