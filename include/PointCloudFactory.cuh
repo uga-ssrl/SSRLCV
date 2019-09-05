@@ -19,6 +19,12 @@ namespace ssrlcv{
     float3 vec; // vector in R3
     float3 pnt; // point in R3
   };
+  /*
+   * \brief A structure that contains lines, the collection of lines are considered a bindle and are generated from the same match set
+   */
+  struct Bundle {
+    Line* line;
+  };
 
 
   /**
@@ -33,7 +39,7 @@ namespace ssrlcv{
     // this is not a good name anymore
     //Unity<float3>* reproject(Unity<Match>* matches, Image* target, Image* query);
 
-    ssrlcv::Unity<Line>* getLinesFromMatches(Unity<Match>* matches, Unity<Image>* images);
+    ssrlcv::Unity<Bundle>* getLinesFromMatches(Unity<Match>* matches, Unity<Image>* images);
 
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float scale);
 

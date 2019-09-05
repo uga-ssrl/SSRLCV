@@ -315,10 +315,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matche
 }
 */
 
-ssrlcv::Unity<ssrlcv::Line>* ssrlcv::PointCloudFactory::getLinesFromMatches(Unity<Match>* matches, Unity<Image>* images){
+ssrlcv::Unity<ssrlcv::Bundle>* ssrlcv::PointCloudFactory::getLinesFromMatches(Unity<Match>* matches, Unity<Image>* images){
 
-  Unity<Line>* lines = new Unity<Line>(NULL, NULL,cpu);
-  return lines;
+  Unity<Bundle>* bundles = new Unity<Bundle>(NULL, NULL,cpu);
+  return bundles;
 }
 
 
