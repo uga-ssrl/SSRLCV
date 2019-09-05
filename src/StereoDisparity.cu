@@ -42,7 +42,7 @@ int main(int argc, char *argv[]){
     std::cout << "Starting matching, this will take a while ..." << std::endl;
     ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1]);
 
-    matchFactory.refineMatches(distanceMatches, 0.25);
+    //matchFactory.refineMatches(distanceMatches, 0.25);
     if(distanceMatches->state != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
 
     matchFactory.sortMatches(distanceMatches);
