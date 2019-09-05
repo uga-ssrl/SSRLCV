@@ -317,6 +317,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matche
 
 ssrlcv::Unity<ssrlcv::Bundle>* ssrlcv::PointCloudFactory::getLinesFromMatches(Unity<Match>* matches, Unity<Image>* images){
 
+  
+
   Unity<Bundle>* bundles = new Unity<Bundle>(NULL, NULL,cpu);
   return bundles;
 }

@@ -26,9 +26,29 @@ int main(int argc, char *argv[]){
     std::cout << "test code running... " << std::endl;
     // ===================================================================
     // test code goes below here
+    // Code within these comment blocks can always be deteled and
+    // should only be used when you're testing your new stuff
     // ===================================================================
 
+    // fake cameras
+    // doesn't matter what the images are
+    std::cout << "Making fake image guys ..." << std::endl;
+    std::vector<ssrlcv::Image*> images;
+    ssrlcv::Image* image0 = new ssrlcv::Image();
+    ssrlcv::Image* image1 = new ssrlcv::Image();
+    images.push_back(image0);
+    images.push_back(image1);
 
+    // fill the test camera params
+    std::cout << "Filling in test Camera Params ..." << std::endl;
+    images[0]->camera.cam_pos = {0.0,0.0,0.0};
+    images[0]->camera.cam_vec = {1.0,1.0,1.0};
+    images[0]->camera.fov = 30.0;
+    images[0]->camera.foc = 0.25;
+    images[1]->camera.cam_pos = {0.0,-1.0,0.0};
+    images[1]->camera.cam_vec = {1.0, 0.0,0.0};
+    images[1]->camera.fov = 30.0;
+    images[1]->camera.foc = 0.25;
 
 
     // ===================================================================
