@@ -39,11 +39,13 @@ namespace ssrlcv{
     // this is not a good name anymore
     //Unity<float3>* reproject(Unity<Match>* matches, Image* target, Image* query);
 
-    ssrlcv::Unity<Bundle>* getLinesFromMatches(Unity<Match>* matches, Unity<Image>* images);
+    ssrlcv::Unity<Bundle>* generateBundles(Unity<Match>* matches, std::vector<ssrlcv::Image*> images);
 
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float scale);
 
   };
+
+  __global__ void generateBundle(Match* matches, Image::Camera* cameras);
 
   __global__ void computeStereo(unsigned int numMatches, Match* matches, float3* points, float scale);
 

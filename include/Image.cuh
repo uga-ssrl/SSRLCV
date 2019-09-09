@@ -34,6 +34,7 @@ namespace ssrlcv{
       float foc;/**\brief focal length of camera*/
       float2 dpix;/**\brief real world size of each pixel*/
       long long int timeStamp;/**\brief seconds since Jan 01, 1070*/
+      uint2 size; /**identical to the image size param, but used in GPU camera modification methods */
       __device__ __host__ Camera();
       __device__ __host__ Camera(uint2 size);
       __device__ __host__ Camera(uint2 size, float3 cam_pos, float3 camp_dir);

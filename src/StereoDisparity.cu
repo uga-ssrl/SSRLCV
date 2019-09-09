@@ -47,6 +47,14 @@ int main(int argc, char *argv[]){
 
     matchFactory.sortMatches(distanceMatches);
     distanceMatches->transferMemoryTo(ssrlcv::cpu);
+
+
+    // loop
+      // make a temp match stuct; 
+      // cut from that structs
+      // output desired data
+    //
+
     std::cout << "starting sort..." << std::endl << "Top Sorted:" << std::endl;
     for (int i = 0; i < 15; i++){
       std::cout << "[" << i << "]\t" << distanceMatches->host[i].distance << std::endl;

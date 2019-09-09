@@ -315,9 +315,21 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matche
 }
 */
 
-ssrlcv::Unity<ssrlcv::Bundle>* ssrlcv::PointCloudFactory::getLinesFromMatches(Unity<Match>* matches, Unity<Image>* images){
+ssrlcv::Unity<ssrlcv::Bundle>* ssrlcv::PointCloudFactory::generateBundles(Unity<Match>* matches, std::vector<Image*> images){
+  std::cout << "starting bundle generation ..." << std::endl;
+  MemoryState origin = matches->state;
+  if(origin == cpu) {
+    matches->transferMemoryTo(gpu);
+    // images->transferMemoryTo(gpy)
+  }
+  // the bundles
+  // depth points
+  Bundle* h_bundles = nullptr;
+  cudaMalloc((void**) &h_bundles, matches->numElements*sizeof(Bundle));
 
-  
+  //
+  int blockSize = 1024;
+  int gridSize = (int) ceil((float) matches->numElements / blockSize);
 
   Unity<Bundle>* bundles = new Unity<Bundle>(NULL, NULL,cpu);
   return bundles;
@@ -358,6 +370,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
 
 
 // device methods
+
+__global__ void ssrlcv::generateBundle(Match* matches, Image::Camera* cameras){
+
+}
+
 __global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, float3* points, float scale){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if (globalID < numMatches) {
