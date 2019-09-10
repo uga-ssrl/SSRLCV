@@ -51,6 +51,10 @@ namespace ssrlcv{
     Image(std::string filePath, unsigned int convertColorDepthTo, int id = -1);
     ~Image();
 
+    void convertColorDepthTo(unsigned int colorDepth);
+    Unity<int2>* getPixelGradients();
+    void alterSize(int binDepth);
+
     // Binary camera params [Gitlab #58]
     void bcp_in(bcpFormat data) {
       this->camera.cam_pos.x  = data.pos[0];
@@ -68,24 +72,16 @@ namespace ssrlcv{
       this->camera.dpix.y     = data.dpix[1];
     }
 
-      void alterSize(int binDepth);
   };
 
 
+  Unity<int2>* generatePixelGradients(uint2 imageSize, Unity<unsigned char>* pixels);
   Unity<unsigned char>* bin(uint2 imageSize, unsigned int colorDepth, Unity<unsigned char>* pixels);
+  Unity<unsigned char>* convolve(uint2 imageSize, Unity<unsigned char>* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel);
 
   void convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth);
+  void convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth);
 
-  Unity<unsigned int>* applyBorder(Image* image, float2 border);
-  Unity<unsigned int>* applyBorder(uint2 imageSize, float2 border);
-  Unity<float2>* getLocationsWithinBorder(Image* image, float2 border);
-  Unity<float2>* getLocationsWithinBorder(uint2 imageSize, float2 border);
-
-  Unity<int2>* generatePixelGradients(Image* image);
-  Unity<int2>* generatePixelGradients(uint2 imageSize, Unity<unsigned char>* pixels);
-
-  //consider returning an Image
-  Unity<unsigned char>* convolve(uint2 imageSize, Unity<unsigned char>* pixels, unsigned int colorDepth, unsigned int kernelSize, float* kernel);
 
   void calcFundamentalMatrix_2View(Image* query, Image* target, float3 *F);
   void get_cam_params2view(Image* cam1, Image* cam2, std::string infile);
@@ -93,13 +89,29 @@ namespace ssrlcv{
 
   /* CUDA variable, method and kernel defintions */
 
+  __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
+  __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
+
   __device__ __forceinline__ unsigned long getGlobalIdx_2D_1D();
+
   __device__ __forceinline__ unsigned char bwaToBW(const uchar2 &color);
   __device__ __forceinline__ unsigned char rgbToBW(const uchar3 &color);
   __device__ __forceinline__ unsigned char rgbaToBW(const uchar4 &color);
-  __global__ void generateBW(int numPixels, unsigned int colorDepth, unsigned char* colorPixels, unsigned char* bwPixels);
+
+  /**
+  *\note upsampling color is not an exact science
+  */
+  __device__ __forceinline__ uchar3 bwToRGB(const unsigned char &color);
+  __device__ __forceinline__ uchar3 bwaToRGB(const uchar2 &color);
+  __device__ __forceinline__ uchar3 rgbaToRGB(const uchar4 &color);
+
+  __global__ void generateBW(int numPixels, unsigned int colorDepth, unsigned char* colorPixels, unsigned char* pixels);
+  __global__ void generateRGB(int numPixels, unsigned int colorDepth, unsigned char* colorPixels, unsigned char* pixels);
+
+
   __global__ void binImage(uint2 imageSize, unsigned int colorDepth, unsigned char* pixels, unsigned char* binnedImage);
-  __global__ void convolveImage(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, unsigned int kernelSize, float* kernel, unsigned char* convolvedImage);
+  __global__ void convolveImage(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage, float* min, float* max);
+  __global__ void convertToCharImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels, float* min, float* max);
   __global__ void applyBorder(uint2 imageSize, unsigned int* featureNumbers, unsigned int* featureAddresses, float2 border);
   __global__ void getPixelCenters(unsigned int numValidPixels, uint2 imageSize, unsigned int* pixelAddresses, float2* pixelCenters);
 
