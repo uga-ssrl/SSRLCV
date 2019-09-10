@@ -8,6 +8,7 @@
 
 int main(int argc, char *argv[]){
   try{
+
     //CUDA INITIALIZATION
     cuInit(0);
     clock_t totalTimer = clock();
@@ -37,6 +38,7 @@ int main(int argc, char *argv[]){
       ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image);
       allFeatures.push_back(features);
       images.push_back(image);
+
     }
     ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>();
     std::cout << "Starting matching, this will take a while ..." << std::endl;
@@ -54,6 +56,7 @@ int main(int argc, char *argv[]){
     distanceMatches->setMemoryState(ssrlcv::gpu);
 
     ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
+
     delete distanceMatches;
 
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
@@ -70,10 +73,6 @@ int main(int argc, char *argv[]){
     return 0;
   }
   catch (const std::exception &e){
-      std::cerr << "Caught exception: " << e.what() << '\n';
-      std::exit(1);
-  }
-  catch (const ssrlcv::UnityException &e){
       std::cerr << "Caught exception: " << e.what() << '\n';
       std::exit(1);
   }
