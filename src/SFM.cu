@@ -68,7 +68,7 @@ int main(int argc, char *argv[]){
     featureFactory.setOrientationContribWidth(1.5f);
     for(int i = 0; i < numImages; ++i){
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
-      
+
       ssrlcv::bcpFormat bcp;
       if(ssrlcv::readImageMeta(imagePaths[i], bcp)) image->bcp_in(bcp);
 
@@ -105,10 +105,6 @@ int main(int argc, char *argv[]){
     return 0;
   }
   catch (const std::exception &e){
-      std::cerr << "Caught exception: " << e.what() << '\n';
-      std::exit(1);
-  }
-  catch (const ssrlcv::UnityException &e){
       std::cerr << "Caught exception: " << e.what() << '\n';
       std::exit(1);
   }

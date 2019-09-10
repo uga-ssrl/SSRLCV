@@ -25,7 +25,8 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::DMatch>* match
     if(matches->host[i].distance < min) min = matches->host[i].distance;
     if(matches->host[i].distance > max) max = matches->host[i].distance;
   }
-  if(origin == gpu) matches->clear(cpu);
+
+  if(origin == gpu) matches->clear(cpu); 
 
   thrust::device_ptr<DMatch> needsCompacting(matches->device);
   thrust::device_ptr<DMatch> end = thrust::remove_if(needsCompacting, needsCompacting + matches->numElements, match_dist_thresholder((max-min)*cutoffRatio + min));
