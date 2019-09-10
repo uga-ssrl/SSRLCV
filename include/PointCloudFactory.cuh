@@ -45,7 +45,7 @@ namespace ssrlcv{
 
   };
 
-  __global__ void generateBundle(Match* matches, Image::Camera* cameras);
+  __global__ void generateBundle(Bundle* bundles, Match* matches, Image::Camera* cameras);
 
   __global__ void computeStereo(unsigned int numMatches, Match* matches, float3* points, float scale);
 

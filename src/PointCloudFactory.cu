@@ -318,20 +318,29 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matche
 ssrlcv::Unity<ssrlcv::Bundle>* ssrlcv::PointCloudFactory::generateBundles(Unity<Match>* matches, std::vector<Image*> images){
   std::cout << "starting bundle generation ..." << std::endl;
   MemoryState origin = matches->state;
-  if(origin == cpu) {
-    matches->transferMemoryTo(gpu);
-    // images->transferMemoryTo(gpy)
+  if(origin == cpu) matches->transferMemoryTo(gpu);
+  // the cameras
+  size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
+  // fill the cam boi
+  ssrlcv::Image::Camera* h_cameras;
+  h_cameras = (ssrlcv::Image::Camera*) malloc(cam_bytes);
+  for(int i = 0; i < images.size(); i++){
+    h_cameras[i] = images.at(i)->camera;
   }
+  ssrlcv::Image::Camera* d_cameras;
+  cudaMalloc(&d_cameras, cam_bytes);
+  // copy the othe guy
+  cudaMemcpy(d_cameras, h_cameras, cam_bytes, cudaMemcpyHostToDevice);
   // the bundles
-  // depth points
-  Bundle* h_bundles = nullptr;
-  cudaMalloc((void**) &h_bundles, matches->numElements*sizeof(Bundle));
-
+  Unity<Bundle>* bundles = new Unity<Bundle>(nullptr,matches->numElements,cpu);
+  bundles->transferMemoryTo(gpu);
   //
   int blockSize = 1024;
   int gridSize = (int) ceil((float) matches->numElements / blockSize);
-
-  Unity<Bundle>* bundles = new Unity<Bundle>(NULL, NULL,cpu);
+  // call the boi
+  generateBundle<<<gridSize, blockSize>>>(bundles->device, matches->device, d_cameras);
+  bundles->transferMemoryTo(cpu);
+  bundles->clear(gpu);
   return bundles;
 }
 
@@ -371,7 +380,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
 
 // device methods
 
-__global__ void ssrlcv::generateBundle(Match* matches, Image::Camera* cameras){
+__global__ void ssrlcv::generateBundle(Bundle* bundles, Match* matches, Image::Camera* cameras){
 
 }
 
