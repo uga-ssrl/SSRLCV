@@ -338,7 +338,7 @@ ssrlcv::Unity<ssrlcv::Bundle>* ssrlcv::PointCloudFactory::generateBundles(Unity<
   int blockSize = 1024;
   int gridSize = (int) ceil((float) matches->numElements / blockSize);
   // call the boi
-  generateBundle<<<gridSize, blockSize>>>(bundles->device, matches->device, d_cameras);
+  generateBundle<<<gridSize, blockSize>>>(bundles->device, matches->device, d_cameras, images.size(), matches->numElements);
   bundles->transferMemoryTo(cpu);
   bundles->clear(gpu);
   return bundles;
@@ -380,7 +380,22 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
 
 // device methods
 
-__global__ void ssrlcv::generateBundle(Bundle* bundles, Match* matches, Image::Camera* cameras){
+__global__ void ssrlcv::generateBundle(Bundle* bundles, Match* matches, Image::Camera* cameras, int cam_num, int match_num){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  Match match = matches[globalID];
+  // scale my dudes << throwback
+  float2* m  = new float2[cam_num]();
+  float3* kp = new float3[cam_num]();
+  // calcualte dpix and fill the m values at scale
+  for (int i = 0; i < cam_num; i++ ){
+    cameras[i].dpix.x = (cameras[i].foc * tanf(cameras[i].fov / 2.0f)) / (cameras[i].size.x / 2.0f );
+    cameras[i].dpix.y = cameras[i].dpix.x; // assume square pixel for now
+    m[i].x = cameras[i].dpix.x * ((        match.locations[i].x) - (cameras[i].size.x / 2.0f));
+    m[i].y = cameras[i].dpix.y * ((-1.0f * match.locations[i].y) - (cameras[i].size.y / 2.0f));
+    kp[i] = {m[i].x, m[i].y, 0.0f}; // set the key point
+    float3 angle = getVectorAngles(cameras[i].cam_vec);
+
+  }
 
 }
 

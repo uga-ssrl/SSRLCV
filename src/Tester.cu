@@ -69,7 +69,7 @@ int main(int argc, char *argv[]){
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
     ssrlcv::Unity<ssrlcv::Bundle>* bundles = demPoints.generateBundles(matches,images_vec);
 
-
+    std::cout << "WOW!! look at these bundles: " << std::endl;
 
     // ===================================================================
     // test code goes ends above here

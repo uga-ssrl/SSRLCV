@@ -1,5 +1,11 @@
 #include "matrix_util.cuh"
 
+//
+//
+// GPU Methods
+//
+//
+
 __device__ __host__ float ssrlcv::sum(const float3 &a){
   return a.x + a.y + a.z;
 }
@@ -66,6 +72,49 @@ __device__ void ssrlcv::inverse3x3_gpu(float M[3][3], float (&Minv)[3][3]){
   Minv[2][1] = (M[2][0]*M[0][1] - M[0][0]*M[2][1]) * invdet;
   Minv[2][2] = (M[0][0]*M[1][1] - M[1][0]*M[0][1]) * invdet;
 }
+
+__device__ float ssrlcv::dotProduct3(float3 a, float3 b){
+  float product = 0.0;
+  product += a.x * b.x;
+  product += a.y * b.y;
+  product += a.z * b.z;
+  return product;
+}
+
+__device__ float3 ssrlcv::getVectorAngles(float3 v){
+  float3 angles;
+  float3 x_n = {1.0f, 0.0f, 0.0f};
+  float3 y_n = {0.0f, 1.0f, 0.0f};
+  float3 z_n = {0.0f, 0.0f, 1.0f};
+  // x angle
+  float a = dotProduct3(v,x_n);
+  float b = dotProduct3(v,v);
+  float c = (a)/(sqrtf(b));
+  angles.x = acosf(c);
+  // y angle
+  a = dotProduct3(v,y_n);
+  b = dotProduct3(v,v);
+  c = (a)/(sqrtf(b));
+  angles.y = acosf(c);
+  // z angle
+  a = dotProduct3(v,z_n);
+  b = dotProduct3(v,v);
+  c = (a)/(sqrtf(b));
+  angles.z = acosf(c);
+  return angles;
+}
+
+__device__ float3 rotatePoint(float3 point, float3 angles) {
+  // this is just a 3D rotation matrix
+
+  return point;
+}
+
+//
+//
+// CPU methods
+//
+//
 
 void ssrlcv::transpose_cpu(float M[3][3], float (&M_t)[3][3]){
   for(int r = 0; r < 3; ++r)
