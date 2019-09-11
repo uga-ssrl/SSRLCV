@@ -27,6 +27,7 @@ OUTDIR = ./out
 
 
 _OBJS = io_util.cpp.o
+_OBJS += io_file.cu.o
 _OBJS += tinyply.cpp.o
 _OBJS += cuda_util.cu.o
 _OBJS += Feature.cu.o
@@ -41,6 +42,7 @@ _OBJS += Octree.cu.o
 _OBJS += MeshFactory.cu.o
 _OBJS += SFM.cu.o
 _SD_OBJS = io_util.cpp.o
+_SD_OBJS += io_file.cu.o
 _SD_OBJS += tinyply.cpp.o
 _SD_OBJS += cuda_util.cu.o
 _SD_OBJS += Feature.cu.o
@@ -55,6 +57,7 @@ _SD_OBJS += Octree.cu.o
 _SD_OBJS += MeshFactory.cu.o
 _SD_OBJS += StereoDisparity.cu.o
 _T_OBJS = io_util.cpp.o
+_T_OBJS += io_file.cu.o
 _T_OBJS += tinyply.cpp.o
 _T_OBJS += cuda_util.cu.o
 _T_OBJS += Feature.cu.o
