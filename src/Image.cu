@@ -6,6 +6,7 @@ __device__ __host__ ssrlcv::Image::Camera::Camera(){
   this->fov = 0;
   this->foc = 0;
   this->dpix = {0.0f,0.0f};
+  this->size = {0,0};
 }
 __device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size){
   this->cam_vec = {0.0f,0.0f,0.0f};
@@ -13,6 +14,7 @@ __device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size){
   this->fov = 0;
   this->foc = 0;
   this->dpix = {0.0f,0.0f};
+  this->size = {0,0};
 }
 __device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size, float3 cam_pos, float3 camp_dir){
   this->cam_pos = cam_pos;
@@ -20,6 +22,7 @@ __device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size, float3 cam_pos, fl
   this->fov = 0;
   this->foc = 0;
   this->dpix = {0.0f,0.0f};
+  this->size = size;
 }
 
 ssrlcv::Image::Image(){
@@ -31,6 +34,7 @@ ssrlcv::Image::Image(std::string filePath, int id){
   this->id = id;
   this->colorDepth = 1;
   unsigned char* pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  this->camera.size = this->size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
 }
 ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int id){
@@ -38,6 +42,7 @@ ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int
   this->id = id;
   this->colorDepth = 1;
   unsigned char* pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  this->camera.size = this->size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
   if(convertColorDepthTo == 1){
     convertToBW(this->pixels, this->colorDepth);
@@ -86,6 +91,8 @@ void ssrlcv::Image::alterSize(int binDepth){
   this->pixels = alteredPixels;
   this->size.x /= pow(2,binDepth);
   this->size.y /= pow(2,binDepth);
+  this->camera.size = size;
+
 
   this->pixels->fore = gpu;
   if(origin == cpu) this->pixels->setMemoryState(cpu);

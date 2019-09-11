@@ -48,11 +48,19 @@ int main(int argc, char *argv[]){
     std::cout << "Starting matching, this will take a while ..." << std::endl;
     ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1]);
 
-    matchFactory.refineMatches(distanceMatches, 0.25);
+    //matchFactory.refineMatches(distanceMatches, 0.25);
     if(distanceMatches->state != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
 
     matchFactory.sortMatches(distanceMatches);
     distanceMatches->transferMemoryTo(ssrlcv::cpu);
+
+
+    // loop
+      // make a temp match stuct; 
+      // cut from that structs
+      // output desired data
+    //
+
     std::cout << "starting sort..." << std::endl << "Top Sorted:" << std::endl;
     for (int i = 0; i < 15; i++){
       std::cout << "[" << i << "]\t" << distanceMatches->host[i].distance << std::endl;
