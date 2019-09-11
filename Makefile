@@ -18,7 +18,7 @@ NVCCFLAGS += ${COMMONFLAGS}
 NVCCFLAGS += -std=c++11
 
 # Gencode arguments
-SMS ?= 35 37 50 52 60 61 70
+SM ?= 35 37 50 52 60 61 70
 
 ifeq ($(SM),)
 $(info >>> WARNING - no SM architectures have been specified - waiving sample <<<)

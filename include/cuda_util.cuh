@@ -182,4 +182,16 @@ void getGrid(unsigned long size, dim3 &grid);
 __host__ void cusolverCheckError(cusolverStatus_t cusolver_status);
 void printDeviceProperties();
 
+
+/* We can overload the following
++ 	- 	* 	/ 	% 	^
+& 	| 	~ 	! 	, 	=
+< 	> 	<= 	>= 	++ 	--
+<< 	>> 	== 	!= 	&& 	||
++= 	-= 	/= 	%= 	^= 	&=
+|= 	*= 	<<= 	>>= 	[] 	()
+-> 	->* 	new 	new [] 	delete 	delete []
+*/
+
+
 #endif /* CUDA_UTIL_CUH */
