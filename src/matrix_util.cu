@@ -81,6 +81,21 @@ __device__ float ssrlcv::dotProduct3(float3 a, float3 b){
   return product;
 }
 
+__device__ float3 ssrlcv::matrixMulVector(float3 x, float A[3][3]){
+  float temp[3] = {x.x, x.y, x.z};
+  float b[3];
+  for (int r = 0; r < 3; ++r)
+  {
+    float val = 0;
+    for (int c = 0; c < 3; ++c)
+    {
+      val += A[r][c] * temp[c];
+    }
+    b[r] = val;
+  }
+  return {b[0], b[1], b[2]};
+}
+
 __device__ float3 ssrlcv::getVectorAngles(float3 v){
   float3 angles;
   float3 x_n = {1.0f, 0.0f, 0.0f};
@@ -104,9 +119,20 @@ __device__ float3 ssrlcv::getVectorAngles(float3 v){
   return angles;
 }
 
-__device__ float3 rotatePoint(float3 point, float3 angles) {
+__device__ float3 ssrlcv::rotatePoint(float3 point, float3 angle) {
   // this is just a 3D rotation matrix
-
+  // contains all R3 rotations multiplied together
+  float rotationMatrix[3][3];
+  rotationMatrix[0][0] = cosf(angle.y) * cosf(angle.z);
+  rotationMatrix[0][1] = -1 * cosf(angle.y) * sinf(angle.z);
+  rotationMatrix[0][2] = sinf(angle.y);
+  rotationMatrix[1][0] = sinf(angle.x) * sinf(angle.y) * cosf(angle.z) + cosf(angle.x) * sinf(angle.z);
+  rotationMatrix[1][1] = cosf(angle.x) * cosf(angle.z) - sinf(angle.x) * sinf(angle.y) * sinf(angle.z);
+  rotationMatrix[1][2] = -1 * sinf(angle.x) * cosf(angle.y);
+  rotationMatrix[2][0] = sinf(angle.x) * sinf(angle.z) - cosf(angle.x) * sinf(angle.y) * cosf(angle.z);
+  rotationMatrix[2][1] = cosf(angle.x) * sinf(angle.y) * sinf(angle.z) + sinf(angle.x) * cosf(angle.z);
+  rotationMatrix[2][2] = cosf(angle.x) * cosf(angle.y);
+  point = matrixMulVector(point, rotationMatrix);
   return point;
 }
 

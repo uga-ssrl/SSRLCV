@@ -316,6 +316,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matche
 */
 
 ssrlcv::Unity<ssrlcv::Bundle>* ssrlcv::PointCloudFactory::generateBundles(Unity<Match>* matches, std::vector<Image*> images){
+
+
+  int* lineNumbers_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&lineNumbers_device,matches->numElements*sizeof(int)));
+
+
+
+
   std::cout << "starting bundle generation ..." << std::endl;
   MemoryState origin = matches->state;
   if(origin == cpu) matches->transferMemoryTo(gpu);
@@ -394,7 +402,7 @@ __global__ void ssrlcv::generateBundle(Bundle* bundles, Match* matches, Image::C
     m[i].y = cameras[i].dpix.y * ((-1.0f * match.locations[i].y) - (cameras[i].size.y / 2.0f));
     kp[i] = {m[i].x, m[i].y, 0.0f}; // set the key point
     float3 angle = getVectorAngles(cameras[i].cam_vec);
-
+    kp[i] = rotatePoint(kp[i], angle);
   }
 
 }
@@ -507,3 +515,62 @@ __global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, floa
   	points[matchIndex].z = solution[2];
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// yee

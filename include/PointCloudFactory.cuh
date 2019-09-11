@@ -15,16 +15,27 @@ namespace ssrlcv{
    /**
     * \brief A structure to define a line my a vector and a point in R3
     */
-  struct Line {
-    float3 vec; // vector in R3
-    float3 pnt; // point in R3
+  // struct Line {
+  //   float3 vec; // vector in R3
+  //   float3 pnt; // point in R3
+  // };
+  // /*
+  //  * \brief A structure that contains lines, the collection of lines are considered a bindle and are generated from the same match set
+  //  */
+  // struct Bundle {
+  //   Line* line;
+  //   short n;
+  // };
+
+  struct Bundle{
+    struct Line{
+      float3 vec;
+      float3 pnt;
+    };
+    unsigned short numLines;
+    unsigned int lineIndex;
   };
-  /*
-   * \brief A structure that contains lines, the collection of lines are considered a bindle and are generated from the same match set
-   */
-  struct Bundle {
-    Line* line;
-  };
+
 
 
   /**
