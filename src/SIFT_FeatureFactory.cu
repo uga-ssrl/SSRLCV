@@ -52,7 +52,6 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     dim3 block = {1,1,1};
 
     clock_t timer = clock();
-
     Unity<int2>* gradients = image->getPixelGradients();
     //12x12 border
     Unity<float2>* keyPoints = new Unity<float2>(nullptr,(image->size.x-24)*(image->size.y-24),cpu);
