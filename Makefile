@@ -98,7 +98,7 @@ TESTS 				= ${TESTS_CU} ${TESTS_CPP}
 
 all: ${BINDIR}/${TARGET} ${BINDIR}/${TARGET_SD} ${BINDIR}/${TARGET_T} ${TESTS}
 
-test: all
+test: all ${TEST_OBJS}
 	./test-all
 
 $(OBJDIR):
@@ -146,11 +146,11 @@ tests/obj/%.cu.o: tests/src/%.cu
 	@${TEST_DIRS}
 	${NVCC} ${INCLUDES} ${NVCCFLAGS} -c -o $@ $<
 
-tests/bin/cpp/%: tests/obj/%.cpp.o ${OBJS}
+tests/bin/cpp/%: tests/obj/%.cpp.o ${TEST_OBJS}
 	@${TEST_DIRS}
 	${LINK} ${GENCODEFLAGS} ${LIB} ${TEST_OBJS} $< -o $@
 
-tests/bin/cu/%: tests/obj/%.cu.o ${OBJS}
+tests/bin/cu/%: tests/obj/%.cu.o ${TEST_OBJS}
 	@${TEST_DIRS}
 	${LINK} ${GENCODEFLAGS} ${LIB} ${TEST_OBJS} $< -o $@
 
