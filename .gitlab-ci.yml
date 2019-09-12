@@ -22,15 +22,28 @@
 #     - bash util/CI/unit_test02.sh
 
 stages:
+  - clean
   - build
+  - test
   - documentation
+
+clean:
+  stage: clean
+  script:
+    - make clean
+  only:
+    - merge_requests
+    - web 
 
 compile:
   stage: build
   script:
     - make -j4
-    - echo "Build successful. Testing..."
-    - bash ./test-all
+
+tests-auto:
+  stage: test
+  script:
+  - bash ./test-all
 
 pages:
   stage: documentation
