@@ -33,12 +33,12 @@ clean:
     - make clean
   only:
     - merge_requests
-    - web
+    - web 
 
 compile:
   stage: build
   script:
-    - make -j9 SM=61 # SM=61 added at Jackson's suggestion
+    - make -j4
 
 tests-auto:
   stage: test
