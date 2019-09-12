@@ -84,7 +84,20 @@ LINKLINE = ${LINK} -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,
 LINKLINE_SD = ${LINK} -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 ${SD_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SD}
 LINKLINE_T = ${LINK} -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 ${T_OBJS} ${LIB} -o ${BINDIR}/${TARGET_T}
 
+## Test sensing
+TestsIn_cpp 	= $(wildcard tests/src/*.cpp)
+TestsIn_cu 		= $(wildcard tests/src/*.cu)
+TESTS_CPP 		= $(patsubst tests/src/%.cpp, tests/bin/cpp/%, $(TestsIn_cpp))
+TESTS_CU 			= $(patsubst tests/src/%.cu, tests/bin/cu/%, $(TestsIn_cu))
+TESTS 				= ${TESTS_CU} ${TESTS_CPP}
+
 .SUFFIXES: .cpp .cu .o
+.PHONY: all clean test
+
+all: ${BINDIR}/${TARGET} ${BINDIR}/${TARGET_SD} ${BINDIR}/${TARGET_T} ${TESTS}
+
+test: all
+	./test-all
 
 all: ${BINDIR}/${TARGET} ${BINDIR}/${TARGET_SD} ${BINDIR}/${TARGET_T}
 
@@ -111,6 +124,38 @@ ${BINDIR}/%: ${OBJS} ${SD_OBJS} ${T_OBJS} Makefile
 	${LINKLINE_SD}
 	${LINKLINE_T}
 
+
+#
+# Tests
+#
+
+TEST_DIRS = mkdir -p tests/tmp; mkdir -p tests/obj; mkdir -p tests/bin/cu; mkdir -p tests/bin/cpp
+
+tests/obj/%.cpp.o: tests/src/%.cpp
+	@${TEST_DIRS}
+	${CXX} ${INCLUDES} ${CXXFLAGS}  -c -o $@ $<
+
+tests/obj/%.cu.o: tests/src/%.cu
+	@${TEST_DIRS}
+	${NVCC} ${INCLUDES} ${NVCCFLAGS} -c -o $@ $<
+
+tests/bin/cpp/%: tests/obj/%.cpp.o ${OBJS}
+	@${TEST_DIRS}
+	${LINK} ${LINKFLAGS} ${LIB} ${OBJS} $< -o $@
+
+tests/bin/cu/%: tests/obj/%.cu.o ${OBJS}
+	@${TEST_DIRS}
+	${LINK} ${LINKFLAGS} ${LIB} ${OBJS} $< -o $@
+
+
+
+
+
+
+#
+# Clean
+#
+
 clean:
 	rm -f out/*.ply
 	rm -f bin/*
@@ -127,3 +172,6 @@ clean:
 	rm -f *.~
 	rm -f *.kp
 	rm -f *.txt
+	rm -rf tests/obj
+	rm -rf tests/tmp
+	rm -rf tests/bin 

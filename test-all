@@ -1,0 +1,47 @@
+#!/bin/bash
+
+ctPass=0
+ctFail=0
+
+function run-tests
+{
+  for exe in "$*"; do
+    [ -e "$exe" ] || continue
+
+    { $1 2>&1; } 2> /dev/null
+
+    if [ $? -ne 0 ]; then
+      echo "[X] $1 failed."
+      let "ctFail++"
+    else
+      echo "[ ] $1 passed."
+      let "ctPass++"
+    fi
+  done
+}
+
+echo "--------------------"
+echo "Running C++ tests..."
+echo "--------------------"
+echo
+run-tests tests/bin/cpp/*
+
+
+echo "---------------------"
+echo "Running CUDA tests..."
+echo "---------------------"
+echo
+run-tests tests/bin/cu/*
+
+let "total=ctPass+ctFail"
+let "passpct=ctPass/total*100"
+
+echo
+echo "--  --  --  --  --  --  --  --"
+if [[ $ctFail == 0 ]]; then
+  echo "All $total tests passed."
+  exit 0
+else
+  echo "$ctPass of $total tests passed [$passpct%, $ctFail failures]"
+  exit 1
+fi

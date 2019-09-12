@@ -12,7 +12,7 @@ namespace ssrlcv{
     this->binary = binary;
   }
 
-  void WriterPLY::Write()
+  void WriterPLY::write()
   {
     //TODO: err
     std::ofstream file;

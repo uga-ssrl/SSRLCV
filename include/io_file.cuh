@@ -23,7 +23,7 @@ namespace ssrlcv{
     bool octreeVertices = true, octreeEdges = true;
     bool octreeCenters = false, octreeNormals = false;
 
-    virtual void Write() = 0;
+    virtual void write() = 0;
   };
 
   class WriterPLY : public Writer3d
@@ -33,7 +33,7 @@ namespace ssrlcv{
     bool binary = true;
   public:
     WriterPLY(const char * path, bool binary = true);
-    void Write();
+    void write();
   };
 
 

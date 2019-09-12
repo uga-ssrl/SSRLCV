@@ -279,6 +279,11 @@ bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out)
   //  but I think it's best to shy away from that as we don't know how the compiler will handle struct padding
 }
 
+
+//
+// Old PLY code
+//
+
 void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
   MemoryState origin = points->state;
   if(origin == gpu) points->transferMemoryTo(cpu);
