@@ -1,4 +1,4 @@
-#include "io_file.cuh"
+#include "io_3d.cuh"
 #include "tinyply.h"
 
 #include "testing.h"

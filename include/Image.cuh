@@ -34,6 +34,7 @@ namespace ssrlcv{
       float foc;/**\brief focal length of camera*/
       float2 dpix;/**\brief real world size of each pixel*/
       long long int timeStamp;/**\brief seconds since Jan 01, 1070*/
+      uint2 size; /**identical to the image size param, but used in GPU camera modification methods */
       __device__ __host__ Camera();
       __device__ __host__ Camera(uint2 size);
       __device__ __host__ Camera(uint2 size, float3 cam_pos, float3 camp_dir);
@@ -53,7 +54,11 @@ namespace ssrlcv{
 
     void convertColorDepthTo(unsigned int colorDepth);
     Unity<int2>* getPixelGradients();
-    void alterSize(int binDepth);
+    /**
+    *\breif This method will either bin or upsample an image based on the scaling factor
+    *\param scalingFactor if >= 1 binning will occur if <= -1 upsampling will occur
+    */
+    void alterSize(int scalingFactor);
 
     // Binary camera params [Gitlab #58]
     void bcp_in(bcpFormat data) {
@@ -74,14 +79,26 @@ namespace ssrlcv{
 
   };
 
-
+  /**
+  *\brief generate int2 gradients for each pixel
+  */
   Unity<int2>* generatePixelGradients(uint2 imageSize, Unity<unsigned char>* pixels);
+  /**
+  *\brief bins an image by a factor of 2 in the x and y direction
+  */
   Unity<unsigned char>* bin(uint2 imageSize, unsigned int colorDepth, Unity<unsigned char>* pixels);
+  /**
+  *\brief upsamples and image by a factor of 2 in the x and y directions
+  */
+  Unity<unsigned char>* upsample(uint2 imageSize, unsigned int colorDepth, Unity<unsigned char>* pixels);
+  /**
+  *\brief same as bin and upsample without constraining scaling to factor of two
+  */
+  Unity<unsigned char>* scaleImage(uint2 imageSize, unsigned int colorDepth, Unity<unsigned char>* pixels, float outputPixelWidth);
   Unity<unsigned char>* convolve(uint2 imageSize, Unity<unsigned char>* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel);
 
   void convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth);
   void convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth);
-
 
   void calcFundamentalMatrix_2View(Image* query, Image* target, float3 *F);
   void get_cam_params2view(Image* cam1, Image* cam2, std::string infile);
@@ -110,6 +127,8 @@ namespace ssrlcv{
 
 
   __global__ void binImage(uint2 imageSize, unsigned int colorDepth, unsigned char* pixels, unsigned char* binnedImage);
+  __global__ void upsampleImage(uint2 imageSize, unsigned int colorDepth, unsigned char* pixels, unsigned char* upsampledImage);
+  __global__ void bilinearInterpolation(uint2 imageSize, unsigned int colorDepth, unsigned char* pixels, unsigned char* outputPixels, float outputPixelWidth);
   __global__ void convolveImage(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage, float* min, float* max);
   __global__ void convertToCharImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels, float* min, float* max);
   __global__ void applyBorder(uint2 imageSize, unsigned int* featureNumbers, unsigned int* featureAddresses, float2 border);
