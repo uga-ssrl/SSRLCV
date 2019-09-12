@@ -6,20 +6,30 @@ ctFail=0
 function run-tests
 {
   for exe in "$*"; do
-    [ -e "$exe" ] || continue
+    # StackOverflow told me to do this: https://stackoverflow.com/a/43606356
+    [ -x "$exe" ] || continue
 
+    # Making sure there aren't any stale tests
+    src=${exe##*/}
+    if [[ "$exe" == "tests/bin/cu/"* ]]; then src="$src.cu"; else src="$src.cpp"; fi
+    src="tests/src/$src"
+    echo $src
+    if [ ! -e "$src" ]; then echo "[!] $exe does not have a corresponding file $src"; fi
+
+    # Running the test - we do it in the {} wrapper so that it doesn't confuse the shell's stderr with that of the program itself.  This supresses "core dumped" messages
     { $1 2>&1; } 2> /dev/null
 
     if [ $? -ne 0 ]; then
-      echo "[X] $1 failed."
+      echo "[X] $exe failed."
       let "ctFail++"
     else
-      echo "[ ] $1 passed."
+      echo "[ ] $exe passed."
       let "ctPass++"
     fi
   done
 }
 
+echo
 echo "--------------------"
 echo "Running C++ tests..."
 echo "--------------------"
@@ -27,6 +37,7 @@ echo
 run-tests tests/bin/cpp/*
 
 
+echo
 echo "---------------------"
 echo "Running CUDA tests..."
 echo "---------------------"
@@ -34,14 +45,17 @@ echo
 run-tests tests/bin/cu/*
 
 let "total=ctPass+ctFail"
-let "passpct=ctPass/total*100"
 
 echo
 echo "--  --  --  --  --  --  --  --"
 if [[ $ctFail == 0 ]]; then
-  echo "All $total tests passed."
+  echo "All $total test(s) passed."
+  exit 0
+elif [[ $total == 0 ]]; then
+  echo "No tests were run."
   exit 0
 else
+  let "passpct=ctPass/total*100"
   echo "$ctPass of $total tests passed [$passpct%, $ctFail failures]"
   exit 1
 fi

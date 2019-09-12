@@ -29,7 +29,8 @@ compile:
   stage: build
   script:
     - make -j4
-    - echo "Build successful"
+    - echo "Build successful. Testing..."
+    - bash ./test-all
 
 pages:
   stage: documentation
