@@ -32,14 +32,24 @@ namespace ssrlcv{
   __device__ __forceinline__ float calcElucidSq(const SIFT_Descriptor& a, const SIFT_Descriptor& b, const float &bestMatch);
 
 
+  /**
+  * \brief simple struct meant to fill out matches
+  */
+  struct KeyPoint{
+    int parentId;
+    float2 loc;
+  };
 
+  struct KeyPointSet{
+    unsigned int numElements;
+    unsigned int index;
+  };
 
   /**
   * \brief base Match struct pair of keypoints
   */
   struct Match{
-    int parentIds[2];
-    float2 locations[2];
+    KeyPoint keyPoints[2];
   };
   /**
   * \brief derived Match struct with distance

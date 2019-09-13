@@ -26,7 +26,7 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::DMatch>* match
     if(matches->host[i].distance > max) max = matches->host[i].distance;
   }
 
-  if(origin == gpu) matches->clear(cpu); 
+  if(origin == gpu) matches->clear(cpu);
 
   thrust::device_ptr<DMatch> needsCompacting(matches->device);
   thrust::device_ptr<DMatch> end = thrust::remove_if(needsCompacting, needsCompacting + matches->numElements, match_dist_thresholder((max-min)*cutoffRatio + min));
@@ -632,10 +632,10 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches){
       }
     }
     Match match;
-    match.locations[0] = feature.loc;
-    match.locations[1] = featuresTarget[matchIndex].loc;
-    match.parentIds[0] = queryImageID;
-    match.parentIds[1] = targetImageID;
+    match.keyPoints[0].loc = feature.loc;
+    match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
+    match.keyPoints[0].parentId = queryImageID;
+    match.keyPoints[1].parentId = targetImageID;
     matches[blockId] = match;
   }
 }
@@ -671,10 +671,10 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches){
       }
     }
     DMatch match;
-    match.locations[0] = feature.loc;
-    match.locations[1] = featuresTarget[matchIndex].loc;
-    match.parentIds[0] = queryImageID;
-    match.parentIds[1] = targetImageID;
+    match.keyPoints[0].loc = feature.loc;
+    match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
+    match.keyPoints[0].parentId = queryImageID;
+    match.keyPoints[1].parentId = targetImageID;
     match.distance = currentDist;
     matches[blockId] = match;
   }
@@ -713,10 +713,10 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches){
     FeatureMatch<T> match;
     match.descriptors[0] = feature.descriptor;
     match.descriptors[1] = featuresTarget[matchIndex].descriptor;
-    match.locations[0] = feature.loc;
-    match.locations[1] = featuresTarget[matchIndex].loc;
-    match.parentIds[0] = queryImageID;
-    match.parentIds[1] = targetImageID;
+    match.keyPoints[0].loc = feature.loc;
+    match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
+    match.keyPoints[0].parentId = queryImageID;
+    match.keyPoints[1].parentId = targetImageID;
     match.distance = currentDist;
     matches[blockId] = match;
   }
@@ -770,10 +770,10 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float epsilon, float3 fundam
       }
     }
     Match match;
-    match.locations[0] = feature.loc;
-    match.locations[1] = featuresTarget[matchIndex].loc;
-    match.parentIds[0] = queryImageID;
-    match.parentIds[1] = targetImageID;
+    match.keyPoints[0].loc = feature.loc;
+    match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
+    match.keyPoints[0].parentId = queryImageID;
+    match.keyPoints[1].parentId = targetImageID;
     matches[blockId] = match;
   }
 }
@@ -825,10 +825,10 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, float3 funda
       }
     }
     DMatch match;
-    match.locations[0] = feature.loc;
-    match.locations[1] = featuresTarget[matchIndex].loc;
-    match.parentIds[0] = queryImageID;
-    match.parentIds[1] = targetImageID;
+    match.keyPoints[0].loc = feature.loc;
+    match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
+    match.keyPoints[0].parentId = queryImageID;
+    match.keyPoints[1].parentId = targetImageID;
     match.distance = currentDist;
     matches[blockId] = match;
   }
@@ -883,10 +883,10 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float epsi
     FeatureMatch<T> match;
     match.descriptors[0] = feature.descriptor;
     match.descriptors[1] = featuresTarget[matchIndex].descriptor;
-    match.locations[0] = feature.loc;
-    match.locations[1] = featuresTarget[matchIndex].loc;
-    match.parentIds[0] = queryImageID;
-    match.parentIds[1] = targetImageID;
+    match.keyPoints[0].loc = feature.loc;
+    match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
+    match.keyPoints[0].parentId = queryImageID;
+    match.keyPoints[1].parentId = targetImageID;
     match.distance = currentDist;
     matches[blockId] = match;
   }
@@ -905,10 +905,10 @@ uint2 targetSize, unsigned long numFeaturesTarget, ssrlcv::Feature<T>* featuresT
 
     //this now needs to be actual indices to contributers
     int2 contrib = {((int)threadIdx.x) - 4, ((int)threadIdx.y) - 4};
-    int contribQuery = findSubPixelContributer(match.locations[0] + contrib, querySize.x);
-    int contribTarget = findSubPixelContributer(match.locations[1] + contrib, targetSize.x);
+    int contribQuery = findSubPixelContributer(match.keyPoints[0].loc + contrib, querySize.x);
+    int contribTarget = findSubPixelContributer(match.keyPoints[1].loc + contrib, targetSize.x);
 
-    int pairedMatchIndex = findSubPixelContributer(match.locations[1], targetSize.x);
+    int pairedMatchIndex = findSubPixelContributer(match.keyPoints[1].loc, targetSize.x);
 
     bool foundM1 = false;
     bool foundM2 = false;
@@ -1037,8 +1037,8 @@ __global__ void ssrlcv::determineSubPixelLocationsBruteForce(float increment, un
     atomicMinFloat(&minimum, localMin);
     __syncthreads();
     if(localMin == minimum){
-      if(blockId%2 == 0) matches[blockId/2].locations[0]  = localSubLoc + matches[blockId/2].locations[0];
-      else matches[blockId/2].locations[1] = localSubLoc + matches[blockId/2].locations[1];
+      if(blockId%2 == 0) matches[blockId/2].keyPoints[0].loc  = localSubLoc + matches[blockId/2].keyPoints[0].loc;
+      else matches[blockId/2].keyPoints[1].loc = localSubLoc + matches[blockId/2].keyPoints[1].loc;
     }
     else return;
   }

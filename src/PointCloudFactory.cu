@@ -398,8 +398,8 @@ __global__ void ssrlcv::generateBundle(Bundle* bundles, Match* matches, Image::C
   for (int i = 0; i < cam_num; i++ ){
     cameras[i].dpix.x = (cameras[i].foc * tanf(cameras[i].fov / 2.0f)) / (cameras[i].size.x / 2.0f );
     cameras[i].dpix.y = cameras[i].dpix.x; // assume square pixel for now
-    m[i].x = cameras[i].dpix.x * ((        match.locations[i].x) - (cameras[i].size.x / 2.0f));
-    m[i].y = cameras[i].dpix.y * ((-1.0f * match.locations[i].y) - (cameras[i].size.y / 2.0f));
+    m[i].x = cameras[i].dpix.x * ((        match.keyPoints[i].loc.x) - (cameras[i].size.x / 2.0f));
+    m[i].y = cameras[i].dpix.y * ((-1.0f * match.keyPoints[i].loc.y) - (cameras[i].size.y / 2.0f));
     kp[i] = {m[i].x, m[i].y, 0.0f}; // set the key point
     float3 angle = getVectorAngles(cameras[i].cam_vec);
     kp[i] = rotatePoint(kp[i], angle);
@@ -411,8 +411,8 @@ __global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, f
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if (globalID < numMatches) {
     Match match = matches[globalID];
-    float3 point = {match.locations[0].x,match.locations[0].y,0.0f};
-    point.z = sqrtf(scale*dotProduct({match.locations[0]-match.locations[1]},{match.locations[0]-match.locations[1]}));
+    float3 point = {match.keyPoints[0].loc.x,match.keyPoints[0].loc.y,0.0f};
+    point.z = sqrtf(scale*dotProduct({match.keyPoints[0].loc-match.keyPoints[1].loc},{match.keyPoints[0].loc-match.keyPoints[1].loc}));
     points[globalID] = point;
   }
 }
