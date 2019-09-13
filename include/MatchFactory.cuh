@@ -40,9 +40,20 @@ namespace ssrlcv{
     float2 loc;
   };
 
-  struct KeyPointSet{
-    unsigned int numElements;
-    unsigned int index;
+  /**
+  * \brief struct for holding reference to keypoints that make up multiview match
+  */
+  struct MultiMatch{
+    unsigned int numKeyPoints;
+    int index;
+  };
+
+  /**
+  * \brief struct to pass around MultiMatches and KeyPoint sets
+  */
+  struct MatchSet{
+    Unity<KeyPoint>* keyPoints;
+    Unity<MultiMatch>* matches;
   };
 
   /**

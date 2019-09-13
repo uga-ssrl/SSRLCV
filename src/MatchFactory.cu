@@ -2,7 +2,6 @@
 
 template class ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>;
 
-
 template<typename T>
 ssrlcv::MatchFactory<T>::MatchFactory(){
 

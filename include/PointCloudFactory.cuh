@@ -32,8 +32,13 @@ namespace ssrlcv{
       float3 vec;
       float3 pnt;
     };
-    unsigned short numLines;
-    unsigned int lineIndex;
+    unsigned int numLines;
+    int index;
+  };
+
+  struct BundleSet{
+    Unity<Bundle::Line>* lines;
+    Unity<Bundle>* bundles;
   };
 
 
@@ -50,13 +55,15 @@ namespace ssrlcv{
     // this is not a good name anymore
     //Unity<float3>* reproject(Unity<Match>* matches, Image* target, Image* query);
 
-    ssrlcv::Unity<Bundle>* generateBundles(Unity<Match>* matches, std::vector<ssrlcv::Image*> images);
+    BundleSet generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images);
 
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float scale);
 
   };
 
-  __global__ void generateBundle(Bundle* bundles, Match* matches, Image::Camera* cameras, int cam_num, int match_num);
+
+
+  __global__ void generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras);
 
   __global__ void computeStereo(unsigned int numMatches, Match* matches, float3* points, float scale);
 

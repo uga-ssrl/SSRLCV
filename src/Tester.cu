@@ -67,7 +67,18 @@ int main(int argc, char *argv[]){
 
     // test the line gen method
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
-    ssrlcv::Unity<ssrlcv::Bundle>* bundles = demPoints.generateBundles(matches,images_vec);
+
+    //match interpolation method will take the place of this here. 
+    ssrlcv::MatchSet matchSet;
+    matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->numElements*2,ssrlcv::cpu);
+    matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->numElements,ssrlcv::cpu);
+    for(int i = 0; i < matches->numElements; ++i){
+      matchSet.keyPoints->host[i*2] = matches->host[i].keyPoints[0];
+      matchSet.keyPoints->host[i*2 + 1] = matches->host[i].keyPoints[1];
+      matchSet.matches->host[i] = {2,i*2};
+    }
+
+    ssrlcv::BundleSet bundles = demPoints.generateBundles(&matchSet,images_vec);
 
     std::cout << "WOW!! look at these bundles: " << std::endl;
 
@@ -79,10 +90,6 @@ int main(int argc, char *argv[]){
     return 0;
   }
   catch (const std::exception &e){
-      std::cerr << "Caught exception: " << e.what() << '\n';
-      std::exit(1);
-  }
-  catch (const ssrlcv::UnityException &e){
       std::cerr << "Caught exception: " << e.what() << '\n';
       std::exit(1);
   }
