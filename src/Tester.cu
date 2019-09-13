@@ -60,10 +60,10 @@ int main(int argc, char *argv[]){
     std::cout << "Filling in Matches ..." << std::endl;
     ssrlcv::Match* matches_host = new ssrlcv::Match[1];
     ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 1, ssrlcv::cpu);
-    matches->host[0].parentIds[0] = 0;
-    matches->host[0].parentIds[1] = 1;
-    matches->host[0].locations[0] = {10.0,10.0};
-    matches->host[0].locations[0] = {10.0,10.0};
+    matches->host[0].keyPoints[0].parentId = 0;
+    matches->host[0].keyPoints[1].parentId = 1;
+    matches->host[0].keyPoints[0].loc = {10.0,10.0};
+    matches->host[0].keyPoints[1].loc = {10.0,10.0};
 
     // test the line gen method
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
