@@ -51,7 +51,8 @@ BINDIR = ./bin
 OUTDIR = ./out
 
 
-BASE_OBJS = io_util.cpp.o
+BASE_OBJS  = io_util.cpp.o
+BASE_OBJS += io_3d.cu.o
 BASE_OBJS += tinyply.cpp.o
 BASE_OBJS += cuda_util.cu.o
 BASE_OBJS += Feature.cu.o
@@ -75,6 +76,7 @@ _T_OBJS += Tester.cu.o
 SFM_OBJS = ${patsubst %, ${OBJDIR}/%, ${_SFM_OBJS}}
 SD_OBJS = ${patsubst %, ${OBJDIR}/%, ${_SD_OBJS}}
 T_OBJS = ${patsubst %, ${OBJDIR}/%, ${_T_OBJS}}
+TEST_OBJS = ${patsubst %, ${OBJDIR}/%, ${BASE_OBJS}}
 
 TARGET_SFM = SFM
 TARGET_SD = StereoDisparity
@@ -84,9 +86,20 @@ LINKLINE = ${LINK} ${GENCODEFLAGS} ${SFM_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SFM}
 LINKLINE_SD = ${LINK} ${GENCODEFLAGS} ${SD_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SD}
 LINKLINE_T = ${LINK} ${GENCODEFLAGS} ${T_OBJS} ${LIB} -o ${BINDIR}/${TARGET_T}
 
-.SUFFIXES: .cpp .cu .o
+## Test sensing
+TestsIn_cpp 	= $(wildcard tests/src/*.cpp)
+TestsIn_cu 		= $(wildcard tests/src/*.cu)
+TESTS_CPP 		= $(patsubst tests/src/%.cpp, tests/bin/cpp/%, $(TestsIn_cpp))
+TESTS_CU 			= $(patsubst tests/src/%.cu, tests/bin/cu/%, $(TestsIn_cu))
+TESTS 				= ${TESTS_CU} ${TESTS_CPP}
 
-all: ${BINDIR}/${TARGET_SFM} ${BINDIR}/${TARGET_SD} ${BINDIR}/${TARGET_T}
+.SUFFIXES: .cpp .cu .o
+.PHONY: all clean test
+
+all: ${BINDIR}/${TARGET} ${BINDIR}/${TARGET_SD} ${BINDIR}/${TARGET_T} ${TESTS}
+
+test: all ${TEST_OBJS}
+	./test-all
 
 $(OBJDIR):
 	    -mkdir -p $(OBJDIR)
@@ -100,16 +113,55 @@ $(OUTDIR):
 #-------------------------------------------------------------
 #  Cuda Cuda Reconstruction
 #
+
+# Compiling
 ${OBJDIR}/%.cu.o: ${SRCDIR}/%.cu
 	${NVCC} ${INCLUDES} ${NVCCFLAGS} -dc $< -o $@
 
 ${OBJDIR}/%.cpp.o: ${SRCDIR}/%.cpp
 	${CXX} ${INCLUDES} ${CXXFLAGS} -c $< -o $@
 
-${BINDIR}/%: ${SFM_OBJS} ${SD_OBJS} ${T_OBJS} Makefile
+# Linking targets
+${BINDIR}/${TARGET_SFM}: ${SFM_OBJS} Makefile
 	${LINKLINE}
+
+${BINDIR}/${TARGET_SD}: ${SD_OBJS} Makefile
 	${LINKLINE_SD}
+
+${BINDIR}/${TARGET_T}: ${T_OBJS} Makefile
 	${LINKLINE_T}
+
+
+#
+# Tests
+#
+
+TEST_DIRS = mkdir -p tests/tmp; mkdir -p tests/obj; mkdir -p tests/bin/cu; mkdir -p tests/bin/cpp
+
+tests/obj/%.cpp.o: tests/src/%.cpp
+	@${TEST_DIRS}
+	${CXX} ${INCLUDES} ${CXXFLAGS}  -c -o $@ $<
+
+tests/obj/%.cu.o: tests/src/%.cu
+	@${TEST_DIRS}
+	${NVCC} ${INCLUDES} ${NVCCFLAGS} -c -o $@ $<
+
+tests/bin/cpp/%: tests/obj/%.cpp.o ${TEST_OBJS}
+	@${TEST_DIRS}
+	${LINK} ${GENCODEFLAGS} ${LIB} ${TEST_OBJS} $< -o $@
+
+tests/bin/cu/%: tests/obj/%.cu.o ${TEST_OBJS}
+	@${TEST_DIRS}
+	${LINK} ${GENCODEFLAGS} ${LIB} ${TEST_OBJS} $< -o $@
+
+
+
+
+
+
+#
+# Clean
+#
 
 clean:
 	rm -f out/*
@@ -127,3 +179,6 @@ clean:
 	rm -f *.~
 	rm -f *.kp
 	rm -f *.txt
+	rm -rf tests/obj
+	rm -rf tests/tmp
+	rm -rf tests/bin
