@@ -315,18 +315,16 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matche
 }
 */
 
-ssrlcv::Unity<ssrlcv::Bundle>* ssrlcv::PointCloudFactory::generateBundles(Unity<Match>* matches, std::vector<Image*> images){
+ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
 
 
-  int* lineNumbers_device = nullptr;
-  CudaSafeCall(cudaMalloc((void**)&lineNumbers_device,matches->numElements*sizeof(int)));
-
-
-
+  Unity<Bundle>* bundles = new Unity<Bundle>(nullptr,matchSet->matches->numElements,gpu);
+  Unity<Bundle::Line>* lines = new Unity<Bundle::Line>(nullptr,matchSet->keyPoints->numElements,gpu);
 
   std::cout << "starting bundle generation ..." << std::endl;
-  MemoryState origin = matches->state;
-  if(origin == cpu) matches->transferMemoryTo(gpu);
+  MemoryState origin[2] = {matchSet->matches->state,matchSet->keyPoints->state};
+  if(origin[0] == cpu) matchSet->matches->transferMemoryTo(gpu);
+  if(origin[1] == cpu) matchSet->keyPoints->transferMemoryTo(gpu);
   // the cameras
   size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
   // fill the cam boi
@@ -336,20 +334,32 @@ ssrlcv::Unity<ssrlcv::Bundle>* ssrlcv::PointCloudFactory::generateBundles(Unity<
     h_cameras[i] = images.at(i)->camera;
   }
   ssrlcv::Image::Camera* d_cameras;
-  cudaMalloc(&d_cameras, cam_bytes);
+  CudaSafeCall(cudaMalloc(&d_cameras, cam_bytes));
   // copy the othe guy
-  cudaMemcpy(d_cameras, h_cameras, cam_bytes, cudaMemcpyHostToDevice);
-  // the bundles
-  Unity<Bundle>* bundles = new Unity<Bundle>(nullptr,matches->numElements,cpu);
-  bundles->transferMemoryTo(gpu);
-  //
-  int blockSize = 1024;
-  int gridSize = (int) ceil((float) matches->numElements / blockSize);
+  CudaSafeCall(cudaMemcpy(d_cameras, h_cameras, cam_bytes, cudaMemcpyHostToDevice));
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(bundles->numElements,grid,block);
+
+  //in this kernel fill lines and bundles from keyPoints and matches
+
+  generateBundle<<<grid, block>>>(bundles->numElements,bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+  
+
   // call the boi
-  generateBundle<<<gridSize, blockSize>>>(bundles->device, matches->device, d_cameras, images.size(), matches->numElements);
   bundles->transferMemoryTo(cpu);
   bundles->clear(gpu);
-  return bundles;
+
+  BundleSet bundleSet = {lines,bundles};
+
+  if(origin[0] == cpu) matchSet->matches->setMemoryState(cpu);
+  if(origin[1] == cpu) matchSet->keyPoints->setMemoryState(cpu);
+
+  return bundleSet;
 }
 
 
@@ -388,22 +398,34 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
 
 // device methods
 
-__global__ void ssrlcv::generateBundle(Bundle* bundles, Match* matches, Image::Camera* cameras, int cam_num, int match_num){
+
+__global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
-  Match match = matches[globalID];
-  // scale my dudes << throwback
-  float2* m  = new float2[cam_num]();
-  float3* kp = new float3[cam_num]();
+  MultiMatch match = matches[globalID];
+
+  float3* kp = new float3[match.numKeyPoints]();
   // calcualte dpix and fill the m values at scale
-  for (int i = 0; i < cam_num; i++ ){
-    cameras[i].dpix.x = (cameras[i].foc * tanf(cameras[i].fov / 2.0f)) / (cameras[i].size.x / 2.0f );
-    cameras[i].dpix.y = cameras[i].dpix.x; // assume square pixel for now
-    m[i].x = cameras[i].dpix.x * ((        match.keyPoints[i].loc.x) - (cameras[i].size.x / 2.0f));
-    m[i].y = cameras[i].dpix.y * ((-1.0f * match.keyPoints[i].loc.y) - (cameras[i].size.y / 2.0f));
-    kp[i] = {m[i].x, m[i].y, 0.0f}; // set the key point
-    float3 angle = getVectorAngles(cameras[i].cam_vec);
-    kp[i] = rotatePoint(kp[i], angle);
+  int end =  match.numKeyPoints + match.index;
+  KeyPoint currentKP = {-1,{0.0f,0.0f}};
+  for (int i = match.index; i < end; i++){
+    currentKP = keyPoints[i];
+    cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
+    cameras[currentKP.parentId].dpix.y = cameras[currentKP.parentId].dpix.x; // assume square pixel for now
+
+    kp[i] = {
+      cameras[currentKP.parentId].dpix.x * ((currentKP.loc.x) - (cameras[currentKP.parentId].size.x / 2.0f)), 
+      cameras[currentKP.parentId].dpix.y * ((-1.0f * currentKP.loc.y) - (cameras[currentKP.parentId].size.y / 2.0f)), 
+      0.0f
+    }; // set the key point
+    kp[i] = rotatePoint(kp[i], getVectorAngles(cameras[currentKP.parentId].cam_vec));
   }
+
+  //fill bundles
+  bundles[globalID] = {match.numKeyPoints,match.index};
+
+  //fill lines
+
+
 
 }
 
