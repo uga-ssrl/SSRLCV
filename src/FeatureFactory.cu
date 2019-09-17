@@ -13,11 +13,6 @@ ssrlcv::FeatureFactory::~FeatureFactory(){
 
 }
 
-ssrlcv::FeatureFactory::ScaleSpace* ssrlcv::FeatureFactory::generateScaleSpace(Image* image, int startingOctave, uint2 size, float initialSigma, float2 sigmaMultiplier, int2 kernelSize){
-    return new ScaleSpace(image,startingOctave,size,initialSigma,sigmaMultiplier,kernelSize);
-}
-
-
 ssrlcv::FeatureFactory::ScaleSpace::ScaleSpace(){
     this->depth = {0,0};
     this->parentOctave = -1;

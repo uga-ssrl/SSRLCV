@@ -80,6 +80,7 @@ namespace ssrlcv{
     * \todo implement
     */
     ScaleSpace* generateScaleSpace(Image* image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize);
+    float2* findKeyPoints(ScaleSpace* scaleSpace);//add other variables for filtering keypoints
 
   };
 
