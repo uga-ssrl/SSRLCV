@@ -406,18 +406,20 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   MultiMatch match = matches[globalID];
   float3* kp = new float3[match.numKeyPoints]();
-  int end =  match.numKeyPoints + match.index;
+  int end =  (int)match.numKeyPoints + match.index;
   KeyPoint currentKP = {-1,{0.0f,0.0f}};
   bundles[globalID] = {match.numKeyPoints,match.index};
   for (int i = match.index, k = 0; i < end; i++,k++){
     currentKP = keyPoints[i];
+    printf("[%lu][%d] camera vec: <%f,%f,%f>\n", globalID,k, cameras[currentKP.parentId].cam_vec.x,cameras[currentKP.parentId].cam_vec.y,cameras[currentKP.parentId].cam_vec.z);
     cameras[currentKP.parentId].cam_vec = normalizeVector(cameras[currentKP.parentId].cam_vec);
+    printf("[%lu][%d] norm camera vec: <%f,%f,%f>\n", globalID,k, cameras[currentKP.parentId].cam_vec.x,cameras[currentKP.parentId].cam_vec.y,cameras[currentKP.parentId].cam_vec.z);
     // set dpix values
-    //printf("[%d] dpix calc dump: (foc: %f) (fov: %f) (tanf: %f) (size: %d) \n", globalID, cameras[currentKP.parentId].foc, cameras[currentKP.parentId].fov, tanf(cameras[currentKP.parentId].fov / 2.0f), cameras[currentKP.parentId].size.x);
+    printf("[%lu][%d] dpix calc dump: (foc: %f) (fov: %f) (tanf: %f) (size: %d) \n", globalID,k, cameras[currentKP.parentId].foc, cameras[currentKP.parentId].fov, tanf(cameras[currentKP.parentId].fov / 2.0f), cameras[currentKP.parentId].size.x);
     cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
     cameras[currentKP.parentId].dpix.y = cameras[currentKP.parentId].dpix.x; // assume square pixel for now
     // temp
-    //printf("[%d] dpix calculated as: %f \n", globalID, cameras[currentKP.parentId].dpix.x);
+    printf("[%lu][%d] dpix calculated as: %f \n", globalID,k, cameras[currentKP.parentId].dpix.x);
 
     kp[k] = {
       cameras[currentKP.parentId].dpix.x * ((currentKP.loc.x) - (cameras[currentKP.parentId].size.x / 2.0f)),
@@ -425,20 +427,22 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
       0.0f
     }; // set the key point
 
-    //printf("[%d] kp, pre-rotation: (%f,%f,%f) \n", globalID, kp[k].x, kp[k].y, kp[k].z);
+    printf("[%lu][%d] kp, pre-rotation: (%f,%f,%f) \n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
     kp[k] = rotatePoint(kp[k], getVectorAngles(cameras[currentKP.parentId].cam_vec));
-    //printf("[%d] kp, post-rotation: (%f,%f,%f) \n", globalID, kp[k].x, kp[k].y, kp[k].z);
+    printf("[%lu][%d] kp, angles: (%f,%f,%f) \n", globalID,k, getVectorAngles(cameras[currentKP.parentId].cam_vec).x, getVectorAngles(cameras[currentKP.parentId].cam_vec).y, getVectorAngles(cameras[currentKP.parentId].cam_vec).z);
+    printf("[%lu][%d] kp, post-rotation: (%f,%f,%f) \n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
     // NOTE: will need to adjust foc with scale or x/y component here in the future
     kp[k].x = cameras[currentKP.parentId].cam_pos.x - (kp[k].x + (cameras[currentKP.parentId].cam_vec.x * cameras[currentKP.parentId].foc));
     kp[k].y = cameras[currentKP.parentId].cam_pos.y - (kp[k].y + (cameras[currentKP.parentId].cam_vec.y * cameras[currentKP.parentId].foc));
     kp[k].z = cameras[currentKP.parentId].cam_pos.z - (kp[k].z + (cameras[currentKP.parentId].cam_vec.z * cameras[currentKP.parentId].foc));
+    printf("[%lu][%d] kp in R3: (%f,%f,%f)\n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
     lines[i].vec = {
       cameras[currentKP.parentId].cam_pos.x - kp[k].x,
       cameras[currentKP.parentId].cam_pos.y - kp[k].y,
       cameras[currentKP.parentId].cam_pos.z - kp[k].z
     };
     lines[i].vec = normalizeVector(lines[i].vec);
-    //printf("[%d] %f,%f,%f\n",i,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z);
+    printf("[%lu][%d] %f,%f,%f\n",globalID,k,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z);
     lines[i].pnt = cameras[currentKP.parentId].cam_pos;
   }
 }
