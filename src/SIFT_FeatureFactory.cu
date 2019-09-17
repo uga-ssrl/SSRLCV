@@ -52,9 +52,17 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     dim3 block = {1,1,1};
 
     clock_t timer = clock();
+    Unity<int2>* gradients = image->getPixelGradients();
+    //12x12 border
+    Unity<float2>* keyPoints = new Unity<float2>(nullptr,(image->size.x-24)*(image->size.y-24),cpu);
 
-    Unity<int2>* gradients = generatePixelGradients(image);
-    Unity<float2>* keyPoints = getLocationsWithinBorder(image->size, {12.0f,12.0f});
+    for(int y = 0; y < image->size.y-24; ++y){
+      for(int x = 0; x < image->size.x-24; ++x){
+        keyPoints->host[y*(image->size.x-24) + x] = {x + 12.0f, y + 12.0f};
+      }
+    }
+    //will free cpu memory and instantiate gpu memory
+    keyPoints->setMemoryState(gpu);
 
     printf("\nDense SIFT prep done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 

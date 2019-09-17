@@ -8,6 +8,7 @@
 
 int main(int argc, char *argv[]){
   try{
+
     //CUDA INITIALIZATION
     cuInit(0);
     clock_t totalTimer = clock();
@@ -15,7 +16,7 @@ int main(int argc, char *argv[]){
 
     //ARG PARSING
     if(argc < 2 || argc > 4){
-      std::cout<<"USAGE ./bin/SFM </path/to/image/directory/>"<<std::endl;
+      std::cout<<"USAGE ./bin/StereoDisparity </path/to/image/directory/>"<<std::endl;
       exit(-1);
     }
     std::string path = argv[1];
@@ -32,6 +33,10 @@ int main(int argc, char *argv[]){
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
     featureFactory.setDescriptorContribWidth(6.0f);
     featureFactory.setOrientationContribWidth(1.5f);
+    float* testKernel = new float[3]();
+    testKernel[0] = -1;
+    testKernel[1] = 0;
+    testKernel[2] = 1;
     for(int i = 0; i < numImages; ++i){
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
       ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image);
@@ -40,11 +45,22 @@ int main(int argc, char *argv[]){
     }
     ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>();
     std::cout << "Starting matching, this will take a while ..." << std::endl;
-    ssrlcv::Unity<ssrlcv::Match<ssrlcv::SIFT_Descriptor>>* matches = matchFactory.generateMatchesBruteForce(images[0],allFeatures[0],images[1],allFeatures[1]);
+    ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1]);
 
-    //matchFactory.refineMatches(matches, 0.0001);
+    matchFactory.refineMatches(distanceMatches, 0.25);
+    if(distanceMatches->state != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
 
-    matches->transferMemoryTo(ssrlcv::cpu);
+    matchFactory.sortMatches(distanceMatches);
+    distanceMatches->transferMemoryTo(ssrlcv::cpu);
+    std::cout << "starting sort..." << std::endl << "Top Sorted:" << std::endl;
+    for (int i = 0; i < 15; i++){
+      std::cout << "[" << i << "]\t" << distanceMatches->host[i].distance << std::endl;
+    }
+    distanceMatches->setMemoryState(ssrlcv::gpu);
+
+    ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
+
+    delete distanceMatches;
 
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
     ssrlcv::Unity<float3>* points = demPoints.stereo_disparity(matches,64.0f);
@@ -60,10 +76,6 @@ int main(int argc, char *argv[]){
     return 0;
   }
   catch (const std::exception &e){
-      std::cerr << "Caught exception: " << e.what() << '\n';
-      std::exit(1);
-  }
-  catch (const ssrlcv::UnityException &e){
       std::cerr << "Caught exception: " << e.what() << '\n';
       std::exit(1);
   }

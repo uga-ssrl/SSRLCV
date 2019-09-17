@@ -1,7 +1,7 @@
 *.o
 *.exe
 src/*.txt
-out/*.ply
+out/*
 data/*
 bin/*
 .csv
@@ -29,3 +29,7 @@ util/io/._*
 doc/doxygen/documentation/*
 
 doc/doxygen/documentation/*
+
+tests/bin
+tests/obj
+tests/tmp

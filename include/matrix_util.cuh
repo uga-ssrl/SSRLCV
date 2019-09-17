@@ -17,6 +17,11 @@ namespace ssrlcv{
   __device__ void normalize_gpu(float (&v)[3]);
   __device__ int getGlobalIdx_1D_1D();
   __device__ void inverse3x3_gpu(float M[3][3], float (&Minv)[3][3]);
+  __device__ float dotProduct3(float3 a, float3 b);
+  __device__ float3 matrixMulVector(float3 x, float A[3][3]);
+  __device__ float3 getVectorAngles(float3 v);
+  __device__ float3 rotatePoint(float3 point, float3 angles);
+
 
   void transpose_cpu(float M[3][3], float (&M_t)[3][3]);
   void inverse3x3_cpu(float M[3][3], float (&Minv)[3][3]);

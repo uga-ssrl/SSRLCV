@@ -22,17 +22,58 @@ namespace ssrlcv{
   * \brief method that allows Feature's with SIFT_Descriptor's to be matching in this class
   */
   __device__ __forceinline__ float calcElucidSq(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b, const float &bestMatch);
-
+  /**
+  * \brief method that allows SIFT_Descriptor's to be matching in this class
+  */
+  __device__ __forceinline__ float calcElucidSq(const SIFT_Descriptor& a, const SIFT_Descriptor& b);
+  /**
+  * \brief method that allows SIFT_Descriptor's to be matching in this class
+  */
+  __device__ __forceinline__ float calcElucidSq(const SIFT_Descriptor& a, const SIFT_Descriptor& b, const float &bestMatch);
 
 
   /**
-  * \brief represents pair of features
+  * \brief simple struct meant to fill out matches
+  */
+  struct KeyPoint{
+    int parentId;
+    float2 loc;
+  };
+
+  /**
+  * \brief struct for holding reference to keypoints that make up multiview match
+  */
+  struct MultiMatch{
+    unsigned int numKeyPoints;
+    int index;
+  };
+
+  /**
+  * \brief struct to pass around MultiMatches and KeyPoint sets
+  */
+  struct MatchSet{
+    Unity<KeyPoint>* keyPoints;
+    Unity<MultiMatch>* matches;
+  };
+
+  /**
+  * \brief base Match struct pair of keypoints
+  */
+  struct Match{
+    KeyPoint keyPoints[2];
+  };
+  /**
+  * \brief derived Match struct with distance
+  */
+  struct DMatch: Match{
+    float distance;
+  };
+  /**
+  * \brief derived DMatch struct with descriptors
   */
   template<typename T>
-  struct Match{
-    int parentId[2];
-    Feature<T> features[2];
-    float distance;
+  struct FeatureMatch : DMatch{
+    T descriptors[2];
   };
 
   namespace{
@@ -47,11 +88,25 @@ namespace ssrlcv{
     };
     typedef struct SubpixelM7x7 SubpixelM7x7;
 
-    template<typename T>
     struct match_above_cutoff{
       __host__ __device__
-      bool operator()(Match<T> m){
+      bool operator()(DMatch m){
         return m.distance > 0.0f;
+      }
+    };
+
+    struct match_dist_thresholder{
+      float threshold;
+      match_dist_thresholder(float threshold) : threshold(threshold){};
+      __host__ __device__
+      bool operator()(DMatch m){
+        return (m.distance > threshold);
+      }
+    };
+    struct match_dist_comparator{
+      __host__ __device__
+      bool operator()(const DMatch& a, const DMatch& b){
+        return a.distance < b.distance;
       }
     };
   }
@@ -74,24 +129,79 @@ namespace ssrlcv{
     //NOTE nothing for nview is implemented
     //TODO consider making it so features are computed if they arent instead of throwing errors with image parameters
 
-    void refineMatches(Unity<Match<T>>* matches, float cutoffRatio);
+    void refineMatches(Unity<DMatch>* matches, float cutoffRatio);
+    void refineMatches(Unity<FeatureMatch<T>>* matches, float cutoffRatio);
+
+    /**
+    * \brief sorts all matches by mismatch distance
+    * \note this is a cpu version
+    */
+    void sortMatches(Unity<DMatch>* matches);
+    void sortMatches(Unity<FeatureMatch<T>>* matches);
+    Unity<Match>* getRawMatches(Unity<DMatch>* matches);
+    Unity<Match>* getRawMatches(Unity<FeatureMatch<T>>* matches);
+
 
     /**
     * \brief Generates matches between sift features
     */
-    Unity<Match<T>>* generateMatchesBruteForce(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures);
+    Unity<Match>* generateMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures);
     /**
     * \brief Generates matches between sift features constrained by epipolar line
+    * \warning This method requires Images to have filled out Camera variables
     */
-    Unity<Match<T>>* generateMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon);
+    Unity<Match>* generateMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon);
+    /**
+    * \brief Generates matches between sift features
+    */
+    Unity<DMatch>* generateDistanceMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures);
+    /**
+    * \brief Generates matches between sift features constrained by epipolar line
+    * \warning This method requires Images to have filled out Camera variables
+    */
+    Unity<DMatch>* generateDistanceMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon);
+    /**
+    * \brief Generates matches between sift features
+    */
+    Unity<FeatureMatch<T>>* generateFeatureMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures);
+    /**
+    * \brief Generates matches between sift features constrained by epipolar line
+    * \warning This method requires Images to have filled out Camera variables
+    */
+    Unity<FeatureMatch<T>>* generateFeatureMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon);
+
+
+    /**
+    * \brief interpolates Matches between multiple images
+    * \todo implement
+    */
+    MatchSet* getMultiViewMatches(std::vector<Image*> images, Unity<Match>* matches);
+    /**
+    * \brief interpolates Matches between multiple images
+    * \todo implement
+    */
+    MatchSet* getMultiViewMatches(std::vector<Image*> images, Unity<DMatch>* matches);
+    /**
+    * \brief interpolates Matches between multiple images
+    * \todo implement
+    */
+    MatchSet* getMultiViewMatches(std::vector<Image*> images, Unity<FeatureMatch<T>>* matches);
+
+
+    /*
+    METHODS IN MATCHFACTORY BELOW THIS ONLY WORK FOR DENSE FEATURES THAT HAVE NOT BEEN FILTERED
+    */
     /**
     * \brief Generates subpixel matches between sift features
+    * \warning This only works for dense features
     */
-    Unity<Match<T>>* generateSubPixelMatchesBruteForce(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures);
+    Unity<FeatureMatch<T>>* generateSubPixelMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures);
     /**
     * \brief Generates subpixel matches between sift features constrained by the epipolar line
+    * \warning This only works for dense features
+    * \warning This method requires Images to have filled out Camera variable
     */
-    Unity<Match<T>>* generateSubPixelMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon);
+    Unity<FeatureMatch<T>>* generateSubPixelMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon);
 
 
   };
@@ -108,33 +218,46 @@ namespace ssrlcv{
 
 
 
-
-  /*
-  Pairwise stuff
-  */
+  //base matching kernels
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, Match<T>* matches);
-
+    Feature<T>* featuresTarget, Match* matches);
+  template<typename T>
+  __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, DMatch* matches);
+  template<typename T>
+  __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, FeatureMatch<T>* matches);
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, Match<T>* matches, float epsilon, float3 fundamental[3]);
-
+    Feature<T>* featuresTarget, Match* matches, float epsilon, float3 fundamental[3]);
   template<typename T>
-  __global__ void initializeSubPixels(unsigned long numMatches, Match<T>* matches, SubpixelM7x7* subPixelDescriptors,
+  __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, DMatch* matches, float epsilon, float3 fundamental[3]);
+  template<typename T>
+  __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, FeatureMatch<T>* matches, float epsilon, float3 fundamental[3]);
+
+
+
+  //subpixel kernels
+  template<typename T>
+  __global__ void initializeSubPixels(unsigned long numMatches, FeatureMatch<T>* matches, SubpixelM7x7* subPixelDescriptors,
     uint2 querySize, unsigned long numFeaturesQuery, Feature<T>* featuresQuery,
     uint2 targetSize, unsigned long numFeaturesTarget, Feature<T>* featuresTarget);
 
   __global__ void fillSplines(unsigned long numMatches, SubpixelM7x7* subPixelDescriptors, Spline* splines);
   template<typename T>
-  __global__ void determineSubPixelLocationsBruteForce(float increment, unsigned long numMatches, Match<T>* matches, Spline* splines);
+  __global__ void determineSubPixelLocationsBruteForce(float increment, unsigned long numMatches, FeatureMatch<T>* matches, Spline* splines);
 
-  template<typename T>
-  __global__ void refineWCutoffRatio(unsigned long numMatches, Match<T>* matches, int* matchCounter, float2 minMax, float cutoffRatio);
-  template<typename T>
-  __global__ void copyMatches(unsigned long numMatches, int* matchCounter, Match<T>* minimizedMatches, Match<T>* matches);
+  //utility kernels
+  __global__ void convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::Match* matches);
 
 }
 

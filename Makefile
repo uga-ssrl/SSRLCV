@@ -15,7 +15,32 @@ CXXFLAGS += -Wall -std=c++11
 # compute_<#> and sm_<#> will need to change depending on the device
 # if this is not done you will receive a no kernel image is availabe error
 NVCCFLAGS += ${COMMONFLAGS}
-NVCCFLAGS += -std=c++11 -gencode=arch=compute_53,code=sm_53 -gencode=arch=compute_53,code=compute_53 -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61
+NVCCFLAGS += -std=c++11
+
+# Gencode arguments
+SM ?= 35 37 50 52 60 61 70
+
+ifeq ($(SM),)
+$(info >>> WARNING - no SM architectures have been specified - waiving sample <<<)
+SAMPLE_ENABLED := 0
+endif
+
+ifeq ($(GENCODEFLAGS),)
+# Generate SASS code for each SM architecture listed in $(SMS)
+$(foreach sm,$(SM),$(eval GENCODEFLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
+
+# Generate PTX code from the highest SM architecture in $(SMS) to guarantee forward-compatibility
+HIGHEST_SM := $(lastword $(sort $(SM)))
+ifneq ($(HIGHEST_SM),)
+GENCODEFLAGS += -gencode arch=compute_$(HIGHEST_SM),code=compute_$(HIGHEST_SM)
+endif
+endif
+
+ifeq ($(SAMPLE_ENABLED),0)
+EXEC ?= @echo "[@]"
+endif
+
+NVCCFLAGS += ${GENCODEFLAGS}
 
 LIB :=  -L/usr/local/cuda/lib64 -lcublas -lcuda -lcudart -lcusparse -lcusolver\
         -lpng -Xcompiler -fopenmp
@@ -26,47 +51,55 @@ BINDIR = ./bin
 OUTDIR = ./out
 
 
-_OBJS = io_util.cpp.o
-_OBJS += tinyply.cpp.o
-_OBJS += cuda_util.cu.o
-_OBJS += Feature.cu.o
-_OBJS += Image.cu.o
-_OBJS += Quadtree.cu.o
-_OBJS += FeatureFactory.cu.o
-_OBJS += SIFT_FeatureFactory.cu.o
-_OBJS += MatchFactory.cu.o
-_OBJS += matrix_util.cu.o
-_OBJS += PointCloudFactory.cu.o
-_OBJS += Octree.cu.o
-_OBJS += MeshFactory.cu.o
-_OBJS += SFM.cu.o
-_SD_OBJS = io_util.cpp.o
-_SD_OBJS += tinyply.cpp.o
-_SD_OBJS += cuda_util.cu.o
-_SD_OBJS += Feature.cu.o
-_SD_OBJS += Image.cu.o
-_SD_OBJS += Quadtree.cu.o
-_SD_OBJS += FeatureFactory.cu.o
-_SD_OBJS += SIFT_FeatureFactory.cu.o
-_SD_OBJS += MatchFactory.cu.o
-_SD_OBJS += matrix_util.cu.o
-_SD_OBJS += PointCloudFactory.cu.o
-_SD_OBJS += Octree.cu.o
-_SD_OBJS += MeshFactory.cu.o
+BASE_OBJS  = io_util.cpp.o
+BASE_OBJS += io_3d.cu.o
+BASE_OBJS += tinyply.cpp.o
+BASE_OBJS += cuda_util.cu.o
+BASE_OBJS += Feature.cu.o
+BASE_OBJS += Image.cu.o
+BASE_OBJS += Quadtree.cu.o
+BASE_OBJS += FeatureFactory.cu.o
+BASE_OBJS += SIFT_FeatureFactory.cu.o
+BASE_OBJS += MatchFactory.cu.o
+BASE_OBJS += matrix_util.cu.o
+BASE_OBJS += PointCloudFactory.cu.o
+BASE_OBJS += Octree.cu.o
+BASE_OBJS += MeshFactory.cu.o
+
+_SFM_OBJS = ${BASE_OBJS}
+_SFM_OBJS += SFM.cu.o
+_SD_OBJS = ${BASE_OBJS}
 _SD_OBJS += StereoDisparity.cu.o
+_T_OBJS = ${BASE_OBJS}
+_T_OBJS += Tester.cu.o
 
-OBJS = ${patsubst %, ${OBJDIR}/%, ${_OBJS}}
+SFM_OBJS = ${patsubst %, ${OBJDIR}/%, ${_SFM_OBJS}}
 SD_OBJS = ${patsubst %, ${OBJDIR}/%, ${_SD_OBJS}}
+T_OBJS = ${patsubst %, ${OBJDIR}/%, ${_T_OBJS}}
+TEST_OBJS = ${patsubst %, ${OBJDIR}/%, ${BASE_OBJS}}
 
-TARGET = SFM
+TARGET_SFM = SFM
 TARGET_SD = StereoDisparity
+TARGET_T = Tester
 
-LINKLINE = ${LINK} -gencode=arch=compute_53,code=sm_53 -gencode=arch=compute_53,code=compute_53 -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 ${OBJS} ${LIB} -o ${BINDIR}/${TARGET}
-LINKLINE_SD = ${LINK} -gencode=arch=compute_53,code=sm_53 -gencode=arch=compute_53,code=compute_53 -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 ${SD_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SD}
+LINKLINE_SFM = ${LINK} ${GENCODEFLAGS} ${SFM_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SFM}
+LINKLINE_SD = ${LINK} ${GENCODEFLAGS} ${SD_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SD}
+LINKLINE_T = ${LINK} ${GENCODEFLAGS} ${T_OBJS} ${LIB} -o ${BINDIR}/${TARGET_T}
+
+## Test sensing
+TestsIn_cpp 	= $(wildcard tests/src/*.cpp)
+TestsIn_cu 		= $(wildcard tests/src/*.cu)
+TESTS_CPP 		= $(patsubst tests/src/%.cpp, tests/bin/cpp/%, $(TestsIn_cpp))
+TESTS_CU 			= $(patsubst tests/src/%.cu, tests/bin/cu/%, $(TestsIn_cu))
+TESTS 				= ${TESTS_CU} ${TESTS_CPP}
 
 .SUFFIXES: .cpp .cu .o
+.PHONY: all clean test
 
-all: ${BINDIR}/${TARGET} ${BINDIR}/${TARGET_SD}
+all: ${BINDIR}/${TARGET_SFM} ${BINDIR}/${TARGET_SD} ${BINDIR}/${TARGET_T} ${TESTS}
+
+test: all ${TEST_OBJS}
+	./test-all
 
 $(OBJDIR):
 	    -mkdir -p $(OBJDIR)
@@ -80,18 +113,58 @@ $(OUTDIR):
 #-------------------------------------------------------------
 #  Cuda Cuda Reconstruction
 #
+
+# Compiling
 ${OBJDIR}/%.cu.o: ${SRCDIR}/%.cu
 	${NVCC} ${INCLUDES} ${NVCCFLAGS} -dc $< -o $@
 
 ${OBJDIR}/%.cpp.o: ${SRCDIR}/%.cpp
 	${CXX} ${INCLUDES} ${CXXFLAGS} -c $< -o $@
 
-${BINDIR}/%: ${OBJS} ${SD_OBJS} Makefile
-	${LINKLINE}
+# Linking targets
+${BINDIR}/${TARGET_SFM}: ${SFM_OBJS} Makefile
+	${LINKLINE_SFM}
+
+${BINDIR}/${TARGET_SD}: ${SD_OBJS} Makefile
 	${LINKLINE_SD}
 
+${BINDIR}/${TARGET_T}: ${T_OBJS} Makefile
+	${LINKLINE_T}
+
+
+#
+# Tests
+#
+
+TEST_DIRS = mkdir -p tests/tmp; mkdir -p tests/obj; mkdir -p tests/bin/cu; mkdir -p tests/bin/cpp
+
+tests/obj/%.cpp.o: tests/src/%.cpp
+	@${TEST_DIRS}
+	${CXX} ${INCLUDES} ${CXXFLAGS}  -c -o $@ $<
+
+tests/obj/%.cu.o: tests/src/%.cu
+	@${TEST_DIRS}
+	${NVCC} ${INCLUDES} ${NVCCFLAGS} -c -o $@ $<
+
+tests/bin/cpp/%: tests/obj/%.cpp.o ${TEST_OBJS}
+	@${TEST_DIRS}
+	${LINK} ${GENCODEFLAGS} ${LIB} ${TEST_OBJS} $< -o $@
+
+tests/bin/cu/%: tests/obj/%.cu.o ${TEST_OBJS}
+	@${TEST_DIRS}
+	${LINK} ${GENCODEFLAGS} ${LIB} ${TEST_OBJS} $< -o $@
+
+
+
+
+
+
+#
+# Clean
+#
+
 clean:
-	rm -f out/*.ply
+	rm -f out/*
 	rm -f bin/*
 	rm -f out/*
 	rm -f src/*~
@@ -106,3 +179,6 @@ clean:
 	rm -f *.~
 	rm -f *.kp
 	rm -f *.txt
+	rm -rf tests/obj
+	rm -rf tests/tmp
+	rm -rf tests/bin

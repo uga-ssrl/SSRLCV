@@ -16,7 +16,6 @@
 #include <thrust/copy.h>
 #include <thrust/scan.h>
 
-#include "cuda_util.cuh"
 
 #define SIFTBORDER 12
 
@@ -43,23 +42,30 @@ namespace ssrlcv{
       * \todo implement
       */
       struct Octave{
-        int binRatio;/**\brief 1 == parent | 1> is upsampled by bilinear interpolation*/
-        uint2 size;
+        struct Blur{
+          unsigned int colorDepth;
+          uint2 size;
+          float sigma;
+          Unity<unsigned char>* pixels;/**\brief vector of Unity structs holding pixel values*/
+          Blur();
+          Blur(float sigma, int2 kernelSize, Unity<unsigned char>* pixels, uint2 size, unsigned int colorDepth, float pixelWidth);
+          ~Blur();
+        };
         unsigned int numBlurs;
-        float* sigmas;/**\brief values used to generate gaussian kernel for each blur*/
-        Unity<unsigned char>** blurs;/**\brief array of Unity structs holding pixel values*/
+        Blur** blurs;/**\brief array of blur pointers*/
         Octave();
-        Octave(unsigned int numBlurs, float* sigmas);
+        //may want to remove kernelSize as it is static in anatomy
+        Octave(unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<unsigned char>* pixels, uint2 depth, unsigned int colorDepth, float pixelWidth);
         ~Octave();
 
       };
 
-      unsigned int numOctaves;
-      Octave* octaves;
-      unsigned int parentOctave;
+      uint2 depth;
+      Octave** octaves;
+      int parentOctave;
 
       ScaleSpace();
-      ScaleSpace(unsigned int numOctaves, int startingOctave, unsigned int numBlurs, Image* image);
+      ScaleSpace(Image* image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize);
       ~ScaleSpace();
 
     };
@@ -68,12 +74,13 @@ namespace ssrlcv{
     *
     */
     FeatureFactory();
-
+    ~FeatureFactory();
     /**
     * \breif creates ScaleSpace from an Image
     * \todo implement
     */
-    ScaleSpace* generateScaleSpace(Image* image, int numOctaves, int numBlurs, float initialSigma, float sigmaMultiplier);
+    ScaleSpace* generateScaleSpace(Image* image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize);
+    float2* findKeyPoints(ScaleSpace* scaleSpace);//add other variables for filtering keypoints
 
   };
 

@@ -4,7 +4,8 @@ ssrlcv::PointCloudFactory::PointCloudFactory(){
 
 }
 
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match<SIFT_Descriptor>>* matches, Image* target, Image* query){
+/*
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matches, Image* target, Image* query){
   float3* pointCloud_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&pointCloud_device, matches->numElements*sizeof(float3)));
   Unity<float3>* pointCloud = new Unity<float3>(pointCloud_device,matches->numElements,gpu);
@@ -312,7 +313,54 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match<SIFT_Des
   // cudaFree(d_out_pointCloud);
   return pointCloud;
 }
+*/
 
+ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
+
+
+  Unity<Bundle>* bundles = new Unity<Bundle>(nullptr,matchSet->matches->numElements,gpu);
+  Unity<Bundle::Line>* lines = new Unity<Bundle::Line>(nullptr,matchSet->keyPoints->numElements,gpu);
+
+  std::cout << "starting bundle generation ..." << std::endl;
+  MemoryState origin[2] = {matchSet->matches->state,matchSet->keyPoints->state};
+  if(origin[0] == cpu) matchSet->matches->transferMemoryTo(gpu);
+  if(origin[1] == cpu) matchSet->keyPoints->transferMemoryTo(gpu);
+  // the cameras
+  size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
+  // fill the cam boi
+  ssrlcv::Image::Camera* h_cameras;
+  h_cameras = (ssrlcv::Image::Camera*) malloc(cam_bytes);
+  for(int i = 0; i < images.size(); i++){
+    h_cameras[i] = images.at(i)->camera;
+  }
+  ssrlcv::Image::Camera* d_cameras;
+  CudaSafeCall(cudaMalloc(&d_cameras, cam_bytes));
+  // copy the othe guy
+  CudaSafeCall(cudaMemcpy(d_cameras, h_cameras, cam_bytes, cudaMemcpyHostToDevice));
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(bundles->numElements,grid,block);
+
+  //in this kernel fill lines and bundles from keyPoints and matches
+
+  generateBundle<<<grid, block>>>(bundles->numElements,bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+  
+
+  // call the boi
+  bundles->transferMemoryTo(cpu);
+  bundles->clear(gpu);
+
+  BundleSet bundleSet = {lines,bundles};
+
+  if(origin[0] == cpu) matchSet->matches->setMemoryState(cpu);
+  if(origin[1] == cpu) matchSet->keyPoints->setMemoryState(cpu);
+
+  return bundleSet;
+}
 
 
 // TODO fillout
@@ -324,69 +372,72 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match<SIFT_Des
 * @param n the number of matches
 * @param scale the scale factor that is multiplied
 */
-template<typename T>
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match<T>>* matches, float scale){
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>* matches, float scale){
 
   MemoryState origin = matches->state;
-  if(origin == gpu){
-    matches->transferMemoryTo(cpu);
-  }
+  if(origin == cpu) matches->transferMemoryTo(gpu);
 
-  float2* matches0 = new float2[matches->numElements];
-  float2* matches1 = new float2[matches->numElements];
-
-  for(int i = 0; i < matches->numElements; ++i){
-    matches0[i] = matches->host[i].features[0].loc;
-    matches1[i] = matches->host[i].features[1].loc;
-  }
-  // matches
-  float2 *d_matches0;
-  float2 *d_matches1;
   // depth points
-  float3 *d_points;
+  float3 *points_device = nullptr;
 
-  // the sizes
-  size_t match_size = matches->numElements*sizeof(float2);
-  size_t point_size = matches->numElements*sizeof(float3);
-
-  //
-  cudaMalloc((void**) &d_matches0, match_size);
-  cudaMalloc((void**) &d_matches1, match_size);
-  cudaMalloc((void**) &d_points, point_size);
-
-  //
-  cudaMemcpy(d_matches0, matches0, match_size, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_matches1, matches1, match_size, cudaMemcpyHostToDevice);
+  cudaMalloc((void**) &points_device, matches->numElements*sizeof(float3));
 
   //
   int blockSize = 1024;
   int gridSize = (int) ceil((float) matches->numElements / blockSize);
 
   //
-  h_stereo_disparity<<<gridSize, blockSize>>>(d_matches0, d_matches1, d_points, matches->numElements, scale);
+  computeStereo<<<gridSize, blockSize>>>(matches->numElements, matches->device, points_device, scale);
 
-  cudaFree(d_matches0);
-  cudaFree(d_matches1);
-
-  Unity<float3>* points = new Unity<float3>(d_points, matches->numElements,gpu);
-  points->setMemoryState(cpu);
-  if(origin == gpu) matches->setMemoryState(gpu);
+  Unity<float3>* points = new Unity<float3>(points_device, matches->numElements,gpu);
+  if(origin == cpu) matches->setMemoryState(cpu);
 
   return points;
 }
-template ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity<ssrlcv::SIFT_Descriptor>(Unity<Match<SIFT_Descriptor>>* matches, float scale);
 
 
 // device methods
 
-__global__ void ssrlcv::h_stereo_disparity(float2* matches0, float2* matches1, float3* points, int n, float scale){
-  int id = blockIdx.x * blockDim.x + threadIdx.x;
-  if (id < n) {
-    points[id].x = matches0[id].x;
-    points[id].y = matches0[id].y;
-    points[id].z = sqrtf(scale * (((matches0[id].x - matches1[id].x) * (matches0[id].x - matches1[id].x)) +  ((matches0[id].y - matches1[id].y) * (matches0[id].y - matches1[id].y))));
+
+__global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  MultiMatch match = matches[globalID];
+
+  float3* kp = new float3[match.numKeyPoints]();
+  // calcualte dpix and fill the m values at scale
+  int end =  match.numKeyPoints + match.index;
+  KeyPoint currentKP = {-1,{0.0f,0.0f}};
+  for (int i = match.index; i < end; i++){
+    currentKP = keyPoints[i];
+    cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
+    cameras[currentKP.parentId].dpix.y = cameras[currentKP.parentId].dpix.x; // assume square pixel for now
+
+    kp[i] = {
+      cameras[currentKP.parentId].dpix.x * ((currentKP.loc.x) - (cameras[currentKP.parentId].size.x / 2.0f)), 
+      cameras[currentKP.parentId].dpix.y * ((-1.0f * currentKP.loc.y) - (cameras[currentKP.parentId].size.y / 2.0f)), 
+      0.0f
+    }; // set the key point
+    kp[i] = rotatePoint(kp[i], getVectorAngles(cameras[currentKP.parentId].cam_vec));
   }
-} // dat disparity tho
+
+  //fill bundles
+  bundles[globalID] = {match.numKeyPoints,match.index};
+
+  //fill lines
+
+
+
+}
+
+__global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, float3* points, float scale){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID < numMatches) {
+    Match match = matches[globalID];
+    float3 point = {match.keyPoints[0].loc.x,match.keyPoints[0].loc.y,0.0f};
+    point.z = sqrtf(scale*dotProduct({match.keyPoints[0].loc-match.keyPoints[1].loc},{match.keyPoints[0].loc-match.keyPoints[1].loc}));
+    points[globalID] = point;
+  }
+}
 
 __global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, float cam1C[3], float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9], float rotationTranspose1[9], float rotationTranspose2[9], float3* points){
 
@@ -486,3 +537,62 @@ __global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, floa
   	points[matchIndex].z = solution[2];
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// yee

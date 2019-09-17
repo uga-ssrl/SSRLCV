@@ -69,52 +69,11 @@ namespace ssrlcv{
     cpu = 1,
     gpu = 2,
     both = 3,
-    pinned = 4
+    pinned = 4,
+    unified = 5
   } MemoryState;
 
   namespace{
-    /**
-    * \brief base unity exception.
-    */
-    struct UnityException{
-      std::string msg;
-      UnityException(){
-        msg = "Unknown Unity Exception";
-      }
-      UnityException(std::string msg) : msg("Unity Exception: " + msg){}
-      virtual const char* what() const throw(){
-        return msg.c_str();
-      }
-    };
-    /**
-    * \brief Custom exception called when attempting to transition
-    * Unity memory to state that would cause segfault.
-    */
-    struct IllegalUnityTransition : public UnityException{
-      std::string msg;
-      IllegalUnityTransition(){
-        msg = "Illegal Unity memory transfer";
-      }
-      IllegalUnityTransition(std::string msg) : msg("Illegal Unity memory transfer: " + msg){}
-      virtual const char* what() const throw(){
-        return msg.c_str();
-      }
-    };
-    /**
-    * \brief Custom exception used when an action would lead to
-    * segfault due to nullptr.
-    */
-    struct NullUnityException : public UnityException{
-      std::string msg;
-      NullUnityException(){
-        msg = "Illegal attempt to use null set Unity";
-      }
-      NullUnityException(std::string msg) : msg("Illegal attempt to use null set Unity: " + msg){}
-      virtual const char* what() const throw(){
-        return msg.c_str();
-      }
-    };
-
     /**
     * \brief returns a string based on the MemoryState type it is fed.
     */
@@ -128,14 +87,57 @@ namespace ssrlcv{
           return "gpu";
         case both:
           return "both cpu & gpu";
+        case pinned:
+          return "pinned";
+        case unified:
+          return "unified";
         default:
           std::cerr<<"ERROR: unknown MemoryState when calling memoryStateToString()"<<std::endl;
           exit(-1);
       }
     }
   }
-
-
+  /**
+  * \brief base unity exception.
+  */
+  struct UnityException : std::exception{
+    std::string msg;
+    UnityException(){
+      msg = "Unknown Unity Exception";
+    }
+    UnityException(std::string msg) : msg("Unity Exception: " + msg){}
+    virtual const char* what() const throw(){
+      return msg.c_str();
+    }
+  };
+  /**
+  * \brief Custom exception called when attempting to transition
+  * Unity memory to state that would cause segfault.
+  */
+  struct IllegalUnityTransition : public UnityException{
+    std::string msg;
+    IllegalUnityTransition(){
+      msg = "Illegal Unity memory transfer";
+    }
+    IllegalUnityTransition(std::string msg) : msg("Illegal Unity memory transfer: " + msg){}
+    virtual const char* what() const throw(){
+      return msg.c_str();
+    }
+  };
+  /**
+  * \brief Custom exception used when an action would lead to
+  * segfault due to nullptr.
+  */
+  struct NullUnityException : public UnityException{
+    std::string msg;
+    NullUnityException(){
+      msg = "Illegal attempt to use null set Unity";
+    }
+    NullUnityException(std::string msg) : msg("Illegal attempt to use null set Unity: " + msg){}
+    virtual const char* what() const throw(){
+      return msg.c_str();
+    }
+  };
   /**
   * \class Unity
   * \brief SSRLCV CUDA memory handler class.
@@ -204,20 +206,16 @@ namespace ssrlcv{
     this->host = nullptr;
     this->device = nullptr;
     this->state = null;
+    this->fore = null;
     this->numElements = 0;
   }
   template<typename T>
   Unity<T>::Unity(T* data, unsigned long numElements, MemoryState state){
     this->host = nullptr;
     this->device = nullptr;
-    this->state = state;
-    this->fore = state;
-    this->numElements = numElements;
-    if(state == cpu) this->host = data;
-    else if(state == gpu) this->device = data;
-    else{
-      throw IllegalUnityTransition("cannot instantiate memory on device and host with only one pointer");
-    }
+    this->state = null;
+    this->fore = null;
+    this->setData(data, numElements, state);
   }
   template<typename T>
   Unity<T>::~Unity(){
@@ -242,11 +240,15 @@ namespace ssrlcv{
       case cpu:
         if(this->host != nullptr){
           delete[] this->host;
+          this->state = null;
+          this->fore = null;
         }
         break;
       case gpu:
         if(this->device != nullptr){
           CudaSafeCall(cudaFree(this->device));
+          this->state = null;
+          this->fore = null;
         }
         break;
       case both:
@@ -275,7 +277,7 @@ namespace ssrlcv{
         }
         break;
       default:
-        throw IllegalUnityTransition("unkown memory state");
+        throw IllegalUnityTransition("unknown memory state");
     }
     this->host = nullptr;
     this->device = nullptr;
@@ -328,10 +330,11 @@ namespace ssrlcv{
         CudaSafeCall(cudaMemcpy(this->host, this->device, sizeof(T)*this->numElements, cudaMemcpyDeviceToHost));
       }
       else{
-        throw IllegalUnityTransition("unkown memory state");
+        throw IllegalUnityTransition("unknown memory state");
       }
     }
     this->state = both;
+    this->fore = both;
   }
 
   template<typename T>
@@ -347,30 +350,46 @@ namespace ssrlcv{
       if(cpu == this->fore){
         this->transferMemoryTo(gpu);
       }
-      else{
+      else if(gpu == this->fore){
         this->transferMemoryTo(cpu);
       }
+      this->fore = both;
     }
     else{
       this->transferMemoryTo(state);
       if(state == cpu){
         this->clear(gpu);
+        this->fore = cpu;
       }
       else{
         this->clear(cpu);
+        this->fore = gpu;
       }
     }
   }
   template<typename T>
   void Unity<T>::setData(T* data, unsigned long numElements, MemoryState state){
-    this->clear();
+    if(this->state != null) this->clear();
     this->state = state;
     this->fore = state;
     this->numElements = numElements;
-    if(state == cpu) this->host = data;
-    else if(state == gpu) this->device = data;
+    if(data == nullptr && numElements != 0){
+      if(state == cpu || state == both){
+        this->host = new T[numElements]();
+      }
+      if(state == gpu || state == both){
+        CudaSafeCall(cudaMalloc((void**)&this->device, numElements*sizeof(T)));
+      }
+      if(state == null || state > 3){//greater than three means pinned or unified
+        throw IllegalUnityTransition("attempt to instantiate unkown MemoryState fron nullptr");
+      }
+    }
     else{
-      throw IllegalUnityTransition("cannot instantiate memory on device and host with only one pointer");
+      if(state == cpu) this->host = data;
+      else if(state == gpu) this->device = data;
+      else{
+        throw IllegalUnityTransition("cannot instantiate memory on device and host with only one pointer");
+      }
     }
   }
 }
