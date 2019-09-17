@@ -82,7 +82,7 @@ TARGET_SFM = SFM
 TARGET_SD = StereoDisparity
 TARGET_T = Tester
 
-LINKLINE = ${LINK} ${GENCODEFLAGS} ${SFM_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SFM}
+LINKLINE_SFM = ${LINK} ${GENCODEFLAGS} ${SFM_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SFM}
 LINKLINE_SD = ${LINK} ${GENCODEFLAGS} ${SD_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SD}
 LINKLINE_T = ${LINK} ${GENCODEFLAGS} ${T_OBJS} ${LIB} -o ${BINDIR}/${TARGET_T}
 
@@ -96,7 +96,7 @@ TESTS 				= ${TESTS_CU} ${TESTS_CPP}
 .SUFFIXES: .cpp .cu .o
 .PHONY: all clean test
 
-all: ${BINDIR}/${TARGET} ${BINDIR}/${TARGET_SD} ${BINDIR}/${TARGET_T} ${TESTS}
+all: ${BINDIR}/${TARGET_SFM} ${BINDIR}/${TARGET_SD} ${BINDIR}/${TARGET_T} ${TESTS}
 
 test: all ${TEST_OBJS}
 	./test-all
@@ -123,7 +123,7 @@ ${OBJDIR}/%.cpp.o: ${SRCDIR}/%.cpp
 
 # Linking targets
 ${BINDIR}/${TARGET_SFM}: ${SFM_OBJS} Makefile
-	${LINKLINE}
+	${LINKLINE_SFM}
 
 ${BINDIR}/${TARGET_SD}: ${SD_OBJS} Makefile
 	${LINKLINE_SD}

@@ -153,7 +153,7 @@ ssrlcv::Unity<unsigned char>* ssrlcv::bin(uint2 imageSize, unsigned int colorDep
 ssrlcv::Unity<unsigned char>* ssrlcv::upsample(uint2 imageSize, unsigned int colorDepth, Unity<unsigned char>* pixels){
   MemoryState origin = pixels->state;
 
-  if(origin == cpu || pixels->fore != gpu){
+  if(origin == cpu || pixels->fore == cpu){
     pixels->transferMemoryTo(gpu);
   }
   unsigned char* upsampledImage_device = nullptr;
@@ -203,7 +203,7 @@ ssrlcv::Unity<unsigned char>* ssrlcv::scaleImage(uint2 imageSize, unsigned int c
 }
 
 
-ssrlcv::Unity<unsigned char>* ssrlcv::convolve(uint2 imageSize, Unity<unsigned char>* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel){
+ssrlcv::Unity<unsigned char>* ssrlcv::convolve(uint2 imageSize, Unity<unsigned char>* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, bool symmetric){
   if(kernelSize.x%2 == 0 || kernelSize.y%2 == 0){
     std::cerr<<"ERROR kernel for image convolution must have an odd dimension"<<std::endl;
     exit(-1);
@@ -224,9 +224,15 @@ ssrlcv::Unity<unsigned char>* ssrlcv::convolve(uint2 imageSize, Unity<unsigned c
   CudaSafeCall(cudaMalloc((void**)&max, sizeof(float)));
   CudaSafeCall(cudaMemcpy(max, &minMax.y,sizeof(float),cudaMemcpyHostToDevice));
 
-  convolveImage<<<grid,block>>>(imageSize, pixels->device, colorDepth, kernelSize, kernel_device, convolvedImage->device,min,max);
+  if(symmetric){
+    convolveImage_symmetric<<<grid,block>>>(imageSize, pixels->device, colorDepth, kernelSize, kernel_device, convolvedImage->device,min,max);
+  }
+  else{
+    convolveImage<<<grid,block>>>(imageSize, pixels->device, colorDepth, kernelSize, kernel_device, convolvedImage->device,min,max);
+  }
   cudaDeviceSynchronize();
   CudaCheckError();
+
 
   grid = {1,1,1};
   block = {1,1,1};
@@ -497,6 +503,11 @@ __device__ __forceinline__ unsigned long ssrlcv::getGlobalIdx_2D_1D(){
   unsigned long threadId = blockId * blockDim.x + threadIdx.x;
   return threadId;
 }
+__device__ __host__ __forceinline__ int ssrlcv::getSymmetrizedCoord(int i, unsigned int l){
+  int ll = 2*l;
+  i = (i+ll)%ll;
+  return (i>l-1) ? i = ll - 1 - i : i;
+}
 __device__ __forceinline__ unsigned char ssrlcv::bwaToBW(const uchar2 &color){
   return (1-color.y)*color.x + color.y*color.x;
 }
@@ -589,10 +600,10 @@ __global__ void ssrlcv::upsampleImage(uint2 imageSize, unsigned int colorDepth, 
   if(i < imageSize.x*2 && j < imageSize.y*2){
     float x = i*0.5f;
     float y = j*0.5f;
-    int xm = ((int)x >= imageSize.x) ? 2*imageSize.x-1-((int)x) : (int)x;
-    int ym = ((int)y >= imageSize.y) ? 2*imageSize.y-1-((int)y) : (int)y;
-    int xp = (xm +1 >= imageSize.x) ? 2*imageSize.x-1-(xm +1) : xm +1;
-    int yp = (ym +1 >= imageSize.y) ? 2*imageSize.y-1-(ym +1) : ym +1;
+    int xm = getSymmetrizedCoord((int)x,imageSize.x);
+    int xp = getSymmetrizedCoord((int)x + 1,imageSize.x);
+    int ym = getSymmetrizedCoord((int)y,imageSize.y);
+    int yp = getSymmetrizedCoord((int)y + 1,imageSize.y);
 
     float2 interLocDiff = {x-floor(x),y-floor(y)};
 
@@ -612,10 +623,10 @@ __global__ void ssrlcv::bilinearInterpolation(uint2 imageSize, unsigned int colo
   if(i < imageSize.x/outputPixelWidth && j < imageSize.y/outputPixelWidth){
     float x = i*outputPixelWidth;
     float y = j*outputPixelWidth;
-    int xm = ((int)x >= imageSize.x) ? 2*imageSize.x-1-((int)x) : (int)x;
-    int ym = ((int)y >= imageSize.y) ? 2*imageSize.y-1-((int)y) : (int)y;
-    int xp = (xm +1 >= imageSize.x) ? 2*imageSize.x-1-(xm +1) : xm +1;
-    int yp = (ym +1 >= imageSize.y) ? 2*imageSize.y-1-(ym +1) : ym +1;
+    int xm = getSymmetrizedCoord((int)x,imageSize.x);
+    int xp = getSymmetrizedCoord((int)x + 1,imageSize.x);
+    int ym = getSymmetrizedCoord((int)y,imageSize.y);
+    int yp = getSymmetrizedCoord((int)y + 1,imageSize.y);
 
     float2 interLocDiff = {x-floor(x),y-floor(y)};
 
@@ -629,7 +640,6 @@ __global__ void ssrlcv::bilinearInterpolation(uint2 imageSize, unsigned int colo
   }
 }
 
-
 __global__ void ssrlcv::convolveImage(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage, float* min, float* max){
   unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
   unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
@@ -640,8 +650,8 @@ __global__ void ssrlcv::convolveImage(uint2 imageSize, unsigned char* pixels, un
     }
     else{
       float sum = 0.0f;
-      for(int kx = -kernelSize.x/2; kx <= kernelSize.x/2; ++kx){
-        for(int ky = -kernelSize.y/2; ky <= kernelSize.y/2; ++ky){
+      for(int ky = -kernelSize.y/2; ky <= kernelSize.y/2; ++ky){
+        for(int kx = -kernelSize.x/2; kx <= kernelSize.x/2; ++kx){
           sum += ((float)pixels[((y+ky)*imageSize.x + (x+kx))*colorDepth + color])*kernel[(ky+(kernelSize.y/2))*kernelSize.x + (kx+(kernelSize.x/2))];
         }
       }
@@ -650,6 +660,25 @@ __global__ void ssrlcv::convolveImage(uint2 imageSize, unsigned char* pixels, un
       atomicMinFloat(min,sum);
       convolvedImage[(y*imageSize.x + x)*colorDepth + color] = sum;
     }
+  }
+}
+__global__ void ssrlcv::convolveImage_symmetric(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage, float* min, float* max){
+  unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
+  unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+  unsigned int color = blockIdx.z*blockDim.z + threadIdx.z;
+  if(x < imageSize.x && y < imageSize.y){
+    int2 symmetricCoord = {0,0};
+    float sum = 0.0f;
+    for(int ky = -kernelSize.y/2; ky <= kernelSize.y/2; ++ky){
+      for(int kx = -kernelSize.x/2; kx <= kernelSize.x/2; ++kx){
+        symmetricCoord = {getSymmetrizedCoord(x+kx,imageSize.x),getSymmetrizedCoord(y+ky,imageSize.y)};
+        sum += ((float)pixels[((symmetricCoord.y)*imageSize.x + (symmetricCoord.x))*colorDepth + color])*kernel[(ky+(kernelSize.y/2))*kernelSize.x + (kx+(kernelSize.x/2))];
+      }
+    }
+    sum /= (kernelSize.x*kernelSize.y);
+    atomicMaxFloat(max,sum);
+    atomicMinFloat(min,sum);
+    convolvedImage[(y*imageSize.x + x)*colorDepth + color] = sum;
   }
 }
 

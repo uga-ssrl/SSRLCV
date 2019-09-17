@@ -75,48 +75,6 @@ namespace ssrlcv{
 
   namespace{
     /**
-    * \brief base unity exception.
-    */
-    struct UnityException : std::exception{
-      std::string msg;
-      UnityException(){
-        msg = "Unknown Unity Exception";
-      }
-      UnityException(std::string msg) : msg("Unity Exception: " + msg){}
-      virtual const char* what() const throw(){
-        return msg.c_str();
-      }
-    };
-    /**
-    * \brief Custom exception called when attempting to transition
-    * Unity memory to state that would cause segfault.
-    */
-    struct IllegalUnityTransition : public UnityException{
-      std::string msg;
-      IllegalUnityTransition(){
-        msg = "Illegal Unity memory transfer";
-      }
-      IllegalUnityTransition(std::string msg) : msg("Illegal Unity memory transfer: " + msg){}
-      virtual const char* what() const throw(){
-        return msg.c_str();
-      }
-    };
-    /**
-    * \brief Custom exception used when an action would lead to
-    * segfault due to nullptr.
-    */
-    struct NullUnityException : public UnityException{
-      std::string msg;
-      NullUnityException(){
-        msg = "Illegal attempt to use null set Unity";
-      }
-      NullUnityException(std::string msg) : msg("Illegal attempt to use null set Unity: " + msg){}
-      virtual const char* what() const throw(){
-        return msg.c_str();
-      }
-    };
-
-    /**
     * \brief returns a string based on the MemoryState type it is fed.
     */
     inline std::string memoryStateToString(MemoryState state){
@@ -139,8 +97,47 @@ namespace ssrlcv{
       }
     }
   }
-
-
+  /**
+  * \brief base unity exception.
+  */
+  struct UnityException : std::exception{
+    std::string msg;
+    UnityException(){
+      msg = "Unknown Unity Exception";
+    }
+    UnityException(std::string msg) : msg("Unity Exception: " + msg){}
+    virtual const char* what() const throw(){
+      return msg.c_str();
+    }
+  };
+  /**
+  * \brief Custom exception called when attempting to transition
+  * Unity memory to state that would cause segfault.
+  */
+  struct IllegalUnityTransition : public UnityException{
+    std::string msg;
+    IllegalUnityTransition(){
+      msg = "Illegal Unity memory transfer";
+    }
+    IllegalUnityTransition(std::string msg) : msg("Illegal Unity memory transfer: " + msg){}
+    virtual const char* what() const throw(){
+      return msg.c_str();
+    }
+  };
+  /**
+  * \brief Custom exception used when an action would lead to
+  * segfault due to nullptr.
+  */
+  struct NullUnityException : public UnityException{
+    std::string msg;
+    NullUnityException(){
+      msg = "Illegal attempt to use null set Unity";
+    }
+    NullUnityException(std::string msg) : msg("Illegal attempt to use null set Unity: " + msg){}
+    virtual const char* what() const throw(){
+      return msg.c_str();
+    }
+  };
   /**
   * \class Unity
   * \brief SSRLCV CUDA memory handler class.

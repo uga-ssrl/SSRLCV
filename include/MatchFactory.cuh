@@ -171,6 +171,22 @@ namespace ssrlcv{
     Unity<FeatureMatch<T>>* generateFeatureMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon);
 
 
+    /**
+    * \brief interpolates Matches between multiple images
+    * \todo implement
+    */
+    MatchSet* getMultiViewMatches(std::vector<Image*> images, Unity<Match>* matches);
+    /**
+    * \brief interpolates Matches between multiple images
+    * \todo implement
+    */
+    MatchSet* getMultiViewMatches(std::vector<Image*> images, Unity<DMatch>* matches);
+    /**
+    * \brief interpolates Matches between multiple images
+    * \todo implement
+    */
+    MatchSet* getMultiViewMatches(std::vector<Image*> images, Unity<FeatureMatch<T>>* matches);
+
 
     /*
     METHODS IN MATCHFACTORY BELOW THIS ONLY WORK FOR DENSE FEATURES THAT HAVE NOT BEEN FILTERED
