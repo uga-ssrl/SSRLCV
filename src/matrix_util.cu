@@ -81,6 +81,15 @@ __device__ float ssrlcv::dotProduct3(float3 a, float3 b){
   return product;
 }
 
+__device__ float3 ssrlcv::normalizeVector(float3 v){
+  float mag = sqrt(dotProduct(v,v));
+  v.x /= mag;
+  v.y /= mag;
+  v.z /= mag;
+  return v;
+}
+
+
 __device__ float3 ssrlcv::matrixMulVector(float3 x, float A[3][3]){
   float temp[3] = {x.x, x.y, x.z};
   float b[3];
