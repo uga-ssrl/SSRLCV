@@ -74,13 +74,41 @@ namespace ssrlcv{
     *
     */
     FeatureFactory();
-    ~FeatureFactory();
+    ~FeatureFactory();  
+
     /**
-    * \breif creates ScaleSpace from an Image
-    * \todo implement
+    * \brief this method generates a difference of gaussians from an acceptable scaleSpace
     */
-    ScaleSpace* generateScaleSpace(Image* image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize);
-    float2* findKeyPoints(ScaleSpace* scaleSpace);//add other variables for filtering keypoints
+    ScaleSpace* generateDOG(ScaleSpace* scaleSpace);
+    /**
+    * \brief this method finds local extrema in a difference of gaussian scale space
+    */
+    Unity<int4>* findExtrema(ScaleSpace* dog);
+    /**
+    * \brief this method finds local subpixel extrema in a difference of gaussian scale space
+    */
+    Unity<float4>* findSubPixelExtrema(ScaleSpace* dog);
+    /**
+    * \brief this method filters out keypoints that have an intensity lower than a noise threshold
+    */
+    Unity<int4>* filterNoise(int4* extrema, ScaleSpace* dog, float threshold);
+    /**
+    * \brief this method filters out subpixel keypoints that have an intensity lower than a noise threshold
+    */
+    Unity<float4>* filterNoise(float4* extrema, ScaleSpace* dog, float noiseThreshold);
+    /**
+    * \brief this method filters out keypoints that are considered edges using the harris corner detector
+    */
+    Unity<int4>* filterEdges(int4* extrema, ScaleSpace* dog);
+    /**
+    * \brief this method filters out subpixel keypoints that are considered edges using the harris corner detector
+    */
+    Unity<float4>* filterEdges(float4* extrema, ScaleSpace* dog);
+
+    /**
+    * \brief this method finds keypoints from within a scale space at a pixel or subpixel level
+    */
+    float3* findKeyPoints(ScaleSpace* scaleSpace, float noiseThreshold, bool subpixel = false);
 
   };
 
