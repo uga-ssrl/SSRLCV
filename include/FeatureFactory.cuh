@@ -36,6 +36,12 @@ namespace ssrlcv{
     * \todo implement
     */
     struct ScaleSpace{
+      struct SSKeyPoint{
+        int octave;
+        int blur;
+        float2 loc;
+        float sigma;
+      };
 
       /**
       * \brief this represents an iterative convolutional sample of a ScaleSpace
@@ -46,7 +52,7 @@ namespace ssrlcv{
           unsigned int colorDepth;
           uint2 size;
           float sigma;
-          Unity<unsigned char>* pixels;/**\brief vector of Unity structs holding pixel values*/
+          Unity<float>* pixels;/**\brief vector of Unity structs holding pixel values*/
           Blur();
           Blur(float sigma, int2 kernelSize, Unity<unsigned char>* pixels, uint2 size, unsigned int colorDepth, float pixelWidth);
           ~Blur();
@@ -60,15 +66,15 @@ namespace ssrlcv{
 
       };
 
-      uint2 depth;
+      uint2 depth;//octave,blur
       Octave** octaves;
-      int parentOctave;
 
       ScaleSpace();
       ScaleSpace(Image* image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize);
       ~ScaleSpace();
-
     };
+    typedef ScaleSpace DOG;
+
     /**
     * \brief Empty Constructor
     *
@@ -79,36 +85,26 @@ namespace ssrlcv{
     /**
     * \brief this method generates a difference of gaussians from an acceptable scaleSpace
     */
-    ScaleSpace* generateDOG(ScaleSpace* scaleSpace);
-    /**
-    * \brief this method finds local extrema in a difference of gaussian scale space
-    */
-    Unity<int4>* findExtrema(ScaleSpace* dog);
+    DOG* generateDOG(ScaleSpace* scaleSpace);
+    Unity<ScaleSpace::SSKeyPoint>* findExtrema(DOG* dog);
     /**
     * \brief this method finds local subpixel extrema in a difference of gaussian scale space
     */
-    Unity<float4>* findSubPixelExtrema(ScaleSpace* dog);
-    /**
-    * \brief this method filters out keypoints that have an intensity lower than a noise threshold
-    */
-    Unity<int4>* filterNoise(int4* extrema, ScaleSpace* dog, float threshold);
+    void refineSubPixel(DOG* dog, Unity<ScaleSpace::SSKeyPoint>* extrema);
     /**
     * \brief this method filters out subpixel keypoints that have an intensity lower than a noise threshold
     */
-    Unity<float4>* filterNoise(float4* extrema, ScaleSpace* dog, float noiseThreshold);
-    /**
-    * \brief this method filters out keypoints that are considered edges using the harris corner detector
-    */
-    Unity<int4>* filterEdges(int4* extrema, ScaleSpace* dog);
+    void removeNoise(DOG* dog, Unity<ScaleSpace::SSKeyPoint>* extrema, float noiseThreshold);
     /**
     * \brief this method filters out subpixel keypoints that are considered edges using the harris corner detector
     */
-    Unity<float4>* filterEdges(float4* extrema, ScaleSpace* dog);
+    void removeEdges(DOG* dog, Unity<ScaleSpace::SSKeyPoint>* extrema);
+    
 
     /**
     * \brief this method finds keypoints from within a scale space at a pixel or subpixel level
     */
-    float3* findKeyPoints(ScaleSpace* scaleSpace, float noiseThreshold, bool subpixel = false);
+    Unity<float3>* findKeyPoints(Image* image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize,float noiseThreshold, bool subPixel = false);
 
   };
 
@@ -117,6 +113,13 @@ namespace ssrlcv{
   */
 
   extern __constant__ float pi;
+
+  __device__ __host__ __forceinline__ bool subpixelRefiner(float3& keyPoint, const float3& derivatives, float hessian[3][3]);
+
+  __global__ void subtractImages(unsigned int numPixels, float* pixelsUpper, float* pixelsLower, float* pixelsOut);
+
+
+  __global__ void convertSSKPToLKP(unsigned int numKeyPoints, float3* localizedKeyPoints, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
 
 
 }

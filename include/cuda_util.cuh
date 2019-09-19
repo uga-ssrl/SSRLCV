@@ -100,6 +100,9 @@ __device__ __host__ float2 operator/(const float2 &a, const float &b);
 __device__ __host__ float2 operator*(const int2 &a, const float &b);
 __device__ __host__ float2 operator/(const int2 &a, const float &b);
 
+__device__ __host__ int2 operator+(const int2 &a, const int &b);
+__device__ __host__ int2 operator-(const int2 &a, const int &b);
+
 __device__ __host__ ulong2 operator+(const ulong2 &a, const int2 &b);
 __device__ __host__ ulong2 operator-(const ulong2 &a, const int2 &b);
 __device__ __host__ ulong2 operator/(const ulong2 &a, const int2 &b);

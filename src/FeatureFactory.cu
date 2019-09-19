@@ -15,7 +15,6 @@ ssrlcv::FeatureFactory::~FeatureFactory(){
 
 ssrlcv::FeatureFactory::ScaleSpace::ScaleSpace(){
     this->depth = {0,0};
-    this->parentOctave = -1;
     this->octaves = nullptr;
 
 }
@@ -82,6 +81,7 @@ ssrlcv::FeatureFactory::ScaleSpace::~ScaleSpace(){
     }
  
 }
+
 ssrlcv::FeatureFactory::ScaleSpace::Octave::Octave(){
     this->numBlurs = 0;
     this->blurs = nullptr;
@@ -131,4 +131,90 @@ sigma(sigma),size(size),colorDepth(colorDepth){
 }
 ssrlcv::FeatureFactory::ScaleSpace::Octave::Blur::~Blur(){
     if(this->pixels != nullptr) delete this->pixels;
+}
+
+
+ssrlcv::FeatureFactory::DOG* ssrlcv::FeatureFactory::generateDOG(ScaleSpace* scaleSpace){
+    DOG* dog = nullptr;
+    Unity<float>* pixelsUpper = nullptr;
+    Unity<float>* pixelsLower = nullptr;
+    MemoryState origin[2];
+    dim3 grid = {1,1,1};
+    dim3 block = {1,1,1};
+    dog->depth = {scaleSpace->depth.x,scaleSpace->depth.y - 1};
+    dog->octaves = new ScaleSpace::Octave*[dog->depth.x];
+    for(int o = 0; o < dog->depth.x; o++){
+        dog->octaves[o]->blurs = new ScaleSpace::Octave::Blur*[dog->depth.y];
+        pixelsLower = scaleSpace->octaves[o]->blurs[0]->pixels;
+        getFlatGridBlock(pixelsLower->numElements,grid,block);
+        for(int b = 0; b < dog->depth.y; ++b){
+            dog->octaves[o]->blurs[b]->pixels = new Unity<float>(nullptr,pixelsLower->numElements,gpu);
+            pixelsUpper = scaleSpace->octaves[o]->blurs[b+1]->pixels;
+            origin[0] = pixelsLower->state;
+            origin[1] = pixelsUpper->state;
+            if(origin[0] == cpu) pixelsLower->transferMemoryTo(gpu);
+            if(origin[1] == cpu) pixelsUpper->transferMemoryTo(gpu);
+            subtractImages<<<grid,block>>>(pixelsLower->numElements,pixelsUpper->device,pixelsLower->device,dog->octaves[o]->blurs[b]->pixels->device);
+            cudaDeviceSynchronize();
+            CudaCheckError();
+            if(origin[0] == cpu) pixelsLower->setMemoryState(cpu);
+            pixelsLower = pixelsUpper;
+        }
+    }
+    return dog;
+}
+ssrlcv::Unity<ssrlcv::FeatureFactory::ScaleSpace::SSKeyPoint>* ssrlcv::FeatureFactory::findExtrema(DOG* dog){
+    
+}
+void ssrlcv::FeatureFactory::refineSubPixel(DOG* dog, Unity<ScaleSpace::SSKeyPoint>* extrema){
+
+}
+void ssrlcv::FeatureFactory::removeNoise(DOG* dog, Unity<ScaleSpace::SSKeyPoint>* extrema, float noiseThreshold){
+
+}
+void ssrlcv::FeatureFactory::removeEdges(DOG* dog, Unity<ScaleSpace::SSKeyPoint>* extrema){
+
+}
+
+
+ssrlcv::Unity<float3>* ssrlcv::FeatureFactory::findKeyPoints(Image* image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize,float noiseThreshold, bool subPixel){
+    ScaleSpace* scaleSpace = new ScaleSpace(image,startingOctave,scaleSpaceDim,initialSigma,sigmaMultiplier,kernelSize);
+    DOG* dog = generateDOG(scaleSpace);
+    delete scaleSpace;
+
+    Unity<ScaleSpace::SSKeyPoint>* scaleSpaceKeyPoints = findExtrema(dog);
+    if(subPixel) refineSubPixel(dog,scaleSpaceKeyPoints);
+    removeNoise(dog,scaleSpaceKeyPoints,noiseThreshold);
+    removeEdges(dog,scaleSpaceKeyPoints);    
+    if(scaleSpaceKeyPoints->state == cpu) scaleSpaceKeyPoints->transferMemoryTo(gpu);
+
+    Unity<float3>* keyPoints = new Unity<float3>(nullptr,scaleSpaceKeyPoints->numElements,gpu);
+
+    dim3 grid = {1,1,1};
+    dim3 block = {1,1,1};
+    getFlatGridBlock(scaleSpaceKeyPoints->numElements,grid,block);
+    convertSSKPToLKP<<<grid,block>>>(scaleSpaceKeyPoints->numElements,keyPoints->device,scaleSpaceKeyPoints->device);
+    cudaDeviceSynchronize();
+    CudaCheckError();
+    delete dog;
+    delete scaleSpaceKeyPoints;
+    return keyPoints;
+} 
+
+
+
+
+
+
+__global__ void ssrlcv::subtractImages(unsigned int numPixels, float* pixelsUpper, float* pixelsLower, float* pixelsOut){
+    unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+    if(globalID < numPixels) pixelsOut[globalID] = pixelsUpper[globalID] - pixelsLower[globalID];
+}
+
+__global__ void ssrlcv::convertSSKPToLKP(unsigned int numKeyPoints, float3* localizedKeyPoints, ssrlcv::FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP){
+    unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+    if(globalID < numKeyPoints){
+        FeatureFactory::ScaleSpace::SSKeyPoint kp = scaleSpaceKP[globalID];
+        localizedKeyPoints[globalID] = {kp.loc.x,kp.loc.y,kp.sigma};
+    }
 }

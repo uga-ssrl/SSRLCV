@@ -79,8 +79,18 @@ namespace ssrlcv{
 
   };
 
+  Unity<unsigned char>* convertImageToChar(Unity<float>* pixels);
+  Unity<float>* convertImageToFlt(Unity<unsigned char>* pixels);
+
+  void convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth);
+  void convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth);
+
+  void calcFundamentalMatrix_2View(Image* query, Image* target, float3 *F);
+  void get_cam_params2view(Image* cam1, Image* cam2, std::string infile);
+
   /**
-  *\brief generate int2 gradients for each pixel
+  *\brief generate int2 gradients for each pixel with borders being symmetrized with an offset inward
+  * this symmetrization is based on finite difference and gradient approx 
   */
   Unity<int2>* generatePixelGradients(uint2 imageSize, Unity<unsigned char>* pixels);
   /**
@@ -96,13 +106,10 @@ namespace ssrlcv{
   *\todo think about adding referenced imageSize for new image size
   */
   Unity<unsigned char>* scaleImage(uint2 imageSize, unsigned int colorDepth, Unity<unsigned char>* pixels, float outputPixelWidth);
-  Unity<unsigned char>* convolve(uint2 imageSize, Unity<unsigned char>* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, bool symmetric = true);
+  
 
-  void convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth);
-  void convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth);
-
-  void calcFundamentalMatrix_2View(Image* query, Image* target, float3 *F);
-  void get_cam_params2view(Image* cam1, Image* cam2, std::string infile);
+  
+  Unity<float>* convolve(uint2 imageSize, Unity<unsigned char>* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, bool symmetric = true);
 
 
   /* CUDA variable, method and kernel defintions */
@@ -112,6 +119,10 @@ namespace ssrlcv{
 
   __device__ __forceinline__ unsigned long getGlobalIdx_2D_1D();
 
+  /**
+  * \brief symmetrizes a coordinate based
+  * \todo determine if this causes the image to act spherical (circular with respect to x and y)
+  */
   __device__ __host__ __forceinline__ int getSymmetrizedCoord(int i, unsigned int l);
 
   __device__ __forceinline__ unsigned char bwaToBW(const uchar2 &color);
@@ -132,16 +143,17 @@ namespace ssrlcv{
   __global__ void binImage(uint2 imageSize, unsigned int colorDepth, unsigned char* pixels, unsigned char* binnedImage);
   __global__ void upsampleImage(uint2 imageSize, unsigned int colorDepth, unsigned char* pixels, unsigned char* upsampledImage);
   __global__ void bilinearInterpolation(uint2 imageSize, unsigned int colorDepth, unsigned char* pixels, unsigned char* outputPixels, float outputPixelWidth);
+  
   //border condition 0
-  __global__ void convolveImage(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage, float* min, float* max);
+  __global__ void convolveImage(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
   //border condition non0
-  __global__ void convolveImage_symmetric(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage, float* min, float* max);
+  __global__ void convolveImage_symmetric(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
   __global__ void convertToCharImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels, float* min, float* max);
+  __global__ void convertToFltImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels);
   __global__ void applyBorder(uint2 imageSize, unsigned int* featureNumbers, unsigned int* featureAddresses, float2 border);
   __global__ void getPixelCenters(unsigned int numValidPixels, uint2 imageSize, unsigned int* pixelAddresses, float2* pixelCenters);
 
   __global__ void calculatePixelGradients(uint2 imageSize, unsigned char* pixels, int2* gradients);
 
 }
-
 #endif /* IMAGE_CUH */
