@@ -9,6 +9,7 @@ from PIL import Image
 from PIL import ImageTk
 
 # GLOBALS:
+GUI_VERSION = "0.0.1"
 main_window = Tk()
 IMG_EXIST = False
 IMG_POS = [0,0]
@@ -28,32 +29,20 @@ def print_welcome(version):
     print("==============================================")
 
 # classes
-# Here, we are creating our class, Window, and inheriting from the Frame
-# class. Frame is a class from the tkinter module. (see Lib/tkinter/__init__)
 class Window(Frame):
 
-    # Define settings upon initialization. Here you can specify
     def __init__(self, master=None):
 
-        # parameters that you want to send through the Frame class.
         Frame.__init__(self, master)
-
-        #reference to the master widget, which is the tk window
         self.master = master
-
-        #with that, we want to then run init_window, which doesn't yet exist
         self.init_window()
 
     #Creation of init_window
     def init_window(self):
 
-        # changing the title of our master widget
         self.master.title("UGA SSRL Computer Vision")
-
-        # allowing the widget to take the full space of the root window
         self.pack(fill=BOTH, expand=1)
 
-        # creating a menu instance
         menu = Menu(self.master)
         self.master.config(menu=menu)
 
@@ -134,12 +123,31 @@ class Window(Frame):
                 print("loading: " + str(filename.name) + " ...")
                 self.showImg(str(filename.name))
             else:
-                messagebox.showerror("ERROR", "Not a valid file extension")
+                messagebox.showerror("ERROR", str(filename.name) + " does not have a valid file extension, please use .png or .jpg")
 
     def client_load_img_folder(self):
         directory = filedialog.askdirectory(initialdir = "~",title = "Select Image Folder")
+        img_paths = []
         if (directory != None):
-            print("")
+            os.chdir(directory)
+            for file in glob.glob("*.png"):
+                img_paths.append(file)
+            for file in glob.glob("*.jpg"):
+                img_paths.append(file)
+            for file in glob.glob("*.jpeg"):
+                img_paths.append(file)
+            for file in glob.glob("*.PNG"):
+                img_paths.append(file)
+            for file in glob.glob("*.JPG"):
+                img_paths.append(file)
+            for file in glob.glob("*.JPEG"):
+                img_paths.append(file)
+        if (not len(img_paths)):
+            messagebox.showerror("ERROR", "No valid images found in: " + directory)
+        else:
+            print("Loading: " + str(img_paths))
+            for im in img_paths:
+                self.showImg(im)
 
     def client_clear_imgs(self):
         global IMG_EXIST, IMG_POS, IMG_LIST, IMG_FILE_LIST
@@ -222,9 +230,6 @@ class Window(Frame):
 
     # ==========================================================================
     # ==========================================================================
-    # ==========================================================================
-    # ==========================================================================
-    # ==========================================================================
     # non-menu methods
 
     def showImg(self,image_path):
@@ -244,7 +249,7 @@ class Window(Frame):
         img = Label(self, image=render)
         img.image = render
         img.place(x=IMG_POS[0], y=IMG_POS[1])
-        if (IMG_POS[1] == 700):
+        if (IMG_POS[0] == 700):
             IMG_POS[1] += 100
             IMG_POS[0] = 0
         else:
@@ -254,10 +259,12 @@ class Window(Frame):
         IMG_FILE_LIST.append(image_path)
 
 
-
+# ==========================================================================
+# ==========================================================================
+# ==========================================================================
 # main
 if __name__ == "__main__":
-    print_welcome("0.0.1")
+    print_welcome(GUI_VERSION)
     main_window.geometry("800x600");
     instance = Window(main_window);
     main_window.mainloop()
