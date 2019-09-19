@@ -33,7 +33,7 @@ clean:
     - make clean
   only:
     - merge_requests
-    - web 
+    - web
 
 compile:
   stage: build
@@ -43,7 +43,7 @@ compile:
 tests-auto:
   stage: test
   script:
-  - bash ./test-all
+  - bash ./util/CI/test-all
 
 pages:
   stage: documentation
