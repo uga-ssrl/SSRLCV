@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 # IMPORTS:
+import os
+import glob
 from tkinter import *
 from tkinter import messagebox
 from tkinter import filedialog
@@ -8,16 +10,19 @@ from PIL import ImageTk
 
 # GLOBALS:
 main_window = Tk()
-images_exist = False
-features_exist = False
-matches_exist = False
+IMG_EXIST = False
+IMG_POS = [0,0]
+IMG_LIST = []
+IMG_FILE_LIST = []
+FEATURE_EXIST = False
+MTACHES_EXIST = False
 
 # methods
 def print_welcome(version):
     print("==============================================")
     print("=                                            =")
     print("=         UGA SSRL Computer Vision           =")
-    print("=             Version: " + version + "                 =")
+    print("=            GUI Version: " + version + "              =")
     print("=         Smallsat.uga.edu/research          =")
     print("=                                            =")
     print("==============================================")
@@ -95,6 +100,16 @@ class Window(Frame):
         menu.add_cascade(label="Matching", menu=matching)
 
         # ======================================================================
+        pointcloud = Menu(menu)
+
+        pointcloud.add_command(label="Stereo Disparity", command=self.client_stereo_disp)
+        pointcloud.add_command(label="2 View Reproject", command=self.client_2view)
+        pointcloud.add_command(label="N View Reproject", command=self.client_nview)
+        pointcloud.add_command(label="Bundle Adjustment", command=self.client_bundle_adjust)
+
+        menu.add_cascade(label="PointCloud", menu=pointcloud)
+
+        # ======================================================================
         # create the file object)
         about = Menu(menu)
 
@@ -113,25 +128,41 @@ class Window(Frame):
         exit()
 
     def client_load_img(self):
-        filename =  filedialog.askopenfilename(initialdir = "~",title = "Select Single Image",filetypes = (("jpeg files","*.jpg"),("png files","*.png"),("all files","*.*")))
-        print(filename)
+        filename =  filedialog.askopenfile(initialdir = "~",title = "Select Single Image",filetypes = (("all files","*.*"),("jpeg files","*.jpg"),("png files","*.png")))
+        if (filename != None):
+            if (str(filename.name).lower()[-3:] == 'jpg' or str(filename.name).lower()[-3:] == 'png' or str(filename.name).lower()[-4:] == 'jpeg'):
+                print("loading: " + str(filename.name) + " ...")
+                self.showImg(str(filename.name))
+            else:
+                messagebox.showerror("ERROR", "Not a valid file extension")
 
     def client_load_img_folder(self):
         directory = filedialog.askdirectory(initialdir = "~",title = "Select Image Folder")
-        print(directory)
+        if (directory != None):
+            print("")
 
     def client_clear_imgs(self):
+        global IMG_EXIST, IMG_POS, IMG_LIST, IMG_FILE_LIST
         print("Clearing Images...")
-        messagebox.showerror("ERROR", "There no images to clear")
+        if (IMG_EXIST):
+            for i in IMG_LIST:
+                i.place_forget()
+            IMG_EXIST = False
+            IMG_LIST = []
+            IMG_POS = [0,0]
+            IMG_FILE_LIST = []
+        else:
+            messagebox.showerror("ERROR", "There no images to clear")
 
     def client_save_features(self):
         print("Saving Features...")
-        # messagebox.showerror("ERROR", "There are no features to save")
-        filename =  filedialog.asksaveasfilename(initialdir = "/",title = "Select file",filetypes = (("jpeg files","*.jpg"),("all files","*.*")))
+        messagebox.showerror("ERROR", "There are no features to save")
+        # filename =  filedialog.asksaveasfilename(initialdir = "/",title = "Select file",filetypes = (("jpeg files","*.jpg"),("all files","*.*")))
 
     def client_save_matches(self):
         print("Saving Matches...")
         messagebox.showerror("ERROR", "There are no matches to save")
+        # filename =  filedialog.asksaveasfilename(initialdir = "/",title = "Select file",filetypes = (("jpeg files","*.jpg"),("all files","*.*")))
 
     # ==========================================================================
     # matches menu
@@ -167,12 +198,61 @@ class Window(Frame):
         print("TODO")
 
     # ==========================================================================
-    #about
+    # point cloud menu
+
+    def client_stereo_disp(self):
+        print("TODO")
+
+    def client_2view(self):
+        print("TODO")
+
+    def client_nview(self):
+        print("TODO")
+
+    def client_bundle_adjust(self):
+        print("TODO")
+
+    # ==========================================================================
+    # about
 
     def client_about(self):
         jackson = "Jackson Parker - something@something.com"
         caleb = "Caleb Adams - CalebAshmoreAdams@gmail.com"
         messagebox.showinfo("ABOUT", "Authors: \n\n Feature Detection: \n" + jackson + "\n\n 3D reconstruction: \n" + caleb + "\n\n GUI: \n" + caleb + "\n\n Surface reconstruction \n" + jackson)
+
+    # ==========================================================================
+    # ==========================================================================
+    # ==========================================================================
+    # ==========================================================================
+    # ==========================================================================
+    # non-menu methods
+
+    def showImg(self,image_path):
+        global IMG_EXIST, IMG_POS, IMG_LIST, IMG_FILE_LIST
+        # all stubs are 100x100
+        load = Image.open(image_path)
+        if (load.size[0] != load.size[1]):
+            if (load.size[0] > load.size[1]):
+                scale = load.size[0] / 100
+                load = load.resize((int(load.size[0]/scale),int(load.size[1]/scale)),Image.ANTIALIAS)
+            else:
+                scale = load.size[1] / 100
+                load = load.resize((int(load.size[0]/scale),int(load.size[1]/scale)),Image.ANTIALIAS)
+        else:
+            load = load.resize((100,100),Image.ANTIALIAS)
+        render = ImageTk.PhotoImage(load)
+        img = Label(self, image=render)
+        img.image = render
+        img.place(x=IMG_POS[0], y=IMG_POS[1])
+        if (IMG_POS[1] == 700):
+            IMG_POS[1] += 100
+            IMG_POS[0] = 0
+        else:
+            IMG_POS[0] += 100
+        IMG_EXIST = True
+        IMG_LIST.append(img)
+        IMG_FILE_LIST.append(image_path)
+
 
 
 # main
