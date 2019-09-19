@@ -2,11 +2,15 @@
 # IMPORTS:
 from tkinter import *
 from tkinter import messagebox
+from tkinter import filedialog
 from PIL import Image
 from PIL import ImageTk
 
 # GLOBALS:
 main_window = Tk()
+images_exist = False
+features_exist = False
+matches_exist = False
 
 # methods
 def print_welcome(version):
@@ -54,7 +58,8 @@ class Window(Frame):
 
         # adds a command to the menu option, calling it exit, and the
         # command it runs on event is client_exit
-        file.add_command(label="Load Images", command=self.client_load_imgs)
+        file.add_command(label="Load Image", command=self.client_load_img)
+        file.add_command(label="Load Image Folder", command=self.client_load_img_folder)
         file.add_command(label="clear Images", command=self.client_clear_imgs)
         file.add_command(label="Save Features", command=self.client_save_features)
         file.add_command(label="Save Matches", command=self.client_save_matches)
@@ -107,8 +112,13 @@ class Window(Frame):
         print("Exiting...")
         exit()
 
-    def client_load_imgs(self):
-        print("Loading Images...")
+    def client_load_img(self):
+        filename =  filedialog.askopenfilename(initialdir = "~",title = "Select Single Image",filetypes = (("jpeg files","*.jpg"),("png files","*.png"),("all files","*.*")))
+        print(filename)
+
+    def client_load_img_folder(self):
+        directory = filedialog.askdirectory(initialdir = "~",title = "Select Image Folder")
+        print(directory)
 
     def client_clear_imgs(self):
         print("Clearing Images...")
@@ -116,7 +126,8 @@ class Window(Frame):
 
     def client_save_features(self):
         print("Saving Features...")
-        messagebox.showerror("ERROR", "There are no features to save")
+        # messagebox.showerror("ERROR", "There are no features to save")
+        filename =  filedialog.asksaveasfilename(initialdir = "/",title = "Select file",filetypes = (("jpeg files","*.jpg"),("all files","*.*")))
 
     def client_save_matches(self):
         print("Saving Matches...")
