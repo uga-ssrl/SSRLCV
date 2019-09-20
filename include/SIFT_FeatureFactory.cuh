@@ -21,7 +21,6 @@ namespace ssrlcv{
     float orientationContribWidth;
     float descriptorContribWidth;
 
-    void findKeyPoints(ScaleSpace::Octave* octave);//needs to be implemented
     Unity<Feature<SIFT_Descriptor>>* createFeatures(uint2 imageSize, float pixelWidth, float sigma, Unity<int2>* gradients, Unity<float2>* keyPoints);
 
   public:

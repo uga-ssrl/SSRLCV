@@ -114,9 +114,6 @@ namespace ssrlcv{
 
   /* CUDA variable, method and kernel defintions */
 
-  __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
-  __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
-
   __device__ __forceinline__ unsigned long getGlobalIdx_2D_1D();
 
   /**

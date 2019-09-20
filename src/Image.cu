@@ -515,18 +515,7 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<unsigned char>* pi
   return convolvedImage;
 }
 
-__device__ __forceinline__ float ssrlcv::atomicMinFloat (float * addr, float value){
-  float old;
-  old = (value >= 0) ? __int_as_float(atomicMin((int *)addr, __float_as_int(value))) :
-    __uint_as_float(atomicMax((unsigned int *)addr, __float_as_uint(value)));
-  return old;
-}
-__device__ __forceinline__ float ssrlcv::atomicMaxFloat (float * addr, float value){
-  float old;
-  old = (value >= 0) ? __int_as_float(atomicMax((int *)addr, __float_as_int(value))) :
-    __uint_as_float(atomicMin((unsigned int *)addr, __float_as_uint(value)));
-  return old;
-}
+
 __device__ __forceinline__ unsigned long ssrlcv::getGlobalIdx_2D_1D(){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   unsigned long threadId = blockId * blockDim.x + threadIdx.x;

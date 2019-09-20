@@ -40,6 +40,7 @@ namespace ssrlcv{
         int octave;
         int blur;
         float2 loc;
+        float intensity;
         float sigma;
       };
 
@@ -98,13 +99,14 @@ namespace ssrlcv{
     /**
     * \brief this method filters out subpixel keypoints that are considered edges using the harris corner detector
     */
-    void removeEdges(DOG* dog, Unity<ScaleSpace::SSKeyPoint>* extrema);
+    void removeEdges(DOG* dog, Unity<ScaleSpace::SSKeyPoint>* extrema, float edgeThreshold);
     
 
     /**
     * \brief this method finds keypoints from within a scale space at a pixel or subpixel level
     */
-    Unity<float3>* findKeyPoints(Image* image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize,float noiseThreshold, bool subPixel = false);
+    Unity<float3>* findKeyPoints(Image* image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, 
+      int2 kernelSize, float noiseThreshold = 0.015f, float edgeThreshold = 10.0f, bool subPixel = false);
 
   };
 
@@ -116,7 +118,20 @@ namespace ssrlcv{
 
   __device__ __host__ __forceinline__ bool subpixelRefiner(float3& keyPoint, const float3& derivatives, float hessian[3][3]);
 
+
+  __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
+  __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
+
   __global__ void subtractImages(unsigned int numPixels, float* pixelsUpper, float* pixelsLower, float* pixelsOut);
+
+
+  //implement
+  __global__ void findMaxima(uint2 imageSize, unsigned int colorDepth, float* pixelsUpper, float* pixelsMiddle, float* pixelsLower, int* maxima);
+  __global__ void fillMaxima(int numKeyPoints, uint2 imageSize, unsigned int colorDepth,int2 ssLoc, float sigma, int* maximaAddresses, float* pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
+  __global__ void refineToSubPixel(uint2 imageSize, unsigned int colorDepth, float* pixelsUpper, float* pixelsMiddle, float* pixelsLower, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
+  __global__ void flagNoise(uint2 imageSize, unsigned int colorDepth, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float threshold);
+  __global__ void flagEdges(uint2 imageSize, unsigned int colorDepth, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float threshold);
+
 
 
   __global__ void convertSSKPToLKP(unsigned int numKeyPoints, float3* localizedKeyPoints, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
