@@ -22,28 +22,24 @@
 #     - bash util/CI/unit_test02.sh
 
 stages:
-  - clean
   - build
   - test
   - documentation
-
-clean:
-  stage: clean
-  script:
-    - make clean
-  only:
-    - merge_requests
-    - web
 
 compile:
   stage: build
   script:
     - make -j4
+  artifacts:
+    paths:
+    - ./obj/
 
-tests-auto:
+test:
   stage: test
   script:
-  - bash ./util/CI/test-all
+  - make -j4 test
+  dependencies:
+  - compile
 
 pages:
   stage: documentation

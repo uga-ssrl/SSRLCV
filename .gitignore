@@ -24,12 +24,10 @@ data/._*
 util/._*
 util/io/._*
 
-*.sublime-workspace
-*.sublime-project
 doc/doxygen/documentation/*
 
-doc/doxygen/documentation/*
+util/CI/bin/
+util/CI/obj/
+util/CI/tmp/
 
-tests/bin
-tests/obj
-tests/tmp
+project.*

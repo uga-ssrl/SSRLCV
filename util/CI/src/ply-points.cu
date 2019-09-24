@@ -11,7 +11,7 @@ using namespace tinyply;
 
 int main(int argc, char ** argv) {
 
-  const char * testfile = "tests/tmp/ply.ply";
+  const char * testfile = "tmp/ply.ply";
 
   vector<float3> points;
   points.push_back({ 1.0, 2.0, 3.0 });
