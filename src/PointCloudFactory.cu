@@ -434,18 +434,19 @@ __global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, f
   if (globalID < numMatches) {
     Match match = matches[globalID];
     float3 point = {match.keyPoints[0].loc.x,match.keyPoints[0].loc.y,0.0f};
-    point.z = sqrtf(scale*dotProduct({match.keyPoints[0].loc-match.keyPoints[1].loc},{match.keyPoints[0].loc-match.keyPoints[1].loc}));
+    point.z = sqrtf(scale*dotProduct(match.keyPoints[0].loc-match.keyPoints[1].loc,match.keyPoints[0].loc-match.keyPoints[1].loc));
     points[globalID] = point;
   }
 }
 
 __global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, float cam1C[3], float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9], float rotationTranspose1[9], float rotationTranspose2[9], float3* points){
+   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
 
-  if(!(getGlobalIdx_1D_1D()<numMatches))return;
+  if(!(globalID<numMatches))return;
 	//check out globalID cheat sheet jackson gave you for this
-	int matchIndex = getGlobalIdx_1D_1D(); //need to define once I calculate grid/block size
+	int matchIndex = globalID; //need to define once I calculate grid/block size
 	//printf("thread index %d", getGlobalIdx_1D_1D());
-	float4 match = matches[getGlobalIdx_1D_1D()];
+	float4 match = matches[globalID];
 
 
 	float pix1[3] =
@@ -455,17 +456,34 @@ __global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, floa
 	float pix2[3] =
 	{
 		match.z, match.w, 1
-	};
-
+  };
+  float K_inv_reg[3][3];
+  for(int r = 0; r < 3; ++r){
+    for(int c = 0; c < 3; ++c){
+      K_inv_reg[r][c] = K_inv[r*3 + c];
+    }
+  }
+  float rotationTranspose1_reg[3][3];
+   for(int r = 0; r < 3; ++r){
+    for(int c = 0; c < 3; ++c){
+      rotationTranspose1_reg[r][c] = rotationTranspose1[r*3 + c];
+    }
+  }
+  float rotationTranspose2_reg[3][3];
+   for(int r = 0; r < 3; ++r){
+    for(int c = 0; c < 3; ++c){
+      rotationTranspose2_reg[r][c] = rotationTranspose2[r*3 + c];
+    }
+  }
 
 	float inter1[3];
 	float inter2[3];
 
 	float temp[3];
-	multiply3x3x1_gpu(K_inv, pix1, temp);
-	multiply3x3x1_gpu(rotationTranspose1, temp, inter1);
-	multiply3x3x1_gpu(K_inv, pix2, temp);
-	multiply3x3x1_gpu(rotationTranspose2, temp, inter2);
+	multiply(K_inv_reg, pix1, temp);
+	multiply(rotationTranspose1_reg, temp, inter1);
+	multiply(K_inv_reg, pix2, temp);
+	multiply(rotationTranspose2_reg, temp, inter2);
 
 	float worldP1[3] =
 	{
@@ -487,8 +505,8 @@ __global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, floa
 		worldP2[0] - cam2C[0], worldP2[1] - cam2C[1], worldP2[2] - cam2C[2]
 	};
 
-	normalize_gpu(v1);
-	normalize_gpu(v2);
+	normalize(v1);
+	normalize(v2);
 
 
 
@@ -511,8 +529,8 @@ __global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, floa
 	float q2[3];
 	float Q[3];
 
-	multiply3x3x1_gpu( M1, worldP1, q1);
-	multiply3x3x1_gpu( M2, worldP2, q2);
+	multiply( M1, worldP1, q1);
+	multiply( M2, worldP2, q2);
 
 	float M[3][3];
 	float M_inv[3][3];
@@ -527,8 +545,8 @@ __global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, floa
 	}
 
 	float solution[3];
-	inverse3x3_gpu(M, M_inv);
-	multiply3x3x1_gpu(M_inv, Q, solution);
+	inverse(M, M_inv);
+	multiply(M_inv, Q, solution);
 
 
 

@@ -15,6 +15,7 @@
 #include <thrust/device_ptr.h>
 #include <thrust/copy.h>
 #include <thrust/scan.h>
+#include "io_util.h"
 
 
 #define SIFTBORDER 12
@@ -40,8 +41,10 @@ namespace ssrlcv{
         int octave;
         int blur;
         float2 loc;
+        float2 abs_loc;
         float intensity;
         float sigma;
+        bool discard;
       };
 
       /**
@@ -50,19 +53,19 @@ namespace ssrlcv{
       */
       struct Octave{
         struct Blur{
-          unsigned int colorDepth;
           uint2 size;
           float sigma;
           Unity<float>* pixels;/**\brief vector of Unity structs holding pixel values*/
           Blur();
-          Blur(float sigma, int2 kernelSize, Unity<unsigned char>* pixels, uint2 size, unsigned int colorDepth, float pixelWidth);
+          Blur(float sigma, int2 kernelSize, Unity<float>* blurable, uint2 size, float pixelWidth);
           ~Blur();
         };
         unsigned int numBlurs;
         Blur** blurs;/**\brief array of blur pointers*/
+        float pixelWidth;
         Octave();
         //may want to remove kernelSize as it is static in anatomy
-        Octave(unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<unsigned char>* pixels, uint2 depth, unsigned int colorDepth, float pixelWidth);
+        Octave(unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<unsigned char>* pixels, uint2 depth, float pixelWidth);
         ~Octave();
 
       };
@@ -72,6 +75,7 @@ namespace ssrlcv{
 
       ScaleSpace();
       ScaleSpace(Image* image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize);
+      void dumpData(std::string filePath);
       ~ScaleSpace();
     };
     typedef ScaleSpace DOG;
@@ -116,8 +120,6 @@ namespace ssrlcv{
 
   extern __constant__ float pi;
 
-  __device__ __host__ __forceinline__ bool subpixelRefiner(float3& keyPoint, const float3& derivatives, float hessian[3][3]);
-
 
   __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
   __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
@@ -126,11 +128,13 @@ namespace ssrlcv{
 
 
   //implement
-  __global__ void findMaxima(uint2 imageSize, unsigned int colorDepth, float* pixelsUpper, float* pixelsMiddle, float* pixelsLower, int* maxima);
-  __global__ void fillMaxima(int numKeyPoints, uint2 imageSize, unsigned int colorDepth,int2 ssLoc, float sigma, int* maximaAddresses, float* pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
-  __global__ void refineToSubPixel(uint2 imageSize, unsigned int colorDepth, float* pixelsUpper, float* pixelsMiddle, float* pixelsLower, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
-  __global__ void flagNoise(uint2 imageSize, unsigned int colorDepth, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float threshold);
-  __global__ void flagEdges(uint2 imageSize, unsigned int colorDepth, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float threshold);
+  __global__ void findMaxima(uint2 imageSize, float* pixelsUpper, float* pixelsMiddle, float* pixelsLower, int* maxima);
+  __global__ void fillMaxima(int numKeyPoints, uint2 imageSize,float pixelWidth,int2 ssLoc, int* maximaAddresses, float* pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
+ 
+  __global__ void refineLocation(unsigned int numKeyPoints, uint2 imageSize, float sigmaMin, float pixelWidthRatio, float pixelWidth, float* pixelsUpper, float* pixelsMiddle, float* pixelsLower, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
+ 
+  __global__ void flagNoise(uint2 imageSize, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float threshold);
+  __global__ void flagEdges(uint2 imageSize, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float threshold);
 
 
 

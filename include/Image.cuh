@@ -85,7 +85,7 @@ namespace ssrlcv{
   void convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth);
   void convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth);
 
-  void calcFundamentalMatrix_2View(Image* query, Image* target, float3 *F);
+  void calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F)[3]);
   void get_cam_params2view(Image* cam1, Image* cam2, std::string infile);
 
   /**
@@ -94,9 +94,15 @@ namespace ssrlcv{
   */
   Unity<int2>* generatePixelGradients(uint2 imageSize, Unity<unsigned char>* pixels);
   /**
+  *\brief generate float2 gradients for each pixel with borders being symmetrized with an offset inward
+  * this symmetrization is based on finite difference and gradient approx 
+  */
+  Unity<float2>* generatePixelGradients(uint2 imageSize, Unity<float>* pixels);
+  /**
   *\brief bins an image by a factor of 2 in the x and y direction
   */
   Unity<unsigned char>* bin(uint2 imageSize, unsigned int colorDepth, Unity<unsigned char>* pixels);
+
   /**
   *\brief upsamples and image by a factor of 2 in the x and y directions
   */
@@ -110,6 +116,7 @@ namespace ssrlcv{
 
   
   Unity<float>* convolve(uint2 imageSize, Unity<unsigned char>* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, bool symmetric = true);
+  Unity<float>* convolve(uint2 imageSize, Unity<float>* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, bool symmetric = true);
 
 
   /* CUDA variable, method and kernel defintions */
@@ -143,13 +150,17 @@ namespace ssrlcv{
   
   //border condition 0
   __global__ void convolveImage(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
+  __global__ void convolveImage(uint2 imageSize, float* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
   //border condition non0
   __global__ void convolveImage_symmetric(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
-  __global__ void convertToCharImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels, float* min, float* max);
+  __global__ void convolveImage_symmetric(uint2 imageSize, float* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
+ 
+  __global__ void convertToCharImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels, float min, float max);
   __global__ void convertToFltImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels);
   __global__ void applyBorder(uint2 imageSize, unsigned int* featureNumbers, unsigned int* featureAddresses, float2 border);
   __global__ void getPixelCenters(unsigned int numValidPixels, uint2 imageSize, unsigned int* pixelAddresses, float2* pixelCenters);
 
+  __global__ void calculatePixelGradients(uint2 imageSize, float* pixels, float2* gradients);
   __global__ void calculatePixelGradients(uint2 imageSize, unsigned char* pixels, int2* gradients);
 
 }

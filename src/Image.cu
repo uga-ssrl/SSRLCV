@@ -120,16 +120,9 @@ ssrlcv::Unity<unsigned char>* ssrlcv::convertImageToChar(Unity<float>* pixels){
   dim3 block = {1,1,1};
   getFlatGridBlock(pixels->numElements,grid,block);
   Unity<unsigned char>* castPixels = new Unity<unsigned char>(nullptr,pixels->numElements,gpu);
-  float* min; float* max;
-  CudaSafeCall(cudaMalloc((void**)&min,sizeof(float)));
-  CudaSafeCall(cudaMalloc((void**)&max,sizeof(float)));
-  CudaSafeCall(cudaMemcpy(min,&minMax.x,sizeof(float),cudaMemcpyHostToDevice));
-  CudaSafeCall(cudaMemcpy(max,&minMax.y,sizeof(float),cudaMemcpyHostToDevice));
-  convertToCharImage<<<grid,block>>>(pixels->numElements,castPixels->device,pixels->device,&minMax.x,&minMax.y);
+  convertToCharImage<<<grid,block>>>(pixels->numElements,castPixels->device,pixels->device,minMax.x,minMax.y);
+  cudaDeviceSynchronize();
   CudaCheckError();
-
-  CudaSafeCall(cudaFree(min));
-  CudaSafeCall(cudaFree(max));
 
   if(origin == cpu){
     pixels->setMemoryState(cpu);
@@ -140,7 +133,7 @@ ssrlcv::Unity<unsigned char>* ssrlcv::convertImageToChar(Unity<float>* pixels){
 }
 ssrlcv::Unity<float>* ssrlcv::convertImageToFlt(Unity<unsigned char>* pixels){
   MemoryState origin = pixels->state;
-  pixels->transferMemoryTo(gpu);
+  if(origin == cpu || pixels->fore == cpu) pixels->transferMemoryTo(gpu);
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   getFlatGridBlock(pixels->numElements,grid,block);
@@ -161,21 +154,22 @@ void ssrlcv::convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth){
   }
 
   MemoryState origin = pixels->state;
-  pixels->transferMemoryTo(gpu);
+  if(origin == cpu || pixels->fore == cpu) pixels->transferMemoryTo(gpu);
 
   unsigned int numPixels = (pixels->numElements/colorDepth);
 
   unsigned char* bwPixels_device;
   CudaSafeCall(cudaMalloc((void**)&bwPixels_device, numPixels*sizeof(unsigned char)));
 
-  dim3 grid;
-  dim3 block;
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
   getFlatGridBlock(numPixels, grid, block);
   generateBW<<<grid,block>>>(numPixels, colorDepth, pixels->device, bwPixels_device);
+  cudaDeviceSynchronize();
   CudaCheckError();
 
   pixels->setData(bwPixels_device, numPixels, gpu);
-  pixels->setMemoryState(origin);
+  if(origin == cpu) pixels->setMemoryState(origin);
 }
 void ssrlcv::convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth){
   if(colorDepth == 3){
@@ -184,7 +178,7 @@ void ssrlcv::convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth)
   }
 
   MemoryState origin = pixels->state;
-  pixels->transferMemoryTo(gpu);
+  if(origin == cpu || pixels->fore == cpu) pixels->transferMemoryTo(gpu);
 
   unsigned int numPixels = (pixels->numElements/colorDepth);
 
@@ -195,13 +189,14 @@ void ssrlcv::convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth)
   dim3 block;
   getFlatGridBlock(numPixels, grid, block);
   generateRGB<<<grid,block>>>(numPixels, colorDepth, pixels->device, rgbPixels_device);
+  cudaDeviceSynchronize();
   CudaCheckError();
 
   pixels->setData(rgbPixels_device, 3*numPixels, gpu);
-  pixels->setMemoryState(origin);
+  if(origin == cpu) pixels->setMemoryState(origin);
 }
 
-void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 *F){
+void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F)[3]){
   if(query->camera.fov != target->camera.fov || query->camera.foc != target->camera.foc){
     std::cout<<"ERROR calculating fundamental matrix for 2view needs to bet taken with same camera (foc&fov are same)"<<std::endl;
     exit(-1);
@@ -226,7 +221,8 @@ void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 *F)
     {0, sin(angle1), cos(angle1)}
   };
 
-  float3 temp = multiply3x3x1(A1, query->camera.cam_vec);
+  float3 temp = {0.0f,0.0f,0.0f};
+  multiply(A1, query->camera.cam_vec,temp);
 
   float angle2 = 0.0f;
   if(abs(temp.z) < .00001) {
@@ -248,12 +244,13 @@ void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 *F)
     {-sin(angle2), 0, cos(angle2)}
   };
 
-  float3 temp2 = multiply3x3x1(B1, temp);
+  float3 temp2 = {0.0f,0.0f,0.0f};
+  multiply(B1, temp, temp2);
   float3 rot1[3];
-  multiply3x3(B1, A1, rot1);
+  multiply(B1, A1, rot1);
   float3 rot1Transpose[3];
-  transpose3x3(rot1,rot1Transpose);
-  temp = multiply3x3x1(rot1Transpose, temp2);
+  transpose(rot1,rot1Transpose);
+  multiply(rot1Transpose, temp2, temp);
 
   angle1 = 0.0f;
   if(abs(target->camera.cam_vec.z) < .00001) {
@@ -274,7 +271,7 @@ void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 *F)
     {0, cos(angle1), -sin(angle1)},
     {0, sin(angle1), cos(angle1)}
   };
-  temp2 = multiply3x3x1(A2, target->camera.cam_vec);
+  multiply(A2, target->camera.cam_vec,temp2);
 
   angle2 = 0.0f;
   if(abs(temp2.z) < .00001) {
@@ -296,14 +293,14 @@ void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 *F)
     {-sin(angle2), 0, cos(angle2)}
   };
 
-  temp = multiply3x3x1(B2, temp2);
+  multiply(B2, temp2, temp);
 
   float3 rot2[3];
-  multiply3x3(B2, A2, rot2);
+  multiply(B2, A2, rot2);
   float3 rot2Transpose[3];
-  transpose3x3(rot2, rot2Transpose);
+  transpose(rot2, rot2Transpose);
 
-  temp2 = multiply3x3x1(rot2Transpose, temp);
+  multiply(rot2Transpose, temp, temp2);
 
   float3 K[3] = {
     {query->camera.foc/query->camera.dpix.x, 0, ((float)query->size.x)/2.0f},
@@ -311,22 +308,22 @@ void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 *F)
     {0, 0, 1}
   };
   float3 K_inv[3];
-  inverse3x3(K,K_inv);
+  inverse(K,K_inv);
   float3 K_invTranspose[3];
-  transpose3x3(K_inv,K_invTranspose);
+  transpose(K_inv,K_invTranspose);
 
   float3 R[3];
-  multiply3x3(rot2Transpose, rot1, R);
+  multiply(rot2Transpose, rot1, R);
   float3 S[3] = {
     {0, query->camera.cam_pos.z - target->camera.cam_pos.z, target->camera.cam_pos.y - query->camera.cam_pos.y},
     {query->camera.cam_pos.z - target->camera.cam_pos.z,0, query->camera.cam_pos.x - target->camera.cam_pos.x},
     {query->camera.cam_pos.y - target->camera.cam_pos.y, target->camera.cam_pos.x - query->camera.cam_pos.x, 0}
   };
-  float3 E[3];;
-  multiply3x3(R,S,E);
+  float3 E[3];
+  multiply(R,S,E);
   float3 tempF[3];
-  multiply3x3(K_invTranspose, E,tempF);
-  multiply3x3(tempF, K_inv, F);
+  multiply(K_invTranspose, E,tempF);
+  multiply(tempF, K_inv, F);
   std::cout << std::endl <<"between image "<<query->id<<" and "<<target->id
   <<" the final fundamental matrix result is: " << std::endl;
   for(int r = 0; r < 3; ++r) {
@@ -405,29 +402,41 @@ ssrlcv::Unity<int2>* ssrlcv::generatePixelGradients(uint2 imageSize, Unity<unsig
 
   return new Unity<int2>(gradients_device,pixels->numElements,gpu);
 }
+ssrlcv::Unity<float2>* ssrlcv::generatePixelGradients(uint2 imageSize, Unity<float>* pixels){
+  MemoryState origin = pixels->state;
+  if(origin == cpu || pixels->fore == cpu){
+    pixels->transferMemoryTo(gpu);
+  }
+  float2* gradients_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&gradients_device,pixels->numElements*sizeof(float2)));
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(pixels->numElements,grid,block);
+  calculatePixelGradients<<<grid,block>>>(imageSize,pixels->device,gradients_device);
+  CudaCheckError();
+
+  if(origin == cpu) pixels->setMemoryState(cpu);
+
+  return new Unity<float2>(gradients_device,pixels->numElements,gpu);
+}
 
 ssrlcv::Unity<unsigned char>* ssrlcv::bin(uint2 imageSize, unsigned int colorDepth, Unity<unsigned char>* pixels){
   MemoryState origin = pixels->state;
 
-  if(origin == cpu || pixels->fore != gpu){
+  if(origin == cpu || pixels->fore == cpu){
     pixels->transferMemoryTo(gpu);
   }
-  unsigned char* binnedImage_device = nullptr;
-
+  Unity<unsigned char>* binnedImage = new Unity<unsigned char>(nullptr, pixels->numElements/4, gpu);
   dim3 grid = {(imageSize.x/64)+1,(imageSize.y/64)+1,1};
   dim3 block = {32,32,1};
 
-  CudaSafeCall(cudaMalloc((void**)&binnedImage_device,(pixels->numElements/4)*sizeof(unsigned char)));
-  binImage<<<grid,block>>>(imageSize,colorDepth,pixels->device,binnedImage_device);
+  binImage<<<grid,block>>>(imageSize,colorDepth,pixels->device,binnedImage->device);
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  if(origin == cpu){
-    pixels->setMemoryState(cpu);
-  }
-
-  Unity<unsigned char>* binnedImage = new Unity<unsigned char>(binnedImage_device, pixels->numElements/4, gpu);
-  binnedImage->transferMemoryTo(cpu);
+  
+  if(origin == cpu) pixels->setMemoryState(cpu);
+  if(origin != gpu) binnedImage->setMemoryState(origin);
   return binnedImage;
 }
 
@@ -437,22 +446,18 @@ ssrlcv::Unity<unsigned char>* ssrlcv::upsample(uint2 imageSize, unsigned int col
   if(origin == cpu || pixels->fore == cpu){
     pixels->transferMemoryTo(gpu);
   }
-  unsigned char* upsampledImage_device = nullptr;
 
   dim3 grid = {(imageSize.x/16)+1,(imageSize.y/16)+1,1};
   dim3 block = {32,32,1};
 
-  CudaSafeCall(cudaMalloc((void**)&upsampledImage_device,pixels->numElements*4*sizeof(unsigned char)));
-  upsampleImage<<<grid,block>>>(imageSize,colorDepth,pixels->device,upsampledImage_device);
+  Unity<unsigned char>* upsampledImage = new Unity<unsigned char>(nullptr, pixels->numElements*4, gpu);
+
+  upsampleImage<<<grid,block>>>(imageSize,colorDepth,pixels->device,upsampledImage->device);
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  if(origin == cpu){
-    pixels->setMemoryState(cpu);
-  }
-
-  Unity<unsigned char>* upsampledImage = new Unity<unsigned char>(upsampledImage_device, pixels->numElements*4, gpu);
-  upsampledImage->transferMemoryTo(cpu);
+  if(origin == cpu) pixels->setMemoryState(cpu);
+  if(origin != gpu) upsampledImage->setMemoryState(origin);
   return upsampledImage;
 
 }
@@ -485,6 +490,36 @@ ssrlcv::Unity<unsigned char>* ssrlcv::scaleImage(uint2 imageSize, unsigned int c
 
 
 ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<unsigned char>* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, bool symmetric){
+  if(kernelSize.x%2 == 0 || kernelSize.y%2 == 0){
+    std::cerr<<"ERROR kernel for image convolution must have an odd dimension"<<std::endl;
+    exit(-1);
+  }
+  MemoryState origin = pixels->state;
+  if(origin == cpu) pixels->transferMemoryTo(gpu);
+  Unity<float>* convolvedImage = new Unity<float>(nullptr,imageSize.x*imageSize.y*colorDepth,gpu);
+  float* kernel_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&kernel_device,kernelSize.x*kernelSize.y*sizeof(float)));
+  CudaSafeCall(cudaMemcpy(kernel_device,kernel,kernelSize.x*kernelSize.y*sizeof(float),cudaMemcpyHostToDevice));
+  dim3 grid = {(imageSize.x/32)+1,(imageSize.y/32)+1,colorDepth};
+  dim3 block = {32,32,1};
+  float2 minMax = {FLT_MAX,-FLT_MAX};
+  float* min = nullptr;
+ 
+  if(symmetric){
+    convolveImage_symmetric<<<grid,block>>>(imageSize, pixels->device, colorDepth, kernelSize, kernel_device, convolvedImage->device);
+  }
+  else{
+    convolveImage<<<grid,block>>>(imageSize, pixels->device, colorDepth, kernelSize, kernel_device, convolvedImage->device);
+  }
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  CudaSafeCall(cudaFree(kernel_device));
+
+  if(origin == cpu) pixels->setMemoryState(cpu);
+  return convolvedImage;
+}
+ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<float>* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, bool symmetric){
   if(kernelSize.x%2 == 0 || kernelSize.y%2 == 0){
     std::cerr<<"ERROR kernel for image convolution must have an odd dimension"<<std::endl;
     exit(-1);
@@ -556,7 +591,7 @@ __device__ __forceinline__ uchar3 ssrlcv::rgbaToRGB(const uchar4 &color){
 __global__ void ssrlcv::generateBW(int numPixels, unsigned int colorDepth, unsigned char* colorPixels, unsigned char* pixels){
   unsigned long globalID = getGlobalIdx_2D_1D();
   if(globalID < numPixels){
-    int numValues = colorDepth;
+    int numValues = (int) colorDepth;
     switch(numValues){
       case 2:
         pixels[globalID] = bwaToBW({colorPixels[globalID*numValues],colorPixels[globalID*numValues + 1]});
@@ -604,9 +639,9 @@ __global__ void ssrlcv::binImage(uint2 imageSize, unsigned int colorDepth, unsig
   if(x < imageSize.x/2 && y < imageSize.y/2){
     for(int d = 0; d < colorDepth; ++d){
       float sumPix = pixels[y*colorDepth*2*imageSize.x + x*2*colorDepth + d] +
-      pixels[(y + 1)*colorDepth*2*imageSize.x + x*2*colorDepth + d] +
-      pixels[y*colorDepth*2*imageSize.x + (x+1)*2*colorDepth + d] +
-      pixels[(y+1)*colorDepth*2*imageSize.x + (x+1)*2*colorDepth + d];
+      pixels[(y*2+1)*colorDepth*imageSize.x + x*2*colorDepth + d] +
+      pixels[y*2*colorDepth*imageSize.x + (x*2+1)*colorDepth + d] +
+      pixels[(y*2+1)*colorDepth*imageSize.x + (x*2+1)*colorDepth + d];
       binnedImage[y*colorDepth*(imageSize.x/2) + x*colorDepth + d] = (unsigned char) roundf(sumPix/4.0f);
     }
   }
@@ -673,7 +708,25 @@ __global__ void ssrlcv::convolveImage(uint2 imageSize, unsigned char* pixels, un
           sum += ((float)pixels[((y+ky)*imageSize.x + (x+kx))*colorDepth + color])*kernel[(ky+(kernelSize.y/2))*kernelSize.x + (kx+(kernelSize.x/2))];
         }
       }
-      sum /= (kernelSize.x*kernelSize.y);
+      convolvedImage[(y*imageSize.x + x)*colorDepth + color] = sum;
+    }
+  }
+}
+__global__ void ssrlcv::convolveImage(uint2 imageSize, float* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage){
+  unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
+  unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+  unsigned int color = blockIdx.z*blockDim.z + threadIdx.z;
+  if(x < imageSize.x && y < imageSize.y){
+    if(x + (kernelSize.x/2) >= imageSize.x || x < kernelSize.x/2 || y + (kernelSize.y/2) >= imageSize.y || y < kernelSize.y/2){
+      convolvedImage[(y*imageSize.x + x)*colorDepth + color] = 0;
+    }
+    else{
+      float sum = 0.0f;
+      for(int ky = -kernelSize.y/2; ky <= kernelSize.y/2; ++ky){
+        for(int kx = -kernelSize.x/2; kx <= kernelSize.x/2; ++kx){
+          sum += pixels[((y+ky)*imageSize.x + (x+kx))*colorDepth + color]*kernel[(ky+(kernelSize.y/2))*kernelSize.x + (kx+(kernelSize.x/2))];
+        }
+      }
       convolvedImage[(y*imageSize.x + x)*colorDepth + color] = sum;
     }
   }
@@ -691,15 +744,30 @@ __global__ void ssrlcv::convolveImage_symmetric(uint2 imageSize, unsigned char* 
         sum += ((float)pixels[((symmetricCoord.y)*imageSize.x + (symmetricCoord.x))*colorDepth + color])*kernel[(ky+(kernelSize.y/2))*kernelSize.x + (kx+(kernelSize.x/2))];
       }
     }
-    sum /= (kernelSize.x*kernelSize.y);
+    convolvedImage[(y*imageSize.x + x)*colorDepth + color] = sum;
+  }
+}
+__global__ void ssrlcv::convolveImage_symmetric(uint2 imageSize, float* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage){
+  unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
+  unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+  unsigned int color = blockIdx.z*blockDim.z + threadIdx.z;
+  if(x < imageSize.x && y < imageSize.y){
+    int2 symmetricCoord = {0,0};
+    float sum = 0.0f;
+    for(int ky = -kernelSize.y/2; ky <= kernelSize.y/2; ++ky){
+      for(int kx = -kernelSize.x/2; kx <= kernelSize.x/2; ++kx){
+        symmetricCoord = {getSymmetrizedCoord(x+kx,(int)imageSize.x),getSymmetrizedCoord(y+ky,(int)imageSize.y)};
+        sum += pixels[((symmetricCoord.y)*imageSize.x + (symmetricCoord.x))*colorDepth + color]*kernel[(ky+(kernelSize.y/2))*kernelSize.x + (kx+(kernelSize.x/2))];
+      }
+    }
     convolvedImage[(y*imageSize.x + x)*colorDepth + color] = sum;
   }
 }
 
-__global__ void ssrlcv::convertToCharImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels, float* min, float* max){
+__global__ void ssrlcv::convertToCharImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels, float min, float max){
   unsigned long globalID = getGlobalIdx_2D_1D();
   if(globalID < numPixels){
-    pixels[globalID] = (unsigned char) 255.0f*((fltPixels[globalID]-*min)/(*max-*min));
+    pixels[globalID] = (unsigned char) 255.0f*((fltPixels[globalID]-min)/(max-min));
   }
 }
 __global__ void ssrlcv::convertToFltImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels){
@@ -722,6 +790,22 @@ __global__ void ssrlcv::calculatePixelGradients(uint2 imageSize, unsigned char* 
     gradients[globalID] = {
       (int)pixels[loc.y*imageSize.x + xContrib.x] - (int)pixels[loc.y*imageSize.x + xContrib.y],
       (int)pixels[yContrib.x*imageSize.x + loc.x] - (int)pixels[yContrib.y*imageSize.x + loc.x]
+    };
+  }
+}
+__global__ void ssrlcv::calculatePixelGradients(uint2 imageSize, float* pixels, float2* gradients){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if(globalID < imageSize.x*imageSize.y){
+    int2 loc = {(int)globalID%imageSize.x,(int)globalID/imageSize.x};
+    int2 xContrib = {loc.x + 1,loc.x - 1};
+    int2 yContrib = {loc.y + 1,loc.y - 1};
+    if(xContrib.y == -1) xContrib = xContrib + 1;
+    else if(xContrib.x == imageSize.x) xContrib = xContrib - 1;
+    if(yContrib.y == -1) yContrib = yContrib + 1;
+    else if(yContrib.x == imageSize.y) yContrib = yContrib - 1;
+    gradients[globalID] = {
+      pixels[loc.y*imageSize.x + xContrib.x] - pixels[loc.y*imageSize.x + xContrib.y],
+      pixels[yContrib.x*imageSize.x + loc.x] - pixels[yContrib.y*imageSize.x + loc.x]
     };
   }
 }
