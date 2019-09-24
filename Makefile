@@ -183,4 +183,5 @@ clean:
 	rm -f *.txt
 	rm -rf ${TESTDIR}/obj
 	rm -rf ${TESTDIR}/tmp
-	rm -rf ${TESTDIR}/bin
+	rm -rf ${TESTDIR}/bin/cu
+	rm -rf ${TESTDIR}/bin/cpp

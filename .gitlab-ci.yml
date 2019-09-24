@@ -32,7 +32,10 @@ compile:
     - make -j4
   artifacts:
     paths:
+    - ./bin/
     - ./obj/
+    - ./util/CI/bin/cu
+    - ./util/CI/bin/cpp
 
 test:
   stage: test
