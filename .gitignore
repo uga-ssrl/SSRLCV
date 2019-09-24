@@ -26,8 +26,10 @@ util/io/._*
 
 doc/doxygen/documentation/*
 
-util/CI/bin/
-util/CI/obj/
-util/CI/tmp/
+util/CI/bin/cpp/*
+util/CI/bin/cu/*
+util/CI/obj/*
+util/CI/tmp/*
 
 project.*
+.vscode/

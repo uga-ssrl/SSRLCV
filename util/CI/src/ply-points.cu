@@ -1,7 +1,7 @@
 #include "io_3d.cuh"
 #include "tinyply.h"
 
-#include "testing.h"
+#include "unit-testing.h"
 #include <iostream>
 #include <vector>
 

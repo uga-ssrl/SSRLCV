@@ -138,22 +138,16 @@ ${BINDIR}/${TARGET_T}: ${T_OBJS} Makefile
 # Tests
 #
 
-TEST_DIRS = mkdir -p ${TESTDIR}/tmp; mkdir -p ${TESTDIR}/obj; mkdir -p ${TESTDIR}/bin/cu; mkdir -p ${TESTDIR}/bin/cpp
-
 ${TESTDIR}/obj/%.cpp.o: ${TESTDIR}/src/%.cpp
-	@${TEST_DIRS}
-	${CXX} ${INCLUDES} ${CXXFLAGS}  -c -o $@ $<
+	${CXX} ${INCLUDES} -I./util/CI/ ${CXXFLAGS}  -c -o $@ $<
 
 ${TESTDIR}/obj/%.cu.o: ${TESTDIR}/src/%.cu
-	@${TEST_DIRS}
-	${NVCC} ${INCLUDES} ${NVCCFLAGS} -c -o $@ $<
+	${NVCC} ${INCLUDES} -I./util/CI/ ${NVCCFLAGS} -c -o $@ $<
 
 ${TESTDIR}/bin/cpp/%: ${TESTDIR}/obj/%.cpp.o ${TEST_OBJS}
-	@${TEST_DIRS}
 	${LINK} ${GENCODEFLAGS} ${LIB} ${TEST_OBJS} $< -o $@
 
 ${TESTDIR}/bin/cu/%: ${TESTDIR}/obj/%.cu.o ${TEST_OBJS}
-	@${TEST_DIRS}
 	${LINK} ${GENCODEFLAGS} ${LIB} ${TEST_OBJS} $< -o $@
 
 
@@ -181,7 +175,7 @@ clean:
 	rm -f *.~
 	rm -f *.kp
 	rm -f *.txt
-	rm -rf ${TESTDIR}/obj
-	rm -rf ${TESTDIR}/tmp
-	rm -rf ${TESTDIR}/bin/cu
-	rm -rf ${TESTDIR}/bin/cpp
+	rm -rf ${TESTDIR}/obj/*
+	rm -rf ${TESTDIR}/tmp/*
+	rm -rf ${TESTDIR}/bin/cu/*
+	rm -rf ${TESTDIR}/bin/cpp/*
