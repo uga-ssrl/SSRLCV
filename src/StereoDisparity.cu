@@ -39,10 +39,16 @@ int main(int argc, char *argv[]){
     testKernel[2] = 1;
     for(int i = 0; i < numImages; ++i){
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
-      ssrlcv::Unity<float3>* candidateKeyPoints = featureFactory.findKeyPoints(image,-1,{4,6},sqrtf(2.0f)/2,{2,sqrtf(2.0f)},{8,8});
-      delete candidateKeyPoints;
-      delete image;
-      exit(0);
+      // ssrlcv::FeatureFactory::DOG* dog = new ssrlcv::FeatureFactory::DOG(image,-1,{4,6},sqrtf(2.0f)/2,{2,sqrtf(2.0f)},{8,8});
+      // dog->convertToDOG();
+      // std::string dump = "./out/DOG";
+      // dog->dumpData(dump);
+      // float noiseThreshold = 0.015*(powf(2,1.0f/((float)dog->depth.y - 2))-1)/(powf(2,1.0f/3.0f)-1);
+      // float edgeThreshold = 12.1f;//12.1 = (10.0f + 1)^2 / 10.0f
+      // dog->findKeyPoints(noiseThreshold,edgeThreshold,false);
+      // delete image;
+      // delete dog;
+      // exit(0);
       ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image);
       allFeatures.push_back(features);
       images.push_back(image);

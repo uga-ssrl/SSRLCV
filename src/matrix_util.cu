@@ -65,6 +65,19 @@ __device__ __host__ void ssrlcv::multiply(const float (&A)[3], const float (&B)[
     C[c] = val;
   }
 }
+__device__ __host__ void ssrlcv::multiply(const float (&A)[2][2], const float (&B)[2][2], float (&C)[2][2]){
+   for(int r = 0; r < 2; ++r){
+    for(int c = 0; c < 2; ++c){
+      float entry = 0;
+      for(int z = 0; z < 3; ++z){
+        entry += A[r][z]*B[z][c];
+      }
+      C[r][c] = entry;
+    }
+  }
+}
+
+
 __device__ __host__ float ssrlcv::dotProduct(const float (&A)[3], const float (&B)[3]){
   return (A[0]*B[0]) + (A[1]*B[1]) + (A[2]*B[2]);
 }
@@ -127,6 +140,25 @@ __device__ __host__ void ssrlcv::transpose(const float3 (&M)[3], float3 (&M_out)
   M_out[2].y = M[1].z;
   M_out[2].z = M[2].z;
 }
+
+__device__ __host__ void ssrlcv::transpose(const float (&M)[2][2], float (&M_out)[2][2]){
+  for(int r = 0; r < 2; ++r){
+    for(int c = 0; c < 2; ++c){
+      M_out[c][r] = M[r][c];
+    }
+  }
+}
+__device__ __host__ float ssrlcv::determinant(const float (&M)[2][2]){
+  return (M[0][0]*M[1][1]) - (M[0][1]*M[1][0]);
+}
+__device__ __host__ float ssrlcv::trace(const float(&M)[2][2]){
+  return M[0][0] + M[1][1];
+}
+__device__ __host__ float ssrlcv::trace(const float(&M)[3][3]){
+  return M[0][0] + M[1][1] + M[2][2];
+}
+
+
 __device__ __host__ void ssrlcv::normalize(float (&v)[3]){
   float mag = magnitude(v);
   if(mag > 0){

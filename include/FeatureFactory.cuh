@@ -9,6 +9,7 @@
 
 #include "common_includes.h"
 #include "cuda_util.cuh"
+#include "matrix_util.cuh"
 #include "Image.cuh"
 #include "Feature.cuh"
 #include "Unity.cuh"
@@ -46,6 +47,11 @@ namespace ssrlcv{
         float sigma;
         bool discard;
       };
+      struct discard{
+        __device__ __host__ bool operator()(const ScaleSpace::SSKeyPoint &kp){
+          return kp.discard;
+        }
+      };
 
       /**
       * \brief this represents an iterative convolutional sample of a ScaleSpace
@@ -60,12 +66,26 @@ namespace ssrlcv{
           Blur(float sigma, int2 kernelSize, Unity<float>* blurable, uint2 size, float pixelWidth);
           ~Blur();
         };
+        int id;
         unsigned int numBlurs;
         Blur** blurs;/**\brief array of blur pointers*/
         float pixelWidth;
+        
+        Unity<SSKeyPoint>* extrema;
+        int* extremaBlurIndices;
+
+
+
         Octave();
         //may want to remove kernelSize as it is static in anatomy
-        Octave(unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<unsigned char>* pixels, uint2 depth, float pixelWidth);
+        Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<unsigned char>* pixels, uint2 depth, float pixelWidth);
+        
+        void searchForExtrema();
+        void discardExtrema();
+        void refineExtremaLocation();//this is going to have to reorient extrema in scalespace
+        void removeNoise(float noiseThreshold);
+        void removeEdges(float edgeThreshold);
+        
         ~Octave();
 
       };
@@ -75,7 +95,12 @@ namespace ssrlcv{
 
       ScaleSpace();
       ScaleSpace(Image* image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize);
+      
+      void convertToDOG();      
       void dumpData(std::string filePath);
+      void findKeyPoints(float noiseThreshold, float edgeThreshold, bool subpixel = false);
+      Unity<SSKeyPoint>* getAllKeyPoints(MemoryState destination = gpu);
+      
       ~ScaleSpace();
     };
     typedef ScaleSpace DOG;
@@ -86,31 +111,6 @@ namespace ssrlcv{
     */
     FeatureFactory();
     ~FeatureFactory();  
-
-    /**
-    * \brief this method generates a difference of gaussians from an acceptable scaleSpace
-    */
-    DOG* generateDOG(ScaleSpace* scaleSpace);
-    Unity<ScaleSpace::SSKeyPoint>* findExtrema(DOG* dog);
-    /**
-    * \brief this method finds local subpixel extrema in a difference of gaussian scale space
-    */
-    void refineSubPixel(DOG* dog, Unity<ScaleSpace::SSKeyPoint>* extrema);
-    /**
-    * \brief this method filters out subpixel keypoints that have an intensity lower than a noise threshold
-    */
-    void removeNoise(DOG* dog, Unity<ScaleSpace::SSKeyPoint>* extrema, float noiseThreshold);
-    /**
-    * \brief this method filters out subpixel keypoints that are considered edges using the harris corner detector
-    */
-    void removeEdges(DOG* dog, Unity<ScaleSpace::SSKeyPoint>* extrema, float edgeThreshold);
-    
-
-    /**
-    * \brief this method finds keypoints from within a scale space at a pixel or subpixel level
-    */
-    Unity<float3>* findKeyPoints(Image* image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, 
-      int2 kernelSize, float noiseThreshold = 0.015f, float edgeThreshold = 10.0f, bool subPixel = false);
 
   };
 
@@ -123,24 +123,19 @@ namespace ssrlcv{
 
   __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
   __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
+  __device__ __forceinline__ float edgeness(const float (&hessian)[2][2]);
 
   __global__ void subtractImages(unsigned int numPixels, float* pixelsUpper, float* pixelsLower, float* pixelsOut);
 
 
   //implement
-  __global__ void findMaxima(uint2 imageSize, float* pixelsUpper, float* pixelsMiddle, float* pixelsLower, int* maxima);
-  __global__ void fillMaxima(int numKeyPoints, uint2 imageSize,float pixelWidth,int2 ssLoc, int* maximaAddresses, float* pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
+  __global__ void findExtrema(uint2 imageSize, float* pixelsUpper, float* pixelsMiddle, float* pixelsLower, int* extrema);
+  __global__ void fillExtrema(int numKeyPoints, uint2 imageSize,float pixelWidth,int2 ssLoc, int* extremaAddresses, float* pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
  
   __global__ void refineLocation(unsigned int numKeyPoints, uint2 imageSize, float sigmaMin, float pixelWidthRatio, float pixelWidth, float* pixelsUpper, float* pixelsMiddle, float* pixelsLower, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
  
-  __global__ void flagNoise(uint2 imageSize, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float threshold);
-  __global__ void flagEdges(uint2 imageSize, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float threshold);
-
-
-
-  __global__ void convertSSKPToLKP(unsigned int numKeyPoints, float3* localizedKeyPoints, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
-
-
+  __global__ void flagNoise(unsigned int numKeyPoints, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float threshold);
+  __global__ void flagEdges(unsigned int numKeyPoints, unsigned int startingIndex, uint2 imageSize, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float* pixels, float threshold);
 }
 
 

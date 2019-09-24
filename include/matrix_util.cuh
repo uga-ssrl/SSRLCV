@@ -16,11 +16,18 @@ namespace ssrlcv{
   __device__ __host__ void multiply(const float3 (&A)[3], const float3 &B, float3 &C);
   __device__ __host__ void multiply(const float (&A)[3][3], const float (&B)[3], float (&C)[3]);
   __device__ __host__ void multiply(const float (&A)[3], const float (&B)[3][3], float (&C)[3]);
+  __device__ __host__ void multiply(const float (&A)[2][2], const float (&B)[2][2], float (&C)[2][2]);
   __device__ __host__ float dotProduct(const float (&A)[3], const float (&B)[3]);
   __device__ __host__ bool inverse(const float (&M)[3][3], float (&M_out)[3][3]);
   __device__ __host__ bool inverse(const float3 (&M)[3], float3 (&M_out)[3]);
   __device__ __host__ void transpose(const float3 (&M)[3], float3 (&M_out)[3]);
   __device__ __host__ void transpose(const float (&M)[3][3], float (&M_out)[3][3]);
+  __device__ __host__ void transpose(const float (&M)[2][2], float (&M_out)[2][2]);
+  
+  __device__ __host__ float determinant(const float (&M)[2][2]);
+  __device__ __host__ float trace(const float(&M)[2][2]);
+  __device__ __host__ float trace(const float(&M)[3][3]);
+
   __device__ __host__ void normalize(float (&v)[3]);
   __device__ __host__ void normalize(float3 &v);
   __device__ __host__ float magnitude(const float (&v)[3]);
