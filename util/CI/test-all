@@ -1,40 +1,58 @@
 #!/bin/bash
+cd $(dirname "${BASH_SOURCE[0]}")
 
+
+# Test counters 
 ctPass=0
 ctFail=0
 
+function check-source 
+{ 
+    # Check for tests that no longer have corresponding source files
+    # These tests were likely deleted 
+    exe=$1 
+    src=${exe##*/}
+    if    [[ "$exe" == *"bin/cu/$src" ]]; then src="src/$src.cu"; 
+    elif  [[ "$exe" == *"bin/cu/$src" ]]; then src="src/$src.cpp";
+    else return; fi
+    if [ ! -e "$src" ]; then echo "[!] $exe does not have a corresponding file $src"; fi
+}
+
 function run-tests
 {
-  for exe in "$*"; do
-    # StackOverflow told me to do this: https://stackoverflow.com/a/43606356
+  # Runs all executables in the given list of files
+  # Very, extremely secure 
+
+  for exe in "$@"; do
+    # Ignore anything that's not an executable 
+    # Also a good  https://stackoverflow.com/a/43606356
     [ -x "$exe" ] || continue
 
-    # Making sure there aren't any stale tests
-    src=${exe##*/}
-    if [[ "$exe" == "tests/bin/cu/"* ]]; then src="$src.cu"; else src="$src.cpp"; fi
-    src="tests/src/$src"
-    echo $src
-    if [ ! -e "$src" ]; then echo "[!] $exe does not have a corresponding file $src"; fi
-
-    # Running the test - we do it in the {} wrapper so that it doesn't confuse the shell's stderr with that of the program itself.  This supresses "core dumped" messages
-    { $1 2>&1; } 2> /dev/null
+    # Running the test - we do it in the {} wrapper so that it doesn't confuse the shell's stderr with that of the program itself.
+    # This supresses things like "core dumped" messages after segfaults 
+    { $exe 2>&1; } > /tmp/tegra-test-output.txt 2> /dev/null
 
     if [ $? -ne 0 ]; then
-      echo "[X] $exe failed."
       let "ctFail++"
+      echo "[!] $exe failed.  Output:"
+      cat /tmp/tegra-test-output.txt
+      echo 
     else
-      echo "[ ] $exe passed."
       let "ctPass++"
+      echo "[ ] $exe passed."
     fi
+
+    check-source $exe # see above
   done
 }
+
 
 echo
 echo "--------------------"
 echo "Running C++ tests..."
 echo "--------------------"
 echo
-run-tests tests/bin/cpp/*
+run-tests ./bin/cpp/*
 
 
 echo
@@ -42,7 +60,19 @@ echo "---------------------"
 echo "Running CUDA tests..."
 echo "---------------------"
 echo
-run-tests tests/bin/cu/*
+run-tests ./bin/cu/*
+
+echo
+echo "---------------------"
+echo "Running bash tests..."
+echo "---------------------"
+echo
+run-tests ./bash/*
+
+#
+# Results
+#
+
 
 let "total=ctPass+ctFail"
 
@@ -55,7 +85,7 @@ elif [[ $total == 0 ]]; then
   echo "No tests were run."
   exit 0
 else
-  let "passpct=ctPass/total*100"
+  let passpct="$ctPass * 100 / $total"
   echo "$ctPass of $total tests passed [$passpct%, $ctFail failures]"
   exit 1
 fi

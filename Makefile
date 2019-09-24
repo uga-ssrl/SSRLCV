@@ -10,6 +10,7 @@ INCLUDES = -I. -I./include -I/usr/local/cuda/include
 
 # Common flags
 COMMONFLAGS += ${INCLUDES}
+COMMONFLAGS += -g # Output debug symbols 
 CXXFLAGS += ${COMMONFLAGS}
 CXXFLAGS += -Wall -std=c++11
 # compute_<#> and sm_<#> will need to change depending on the device
@@ -45,10 +46,11 @@ NVCCFLAGS += ${GENCODEFLAGS}
 LIB :=  -L/usr/local/cuda/lib64 -lcublas -lcuda -lcudart -lcusparse -lcusolver\
         -lpng -Xcompiler -fopenmp
 
-SRCDIR = ./src
-OBJDIR = ./obj
-BINDIR = ./bin
-OUTDIR = ./out
+SRCDIR 		= ./src
+OBJDIR 		= ./obj
+BINDIR 		= ./bin
+OUTDIR 		= ./out
+TESTDIR 	= ./util/CI
 
 
 BASE_OBJS  = io_util.cpp.o
@@ -87,10 +89,10 @@ LINKLINE_SD = ${LINK} ${GENCODEFLAGS} ${SD_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SD
 LINKLINE_T = ${LINK} ${GENCODEFLAGS} ${T_OBJS} ${LIB} -o ${BINDIR}/${TARGET_T}
 
 ## Test sensing
-TestsIn_cpp 	= $(wildcard tests/src/*.cpp)
-TestsIn_cu 		= $(wildcard tests/src/*.cu)
-TESTS_CPP 		= $(patsubst tests/src/%.cpp, tests/bin/cpp/%, $(TestsIn_cpp))
-TESTS_CU 			= $(patsubst tests/src/%.cu, tests/bin/cu/%, $(TestsIn_cu))
+TestsIn_cpp 	= $(wildcard ${TESTDIR}/src/*.cpp)
+TestsIn_cu 		= $(wildcard ${TESTDIR}/src/*.cu)
+TESTS_CPP 		= $(patsubst ${TESTDIR}/src/%.cpp, ${TESTDIR}/bin/cpp/%, $(TestsIn_cpp))
+TESTS_CU 			= $(patsubst ${TESTDIR}/src/%.cu, ${TESTDIR}/bin/cu/%, $(TestsIn_cu))
 TESTS 				= ${TESTS_CU} ${TESTS_CPP}
 
 .SUFFIXES: .cpp .cu .o
@@ -99,7 +101,7 @@ TESTS 				= ${TESTS_CU} ${TESTS_CPP}
 all: ${BINDIR}/${TARGET_SFM} ${BINDIR}/${TARGET_SD} ${BINDIR}/${TARGET_T} ${TESTS}
 
 test: all ${TEST_OBJS}
-	./test-all
+	${TESTDIR}/test-all
 
 $(OBJDIR):
 	    -mkdir -p $(OBJDIR)
@@ -136,21 +138,21 @@ ${BINDIR}/${TARGET_T}: ${T_OBJS} Makefile
 # Tests
 #
 
-TEST_DIRS = mkdir -p tests/tmp; mkdir -p tests/obj; mkdir -p tests/bin/cu; mkdir -p tests/bin/cpp
+TEST_DIRS = mkdir -p ${TESTDIR}/tmp; mkdir -p ${TESTDIR}/obj; mkdir -p ${TESTDIR}/bin/cu; mkdir -p ${TESTDIR}/bin/cpp
 
-tests/obj/%.cpp.o: tests/src/%.cpp
+${TESTDIR}/obj/%.cpp.o: ${TESTDIR}/src/%.cpp
 	@${TEST_DIRS}
 	${CXX} ${INCLUDES} ${CXXFLAGS}  -c -o $@ $<
 
-tests/obj/%.cu.o: tests/src/%.cu
+${TESTDIR}/obj/%.cu.o: ${TESTDIR}/src/%.cu
 	@${TEST_DIRS}
 	${NVCC} ${INCLUDES} ${NVCCFLAGS} -c -o $@ $<
 
-tests/bin/cpp/%: tests/obj/%.cpp.o ${TEST_OBJS}
+${TESTDIR}/bin/cpp/%: ${TESTDIR}/obj/%.cpp.o ${TEST_OBJS}
 	@${TEST_DIRS}
 	${LINK} ${GENCODEFLAGS} ${LIB} ${TEST_OBJS} $< -o $@
 
-tests/bin/cu/%: tests/obj/%.cu.o ${TEST_OBJS}
+${TESTDIR}/bin/cu/%: ${TESTDIR}/obj/%.cu.o ${TEST_OBJS}
 	@${TEST_DIRS}
 	${LINK} ${GENCODEFLAGS} ${LIB} ${TEST_OBJS} $< -o $@
 
@@ -179,6 +181,6 @@ clean:
 	rm -f *.~
 	rm -f *.kp
 	rm -f *.txt
-	rm -rf tests/obj
-	rm -rf tests/tmp
-	rm -rf tests/bin
+	rm -rf ${TESTDIR}/obj
+	rm -rf ${TESTDIR}/tmp
+	rm -rf ${TESTDIR}/bin
