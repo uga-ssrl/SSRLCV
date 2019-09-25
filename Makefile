@@ -7,6 +7,8 @@ NVCC  := nvcc
 
 # Includes
 INCLUDES = -I. -I./include -I/usr/local/cuda/include
+LIB :=  -L/usr/local/cuda/lib64 -lcublas -lcuda -lcudart -lcusparse -lcusolver\
+        -lpng -Xcompiler -fopenmp
 
 # Common flags
 COMMONFLAGS += ${INCLUDES}
@@ -18,13 +20,20 @@ CXXFLAGS += -Wall -std=c++11
 NVCCFLAGS += ${COMMONFLAGS}
 NVCCFLAGS += -std=c++11
 
+
 # Gencode arguments
+
 SM ?= 35 37 50 52 60 61 70
 
 ifeq ($(SM),)
 $(info >>> WARNING - no SM architectures have been specified - waiving sample <<<)
 SAMPLE_ENABLED := 0
 endif
+
+COMPUTE = $(shell ./util/detect-compute-capability)
+ifneq ($(COMPUTE),) 
+GENCODEFLAGS = -gencode arch=compute_$(COMPUTE),code=compute_$(COMPUTE)
+endif 
 
 ifeq ($(GENCODEFLAGS),)
 # Generate SASS code for each SM architecture listed in $(SMS)
@@ -43,8 +52,10 @@ endif
 
 NVCCFLAGS += ${GENCODEFLAGS}
 
-LIB :=  -L/usr/local/cuda/lib64 -lcublas -lcuda -lcudart -lcusparse -lcusolver\
-        -lpng -Xcompiler -fopenmp
+
+#
+# Files 
+#
 
 SRCDIR 		= ./src
 OBJDIR 		= ./obj
