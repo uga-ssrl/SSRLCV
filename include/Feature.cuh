@@ -44,6 +44,8 @@ namespace ssrlcv{
     __device__ __host__ SIFT_Descriptor(float theta);
     __device__ __host__ SIFT_Descriptor(float theta, unsigned char values[128]);
   };
+
+
 }
 
 #endif /* FEATURE_CUH */

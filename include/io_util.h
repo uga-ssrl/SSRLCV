@@ -7,6 +7,7 @@
 #include "common_includes.h"
 #include "Unity.cuh"
 #include "tinyply.h"
+#include "Octree.cuh"
 
 
 namespace ssrlcv{
@@ -62,6 +63,8 @@ namespace ssrlcv{
   };
 
   bool readImageMeta(std::string imgpath, bcpFormat & out);
+
 }
+
 
 #endif /* IO_UTIL_H */
