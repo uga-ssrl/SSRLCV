@@ -11,6 +11,9 @@
 #include "device_launch_parameters.h"
 #include <cuda.h>
 
+#include <string>
+#include <iostream> 
+
 #define CUDA_ERROR_CHECK
 #define CudaSafeCall( err ) __cudaSafeCall( err, __FILE__, __LINE__ )
 #define CudaCheckError()    __cudaCheckError( __FILE__, __LINE__ )

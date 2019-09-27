@@ -1,13 +1,14 @@
-#include "io_3d.cuh"
+#include "io_fmt_ply.cuh"
 #include "tinyply.h"
 
 #include "unit-testing.h"
 #include <iostream>
 #include <vector>
 
-using namespace ssrlcv;
+using namespace ssrlcv; 
 using namespace std;
 using namespace tinyply;
+
 
 int main(int argc, char ** argv) {
 
@@ -19,11 +20,7 @@ int main(int argc, char ** argv) {
 
   Unity<float3> data(nullptr, points.size(), cpu);
   memcpy(data.host, points.data(), sizeof(float3) * points.size());
-
-
-  WriterPLY writer(testfile);
-  writer.points = &data;
-  writer.write();
+  ssrlcv::io::ply::write_points(testfile, &data); 
 
   // Read it back - currently testing with tinyply
   // We could switch these to static test cases if we wanted to ditch tinyply altogether

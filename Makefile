@@ -65,7 +65,8 @@ TESTDIR 	= ./util/CI
 
 
 BASE_OBJS  = io_util.cpp.o
-BASE_OBJS += io_3d.cu.o
+BASE_OBJS += io_fmt_ply.cu.o
+BASE_OBJS += io_fmt_anatomy.cu.o
 BASE_OBJS += tinyply.cpp.o
 BASE_OBJS += cuda_util.cu.o
 BASE_OBJS += Feature.cu.o
@@ -103,8 +104,8 @@ LINKLINE_T = ${LINK} ${GENCODEFLAGS} ${T_OBJS} ${LIB} -o ${BINDIR}/${TARGET_T}
 TestsIn_cpp 	= $(wildcard ${TESTDIR}/src/*.cpp)
 TestsIn_cu 		= $(wildcard ${TESTDIR}/src/*.cu)
 TESTS_CPP 		= $(patsubst ${TESTDIR}/src/%.cpp, ${TESTDIR}/bin/cpp/%, $(TestsIn_cpp))
-TESTS_CU 			= $(patsubst ${TESTDIR}/src/%.cu, ${TESTDIR}/bin/cu/%, $(TestsIn_cu))
-TESTS 				= ${TESTS_CU} ${TESTS_CPP}
+TESTS_CU 		= $(patsubst ${TESTDIR}/src/%.cu, ${TESTDIR}/bin/cu/%, $(TestsIn_cu))
+TESTS 			= ${TESTS_CU} ${TESTS_CPP}
 
 .SUFFIXES: .cpp .cu .o
 .PHONY: all clean test
@@ -112,7 +113,7 @@ TESTS 				= ${TESTS_CU} ${TESTS_CPP}
 all: ${BINDIR}/${TARGET_SFM} ${BINDIR}/${TARGET_SD} ${BINDIR}/${TARGET_T} ${TESTS}
 
 test: all ${TEST_OBJS}
-	${TESTDIR}/test-all
+	cd ${TESTDIR}; ./test-all
 
 $(OBJDIR):
 	    -mkdir -p $(OBJDIR)
@@ -149,10 +150,10 @@ ${BINDIR}/${TARGET_T}: ${T_OBJS} Makefile
 # Tests
 #
 
-${TESTDIR}/obj/%.cpp.o: ${TESTDIR}/src/%.cpp
+${TESTDIR}/obj/%.cpp.o: ${TESTDIR}/src/%.cpp ${TESTDIR}/unit-testing.h
 	${CXX} ${INCLUDES} -I./util/CI/ ${CXXFLAGS}  -c -o $@ $<
 
-${TESTDIR}/obj/%.cu.o: ${TESTDIR}/src/%.cu
+${TESTDIR}/obj/%.cu.o: ${TESTDIR}/src/%.cu ${TESTDIR}/unit-testing.h
 	${NVCC} ${INCLUDES} -I./util/CI/ ${NVCCFLAGS} -c -o $@ $<
 
 ${TESTDIR}/bin/cpp/%: ${TESTDIR}/obj/%.cpp.o ${TEST_OBJS}
@@ -184,7 +185,7 @@ clean:
 	rm -f .DS_Store
 	rm -f *._*
 	rm -f *.~
-	rm -f *.kp
+	rm -f *.kpa
 	rm -f *.txt
 	rm -rf ${TESTDIR}/obj/*
 	rm -rf ${TESTDIR}/tmp/*
