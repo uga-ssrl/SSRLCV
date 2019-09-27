@@ -16,6 +16,7 @@
 #include <thrust/device_ptr.h>
 #include <thrust/copy.h>
 #include <thrust/scan.h>
+#include <thrust/sort.h>
 #include "io_util.h"
 
 
@@ -46,7 +47,11 @@ namespace ssrlcv{
         float intensity;
         float sigma;
         bool discard;
+        __host__ __device__ bool operator<(const SSKeyPoint &kp) const{
+          return this->blur < kp.blur;
+        }
       };
+      
       struct discard{
         __device__ __host__ bool operator()(const ScaleSpace::SSKeyPoint &kp){
           return kp.discard;
@@ -82,7 +87,7 @@ namespace ssrlcv{
         
         void searchForExtrema();
         void discardExtrema();
-        void refineExtremaLocation();//this is going to have to reorient extrema in scalespace
+        void refineExtremaLocation(float minScaleSpacePixelWidth);//this is going to have to reorient extrema in scalespace
         void removeNoise(float noiseThreshold);
         void removeEdges(float edgeThreshold);
         
@@ -132,7 +137,7 @@ namespace ssrlcv{
   __global__ void findExtrema(uint2 imageSize, float* pixelsUpper, float* pixelsMiddle, float* pixelsLower, int* extrema);
   __global__ void fillExtrema(int numKeyPoints, uint2 imageSize,float pixelWidth,int2 ssLoc, int* extremaAddresses, float* pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
  
-  __global__ void refineLocation(unsigned int numKeyPoints, uint2 imageSize, float sigmaMin, float pixelWidthRatio, float pixelWidth, float* pixelsUpper, float* pixelsMiddle, float* pixelsLower, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
+  __global__ void refineLocation(unsigned int numKeyPoints, uint2 imageSize, float sigmaMin, float pixelWidthRatio, float pixelWidth, float** pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
  
   __global__ void flagNoise(unsigned int numKeyPoints, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float threshold);
   __global__ void flagEdges(unsigned int numKeyPoints, unsigned int startingIndex, uint2 imageSize, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float* pixels, float threshold);

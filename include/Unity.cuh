@@ -346,7 +346,7 @@ namespace ssrlcv{
       throw NullUnityException("Cannot setMemoryState of a null Unity");
     }
     else if(state == null) this->clear();
-    else if(this->state == both){
+    else if(state == both){
       if(cpu == this->fore){
         this->transferMemoryTo(gpu);
       }
