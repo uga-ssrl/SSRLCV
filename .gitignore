@@ -33,3 +33,5 @@ util/CI/tmp/*
 
 project.*
 .vscode/
+
+util/detect-compute-capability

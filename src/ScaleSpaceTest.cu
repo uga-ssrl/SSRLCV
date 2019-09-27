@@ -33,54 +33,22 @@ int main(int argc, char *argv[]){
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
     featureFactory.setDescriptorContribWidth(6.0f);
     featureFactory.setOrientationContribWidth(1.5f);
-    float* testKernel = new float[3]();
-    testKernel[0] = -1;
-    testKernel[1] = 0;
-    testKernel[2] = 1;
+    uint2 scaleSpaceDim = {4,6};
+    int nspo = scaleSpaceDim.y - 3;//num scale space/octave in dog made from a {4,6} ScaleSpace
+    float noiseThreshold = 0.015*(powf(2,1.0f/nspo)-1)/(powf(2,1.0f/3.0f)-1);
+    float edgeThreshold = 12.1f;//12.1 = (10.0f + 1)^2 / 10.0f
     for(int i = 0; i < numImages; ++i){
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
-      ssrlcv::FeatureFactory::DOG* dog = new ssrlcv::FeatureFactory::DOG(image,-1,{4,6},sqrtf(2.0f)/2,{2,sqrtf(2.0f)},{8,8});
-      dog->convertToDOG();
-      //std::string dump = "./out/DOG";
-      //dog->dumpData(dump);
-      float noiseThreshold = 0.015*(powf(2,1.0f/((float)dog->depth.y - 2))-1)/(powf(2,1.0f/3.0f)-1);
-      float edgeThreshold = 12.1f;//12.1 = (10.0f + 1)^2 / 10.0f
-      dog->findKeyPoints(noiseThreshold,edgeThreshold,true);
+      ssrlcv::FeatureFactory::DOG* dog = new ssrlcv::FeatureFactory::DOG(image,-1,scaleSpaceDim,sqrtf(2.0f)/2,{2,sqrtf(2.0f)},{8,8});
+      dog->convertToDOG();      
+      dog->findKeyPoints(noiseThreshold,edgeThreshold,true);      
       delete dog;
-      exit(0);
-      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image);
-      allFeatures.push_back(features);
       images.push_back(image);
     }
-    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>();
-    std::cout << "Starting matching, this will take a while ..." << std::endl;
-    ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1]);
 
-    matchFactory.refineMatches(distanceMatches, 0.25);
-    if(distanceMatches->state != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
-
-    matchFactory.sortMatches(distanceMatches);
-    distanceMatches->transferMemoryTo(ssrlcv::cpu);
-    std::cout << "starting sort..." << std::endl << "Top Sorted:" << std::endl;
-    for (int i = 0; i < 15; i++){
-      std::cout << "[" << i << "]\t" << distanceMatches->host[i].distance << std::endl;
+    for(int i = 0; i < imagePaths.size(); ++i){
+        delete images[i];
     }
-    distanceMatches->setMemoryState(ssrlcv::gpu);
-
-    ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
-
-    delete distanceMatches;
-
-    ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
-    ssrlcv::Unity<float3>* points = demPoints.stereo_disparity(matches,64.0f);
-
-    delete matches;
-    delete allFeatures[0];
-    delete allFeatures[1];
-
-    ssrlcv::writePLY("out/test.ply",points);
-
-    delete points;
 
     return 0;
   }

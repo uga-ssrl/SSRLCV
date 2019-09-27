@@ -412,7 +412,7 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
   for (int i = match.index, k = 0; i < end; i++,k++){
     currentKP = keyPoints[i];
     printf("[%lu][%d] camera vec: <%f,%f,%f>\n", globalID,k, cameras[currentKP.parentId].cam_vec.x,cameras[currentKP.parentId].cam_vec.y,cameras[currentKP.parentId].cam_vec.z);
-    cameras[currentKP.parentId].cam_vec = normalizeVector(cameras[currentKP.parentId].cam_vec);
+    normalize(cameras[currentKP.parentId].cam_vec);
     printf("[%lu][%d] norm camera vec: <%f,%f,%f>\n", globalID,k, cameras[currentKP.parentId].cam_vec.x,cameras[currentKP.parentId].cam_vec.y,cameras[currentKP.parentId].cam_vec.z);
     // set dpix values
     printf("[%lu][%d] dpix calc dump: (foc: %f) (fov: %f) (tanf: %f) (size: %d) \n", globalID,k, cameras[currentKP.parentId].foc, cameras[currentKP.parentId].fov, tanf(cameras[currentKP.parentId].fov / 2.0f), cameras[currentKP.parentId].size.x);
@@ -441,7 +441,7 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
       cameras[currentKP.parentId].cam_pos.y - kp[k].y,
       cameras[currentKP.parentId].cam_pos.z - kp[k].z
     };
-    lines[i].vec = normalizeVector(lines[i].vec);
+    normalize(lines[i].vec);
     printf("[%lu][%d] %f,%f,%f\n",globalID,k,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z);
     lines[i].pnt = cameras[currentKP.parentId].cam_pos;
   }

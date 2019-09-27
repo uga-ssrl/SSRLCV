@@ -152,6 +152,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, flo
                 std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
             }
             this->octaves[i]->removeEdges(edgeThreshold);
+            std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
             std::cout<<"="<<this->octaves[i]->extrema->numElements<<std::endl;
         }  
         else{
@@ -225,6 +226,7 @@ ssrlcv::FeatureFactory::ScaleSpace::Octave::~Octave(){
         }
         delete[] this->blurs;
     } 
+    if(this->extrema != nullptr) delete this->extrema;
 }
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
     Unity<float>* pixelsUpper = nullptr;
@@ -375,22 +377,20 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(float min
     3. resort extrema
     */
     float** allPixels_device = nullptr;
-    float** allPixels_host = new float*[this->numBlurs];
     CudaSafeCall(cudaMalloc((void**)&allPixels_device,this->numBlurs*sizeof(float*)));
     for(int i = 0; i < this->numBlurs; ++i){
-        allPixels_host[i] = this->blurs[i]->pixels->device;
+        CudaSafeCall(cudaMemcpy(allPixels_device + i,&this->blurs[i]->pixels->device,sizeof(float*),cudaMemcpyHostToDevice));
     }
-    CudaSafeCall(cudaMemcpy(allPixels_device,allPixels_host,this->numBlurs*sizeof(float*),cudaMemcpyHostToDevice));
 
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     getFlatGridBlock(this->extrema->numElements,grid,block);
     refineLocation<<<grid,block>>>(this->extrema->numElements, this->blurs[0]->size, this->blurs[0]->sigma, 
-        this->pixelWidth/minScaleSpacePixelWidth, this->pixelWidth, allPixels_device, this->extrema->device);
+        this->pixelWidth/minScaleSpacePixelWidth, this->pixelWidth, this->numBlurs, allPixels_device, this->extrema->device);
+    cudaDeviceSynchronize();
     CudaCheckError();
     
     CudaSafeCall(cudaFree(allPixels_device));
-    delete[] allPixels_host;
     this->extrema->fore = gpu;
 
     this->discardExtrema();
@@ -409,6 +409,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(float min
     for(int i = 0; i < this->numBlurs; ++i){
         if(pixelsOrigin[i] == cpu) this->blurs[i]->pixels->setMemoryState(cpu);
     }
+    delete[] pixelsOrigin;
 }
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeNoise(float noiseThreshold){
     MemoryState origin = this->extrema->state;
@@ -555,11 +556,11 @@ __global__ void ssrlcv::fillExtrema(int numKeyPoints, uint2 imageSize, float pix
     }
 }
 
-__global__ void ssrlcv::refineLocation(unsigned int numKeyPoints, uint2 imageSize, float sigmaMin, float pixelWidthRatio, float pixelWidth, float** pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP){
+__global__ void ssrlcv::refineLocation(unsigned int numKeyPoints, uint2 imageSize, float sigmaMin, float pixelWidthRatio, float pixelWidth, unsigned int numBlurs, float** pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP){
     int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
     if(globalID < numKeyPoints){
         FeatureFactory::ScaleSpace::SSKeyPoint kp = scaleSpaceKP[globalID];
-        int2 loc = {(int)kp.loc.x,(int)kp.loc.y};
+        int2 loc = {(int)roundf(kp.loc.x),(int)roundf(kp.loc.y)};
         float hessian[3][3] = {0.0f};
         float hessian_inv[3][3] = {0.0f};
         float gradient[3] = {0.0f};
@@ -568,7 +569,7 @@ __global__ void ssrlcv::refineLocation(unsigned int numKeyPoints, uint2 imageSiz
         float* pixelsLower = pixels[kp.blur - 1];
         float* pixelsMiddle = pixels[kp.blur];
         float* pixelsUpper = pixels[kp.blur + 1];
-
+ 
         for(int attempt = 0; attempt < 5; ++attempt){
             gradient[0] =  pixelsMiddle[loc.y*imageSize.x + loc.x + 1] - pixelsMiddle[loc.y*imageSize.x + loc.x - 1];
             gradient[1] =  pixelsMiddle[(loc.y+1)*imageSize.x + loc.x] - pixelsMiddle[(loc.y-1)*imageSize.x + loc.x];
@@ -599,7 +600,7 @@ __global__ void ssrlcv::refineLocation(unsigned int numKeyPoints, uint2 imageSiz
             inverse(hessian,hessian_inv);
             multiply(hessian_inv,gradient,offset);
             multiply(gradient, hessian, temp);
-            if(offset[0] < 0.6f && offset[1] < 0.6f && offset[2] < 0.6f){ 
+            if(offset[0] <= 0.5f && offset[1] <= 0.5f && offset[2] <= 0.5f){ 
                 kp.loc = {(float)loc.x + offset[0],(float)loc.y + offset[1]};
                 loc = {(int)roundf(kp.loc.x),(int)roundf(kp.loc.y)};
                 kp.discard = (loc.x <= 0 || loc.y <= 0 || loc.x >= imageSize.x - 1 || loc.y >= imageSize.y - 1);
@@ -618,10 +619,11 @@ __global__ void ssrlcv::refineLocation(unsigned int numKeyPoints, uint2 imageSiz
                 loc.y += (int)roundf(offset[1]);
                 kp.loc = {(float)loc.x,(float)loc.y};
                 kp.blur += (int)roundf(offset[2]);
-                if(kp.blur == 5 || kp.blur == 0){//cannot traverse blurs anymore
+                if(kp.blur >= numBlurs - 1||kp.blur <= 0||loc.x <= 0||
+                    loc.y <= 0||loc.x >= imageSize.x - 1||loc.y >= imageSize.y - 1){//cannot traverse blurs anymore
                     kp.discard = true;
                     break;
-                } 
+                }
                 pixelsLower = pixels[kp.blur - 1];
                 pixelsMiddle = pixels[kp.blur];
                 pixelsUpper = pixels[kp.blur + 1];
@@ -630,10 +632,6 @@ __global__ void ssrlcv::refineLocation(unsigned int numKeyPoints, uint2 imageSiz
         scaleSpaceKP[globalID] = kp;
     }
 }
-
-
-
-
 
 __global__ void ssrlcv::flagNoise(unsigned int numKeyPoints, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float threshold){
     unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
