@@ -349,7 +349,7 @@ namespace ssrlcv{
       throw NullUnityException("Cannot setMemoryState of a null Unity");
     }
     else if(state == null) this->clear();
-    else if(this->state == both){
+    else if(state == both){
       if(cpu == this->fore){
         this->transferMemoryTo(gpu);
       }
@@ -377,21 +377,26 @@ namespace ssrlcv{
     this->fore = state;
     this->numElements = numElements;
     if(data == nullptr && numElements != 0){
-      if(state == cpu || state == both){
+      if(state == cpu || state == gpu){
         this->host = new T[numElements]();
+        if(state == gpu){
+          this->state = cpu;
+          this->fore = cpu;
+          this->setMemoryState(gpu);//filled with default instantiated values from host 
+        }
       }
-      if(state == gpu || state == both){
-        CudaSafeCall(cudaMalloc((void**)&this->device, numElements*sizeof(T)));
-      }
-      if(state == null || state > 3){//greater than three means pinned or unified
+      else if(state == null || state > 3){//greater than three means pinned or unified
         throw IllegalUnityTransition("attempt to instantiate unkown MemoryState fron nullptr");
       }
     }
     else{
       if(state == cpu) this->host = data;
       else if(state == gpu) this->device = data;
+      else if(state == both){
+        throw IllegalUnityTransition("attempt to set data with location 'both' so input location cannot be determined");
+      }
       else{
-        throw IllegalUnityTransition("cannot instantiate memory on device and host with only one pointer");
+        throw IllegalUnityTransition("caught in Unity<T>::setData");
       }
     }
   }

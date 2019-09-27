@@ -233,7 +233,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatchesConstraine
   getGrid(matches->numElements,grid);
 
   clock_t timer = clock();
-  float3* fundamental = new float3[3];
+  float3 fundamental[3] = {0.0f};
   calcFundamentalMatrix_2View(query, target, fundamental);
 
   float3* fundamental_device;
@@ -306,7 +306,7 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatchesC
   getGrid(matches->numElements,grid);
 
   clock_t timer = clock();
-  float3* fundamental = new float3[3];
+  float3 fundamental[3] = {0.0f};
   calcFundamentalMatrix_2View(query, target, fundamental);
 
   float3* fundamental_device;
@@ -383,7 +383,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
   getGrid(matches->numElements,grid);
 
   clock_t timer = clock();
-  float3* fundamental = new float3[3];
+  float3 fundamental[3] = {0.0f};
   calcFundamentalMatrix_2View(query, target, fundamental);
 
   float3* fundamental_device;

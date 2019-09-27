@@ -9,34 +9,34 @@
 
 namespace ssrlcv{
   __device__ __host__ float sum(const float3 &a);
-  __device__ int getIndex_gpu(int x, int y);
-  __device__ void multiply3x3x1_gpu(float A[9], float B[3], float (&C)[3]);
-  __device__ void multiply3x3x1_gpu(float A[3][3], float B[3], float (&C)[3]);
-  __device__ float dot_product_gpu(float a[3], float b[3]);
-  __device__ float magnitude_gpu(float v[3]);
-  __device__ void normalize_gpu(float (&v)[3]);
-  __device__ int getGlobalIdx_1D_1D();
-  __device__ void inverse3x3_gpu(float M[3][3], float (&Minv)[3][3]);
+  __device__ __host__ void multiply(const float (&A)[9], const float (&B)[3][3], float (&C)[3][3]);
+  __device__ __host__ void multiply(const float3 (&A)[3], const float3 (&B)[3], float3 (&C)[3]);
+  __device__ __host__ void multiply(const float (&A)[3][3], const float (&B)[3][3], float (&C)[3][3]);
+  __device__ __host__ void multiply(const float (&A)[9], const float (&B)[3], float (&C)[3]);
+  __device__ __host__ void multiply(const float3 (&A)[3], const float3 &B, float3 &C);
+  __device__ __host__ void multiply(const float (&A)[3][3], const float (&B)[3], float (&C)[3]);
+  __device__ __host__ void multiply(const float (&A)[3], const float (&B)[3][3], float (&C)[3]);
+  __device__ __host__ void multiply(const float (&A)[2][2], const float (&B)[2][2], float (&C)[2][2]);
+  __device__ __host__ float dotProduct(const float (&A)[3], const float (&B)[3]);
+  __device__ __host__ bool inverse(const float (&M)[3][3], float (&M_out)[3][3]);
+  __device__ __host__ bool inverse(const float3 (&M)[3], float3 (&M_out)[3]);
+  __device__ __host__ void transpose(const float3 (&M)[3], float3 (&M_out)[3]);
+  __device__ __host__ void transpose(const float (&M)[3][3], float (&M_out)[3][3]);
+  __device__ __host__ void transpose(const float (&M)[2][2], float (&M_out)[2][2]);
+  
+  __device__ __host__ float determinant(const float (&M)[2][2]);
+  __device__ __host__ float trace(const float(&M)[2][2]);
+  __device__ __host__ float trace(const float(&M)[3][3]);
 
-  __device__ float dotProduct3(float3 a, float3 b);
-  __device__ float3 normalizeVector(float3 v);
+  __device__ __host__ void normalize(float (&v)[3]);
+  __device__ __host__ void normalize(float3 &v);
+  __device__ __host__ float magnitude(const float (&v)[3]);
+  __device__ __host__ float magnitude(const float3 &v);
+
+
   __device__ float3 matrixMulVector(float3 x, float A[3][3]);
   __device__ float3 getVectorAngles(float3 v);
   __device__ float3 rotatePoint(float3 point, float3 angles);
-
-
-  void transpose_cpu(float M[3][3], float (&M_t)[3][3]);
-  void inverse3x3_cpu(float M[3][3], float (&Minv)[3][3]);
-  void multiply3x3_cpu(float A[3][3], float B[3][3], float (&C)[3][3]);
-  void multiply3x3x1_cpu(float A[3][3], float B[3], float (&C)[3]);
-
-  /*
-  Funundamental matrix stuff
-  */
-  float3 multiply3x3x1(const float3 A[3], const float3 &B);
-  void multiply3x3(const float3 A[3], const float3 B[3], float3 *C);
-  void transpose3x3(const float3 M[3], float3 (&M_T)[3]);
-  void inverse3x3(float3 M[3], float3 (&Minv)[3]);
 
 }
 

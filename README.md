@@ -22,8 +22,9 @@ If you are running this for the first time you need to make a `bin` folder in th
 
 `make` and `make clean`, per the uz
 
-Depending on how cuda are installed on your system you make have to change the first few
-lines in the Makefile to specify the location of the library.
+For sm detection related to gpu architecture you must make twice, once 
+to compile the detection program, and once to actually compile the program. 
+After doing this once you will not have to compile the sm detector again. 
 
 ## Documentation
 * Generate Doxygen by executing `doxygen doc/doxygen/Doxyfile` from within the projects root directory
