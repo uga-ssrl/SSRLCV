@@ -343,16 +343,19 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   getFlatGridBlock(bundles->numElements,grid,block);
 
   //in this kernel fill lines and bundles from keyPoints and matches
-
+  std::cout << "calling kernel ..." << std::endl;
   generateBundle<<<grid, block>>>(bundles->numElements,bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
+  std::cout << "returned from kernel ..." << std::endl;
 
   cudaDeviceSynchronize();
   CudaCheckError();
-  
+
 
   // call the boi
   bundles->transferMemoryTo(cpu);
   bundles->clear(gpu);
+  lines->transferMemoryTo(cpu);
+  lines->clear(gpu);
 
   BundleSet bundleSet = {lines,bundles};
 
@@ -402,31 +405,46 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
 __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   MultiMatch match = matches[globalID];
-
   float3* kp = new float3[match.numKeyPoints]();
-  // calcualte dpix and fill the m values at scale
-  int end =  match.numKeyPoints + match.index;
+  int end =  (int)match.numKeyPoints + match.index;
   KeyPoint currentKP = {-1,{0.0f,0.0f}};
-  for (int i = match.index; i < end; i++){
+  bundles[globalID] = {match.numKeyPoints,match.index};
+  for (int i = match.index, k = 0; i < end; i++,k++){
     currentKP = keyPoints[i];
+    printf("[%lu][%d] camera vec: <%f,%f,%f>\n", globalID,k, cameras[currentKP.parentId].cam_vec.x,cameras[currentKP.parentId].cam_vec.y,cameras[currentKP.parentId].cam_vec.z);
+    cameras[currentKP.parentId].cam_vec = normalizeVector(cameras[currentKP.parentId].cam_vec);
+    printf("[%lu][%d] norm camera vec: <%f,%f,%f>\n", globalID,k, cameras[currentKP.parentId].cam_vec.x,cameras[currentKP.parentId].cam_vec.y,cameras[currentKP.parentId].cam_vec.z);
+    // set dpix values
+    printf("[%lu][%d] dpix calc dump: (foc: %f) (fov: %f) (tanf: %f) (size: %d) \n", globalID,k, cameras[currentKP.parentId].foc, cameras[currentKP.parentId].fov, tanf(cameras[currentKP.parentId].fov / 2.0f), cameras[currentKP.parentId].size.x);
     cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
     cameras[currentKP.parentId].dpix.y = cameras[currentKP.parentId].dpix.x; // assume square pixel for now
+    // temp
+    printf("[%lu][%d] dpix calculated as: %f \n", globalID,k, cameras[currentKP.parentId].dpix.x);
 
-    kp[i] = {
-      cameras[currentKP.parentId].dpix.x * ((currentKP.loc.x) - (cameras[currentKP.parentId].size.x / 2.0f)), 
-      cameras[currentKP.parentId].dpix.y * ((-1.0f * currentKP.loc.y) - (cameras[currentKP.parentId].size.y / 2.0f)), 
+    kp[k] = {
+      cameras[currentKP.parentId].dpix.x * ((currentKP.loc.x) - (cameras[currentKP.parentId].size.x / 2.0f)),
+      cameras[currentKP.parentId].dpix.y * ((-1.0f * currentKP.loc.y) - (cameras[currentKP.parentId].size.y / 2.0f)),
       0.0f
     }; // set the key point
-    kp[i] = rotatePoint(kp[i], getVectorAngles(cameras[currentKP.parentId].cam_vec));
+
+    printf("[%lu][%d] kp, pre-rotation: (%f,%f,%f) \n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
+    kp[k] = rotatePoint(kp[k], getVectorAngles(cameras[currentKP.parentId].cam_vec));
+    printf("[%lu][%d] kp, angles: (%f,%f,%f) \n", globalID,k, getVectorAngles(cameras[currentKP.parentId].cam_vec).x, getVectorAngles(cameras[currentKP.parentId].cam_vec).y, getVectorAngles(cameras[currentKP.parentId].cam_vec).z);
+    printf("[%lu][%d] kp, post-rotation: (%f,%f,%f) \n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
+    // NOTE: will need to adjust foc with scale or x/y component here in the future
+    kp[k].x = cameras[currentKP.parentId].cam_pos.x - (kp[k].x + (cameras[currentKP.parentId].cam_vec.x * cameras[currentKP.parentId].foc));
+    kp[k].y = cameras[currentKP.parentId].cam_pos.y - (kp[k].y + (cameras[currentKP.parentId].cam_vec.y * cameras[currentKP.parentId].foc));
+    kp[k].z = cameras[currentKP.parentId].cam_pos.z - (kp[k].z + (cameras[currentKP.parentId].cam_vec.z * cameras[currentKP.parentId].foc));
+    printf("[%lu][%d] kp in R3: (%f,%f,%f)\n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
+    lines[i].vec = {
+      cameras[currentKP.parentId].cam_pos.x - kp[k].x,
+      cameras[currentKP.parentId].cam_pos.y - kp[k].y,
+      cameras[currentKP.parentId].cam_pos.z - kp[k].z
+    };
+    lines[i].vec = normalizeVector(lines[i].vec);
+    printf("[%lu][%d] %f,%f,%f\n",globalID,k,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z);
+    lines[i].pnt = cameras[currentKP.parentId].cam_pos;
   }
-
-  //fill bundles
-  bundles[globalID] = {match.numKeyPoints,match.index};
-
-  //fill lines
-
-
-
 }
 
 __global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, float3* points, float scale){

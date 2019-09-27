@@ -1,0 +1,76 @@
+//TODO OPTMIZE THIS YOU FUCK TARD
+void Surface::computeLUTs(){
+  clock_t timer;
+  timer = clock();
+
+  float currentWidth = this->octree->width;
+  float3 currentCenter = this->octree->center;
+  float3 tempCenter = {0.0f,0.0f,0.0f};
+  int pow2 = 1;
+  std::vector<float3> centers;
+  std::queue<float3> centersTemp;
+  centersTemp.push(currentCenter);
+  for(int d = 0; d <= this->octree->depth; ++d){
+    for(int i = 0; i < pow2; ++i){
+      tempCenter = centersTemp.front();
+      centersTemp.pop();
+      centers.push_back(tempCenter);
+      centersTemp.push(tempCenter - (currentWidth/4));
+      centersTemp.push(tempCenter + (currentWidth/4));
+    }
+    currentWidth /= 2;
+    pow2 *= 2;
+  }
+  int numCenters = centers.size();
+  //printf("number of absolute unique centers = %d\n\n",numCenters);
+
+  unsigned int size = (pow(2, this->octree->depth + 1) - 1);
+  float** f = new float*[size];
+  float** ff = new float*[size];
+  float** fff = new float*[size];
+  for(int i = 0; i < size; ++i){
+    f[i] = new float[size];
+    ff[i] = new float[size];
+    fff[i] = new float[size];
+  }
+
+  int pow2i = 1;
+  int offseti = 0;
+  int pow2j = 1;
+  int offsetj = 0;
+  for(int i = 0; i <= this->octree->depth; ++i){
+    offseti = pow2i - 1;
+    pow2j = 1;
+    for(int j = 0; j <= this->octree->depth; ++j){
+      offsetj = pow2j - 1;
+      for(int k = offseti; k < offseti + pow2i; ++k){
+        for(int l = offsetj; l < offsetj + pow2j; ++l){
+          f[k][l] = dotProduct(blender(centers[l],centers[k],this->octree->width/pow2i),blender(centers[k],centers[l],this->octree->width/pow2j));
+          ff[k][l] = dotProduct(blender(centers[l],centers[k],this->octree->width/pow2i),blenderPrime(centers[k],centers[l],this->octree->width/pow2j));
+          fff[k][l] = dotProduct(blender(centers[l],centers[k],this->octree->width/pow2i),blenderPrimePrime(centers[k],centers[l],this->octree->width/pow2j));
+          // if(f[k][l] == 0.0f && !(f[k][l] == 0.0f && ff[k][l] == 0.0f && fff[k][l] == 0.0f)){
+          //   printf("%d,%d -> %.9f,%.9f,%.9f\n",k,l,f[k][l],ff[k][l],fff[k][l]);
+          // }
+          if(isfinite(f[k][l]) == 0|| isfinite(ff[k][l]) == 0|| isfinite(fff[k][l]) == 0){
+            printf("FAILURE @ %d,%d -> %.9f,%.9f,%.9f\n",k,l,f[k][l],ff[k][l],fff[k][l]);
+            exit(-1);
+          }
+        }
+      }
+      pow2j *= 2;
+    }
+    pow2i *= 2;
+  }
+  this->fLUT = new float[size*size];
+  this->fPrimeLUT = new float[size*size];
+  this->fPrimePrimeLUT = new float[size*size];
+  for(int i = 0; i < size; ++i){
+    for(int j = 0; j < size; ++j){
+      this->fLUT[i*size + j] = f[i][j];
+      this->fPrimeLUT[i*size + j] = ff[i][j];
+      this->fPrimePrimeLUT[i*size + j] = fff[i][j];
+    }
+  }
+  timer = clock() - timer;
+  printf("blending LUT generation took %f seconds fully on the CPU.\n",((float) timer)/CLOCKS_PER_SEC);
+}
