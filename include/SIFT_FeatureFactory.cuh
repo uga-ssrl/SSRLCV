@@ -59,6 +59,7 @@ namespace ssrlcv{
     * \brief generate an array of Feature's with SIFT_Descriptor's from an Image
     */
     Unity<Feature<SIFT_Descriptor>>* generateFeatures(Image* image);
+    Unity<Feature<SIFT_Descriptor>>* generateFeatures(ScaleSpace* scaleSpace);
   };
 
 

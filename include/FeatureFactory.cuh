@@ -63,34 +63,36 @@ namespace ssrlcv{
       * \todo implement
       */
       struct Octave{
+
+      private:
+        void searchForExtrema();
+        void discardExtrema();
+        void refineExtremaLocation(float minScaleSpacePixelWidth);//this is going to have to reorient extrema in scalespace
+        void removeNoise(float noiseThreshold);
+        void removeEdges(float edgeThreshold);
+
+      public:
         struct Blur{
           uint2 size;
           float sigma;
           Unity<float>* pixels;/**\brief vector of Unity structs holding pixel values*/
           Blur();
           Blur(float sigma, int2 kernelSize, Unity<float>* blurable, uint2 size, float pixelWidth);
+          Unity<float2>* getGradients();
           ~Blur();
         };
+
+
         int id;
         unsigned int numBlurs;
         Blur** blurs;/**\brief array of blur pointers*/
         float pixelWidth;
-        
         Unity<SSKeyPoint>* extrema;
         int* extremaBlurIndices;
 
-
-
         Octave();
         //may want to remove kernelSize as it is static in anatomy
-        Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<unsigned char>* pixels, uint2 depth, float pixelWidth);
-        
-        void searchForExtrema();
-        void discardExtrema();
-        void refineExtremaLocation(float minScaleSpacePixelWidth);//this is going to have to reorient extrema in scalespace
-        void removeNoise(float noiseThreshold);
-        void removeEdges(float edgeThreshold);
-        
+        Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<unsigned char>* pixels, uint2 depth, float pixelWidth);      
         ~Octave();
 
       };
@@ -101,10 +103,30 @@ namespace ssrlcv{
       ScaleSpace();
       ScaleSpace(Image* image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize);
       
+      /**
+      * \brief will convert scalespace to a difference of gaussians
+      * numBlurs-- will occur
+      */
       void convertToDOG();      
       void dumpData(std::string filePath);
+      
+      /**
+      * \brief will find all key points within a scale space
+      * \param noiseThreshold intensity threshold for removing noise
+      * \param edgeThreshold edgeness threshold for removing edges
+      * \param subpixel if true will compute and refine keypoint location to subpixel
+      */
       void findKeyPoints(float noiseThreshold, float edgeThreshold, bool subpixel = false);
+      /**
+      * \brief will return all key points in octaves of scalespace
+      */
       Unity<SSKeyPoint>* getAllKeyPoints(MemoryState destination = gpu);
+
+      /**
+      * \brief compute orientations for key points - will generate more features based on orientations above threshold
+      * \todo implement
+      */
+      void computeKeyPointOrientations(float orientationThreshold, unsigned int maxOrientations, float contributerWindowWidth);
       
       ~ScaleSpace();
     };
@@ -132,15 +154,19 @@ namespace ssrlcv{
 
   __global__ void subtractImages(unsigned int numPixels, float* pixelsUpper, float* pixelsLower, float* pixelsOut);
 
-
-  //implement
   __global__ void findExtrema(uint2 imageSize, float* pixelsUpper, float* pixelsMiddle, float* pixelsLower, int* extrema);
-  __global__ void fillExtrema(int numKeyPoints, uint2 imageSize,float pixelWidth,int2 ssLoc, int* extremaAddresses, float* pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
- 
+  __global__ void fillExtrema(int numKeyPoints, uint2 imageSize,float pixelWidth,int2 ssLoc, int* extremaAddresses, float* pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP); 
+  
   __global__ void refineLocation(unsigned int numKeyPoints, uint2 imageSize, float sigmaMin, float pixelWidthRatio, float pixelWidth, unsigned int numBlurs, float** pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
- 
   __global__ void flagNoise(unsigned int numKeyPoints, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float threshold);
   __global__ void flagEdges(unsigned int numKeyPoints, unsigned int startingIndex, uint2 imageSize, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float* pixels, float threshold);
+
+
+
+  //to implement
+  __global__ void computeThetas(unsigned long numKeyPoints, uint2 imageWidth, float sigma,
+  float pixelWidth, float lambda, float windowWidth, const FeatureFactory::ScaleSpace::SSKeyPoint* __restrict__ keyPointLocations,
+  int2* gradients, int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, float* __restrict__ thetas);
 }
 
 
