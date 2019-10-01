@@ -31,6 +31,9 @@ namespace ssrlcv{
   * for any type of feature factory.
   */
   class FeatureFactory{
+  protected:
+    float orientationContribWidth;
+    float descriptorContribWidth;
 
   public:
 
@@ -46,6 +49,7 @@ namespace ssrlcv{
         float2 abs_loc;
         float intensity;
         float sigma;
+        float theta;
         bool discard;
         __host__ __device__ bool operator<(const SSKeyPoint &kp) const{
           return this->blur < kp.blur;
@@ -63,22 +67,14 @@ namespace ssrlcv{
       * \todo implement
       */
       struct Octave{
-
-      private:
-        void searchForExtrema();
-        void discardExtrema();
-        void refineExtremaLocation(float minScaleSpacePixelWidth);//this is going to have to reorient extrema in scalespace
-        void removeNoise(float noiseThreshold);
-        void removeEdges(float edgeThreshold);
-
-      public:
         struct Blur{
           uint2 size;
           float sigma;
           Unity<float>* pixels;/**\brief vector of Unity structs holding pixel values*/
+          Unity<float2>* gradients;
           Blur();
           Blur(float sigma, int2 kernelSize, Unity<float>* blurable, uint2 size, float pixelWidth);
-          Unity<float2>* getGradients();
+          void computeGradients();
           ~Blur();
         };
 
@@ -93,6 +89,12 @@ namespace ssrlcv{
         Octave();
         //may want to remove kernelSize as it is static in anatomy
         Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<unsigned char>* pixels, uint2 depth, float pixelWidth);      
+        void searchForExtrema();
+        void discardExtrema();
+        void refineExtremaLocation(float minScaleSpacePixelWidth);//this is going to have to reorient extrema in scalespace
+        void removeNoise(float noiseThreshold);
+        void removeEdges(float edgeThreshold);
+
         ~Octave();
 
       };
@@ -126,17 +128,29 @@ namespace ssrlcv{
       * \brief compute orientations for key points - will generate more features based on orientations above threshold
       * \todo implement
       */
-      void computeKeyPointOrientations(float orientationThreshold, unsigned int maxOrientations, float contributerWindowWidth);
+      void computeKeyPointOrientations(float orientationThreshold = 0.8f, unsigned int maxOrientations = 2, float contributerWindowWidth = 1.5f, bool keepGradients = false);
       
       ~ScaleSpace();
     };
     typedef ScaleSpace DOG;
 
     /**
-    * \brief Empty Constructor
+    * \brief Constructor
     *
     */
-    FeatureFactory();
+    FeatureFactory(float orientationContribWidth = 1.5f, float descriptorContribWidth = 6.0f);
+     /**
+    * \brief set maximum number Feature's a keypoint can generate
+    */
+    void setMaxOrientations(unsigned int maxOrientations);
+    /**
+    * \brief set threshold for a keypoint orientation to make a new Feature
+    */
+    void setOrientationThreshold(float orientationThreshold);
+    /**
+    * \brief set contributer window width for orientation computation
+    */
+    void setOrientationContribWidth(float orientationContribWidth);
     ~FeatureFactory();  
 
   };
@@ -144,13 +158,28 @@ namespace ssrlcv{
   /*
   CUDA variables, methods and kernels
   */
+  __device__ float getMagnitude(const int2 &vector);
+  __device__ float getMagnitude(const float2 &vector);
+  __device__ float getMagnitudeSq(const int2 &vector);
+  __device__ float getMagnitudeSq(const float2 &vector);
+  __device__ float getTheta(const int2 &vector);
+  __device__ float getTheta(const float2 &vector);
+  __device__ float getTheta(const float2 &vector, const float &offset);
+  __device__ void trickleSwap(const float2 &compareWValue, float2* arr, const int &index, const int &length);
+  __device__ long4 getOrientationContributers(const long2 &loc, const uint2 &imageSize);
+  __device__ int floatToOrderedInt(float floatVal);
+  __device__ float orderedIntToFloat(int intVal);
+  __device__ float atomicMinFloat (float * addr, float value);
+  __device__ float atomicMaxFloat (float * addr, float value);
+  __device__ float modulus(const float &x, const float &y);
+  __device__ float2 rotateAboutPoint(const int2 &loc, const float &theta, const float2 &origin);
 
   extern __constant__ float pi;
 
 
-  __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
-  __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
-  __device__ __forceinline__ float edgeness(const float (&hessian)[2][2]);
+  __device__ float atomicMinFloat (float * addr, float value);
+  __device__ float atomicMaxFloat (float * addr, float value);
+  __device__ float edgeness(const float (&hessian)[2][2]);
 
   __global__ void subtractImages(unsigned int numPixels, float* pixelsUpper, float* pixelsLower, float* pixelsOut);
 
@@ -162,11 +191,11 @@ namespace ssrlcv{
   __global__ void flagEdges(unsigned int numKeyPoints, unsigned int startingIndex, uint2 imageSize, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float* pixels, float threshold);
 
 
+  __global__ void computeThetas(unsigned long numKeyPoints, unsigned int keyPointIndex, uint2 imageSize, float pixelWidth, 
+  float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoints, float2* gradients, 
+  int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, float* thetas);
 
-  //to implement
-  __global__ void computeThetas(unsigned long numKeyPoints, uint2 imageWidth, float sigma,
-  float pixelWidth, float lambda, float windowWidth, const FeatureFactory::ScaleSpace::SSKeyPoint* __restrict__ keyPointLocations,
-  int2* gradients, int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, float* __restrict__ thetas);
+  __global__ void expandKeyPoints(unsigned int numKeyPoints, FeatureFactory::ScaleSpace::SSKeyPoint* keyPointsIn, FeatureFactory::ScaleSpace::SSKeyPoint* keyPointsOut, int* thetaAddresses, float* thetas);
 }
 
 

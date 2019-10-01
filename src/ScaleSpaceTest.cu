@@ -28,22 +28,15 @@ int main(int argc, char *argv[]){
     DENSE SIFT
     */
 
-    ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(true,1);
+    ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1.5f,6.0f);
     std::vector<ssrlcv::Image*> images;
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
-    featureFactory.setDescriptorContribWidth(6.0f);
-    featureFactory.setOrientationContribWidth(1.5f);
-    uint2 scaleSpaceDim = {4,6};
-    int nspo = scaleSpaceDim.y - 3;//num scale space/octave in dog made from a {4,6} ScaleSpace
-    float noiseThreshold = 0.015*(powf(2,1.0f/nspo)-1)/(powf(2,1.0f/3.0f)-1);
-    float edgeThreshold = 12.1f;//12.1 = (10.0f + 1)^2 / 10.0f
+    
     for(int i = 0; i < numImages; ++i){
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
-      ssrlcv::FeatureFactory::DOG* dog = new ssrlcv::FeatureFactory::DOG(image,-1,scaleSpaceDim,sqrtf(2.0f)/2,{2,sqrtf(2.0f)},{8,8});
-      dog->convertToDOG();      
-      dog->findKeyPoints(noiseThreshold,edgeThreshold,true);      
-      delete dog;
+      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image);
       images.push_back(image);
+      allFeatures.push_back(features);
     }
 
     for(int i = 0; i < imagePaths.size(); ++i){
