@@ -48,7 +48,7 @@ namespace ssrlcv{
   __global__ void checkKeyPoints(unsigned int numKeyPoints, unsigned int keyPointIndex, uint2 imageSize, float pixelWidth, float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoints);
 
   //implement
-  __global__ void fillDescriptors(unsigned int numFeatures, unsigned int keyPointIndex, uint2 imageSize, Feature<SIFT_Descriptor>* features,
+  __global__ void fillDescriptors(unsigned int numFeatures, uint2 imageSize, Feature<SIFT_Descriptor>* features,
     float pixelWidth, float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoints, float2* gradients);
 
 

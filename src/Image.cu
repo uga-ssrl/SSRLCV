@@ -108,26 +108,19 @@ void ssrlcv::Image::alterSize(int scalingFactor){
 
 ssrlcv::Unity<unsigned char>* ssrlcv::convertImageToChar(Unity<float>* pixels){
   MemoryState origin = pixels->state;
-  float2 minMax = {FLT_MAX,-FLT_MAX};
-  if(origin == gpu) pixels->transferMemoryTo(cpu);
-  for(int i = 0; i < pixels->numElements; ++i){
-      if(minMax.x > pixels->host[i]) minMax.x = pixels->host[i];
-      else if(minMax.y < pixels->host[i]) minMax.y = pixels->host[i];
-  }
-  if(origin == cpu) pixels->transferMemoryTo(gpu);
-  else if(origin == gpu) pixels->clear(cpu);
+  if(origin == cpu || pixels->fore == cpu) pixels->setMemoryState(gpu);
+  normalizeImage(pixels);
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   getFlatGridBlock(pixels->numElements,grid,block);
   Unity<unsigned char>* castPixels = new Unity<unsigned char>(nullptr,pixels->numElements,gpu);
-  convertToCharImage<<<grid,block>>>(pixels->numElements,castPixels->device,pixels->device,minMax.x,minMax.y);
+  convertToCharImage<<<grid,block>>>(pixels->numElements,castPixels->device,pixels->device);
   cudaDeviceSynchronize();
   CudaCheckError();
 
   if(origin == cpu){
     pixels->setMemoryState(cpu);
-    castPixels->transferMemoryTo(cpu);
-    castPixels->clear(gpu);
+    castPixels->setMemoryState(cpu);
   }
   return castPixels;
 }
@@ -145,6 +138,28 @@ ssrlcv::Unity<float>* ssrlcv::convertImageToFlt(Unity<unsigned char>* pixels){
     castPixels->clear(gpu);
   }
   return castPixels;
+}
+
+//todo use cuda reduction instead of cpu loop for min max finding
+void ssrlcv::normalizeImage(Unity<float>* pixels){
+  MemoryState origin = pixels->state;
+  float2 minMax = {FLT_MAX,-FLT_MAX};
+  if(origin == gpu || pixels->fore == gpu) pixels->transferMemoryTo(cpu);
+  for(int i = 0; i < pixels->numElements; ++i){
+      if(minMax.x > pixels->host[i]) minMax.x = pixels->host[i];
+      if(minMax.y < pixels->host[i]) minMax.y = pixels->host[i];
+  }
+  if(origin == cpu || pixels->fore == gpu) pixels->setMemoryState(gpu);
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(pixels->numElements,grid,block);
+  normalize<<<grid,block>>>(pixels->numElements,pixels->device,minMax);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  pixels->fore = gpu;
+
+  if(origin == cpu) pixels->setMemoryState(cpu);  
 }
 
 void ssrlcv::convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth){
@@ -439,7 +454,25 @@ ssrlcv::Unity<unsigned char>* ssrlcv::bin(uint2 imageSize, unsigned int colorDep
   if(origin != gpu) binnedImage->setMemoryState(origin);
   return binnedImage;
 }
+ssrlcv::Unity<float>* ssrlcv::bin(uint2 imageSize, unsigned int colorDepth, Unity<float>* pixels){
+  MemoryState origin = pixels->state;
 
+  if(origin == cpu || pixels->fore == cpu){
+    pixels->transferMemoryTo(gpu);
+  }
+  Unity<float>* binnedImage = new Unity<float>(nullptr, pixels->numElements/4, gpu);
+  dim3 grid = {(imageSize.x/64)+1,(imageSize.y/64)+1,1};
+  dim3 block = {32,32,1};
+
+  binImage<<<grid,block>>>(imageSize,colorDepth,pixels->device,binnedImage->device);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  
+  if(origin == cpu) pixels->setMemoryState(cpu);
+  if(origin != gpu) binnedImage->setMemoryState(origin);
+  return binnedImage;
+}
 ssrlcv::Unity<unsigned char>* ssrlcv::upsample(uint2 imageSize, unsigned int colorDepth, Unity<unsigned char>* pixels){
   MemoryState origin = pixels->state;
 
@@ -461,7 +494,27 @@ ssrlcv::Unity<unsigned char>* ssrlcv::upsample(uint2 imageSize, unsigned int col
   return upsampledImage;
 
 }
+ssrlcv::Unity<float>* ssrlcv::upsample(uint2 imageSize, unsigned int colorDepth, Unity<float>* pixels){
+  MemoryState origin = pixels->state;
 
+  if(origin == cpu || pixels->fore == cpu){
+    pixels->transferMemoryTo(gpu);
+  }
+
+  dim3 grid = {(imageSize.x/16)+1,(imageSize.y/16)+1,1};
+  dim3 block = {32,32,1};
+
+  Unity<float>* upsampledImage = new Unity<float>(nullptr, pixels->numElements*4, gpu);
+
+  upsampleImage<<<grid,block>>>(imageSize,colorDepth,pixels->device,upsampledImage->device);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  if(origin == cpu) pixels->setMemoryState(cpu);
+  if(origin != gpu) upsampledImage->setMemoryState(origin);
+  return upsampledImage;
+
+}
 ssrlcv::Unity<unsigned char>* ssrlcv::scaleImage(uint2 imageSize, unsigned int colorDepth, Unity<unsigned char>* pixels, float outputPixelWidth){
   MemoryState origin = pixels->state;
 
@@ -479,6 +532,31 @@ ssrlcv::Unity<unsigned char>* ssrlcv::scaleImage(uint2 imageSize, unsigned int c
   CudaCheckError();
 
   Unity<unsigned char>* sampledImage = new Unity<unsigned char>(sampledImage_device, pixels->numElements/(outputPixelWidth*outputPixelWidth), gpu);
+
+  if(origin == cpu){
+    pixels->setMemoryState(cpu);
+    sampledImage->transferMemoryTo(cpu);
+  }
+
+  return sampledImage;
+}
+ssrlcv::Unity<float>* ssrlcv::scaleImage(uint2 imageSize, unsigned int colorDepth, Unity<float>* pixels, float outputPixelWidth){
+  MemoryState origin = pixels->state;
+
+  if(origin == cpu || pixels->fore != gpu){
+    pixels->transferMemoryTo(gpu);
+  }
+  float* sampledImage_device = nullptr;
+
+  dim3 grid = {(imageSize.x/(32*outputPixelWidth))+1,(imageSize.y/(32*outputPixelWidth))+1,1};
+  dim3 block = {32,32,1};
+
+  CudaSafeCall(cudaMalloc((void**)&sampledImage_device,pixels->numElements*4*sizeof(float)));
+  bilinearInterpolation<<<grid,block>>>(imageSize,colorDepth,pixels->device,sampledImage_device,outputPixelWidth);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  Unity<float>* sampledImage = new Unity<float>(sampledImage_device, pixels->numElements/(outputPixelWidth*outputPixelWidth), gpu);
 
   if(origin == cpu){
     pixels->setMemoryState(cpu);
@@ -550,12 +628,6 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<float>* pixels, un
   return convolvedImage;
 }
 
-
-__device__ __forceinline__ unsigned long ssrlcv::getGlobalIdx_2D_1D(){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
-  unsigned long threadId = blockId * blockDim.x + threadIdx.x;
-  return threadId;
-}
 __device__ __host__ __forceinline__ int ssrlcv::getSymmetrizedCoord(int i, unsigned int l){
   int ll = 2*l;
   i = (i+ll)%ll;
@@ -589,7 +661,7 @@ __device__ __forceinline__ uchar3 ssrlcv::rgbaToRGB(const uchar4 &color){
 
 
 __global__ void ssrlcv::generateBW(int numPixels, unsigned int colorDepth, unsigned char* colorPixels, unsigned char* pixels){
-  unsigned long globalID = getGlobalIdx_2D_1D();
+  unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < numPixels){
     int numValues = (int) colorDepth;
     switch(numValues){
@@ -609,7 +681,7 @@ __global__ void ssrlcv::generateBW(int numPixels, unsigned int colorDepth, unsig
   }
 }
 __global__ void ssrlcv::generateRGB(int numPixels, unsigned int colorDepth, unsigned char* colorPixels, unsigned char* pixels){
-  unsigned long globalID = getGlobalIdx_2D_1D();
+  unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < numPixels){
     int numValues = colorDepth;
     uchar3 value;
@@ -646,7 +718,6 @@ __global__ void ssrlcv::binImage(uint2 imageSize, unsigned int colorDepth, unsig
     }
   }
 }
-
 __global__ void ssrlcv::upsampleImage(uint2 imageSize, unsigned int colorDepth, unsigned char* pixels, unsigned char* upsampledImage){
   unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
   unsigned int j = blockIdx.y*blockDim.y + threadIdx.y;
@@ -669,7 +740,6 @@ __global__ void ssrlcv::upsampleImage(uint2 imageSize, unsigned int colorDepth, 
     }
   }
 }
-
 __global__ void ssrlcv::bilinearInterpolation(uint2 imageSize, unsigned int colorDepth, unsigned char* pixels, unsigned char* outputPixels, float outputPixelWidth){
   unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
   unsigned int j = blockIdx.y*blockDim.y + threadIdx.y;
@@ -689,6 +759,64 @@ __global__ void ssrlcv::bilinearInterpolation(uint2 imageSize, unsigned int colo
       sumPix += interLocDiff.x*(1-interLocDiff.y)*((float)pixels[ym*colorDepth*imageSize.x + xp*colorDepth + d]);
       sumPix += (1-interLocDiff.x)*(1-interLocDiff.y)*((float)pixels[ym*colorDepth*imageSize.x + xm*colorDepth + d]);
       outputPixels[j*colorDepth*llroundf(imageSize.x/outputPixelWidth) + i*colorDepth + d] = (unsigned char) sumPix;
+    }
+  }
+}
+
+__global__ void ssrlcv::binImage(uint2 imageSize, unsigned int colorDepth, float* pixels, float* binnedImage){
+  unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
+  unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+  if(x < imageSize.x/2 && y < imageSize.y/2){
+    for(int d = 0; d < colorDepth; ++d){
+      float sumPix = pixels[y*colorDepth*2*imageSize.x + x*2*colorDepth + d] +
+      pixels[(y*2+1)*colorDepth*imageSize.x + x*2*colorDepth + d] +
+      pixels[y*2*colorDepth*imageSize.x + (x*2+1)*colorDepth + d] +
+      pixels[(y*2+1)*colorDepth*imageSize.x + (x*2+1)*colorDepth + d];
+      binnedImage[y*colorDepth*(imageSize.x/2) + x*colorDepth + d] = sumPix/4.0f;
+    }
+  }
+}
+__global__ void ssrlcv::upsampleImage(uint2 imageSize, unsigned int colorDepth, float* pixels, float* upsampledImage){
+  unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
+  unsigned int j = blockIdx.y*blockDim.y + threadIdx.y;
+  if(i < imageSize.x*2 && j < imageSize.y*2){
+    float x = i*0.5f;
+    float y = j*0.5f;
+    int xm = getSymmetrizedCoord((int)x,imageSize.x);
+    int xp = getSymmetrizedCoord((int)x + 1,imageSize.x);
+    int ym = getSymmetrizedCoord((int)y,imageSize.y);
+    int yp = getSymmetrizedCoord((int)y + 1,imageSize.y);
+
+    float2 interLocDiff = {x-floor(x),y-floor(y)};
+
+    for(int d = 0; d < colorDepth; ++d){
+      float sumPix = interLocDiff.x*interLocDiff.y*((float)pixels[yp*colorDepth*imageSize.x + xp*colorDepth + d]);
+      sumPix += (1.0f-interLocDiff.x)*interLocDiff.y*((float)pixels[yp*colorDepth*imageSize.x + xm*colorDepth + d]);
+      sumPix += interLocDiff.x*(1-interLocDiff.y)*((float)pixels[ym*colorDepth*imageSize.x + xp*colorDepth + d]);
+      sumPix += (1-interLocDiff.x)*(1-interLocDiff.y)*((float)pixels[ym*colorDepth*imageSize.x + xm*colorDepth + d]);
+      upsampledImage[j*colorDepth*(imageSize.x*2) + i*colorDepth + d] = sumPix;
+    }
+  }
+}
+__global__ void ssrlcv::bilinearInterpolation(uint2 imageSize, unsigned int colorDepth, float* pixels, float* outputPixels, float outputPixelWidth){
+  unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
+  unsigned int j = blockIdx.y*blockDim.y + threadIdx.y;
+  if(i < imageSize.x/outputPixelWidth && j < imageSize.y/outputPixelWidth){
+    float x = i*outputPixelWidth;
+    float y = j*outputPixelWidth;
+    int xm = getSymmetrizedCoord((int)x,imageSize.x);
+    int xp = getSymmetrizedCoord((int)x + 1,imageSize.x);
+    int ym = getSymmetrizedCoord((int)y,imageSize.y);
+    int yp = getSymmetrizedCoord((int)y + 1,imageSize.y);
+
+    float2 interLocDiff = {x-floor(x),y-floor(y)};
+
+    for(int d = 0; d < colorDepth; ++d){
+      float sumPix = interLocDiff.x*interLocDiff.y*((float)pixels[yp*colorDepth*imageSize.x + xp*colorDepth + d]);
+      sumPix += (1.0f-interLocDiff.x)*interLocDiff.y*((float)pixels[yp*colorDepth*imageSize.x + xm*colorDepth + d]);
+      sumPix += interLocDiff.x*(1-interLocDiff.y)*((float)pixels[ym*colorDepth*imageSize.x + xp*colorDepth + d]);
+      sumPix += (1-interLocDiff.x)*(1-interLocDiff.y)*((float)pixels[ym*colorDepth*imageSize.x + xm*colorDepth + d]);
+      outputPixels[j*colorDepth*llroundf(imageSize.x/outputPixelWidth) + i*colorDepth + d] = sumPix;
     }
   }
 }
@@ -764,16 +892,22 @@ __global__ void ssrlcv::convolveImage_symmetric(uint2 imageSize, float* pixels, 
   }
 }
 
-__global__ void ssrlcv::convertToCharImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels, float min, float max){
-  unsigned long globalID = getGlobalIdx_2D_1D();
+__global__ void ssrlcv::convertToCharImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels){
+  unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < numPixels){
-    pixels[globalID] = (unsigned char) 255.0f*((fltPixels[globalID]-min)/(max-min));
+    pixels[globalID] = (unsigned char) 255.0f*fltPixels[globalID];
   }
 }
 __global__ void ssrlcv::convertToFltImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels){
-  unsigned long globalID = getGlobalIdx_2D_1D();
+  unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < numPixels){
     fltPixels[globalID] = (float) pixels[globalID];
+  }
+}
+__global__ void ssrlcv::normalize(unsigned long numPixels, float* pixels, float2 minMax){
+  unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if(globalID < numPixels){
+    pixels[globalID] = (pixels[globalID] - minMax.x)/(minMax.y - minMax.x);
   }
 }
 

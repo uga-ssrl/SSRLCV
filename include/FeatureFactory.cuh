@@ -46,7 +46,6 @@ namespace ssrlcv{
         int octave;
         int blur;
         float2 loc;
-        float2 abs_loc;
         float intensity;
         float sigma;
         float theta;
@@ -73,7 +72,7 @@ namespace ssrlcv{
           Unity<float>* pixels;/**\brief vector of Unity structs holding pixel values*/
           Unity<float2>* gradients;
           Blur();
-          Blur(float sigma, int2 kernelSize, Unity<float>* blurable, uint2 size, float pixelWidth);
+          Blur(float sigma, int2 kernelSize, Unity<float>* pixels, uint2 size, float pixelWidth);
           void computeGradients();
           ~Blur();
         };
@@ -88,12 +87,13 @@ namespace ssrlcv{
 
         Octave();
         //may want to remove kernelSize as it is static in anatomy
-        Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<unsigned char>* pixels, uint2 depth, float pixelWidth);      
+        Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<float>* pixels, uint2 depth, float pixelWidth);      
         void searchForExtrema();
         void discardExtrema();
         void refineExtremaLocation(float minScaleSpacePixelWidth);//this is going to have to reorient extrema in scalespace
         void removeNoise(float noiseThreshold);
         void removeEdges(float edgeThreshold);
+        void removeBorder(float2 border);
 
         ~Octave();
 
@@ -190,6 +190,8 @@ namespace ssrlcv{
   __global__ void flagNoise(unsigned int numKeyPoints, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float threshold);
   __global__ void flagEdges(unsigned int numKeyPoints, unsigned int startingIndex, uint2 imageSize, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float* pixels, float threshold);
 
+
+  __global__ void flagBorder(unsigned int numKeyPoints, uint2 imageSize, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float2 border);
 
   __global__ void computeThetas(unsigned long numKeyPoints, unsigned int keyPointIndex, uint2 imageSize, float pixelWidth, 
   float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoints, float2* gradients, 

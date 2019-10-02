@@ -463,7 +463,6 @@ __global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, floa
   if(!(globalID<numMatches))return;
 	//check out globalID cheat sheet jackson gave you for this
 	int matchIndex = globalID; //need to define once I calculate grid/block size
-	//printf("thread index %d", getGlobalIdx_1D_1D());
 	float4 match = matches[globalID];
 
 

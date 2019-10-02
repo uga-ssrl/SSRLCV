@@ -82,6 +82,8 @@ namespace ssrlcv{
   Unity<unsigned char>* convertImageToChar(Unity<float>* pixels);
   Unity<float>* convertImageToFlt(Unity<unsigned char>* pixels);
 
+  void normalizeImage(Unity<float>* pixels);
+
   void convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth);
   void convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth);
 
@@ -102,17 +104,21 @@ namespace ssrlcv{
   *\brief bins an image by a factor of 2 in the x and y direction
   */
   Unity<unsigned char>* bin(uint2 imageSize, unsigned int colorDepth, Unity<unsigned char>* pixels);
+  Unity<float>* bin(uint2 imageSize, unsigned int colorDepth, Unity<float>* pixels);
 
   /**
   *\brief upsamples and image by a factor of 2 in the x and y directions
   */
   Unity<unsigned char>* upsample(uint2 imageSize, unsigned int colorDepth, Unity<unsigned char>* pixels);
+  Unity<float>* upsample(uint2 imageSize, unsigned int colorDepth, Unity<float>* pixels);
+
   /**
   *\brief same as bin and upsample without constraining scaling to factor of two
   *\todo think about adding referenced imageSize for new image size
   */
   Unity<unsigned char>* scaleImage(uint2 imageSize, unsigned int colorDepth, Unity<unsigned char>* pixels, float outputPixelWidth);
-  
+  Unity<float>* scaleImage(uint2 imageSize, unsigned int colorDepth, Unity<float>* pixels, float outputPixelWidth);
+
 
   
   Unity<float>* convolve(uint2 imageSize, Unity<unsigned char>* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, bool symmetric = true);
@@ -120,8 +126,6 @@ namespace ssrlcv{
 
 
   /* CUDA variable, method and kernel defintions */
-
-  __device__ __forceinline__ unsigned long getGlobalIdx_2D_1D();
 
   /**
   * \brief symmetrizes a coordinate based
@@ -143,11 +147,15 @@ namespace ssrlcv{
   __global__ void generateBW(int numPixels, unsigned int colorDepth, unsigned char* colorPixels, unsigned char* pixels);
   __global__ void generateRGB(int numPixels, unsigned int colorDepth, unsigned char* colorPixels, unsigned char* pixels);
 
-
   __global__ void binImage(uint2 imageSize, unsigned int colorDepth, unsigned char* pixels, unsigned char* binnedImage);
   __global__ void upsampleImage(uint2 imageSize, unsigned int colorDepth, unsigned char* pixels, unsigned char* upsampledImage);
   __global__ void bilinearInterpolation(uint2 imageSize, unsigned int colorDepth, unsigned char* pixels, unsigned char* outputPixels, float outputPixelWidth);
+
+  __global__ void binImage(uint2 imageSize, unsigned int colorDepth, float* pixels, float* binnedImage);
+  __global__ void upsampleImage(uint2 imageSize, unsigned int colorDepth, float* pixels, float* upsampledImage);
+  __global__ void bilinearInterpolation(uint2 imageSize, unsigned int colorDepth, float* pixels, float* outputPixels, float outputPixelWidth);
   
+
   //border condition 0
   __global__ void convolveImage(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
   __global__ void convolveImage(uint2 imageSize, float* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
@@ -155,8 +163,10 @@ namespace ssrlcv{
   __global__ void convolveImage_symmetric(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
   __global__ void convolveImage_symmetric(uint2 imageSize, float* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
  
-  __global__ void convertToCharImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels, float min, float max);
+  __global__ void convertToCharImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels);
   __global__ void convertToFltImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels);
+  __global__ void normalize(unsigned long numPixels, float* pixels, float2 minMax);
+  
   __global__ void applyBorder(uint2 imageSize, unsigned int* featureNumbers, unsigned int* featureAddresses, float2 border);
   __global__ void getPixelCenters(unsigned int numValidPixels, uint2 imageSize, unsigned int* pixelAddresses, float2* pixelCenters);
 
