@@ -556,9 +556,9 @@ __device__ __forceinline__ float ssrlcv::calcElucidSq(const Feature<SIFT_Descrip
   for(int i = 0; i < 128; ++i){
     dist += square(((float)a.descriptor.values[i]-b.descriptor.values[i]));
   }
-  dist += a.descriptor.theta - b.descriptor.theta;
-  dist += a.descriptor.sigma - b.descriptor.sigma;
-  dist += dotProduct(a.loc - b.loc,a.loc - b.loc);
+  //dist += a.descriptor.theta - b.descriptor.theta;
+  //dist += a.descriptor.sigma - b.descriptor.sigma;
+  //dist += dotProduct(a.loc - b.loc,a.loc - b.loc);
   return dist;
 }
 __device__ __forceinline__ float ssrlcv::calcElucidSq(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b, const float &bestMatch){
@@ -566,11 +566,11 @@ __device__ __forceinline__ float ssrlcv::calcElucidSq(const Feature<SIFT_Descrip
   for(int i = 0; i < 128 && dist < bestMatch; ++i){
     dist += square(((float)a.descriptor.values[i]-b.descriptor.values[i]));
   }
-  if(dist < bestMatch) dist += a.descriptor.theta - b.descriptor.theta;
-  else return dist;
-  if(dist < bestMatch) dist += a.descriptor.sigma - b.descriptor.sigma;
-  else return dist;
-  if(dist < bestMatch) dist += dotProduct(a.loc - b.loc,a.loc - b.loc);
+  //if(dist < bestMatch) dist += a.descriptor.theta - b.descriptor.theta;
+  //else return dist;
+  //if(dist < bestMatch) dist += a.descriptor.sigma - b.descriptor.sigma;
+  //else return dist;
+  //if(dist < bestMatch) dist += dotProduct(a.loc - b.loc,a.loc - b.loc);
   return dist;
 }
 __device__ __forceinline__ float ssrlcv::calcElucidSq(const SIFT_Descriptor& a, const SIFT_Descriptor& b){
@@ -578,8 +578,8 @@ __device__ __forceinline__ float ssrlcv::calcElucidSq(const SIFT_Descriptor& a, 
   for(int i = 0; i < 128; ++i){
     dist += square(((float)a.values[i]-b.values[i]));
   }
-  dist += a.theta - b.theta;
-  dist += a.sigma - b.sigma;
+  //dist += a.theta - b.theta;
+  //dist += a.sigma - b.sigma;
   return dist;
 }
 __device__ __forceinline__ float ssrlcv::calcElucidSq(const SIFT_Descriptor& a, const SIFT_Descriptor& b, const float &bestMatch){
@@ -587,10 +587,9 @@ __device__ __forceinline__ float ssrlcv::calcElucidSq(const SIFT_Descriptor& a, 
   for(int i = 0; i < 128 && dist < bestMatch; ++i){
     dist += square(((float)a.values[i]-b.values[i]));
   }
-  if(dist < bestMatch) dist += a.theta - b.theta;
-  else return dist;
-  if(dist < bestMatch) dist += a.sigma - b.sigma;
-  else return dist;
+  //if(dist < bestMatch) dist += a.theta - b.theta;
+  //else return dist;
+  //if(dist < bestMatch) dist += a.sigma - b.sigma;
   return dist;
 }
 

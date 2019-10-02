@@ -158,28 +158,28 @@ namespace ssrlcv{
   /*
   CUDA variables, methods and kernels
   */
-  __device__ float getMagnitude(const int2 &vector);
-  __device__ float getMagnitude(const float2 &vector);
-  __device__ float getMagnitudeSq(const int2 &vector);
-  __device__ float getMagnitudeSq(const float2 &vector);
-  __device__ float getTheta(const int2 &vector);
-  __device__ float getTheta(const float2 &vector);
-  __device__ float getTheta(const float2 &vector, const float &offset);
+  __device__ __forceinline__ float getMagnitude(const int2 &vector);
+  __device__ __forceinline__ float getMagnitude(const float2 &vector);
+  __device__ __forceinline__ float getMagnitudeSq(const int2 &vector);
+  __device__ __forceinline__ float getMagnitudeSq(const float2 &vector);
+  __device__ __forceinline__ float getTheta(const int2 &vector);
+  __device__ __forceinline__ float getTheta(const float2 &vector);
+  __device__ __forceinline__ float getTheta(const float2 &vector, const float &offset);
   __device__ void trickleSwap(const float2 &compareWValue, float2* arr, const int &index, const int &length);
-  __device__ long4 getOrientationContributers(const long2 &loc, const uint2 &imageSize);
-  __device__ int floatToOrderedInt(float floatVal);
-  __device__ float orderedIntToFloat(int intVal);
-  __device__ float atomicMinFloat (float * addr, float value);
-  __device__ float atomicMaxFloat (float * addr, float value);
-  __device__ float modulus(const float &x, const float &y);
-  __device__ float2 rotateAboutPoint(const int2 &loc, const float &theta, const float2 &origin);
+  __device__ __forceinline__ long4 getOrientationContributers(const long2 &loc, const uint2 &imageSize);
+  __device__ __forceinline__ int floatToOrderedInt(float floatVal);
+  __device__ __forceinline__ float orderedIntToFloat(int intVal);
+  __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
+  __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
+  __device__ __forceinline__ float modulus(const float &x, const float &y);
+  __device__ __forceinline__ float2 rotateAboutPoint(const int2 &loc, const float &theta, const float2 &origin);
 
   extern __constant__ float pi;
 
 
-  __device__ float atomicMinFloat (float * addr, float value);
-  __device__ float atomicMaxFloat (float * addr, float value);
-  __device__ float edgeness(const float (&hessian)[2][2]);
+  __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
+  __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
+  __device__ __forceinline__ float edgeness(const float (&hessian)[2][2]);
 
   __global__ void subtractImages(unsigned int numPixels, float* pixelsUpper, float* pixelsLower, float* pixelsOut);
 

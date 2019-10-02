@@ -37,7 +37,34 @@ int main(int argc, char *argv[]){
       ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image);
       images.push_back(image);
       allFeatures.push_back(features);
+      features->transferMemoryTo(ssrlcv::cpu);
+      for(int f = 0; f < features->numElements; ++f){
+        printf("%d,%f,%f\t",f,features->host[f].loc.x,features->host[f].loc.y);
+        for(int d = 0; d < 128; ++d){
+          printf("%d,",(int) features->host[f].descriptor.values[d]);
+        }
+        printf("\n\n");
+      }
     }
+    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>();
+    std::cout << "Starting matching, this will take a while ..." << std::endl;
+    ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1]);
+
+    if(distanceMatches->state != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
+    ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
+
+    delete distanceMatches;
+
+    ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
+    ssrlcv::Unity<float3>* points = demPoints.stereo_disparity(matches,64.0f);
+
+    delete matches;
+    delete allFeatures[0];
+    delete allFeatures[1];
+
+    ssrlcv::writePLY("out/test.ply",points);
+
+    delete points;
 
     for(int i = 0; i < imagePaths.size(); ++i){
         delete images[i];

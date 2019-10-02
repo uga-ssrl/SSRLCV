@@ -178,7 +178,6 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::discardExtrema(){
         CudaSafeCall(cudaMalloc((void**)&temp[i],numExtremaAtBlur*sizeof(SSKeyPoint)));
         CudaSafeCall(cudaMemcpy(temp[i],this->extrema->device + this->extremaBlurIndices[i],numExtremaAtBlur*sizeof(SSKeyPoint),cudaMemcpyDeviceToDevice));
     }
-    this->extrema->clear(this->extrema->state);
     int totalKept = 0;
     for(int i = 0; i < this->numBlurs; ++i){
         numExtremaAtBlur = 0;
@@ -207,6 +206,12 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::discardExtrema(){
             CudaSafeCall(cudaFree(temp[i]));
         }
         if(origin == cpu) this->extrema->setMemoryState(cpu);
+    }
+    else if(this->extrema != nullptr){
+        delete this->extrema;
+        this->extrema = nullptr;
+        delete[] this->extremaBlurIndices;
+        this->extremaBlurIndices = nullptr;
     }
     delete[] temp;
 }
@@ -439,22 +444,22 @@ void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, flo
     for(int i = 0; i < this->depth.x; ++i){
         this->octaves[i]->searchForExtrema();
         temp = this->octaves[i]->extrema->numElements;
-        // std::cout<<"keypoints in octave["<<i<<"] = "<<temp;
+        std::cout<<"keypoints in octave["<<i<<"] = "<<temp;
         if(temp > 0){
             this->octaves[i]->removeNoise(noiseThreshold*0.8);
-            // std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
+            std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
             if(subpixel){
                 this->octaves[i]->refineExtremaLocation(this->octaves[0]->pixelWidth);
-                // std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
+                std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
                 this->octaves[i]->removeNoise(noiseThreshold);
-                // std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
+                std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
             }
             this->octaves[i]->removeEdges(edgeThreshold);
-            // std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
-            // std::cout<<"="<<this->octaves[i]->extrema->numElements<<std::endl;
+            std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
+            std::cout<<"="<<this->octaves[i]->extrema->numElements<<std::endl;
         }  
-        else{
-            // std::cout<<std::endl;
+        if(this->octaves[i]->extrema->numElements == 0){
+            std::cout<<std::endl;
             delete this->octaves[i]->extrema;
             delete[] this->octaves[i]->extremaBlurIndices;
             this->octaves[i]->extremaBlurIndices = nullptr;
@@ -610,25 +615,25 @@ const double PI = 3.141592653589793;
 const float PI = 3.1415927;
 */
 
-__device__ float ssrlcv::getMagnitude(const int2 &vector){
+__device__ __forceinline__ float ssrlcv::getMagnitude(const int2 &vector){
   return sqrtf((float)dotProduct(vector, vector));
 }
-__device__ float ssrlcv::getMagnitude(const float2 &vector){
+__device__ __forceinline__ float ssrlcv::getMagnitude(const float2 &vector){
   return sqrtf(dotProduct(vector, vector));
 }
-__device__ float ssrlcv::getMagnitudeSq(const int2 &vector){
+__device__ __forceinline__ float ssrlcv::getMagnitudeSq(const int2 &vector){
   return (float)dotProduct(vector, vector);
 }
-__device__ float ssrlcv::getMagnitudeSq(const float2 &vector){
+__device__ __forceinline__ float ssrlcv::getMagnitudeSq(const float2 &vector){
   return dotProduct(vector, vector);
 }
-__device__ float ssrlcv::getTheta(const int2 &vector){
+__device__ __forceinline__ float ssrlcv::getTheta(const int2 &vector){
   return fmodf(atan2f((float)vector.y, (float)vector.x) + pi,2.0f*pi);
 }
-__device__ float ssrlcv::getTheta(const float2 &vector){
+__device__ __forceinline__ float ssrlcv::getTheta(const float2 &vector){
   return fmodf(atan2f(vector.y, vector.x) + pi,2.0f*pi);
 }
-__device__ float ssrlcv::getTheta(const float2 &vector, const float &offset){
+__device__ __forceinline__ float ssrlcv::getTheta(const float2 &vector, const float &offset){
   return fmodf((atan2f(vector.y, vector.x) + pi) - offset,2.0f*pi);
 }
 __device__ void ssrlcv::trickleSwap(const float2 &compareWValue, float2* arr, const int &index, const int &length){
@@ -679,19 +684,19 @@ __device__ __forceinline__ float2 ssrlcv::rotateAboutPoint(const int2 &loc, cons
   return rotatedPoint;
 }
 
-__device__ float ssrlcv::atomicMinFloat (float * addr, float value){
+__device__ __forceinline__ float ssrlcv::atomicMinFloat (float * addr, float value){
   float old;
   old = (value >= 0) ? __int_as_float(atomicMin((int *)addr, __float_as_int(value))) :
     __uint_as_float(atomicMax((unsigned int *)addr, __float_as_uint(value)));
   return old;
 }
-__device__ float ssrlcv::atomicMaxFloat (float * addr, float value){
+__device__ __forceinline__ float ssrlcv::atomicMaxFloat (float * addr, float value){
   float old;
   old = (value >= 0) ? __int_as_float(atomicMax((int *)addr, __float_as_int(value))) :
     __uint_as_float(atomicMin((unsigned int *)addr, __float_as_uint(value)));
   return old;
 }
-__device__ float ssrlcv::edgeness(const float (&hessian)[2][2]){
+__device__ __forceinline__ float ssrlcv::edgeness(const float (&hessian)[2][2]){
     float e = trace(hessian);
     return e*e/determinant(hessian);    
 }
@@ -853,27 +858,24 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
     if(globalID < numKeyPoints){
         FeatureFactory::ScaleSpace::SSKeyPoint kp = keyPoints[globalID+keyPointIndex];
         float2 keyPoint = kp.loc;
+        kp.sigma /= pixelWidth;
         float windowWidth = kp.sigma*3.0f*lambda;
         int regNumOrient = maxOrientations;
 
-        if((keyPoint.x - windowWidth)/pixelWidth < 0.0f || 
-        (keyPoint.y - windowWidth)/pixelWidth < 0.0f || 
-        (keyPoint.x + windowWidth)/pixelWidth >= imageSize.x ||
-        (keyPoint.y + windowWidth)/pixelWidth >= imageSize.y){
-            for(int i = 0; i < regNumOrient; ++i){
-                thetaNumbers[globalID*regNumOrient + i] = -1;
-                thetas[globalID*regNumOrient + i] = -1.0f;
-            }
-            return;
-        } 
+        float2 min = {(keyPoint.x - windowWidth)/pixelWidth,(keyPoint.y - windowWidth)/pixelWidth};
+        if(min.x < 0.0f) min.x = 0.0f;
+        if(min.y < 0.0f) min.y = 0.0f;
+        float2 max = {(keyPoint.x + windowWidth)/pixelWidth,(keyPoint.x + windowWidth)/pixelWidth};
+        if(max.x >= imageSize.x - 1) max.x = imageSize.x - 1;
+        if(max.y >= imageSize.y - 1) max.y = imageSize.y - 1;
 
         float orientationHist[36] = {0.0f};
         float maxHist = 0.0f;
         float2 gradient = {0.0f,0.0f};
         float2 temp2 = {0.0f,0.0f};
         unsigned int imageWidth = imageSize.x;
-        for(float y = (keyPoint.y - windowWidth)/pixelWidth; y <= (keyPoint.y + windowWidth)/pixelWidth; y+=1.0f){
-            for(float x = (keyPoint.x - windowWidth)/pixelWidth; x <= (keyPoint.x + windowWidth)/pixelWidth; x+=1.0f){
+        for(float y = min.y; y <= max.y; y+=1.0f){
+            for(float x = min.x; x <= max.x; x+=1.0f){
                 gradient = {
                     (float)gradients[llroundf(y)*imageWidth + llroundf(x)].x,
                     (float)gradients[llroundf(y)*imageWidth + llroundf(x)].y

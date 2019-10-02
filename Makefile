@@ -20,18 +20,24 @@ CXXFLAGS += -Wall -std=c++11
 NVCCFLAGS += ${COMMONFLAGS}
 NVCCFLAGS += -std=c++11
 
-SMDETECTOR_EXISTS := $(shell ./util/detect-compute-capability 2> /dev/null)
-ifndef SMDETECTOR_EXISTS
-SMDETECTOR : ./util/detect-compute-capability.cu
-	${NVCC} ${INCLUDES} \
-	-gencode arch=compute_35,code=sm_35 -gencode arch=compute_37,code=sm_37 -gencode arch=compute_50,code=sm_50 \
-	-gencode arch=compute_52,code=sm_52 -gencode arch=compute_60,code=sm_60 -gencode arch=compute_61,code=sm_61 \
-	-gencode arch=compute_62,code=sm_62 -o ./util/detect-compute-capability ./util/detect-compute-capability.cu
-endif 
+# Gencode arguments
+SM ?= 35 37 50 52 60 61 70
 
-COMPUTE = $(shell ./util/detect-compute-capability)
+ifeq ($(SM),)
+$(info >>> WARNING - no SM architectures have been specified - waiving sample <<<)
+SAMPLE_ENABLED := 0
+endif
 
-GENCODEFLAGS = -gencode arch=compute_$(COMPUTE),code=compute_$(COMPUTE)
+ifeq ($(GENCODEFLAGS),)
+# Generate SASS code for each SM architecture listed in $(SMS)
+$(foreach sm,$(SM),$(eval GENCODEFLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
+
+# Generate PTX code from the highest SM architecture in $(SMS) to guarantee forward-compatibility
+HIGHEST_SM := $(lastword $(sort $(SM)))
+ifneq ($(HIGHEST_SM),)
+GENCODEFLAGS += -gencode arch=compute_$(HIGHEST_SM),code=compute_$(HIGHEST_SM)
+endif
+endif
 
 
 #
