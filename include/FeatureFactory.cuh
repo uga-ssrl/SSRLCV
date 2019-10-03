@@ -87,10 +87,10 @@ namespace ssrlcv{
 
         Octave();
         //may want to remove kernelSize as it is static in anatomy
-        Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<float>* pixels, uint2 depth, float pixelWidth);      
+        Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<float>* pixels, uint2 depth, float pixelWidth, int keepPixelsAfterBlur);      
         void searchForExtrema();
         void discardExtrema();
-        void refineExtremaLocation(float minScaleSpacePixelWidth);//this is going to have to reorient extrema in scalespace
+        void refineExtremaLocation();
         void removeNoise(float noiseThreshold);
         void removeEdges(float edgeThreshold);
         void removeBorder(float2 border);
@@ -128,7 +128,7 @@ namespace ssrlcv{
       * \brief compute orientations for key points - will generate more features based on orientations above threshold
       * \todo implement
       */
-      void computeKeyPointOrientations(float orientationThreshold = 0.8f, unsigned int maxOrientations = 2, float contributerWindowWidth = 1.5f, bool keepGradients = false);
+      void computeKeyPointOrientations(float orientationThreshold = 0.8f, unsigned int maxOrientations = 1, float contributerWindowWidth = 1.5f, bool keepGradients = false);
       
       ~ScaleSpace();
     };
@@ -184,9 +184,9 @@ namespace ssrlcv{
   __global__ void subtractImages(unsigned int numPixels, float* pixelsUpper, float* pixelsLower, float* pixelsOut);
 
   __global__ void findExtrema(uint2 imageSize, float* pixelsUpper, float* pixelsMiddle, float* pixelsLower, int* extrema);
-  __global__ void fillExtrema(int numKeyPoints, uint2 imageSize,float pixelWidth,int2 ssLoc, int* extremaAddresses, float* pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP); 
+  __global__ void fillExtrema(int numKeyPoints, uint2 imageSize,float pixelWidth,int2 ssLoc, float sigma, int* extremaAddresses, float* pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP); 
   
-  __global__ void refineLocation(unsigned int numKeyPoints, uint2 imageSize, float sigmaMin, float pixelWidthRatio, float pixelWidth, unsigned int numBlurs, float** pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
+  __global__ void refineLocation(unsigned int numKeyPoints, uint2 imageSize, float sigmaMin, float blurSigmaMultiplier, unsigned int numBlurs, float** pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP);
   __global__ void flagNoise(unsigned int numKeyPoints, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float threshold);
   __global__ void flagEdges(unsigned int numKeyPoints, unsigned int startingIndex, uint2 imageSize, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float* pixels, float threshold);
 

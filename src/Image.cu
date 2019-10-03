@@ -141,6 +141,7 @@ ssrlcv::Unity<float>* ssrlcv::convertImageToFlt(Unity<unsigned char>* pixels){
 }
 
 //todo use cuda reduction instead of cpu loop for min max finding
+//todo add support for color depth
 void ssrlcv::normalizeImage(Unity<float>* pixels){
   MemoryState origin = pixels->state;
   float2 minMax = {FLT_MAX,-FLT_MAX};
@@ -656,9 +657,6 @@ __device__ __forceinline__ uchar3 ssrlcv::rgbaToRGB(const uchar4 &color){
     (1-color.w)*color.z + color.w*color.z,
   };
 }
-
-
-
 
 __global__ void ssrlcv::generateBW(int numPixels, unsigned int colorDepth, unsigned char* colorPixels, unsigned char* pixels){
   unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;

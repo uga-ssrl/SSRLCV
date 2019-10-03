@@ -47,11 +47,15 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     uint2 scaleSpaceDim = {4,6};
     //int nspo = scaleSpaceDim.y - 3;//num scale space/octave in dog made from a {4,6} ScaleSpace
     float noiseThreshold = 0.015f;//*(powf(2,1.0f/nspo)-1)/(powf(2,1.0f/3.0f)-1);
-    float edgeThreshold = 12.1f;//12.1 = (10.0f + 1)^2 / 10.0f
-    DOG* dog = new DOG(image,-1,scaleSpaceDim,1.0f,{2,sqrtf(2.0f)},{8,8});
+    float edgeThreshold = 12.1f;//12.1 = (10.0f + 1)^2 / 10.0f //formula = (r+1)^2/r from lowes paper where r = 10
 
+    DOG* dog = new DOG(image,-1,scaleSpaceDim,sqrtf(2.0f)/2.0f,{2,sqrtf(2.0f)},{8,8});
+    //std::string dump = "out/scalespace";
+    //dog->dumpData(dump);
     std::cout<<"converting to dog..."<<std::endl;
     dog->convertToDOG();
+    //dump = "out/dog";
+    //dog->dumpData(dump);
     std::cout<<"looking for keypoints..."<<std::endl;
     dog->findKeyPoints(noiseThreshold,edgeThreshold,true); 
 
@@ -105,8 +109,6 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     //problem is here
     dog->computeKeyPointOrientations(orientationThreshold,maxOrientations,this->orientationContribWidth,true);
 
-    //somewhere after this 0.0f,0.0f extrema emerge ERRORORORORORO
-
     //then create features from each of the keyPoints
     unsigned int numKeyPoints = 0;
     for(int o = 0; o < dog->depth.x; ++o){
@@ -141,7 +143,6 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
         }
         grid = {1,1,1};
         getGrid(numKeyPointsInBlur,grid);
-        std::cout<<numKeyPointsInBlur<<std::endl;
         fillDescriptors<<<grid,block>>>(numKeyPointsInBlur,currentBlur->size, 
           features->device + numFeaturesProduced, currentOctave->pixelWidth, this->descriptorContribWidth,
           currentOctave->extrema->device + currentOctave->extremaBlurIndices[b], currentBlur->gradients->device);
@@ -492,7 +493,7 @@ __global__ void ssrlcv::checkKeyPoints(unsigned int numKeyPoints, unsigned int k
   unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < numKeyPoints){
     FeatureFactory::ScaleSpace::SSKeyPoint kp = keyPoints[globalID + keyPointIndex];
-    float windowWidth = kp.sigma*sqrtf(2.0f)*lambda;
+    float windowWidth = kp.sigma*lambda/pixelWidth;
     if((kp.loc.x - windowWidth) < 0.0f || 
     (kp.loc.y - windowWidth) < 0.0f || 
     (kp.loc.x + windowWidth) >= imageSize.x ||
@@ -512,7 +513,7 @@ float pixelWidth, float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoint
     bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z] = 0.0f;
     FeatureFactory::ScaleSpace::SSKeyPoint kp = keyPoints[blockId];
     float2 keyPoint = kp.loc;
-    float windowWidth = kp.sigma*sqrtf(2.0f)*lambda;
+    float windowWidth = kp.sigma*lambda/pixelWidth;
     float theta = kp.theta;
 
     normSq = 0.0f;
@@ -523,42 +524,32 @@ float pixelWidth, float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoint
 
     float2 contribLoc = {0.0f,0.0f};
     float2 gradient = {0.0f,0.0f};
-    float2 temp = {0.0f,0.0f};
     float2 histLoc = {0.0f,0.0f};
     bool histFound = false;
 
-    //TODO verify this is right
-    float2 min = {((keyPoint.x-windowWidth)/pixelWidth),((keyPoint.y-windowWidth)/pixelWidth)};
-    //if(min.x < 0.0f) min.x = 0.0f;
-    //if(min.y < 0.0f) min.y = 0.0f;
-    float2 max = {((keyPoint.x+windowWidth)/pixelWidth),((keyPoint.y+windowWidth)/pixelWidth)};
-    //if(max.x >= imageSize.x - 1) max.x = imageSize.x - 1;
-    //if(max.y >= imageSize.y - 1) max.y = imageSize.y - 1;
-
-    for(float y = min.y + (float)threadIdx.y; y <= max.y; y+=(float)blockDim.y){
+    float rad45 = 45.0f*(pi/180.0f);
+    for(float y = (float)threadIdx.y - windowWidth; y <= windowWidth; y+=(float)blockDim.y){
       if(threadIdx.z != 0) break;
-      for(float x = min.x + (float)threadIdx.x; x <= max.x; x+=(float)blockDim.x){
-        contribLoc.x = (((x*pixelWidth - keyPoint.x)*cosf(theta)) + ((y*pixelWidth - keyPoint.y)*sinf(theta)))/kp.sigma;
-        contribLoc.y = ((-(x*pixelWidth - keyPoint.x)*sinf(theta)) + ((y*pixelWidth - keyPoint.y)*cosf(theta)))/kp.sigma;
-        if(abs(contribLoc.x) > 1.25f*lambda || abs(contribLoc.y) > 1.25f*lambda) continue;
-        gradient = gradients[llroundf(contribLoc.y + keyPoint.y)*imageWidth + llroundf(contribLoc.x + keyPoint.x)];
-        
+      for(float x = (float)threadIdx.x - windowWidth; x <= windowWidth; x+=(float)blockDim.x){
+        contribLoc = {(x*cosf(theta)) + (y*sinf(theta)),(-x*sinf(theta)) + (y*cosf(theta))};
+        if(abs(contribLoc.x) > windowWidth || abs(contribLoc.y) > windowWidth) continue;
+        gradient = gradients[llroundf(contribLoc.y + keyPoint.y)*imageWidth + llroundf(contribLoc.x + keyPoint.x)];//this might need to be an interpolation
         //calculate expow
-        temp = {contribLoc.x*pixelWidth - keyPoint.x,contribLoc.y*pixelWidth - keyPoint.y};
-        descriptorGridPoint.x = getMagnitude(gradient)*expf(-getMagnitude(temp)/(2.0f*lambda*lambda*kp.sigma*kp.sigma));
-        descriptorGridPoint.y = fmodf((atan2f(gradient.y,gradient.x)+pi)-theta+(2.0f*pi),2.0f*pi);//getTheta(gradient,theta);
+        descriptorGridPoint.x = getMagnitude(gradient)*expf(-getMagnitude(contribLoc)/(2.0f*windowWidth*windowWidth))/2.0f/pi/windowWidth/windowWidth; 
+        descriptorGridPoint.y = getTheta(gradient,theta);
         histFound = false;
+
         for(float nx = 0; nx < 4.0f && !histFound; nx+=1.0f){
           for(float ny = 0; ny < 4.0f && !histFound; ny+=1.0f){
             histLoc = {(nx*0.5f - 0.75f)*lambda,(ny*0.5f - 0.75f)*lambda};
-            if(abs(histLoc.x - contribLoc.x) <= lambda*0.5f && abs(histLoc.y - contribLoc.y) <= lambda*0.5f){
+            histLoc = {abs(histLoc.x - contribLoc.x),abs(histLoc.y - contribLoc.y)};
+            if(histLoc.x <= lambda*0.5f && histLoc.y <= lambda*0.5f){
               histFound = true;
               for(float k = 0; k < 8.0f; k+=1.0f){
-                if(abs(fmodf(descriptorGridPoint.y-(k*45.0f*(pi/180.0f)),2.0f*pi)) < 45.0f*(pi/180.0f)){
+                if(abs(fmodf(descriptorGridPoint.y-(k*rad45),2.0f*pi)) < rad45){
                   //TODO find solution to rounding here
-                  atomicAdd(&bin_descriptors[(int)nx][(int)ny][(int)k],roundf((1.0f-(2.0f/lambda)*abs(histLoc.x - contribLoc.x))*
-                    (1.0f-(2.0f/lambda)*abs(histLoc.y - contribLoc.y))*
-                    (1.0f-(2.0f/pi)*abs(fmodf(descriptorGridPoint.y-(k*45.0f*(pi/180.0f)),2.0f*pi)))*descriptorGridPoint.x));
+                  atomicAdd(&bin_descriptors[(int)nx][(int)ny][(int)k],(1.0f-(2.0f*histLoc.x/lambda))*(1.0f-(2.0f*histLoc.y/lambda))*
+                    (1.0f-(2.0f*abs(fmodf(descriptorGridPoint.y-(k*rad45),2.0f*pi))/pi))*descriptorGridPoint.x);
                 }
               }
             }
@@ -572,11 +563,18 @@ float pixelWidth, float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoint
     __syncthreads();
     atomicAdd(&normSq, bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]*bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]);
     __syncthreads();
-
-    temp.x = bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z];
-    temp.x = (temp.x*temp.x < 0.2f*0.2f*normSq) ? temp.x : 0.2f*sqrtf(normSq);
-    temp.x = roundf(512.0f*temp.x/sqrtf(normSq));
-    features[blockId].descriptor.values[(threadIdx.y*4 + threadIdx.x)*8 + threadIdx.z] = (temp.x < 255) ? (unsigned char) temp.x : 255;
+    
+    bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z] /= sqrtf(normSq);
+    if(bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z] > 0.2f) bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z] = 0.2f;
+    
+    __syncthreads();
+    normSq = 0.0f;
+    __syncthreads();
+    atomicAdd(&normSq, bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]*bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]);
+    __syncthreads();
+    
+    bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z] /= sqrtf(normSq);
+    features[blockId].descriptor.values[(threadIdx.y*4 + threadIdx.x)*8 + threadIdx.z] = bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]*255;
     if(threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0){
       features[blockId].descriptor.theta = kp.theta;
       features[blockId].descriptor.sigma = kp.sigma;

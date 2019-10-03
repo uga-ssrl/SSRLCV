@@ -11,10 +11,10 @@ print('=========================')
 print('\n^C to quit...')
 
 
-img_left  = mpimg.imread('./data/img/everest254/img/ev000.png')
-img_right = mpimg.imread('./data/img/everest254/img/ev001.png')
+img_left  = mpimg.imread('./data/img/everest1024/img/ev01.png')
+img_right = mpimg.imread('./data/img/everest1024/img/ev02.png')
 
-match_data_src = "./data/img/everest254/everest254_matches.txt"
+match_data_src = "./data/img/everest1024/everest1024_matches.txt"
 
 match_data = []
 

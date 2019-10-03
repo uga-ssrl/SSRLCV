@@ -138,7 +138,7 @@ template<typename T>
 ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::getRawMatches(Unity<DMatch>* matches){
   if(matches->state == gpu || matches->fore == gpu){
     Match* rawMatches_device = nullptr;
-    CudaSafeCall(cudaMalloc((void**)&rawMatches_device, matches->numElements*sizeof(DMatch)));
+    CudaSafeCall(cudaMalloc((void**)&rawMatches_device, matches->numElements*sizeof(Match)));
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     getFlatGridBlock(matches->numElements,grid,block);
@@ -611,7 +611,7 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches){
     localDist[threadIdx.x] = FLT_MAX;
     __syncthreads();
     float currentDist = 0.0f;
-    unsigned long numFeaturesTarget_register = numFeaturesQuery;
+    unsigned long numFeaturesTarget_register = numFeaturesTarget;
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 1024){
       currentDist = calcElucidSq(feature,featuresTarget[f],localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
@@ -650,7 +650,7 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches){
     localDist[threadIdx.x] = FLT_MAX;
     __syncthreads();
     float currentDist = 0.0f;
-    unsigned long numFeaturesTarget_register = numFeaturesQuery;
+    unsigned long numFeaturesTarget_register = numFeaturesTarget;
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 1024){
       currentDist = calcElucidSq(feature,featuresTarget[f],localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
@@ -690,7 +690,7 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches){
     localDist[threadIdx.x] = FLT_MAX;
     __syncthreads();
     float currentDist = 0.0f;
-    unsigned long numFeaturesTarget_register = numFeaturesQuery;
+    unsigned long numFeaturesTarget_register = numFeaturesTarget;
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 1024){
       currentDist = calcElucidSq(feature,featuresTarget[f],localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
@@ -733,7 +733,7 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float epsilon, float3 fundam
     localDist[threadIdx.x] = FLT_MAX;
     __syncthreads();
     float currentDist = 0.0f;
-    unsigned long numFeaturesTarget_register = numFeaturesQuery;
+    unsigned long numFeaturesTarget_register = numFeaturesTarget;
 
     float3 epipolar = {0.0f,0.0f,0.0f};
     epipolar.x = (fundamental[0].x*feature.loc.x) + (fundamental[0].y*feature.loc.y) + fundamental[0].z;
@@ -788,7 +788,7 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, float3 funda
     localDist[threadIdx.x] = FLT_MAX;
     __syncthreads();
     float currentDist = 0.0f;
-    unsigned long numFeaturesTarget_register = numFeaturesQuery;
+    unsigned long numFeaturesTarget_register = numFeaturesTarget;
 
     float3 epipolar = {0.0f,0.0f,0.0f};
     epipolar.x = (fundamental[0].x*feature.loc.x) + (fundamental[0].y*feature.loc.y) + fundamental[0].z;
@@ -844,7 +844,7 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float epsi
     localDist[threadIdx.x] = FLT_MAX;
     __syncthreads();
     float currentDist = 0.0f;
-    unsigned long numFeaturesTarget_register = numFeaturesQuery;
+    unsigned long numFeaturesTarget_register = numFeaturesTarget;
 
     float3 epipolar = {0.0f,0.0f,0.0f};
     epipolar.x = (fundamental[0].x*feature.loc.x) + (fundamental[0].y*feature.loc.y) + fundamental[0].z;
@@ -1044,7 +1044,14 @@ __global__ void ssrlcv::determineSubPixelLocationsBruteForce(float increment, un
 
 
 //utility kernels
-__global__ void ssrlcv::convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::Match* matches){
+__global__ void ssrlcv::convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::DMatch* matches){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if(globalID < numMatches){
+    rawMatches[globalID] = Match(matches[globalID]);
+  }
+}
+template<typename T>
+__global__ void ssrlcv::convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::FeatureMatch<T>* matches){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < numMatches){
     rawMatches[globalID] = Match(matches[globalID]);

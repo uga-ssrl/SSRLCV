@@ -30,7 +30,7 @@ namespace ssrlcv{
     /**
     * \brief generate an array of Feature's with SIFT_Descriptor's from an Image
     */
-    Unity<Feature<SIFT_Descriptor>>* generateFeatures(Image* image, bool dense = false, unsigned int maxOrientations = 2, float orientationThreshold = 0.8);
+    Unity<Feature<SIFT_Descriptor>>* generateFeatures(Image* image, bool dense = false, unsigned int maxOrientations = 1, float orientationThreshold = 0.8);
   };
 
   __device__ __forceinline__ unsigned long getGlobalIdx_2D_1D();

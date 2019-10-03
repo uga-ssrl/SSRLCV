@@ -23,6 +23,7 @@ sigma(sigma),size(size){
         }
     }
     pixels->setData(convolve(this->size,pixels,1,kernelSize,gaussian,true)->device,pixels->numElements,gpu);
+    normalizeImage(pixels);//REMOVE IF POSSIBLE
     pixels->fore = gpu;
     this->pixels = new Unity<float>(nullptr,pixels->numElements,gpu);
     CudaSafeCall(cudaMemcpy(this->pixels->device,pixels->device,pixels->numElements*sizeof(float),cudaMemcpyDeviceToDevice));
@@ -51,7 +52,7 @@ ssrlcv::FeatureFactory::ScaleSpace::Octave::Octave(){
     this->extremaBlurIndices = nullptr;
     this->id = -1;
 }
-ssrlcv::FeatureFactory::ScaleSpace::Octave::Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<float>* pixels, uint2 size, float pixelWidth) : 
+ssrlcv::FeatureFactory::ScaleSpace::Octave::Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<float>* pixels, uint2 size, float pixelWidth, int keepPixelsAfterBlur) : 
 numBlurs(numBlurs),pixelWidth(pixelWidth),id(id){
     this->extrema = nullptr;
     this->extremaBlurIndices = nullptr;
@@ -61,9 +62,15 @@ numBlurs(numBlurs),pixelWidth(pixelWidth),id(id){
 
     this->blurs = new Blur*[this->numBlurs]();
 
-    for(int i = 0; i < this->numBlurs; ++i){
+    for(int i = 0; i < keepPixelsAfterBlur; ++i){
         this->blurs[i] = new Blur(sigmas[i],kernelSize,pixels,size,pixelWidth);
     }
+    Unity<float>* blurable = new Unity<float>(nullptr,pixels->numElements,gpu);
+    CudaSafeCall(cudaMemcpy(blurable->device,pixels->device,pixels->numElements*sizeof(float),cudaMemcpyDeviceToDevice));
+    for(int i = keepPixelsAfterBlur; i < numBlurs; ++i){
+        this->blurs[i] = new Blur(sigmas[i],kernelSize,blurable,size,pixelWidth);
+    }
+    delete blurable;
     if(origin == cpu) pixels->setMemoryState(cpu);
 }
 ssrlcv::FeatureFactory::ScaleSpace::Octave::~Octave(){
@@ -75,7 +82,6 @@ ssrlcv::FeatureFactory::ScaleSpace::Octave::~Octave(){
     } 
     if(this->extrema != nullptr) delete this->extrema;
 }
-//NOTE THIS PRODUCES BLUR 3 KEY POINTS
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
     Unity<float>* pixelsUpper = nullptr;
     Unity<float>* pixelsMiddle = nullptr;
@@ -125,11 +131,10 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
         totalExtrema += extremaAtDepth;
 
         if(extremaAtDepth != 0){
-            //std::cout<<this->id<<" "<<b<<" "<<extremaAtDepth<<std::endl;
             CudaSafeCall(cudaMalloc((void**)&extrema2D[b-1],extremaAtDepth*sizeof(ScaleSpace::SSKeyPoint)));
             grid = {1,1,1}; block = {1,1,1};
             getFlatGridBlock(extremaAtDepth,grid,block);
-            fillExtrema<<<grid,block>>>(extremaAtDepth,this->blurs[b]->size,this->pixelWidth,{this->id,b},extremaAddresses,pixelsMiddle->device,extrema2D[b-1]);
+            fillExtrema<<<grid,block>>>(extremaAtDepth,this->blurs[b]->size,this->pixelWidth,{this->id,b},this->blurs[b]->sigma,extremaAddresses,pixelsMiddle->device,extrema2D[b-1]);
             CudaCheckError();
         }
         else{
@@ -214,8 +219,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::discardExtrema(){
     delete[] temp;
 }
 
-//NOTE THIS IS CURRENTLY REMOVING ALL BLUR 3 KEY POINTS
-void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(float minScaleSpacePixelWidth){
+void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(){
 
     MemoryState origin = this->extrema->state;
     if(origin == cpu || this->extrema->fore == cpu) this->extrema->transferMemoryTo(gpu);
@@ -241,8 +245,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(float min
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     getFlatGridBlock(this->extrema->numElements,grid,block);
-    refineLocation<<<grid,block>>>(this->extrema->numElements, this->blurs[0]->size, this->blurs[0]->sigma, 
-        this->pixelWidth/minScaleSpacePixelWidth, this->pixelWidth, this->numBlurs, allPixels_device, this->extrema->device);
+    refineLocation<<<grid,block>>>(this->extrema->numElements, this->blurs[0]->size, this->blurs[0]->sigma, this->blurs[1]->sigma/this->blurs[0]->sigma, this->numBlurs, allPixels_device, this->extrema->device);
     cudaDeviceSynchronize();
     CudaCheckError();
     
@@ -259,7 +262,6 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(float min
     for(int i = 1,blur = 2; i < this->extrema->numElements && blur < this->numBlurs - 1; ++i){
         if(this->extrema->host[i-1] < this->extrema->host[i]){
             this->extremaBlurIndices[blur++] = i; 
-            //std::cout<<this->id<<" "<<blur-2<<" "<<i-this->extremaBlurIndices[blur - 2]<<std::endl;
         } 
     }
     this->extremaBlurIndices[this->numBlurs - 1] = this->extrema->numElements;
@@ -361,8 +363,6 @@ depth(depth){
         pixels = convertImageToFlt(image->pixels);
     }
 
-    normalizeImage(pixels);
-
     uint2 imageSize = image->size;
     uint2 scalar = {2,2};
    
@@ -383,16 +383,16 @@ depth(depth){
     for(int i = 1; i < this->depth.y; ++i){
         sigmas[i] = sigmas[i-1]*sigmaMultiplier.y;
     }
-    
     this->octaves = new Octave*[this->depth.x]();
+    //normalizeImage(pixels);
     for(int i = 0; i < this->depth.x; ++i){
-        this->octaves[i] = new Octave(i,this->depth.y,kernelSize,sigmas,pixels,imageSize,pixelWidth);
+        this->octaves[i] = new Octave(i,this->depth.y,kernelSize,sigmas,pixels,imageSize,pixelWidth,4);
         if(i + 1 < this->depth.x){
             pixels->setData(bin(imageSize,1,pixels)->device,pixels->numElements/4,gpu);
             imageSize = imageSize/scalar;
             pixelWidth *= 2.0f;
             for(int b = 0; b < this->depth.y; ++b){
-                sigmas[b]*=sigmaMultiplier.x;    
+                sigmas[b]*=sigmaMultiplier.x;   
             }
         }
         cudaDeviceSynchronize();
@@ -421,7 +421,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::convertToDOG(){
             dogOctaves[o]->blurs[b] = new Octave::Blur();
             dogOctaves[o]->id = o;
             dogOctaves[o]->blurs[b]->size = this->octaves[o]->blurs[0]->size;
-            dogOctaves[o]->blurs[b]->sigma = (this->octaves[o]->pixelWidth/this->octaves[0]->pixelWidth)*this->octaves[0]->blurs[0]->sigma*pow(2,b/3);//TODO check these sigmas
+            dogOctaves[o]->blurs[b]->sigma = this->octaves[o]->blurs[0]->sigma*powf(this->octaves[o]->blurs[1]->sigma/this->octaves[o]->blurs[0]->sigma,(float)b + 0.5f);
             dogOctaves[o]->blurs[b]->pixels = new Unity<float>(nullptr,pixelsLower->numElements,gpu);
             pixelsUpper = this->octaves[o]->blurs[b+1]->pixels;
             origin[0] = pixelsLower->state;
@@ -476,7 +476,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, flo
             this->octaves[i]->removeNoise(noiseThreshold*0.8);
             std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
             if(subpixel){
-                this->octaves[i]->refineExtremaLocation(this->octaves[0]->pixelWidth);
+                this->octaves[i]->refineExtremaLocation();
                 std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
                 this->octaves[i]->removeNoise(noiseThreshold);
                 std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
@@ -549,6 +549,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
             currentOctave->extrema->setMemoryState(gpu);
         }
         for(int b = 0; b < this->depth.y; ++b){
+            orientedKeyPoints2D[b] = nullptr;
             currentBlur = currentOctave->blurs[b];
             if(b + 1 != this->depth.y){
                 numKeyPointsAtBlur = currentOctave->extremaBlurIndices[b + 1] - currentOctave->extremaBlurIndices[b];
@@ -557,11 +558,9 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
                 numKeyPointsAtBlur = currentOctave->extrema->numElements - currentOctave->extremaBlurIndices[b];
             }
             if(numKeyPointsAtBlur == 0){
-                orientedKeyPoints2D[b] = nullptr;
                 currentOctave->extremaBlurIndices[b] = totalKeyPoints;
                 continue;
             } 
-            std::cout<<b<<" "<<numKeyPointsAtBlur<<std::endl;
             keyPointIndex = currentOctave->extremaBlurIndices[b];
             grid = {1,1,1};
             block = {1,1,1}; 
@@ -773,16 +772,16 @@ __global__ void ssrlcv::findExtrema(uint2 imageSize, float* pixelsUpper, float* 
         else return;
     }
 }
-__global__ void ssrlcv::fillExtrema(int numKeyPoints, uint2 imageSize, float pixelWidth, int2 ssLoc, int* extremaAddresses, float* pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP){
+__global__ void ssrlcv::fillExtrema(int numKeyPoints, uint2 imageSize, float pixelWidth, int2 ssLoc, float sigma, int* extremaAddresses, float* pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP){
     int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
     if(globalID < numKeyPoints){
         int index = extremaAddresses[globalID];
         float2 loc = {(float)(index%imageSize.x),(float)(index/imageSize.x)};
-        scaleSpaceKP[globalID] = {ssLoc.x,ssLoc.y,loc,pixels[index],0.0f,-1.0f,false};
+        scaleSpaceKP[globalID] = {ssLoc.x,ssLoc.y,loc,pixels[index],sigma,-1.0f,false};
     }
 }
 
-__global__ void ssrlcv::refineLocation(unsigned int numKeyPoints, uint2 imageSize, float sigmaMin, float pixelWidthRatio, float pixelWidth, unsigned int numBlurs, float** pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP){
+__global__ void ssrlcv::refineLocation(unsigned int numKeyPoints, uint2 imageSize, float sigmaMin, float blurSigmaMultiplier, unsigned int numBlurs, float** pixels, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP){
     int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
     if(globalID < numKeyPoints){
         FeatureFactory::ScaleSpace::SSKeyPoint kp = scaleSpaceKP[globalID];
@@ -826,13 +825,14 @@ __global__ void ssrlcv::refineLocation(unsigned int numKeyPoints, uint2 imageSiz
             inverse(hessian,hessian_inv);
             multiply(hessian_inv,gradient,offset);
             multiply(gradient, hessian, temp);
-            if(offset[0] <= 0.5f && offset[1] <= 0.5f && offset[2] <= 0.5f){ 
+            if(abs(offset[0]) <= 0.5f && abs(offset[1]) <= 0.5f && abs(offset[2]) <= 0.5f){ 
                 kp.loc = {(float)loc.x + offset[0],(float)loc.y + offset[1]};
                 loc = {(int)roundf(kp.loc.x),(int)roundf(kp.loc.y)};
                 kp.discard = (loc.x <= 0 || loc.y <= 0 || loc.x >= imageSize.x - 1 || loc.y >= imageSize.y - 1);
                 if(kp.discard) break;//to prevent more operations
                 kp.intensity = pixelsMiddle[loc.y*imageSize.x + loc.x] - (0.5f*dotProduct(temp,gradient));
-                kp.sigma = pixelWidthRatio*sigmaMin*powf(2,(offset[2]+kp.blur)/3);
+                kp.sigma = sigmaMin*powf(blurSigmaMultiplier,((float)kp.blur + offset[2]));
+                if(abs(offset[2]) > 0.5) kp.blur += (offset[2] > 0) ? 1 : -1;
                 break;
             }
             else if(attempt == 4){
@@ -840,10 +840,10 @@ __global__ void ssrlcv::refineLocation(unsigned int numKeyPoints, uint2 imageSiz
                 break;
             }
             else{
-                loc.x += (int)roundf(offset[0]);
-                loc.y += (int)roundf(offset[1]);
+                if(abs(offset[0]) > 0.5) loc.x += (offset[0] > 0) ? 1 : -1;
+                if(abs(offset[1]) > 0.5) loc.y += (offset[1] > 0) ? 1 : -1;
                 kp.loc = {(float)loc.x,(float)loc.y};
-                kp.blur += (int)roundf(offset[2]);
+                if(abs(offset[2]) > 0.5) kp.blur += (offset[2] > 0) ? 1 : -1;
                 if(kp.blur >= numBlurs - 1||kp.blur <= 0||loc.x <= 0||
                     loc.y <= 0||loc.x >= imageSize.x - 1||loc.y >= imageSize.y - 1){//cannot traverse blurs anymore
                     kp.discard = true;
@@ -900,29 +900,34 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
     if(globalID < numKeyPoints){
         FeatureFactory::ScaleSpace::SSKeyPoint kp = keyPoints[globalID+keyPointIndex];
         float2 keyPoint = kp.loc;
-        float windowWidth = kp.sigma*3.0f*lambda;
+        float windowWidth = kp.sigma*3.0f*lambda/pixelWidth;
         int regNumOrient = maxOrientations;
 
-        float2 min = {(keyPoint.x - windowWidth)/pixelWidth,(keyPoint.y - windowWidth)/pixelWidth};
-        if(min.x < 0.0f) min.x = 0.0f;
-        if(min.y < 0.0f) min.y = 0.0f;
-        float2 max = {(keyPoint.x + windowWidth)/pixelWidth,(keyPoint.x + windowWidth)/pixelWidth};
-        if(max.x >= imageSize.x - 1) max.x = imageSize.x - 1;
-        if(max.y >= imageSize.y - 1) max.y = imageSize.y - 1;
+        float2 min = {(keyPoint.x - windowWidth),(keyPoint.y - windowWidth)};
+        float2 max = {(keyPoint.x + windowWidth),(keyPoint.x + windowWidth)};
+
+        if(min.x < 0.0f || min.y < 0.0f || max.x >= imageSize.x - 1 || max.y >= imageSize.y - 1){
+            for(int i = 0; i < regNumOrient; ++i){
+                thetaNumbers[globalID*regNumOrient + i] = -1;
+                thetas[globalID*regNumOrient + i] = -1.0f;
+            }
+            return;
+        }
 
         float orientationHist[36] = {0.0f};
         float maxHist = 0.0f;
         float2 gradient = {0.0f,0.0f};
         float2 temp2 = {0.0f,0.0f};
         unsigned int imageWidth = imageSize.x;
+        float weight = 2.0f*lambda*lambda*kp.sigma*kp.sigma;
         for(float y = min.y; y <= max.y; y+=1.0f){
             for(float x = min.x; x <= max.x; x+=1.0f){
                 gradient = {
                     (float)gradients[llroundf(y)*imageWidth + llroundf(x)].x,
                     (float)gradients[llroundf(y)*imageWidth + llroundf(x)].y
-                };
-                temp2 = {x*pixelWidth - keyPoint.x,y*pixelWidth - keyPoint.y};
-                orientationHist[llroundf(36.0f*getTheta(gradient)/(2.0f*pi))] += expf(-getMagnitude(temp2)/(2.0f*lambda*lambda*kp.sigma*kp.sigma))*getMagnitude(gradient);
+                };//may want to do interpolation here
+                temp2 = {x - keyPoint.x,y - keyPoint.y};
+                orientationHist[llroundf(36.0f*getTheta(gradient)/(2.0f*pi))] += getMagnitude(gradient)*expf(-getMagnitude(temp2)/weight)/pi/weight;
             }
         }
         float3 convHelper = {orientationHist[35],orientationHist[0],orientationHist[1]};
