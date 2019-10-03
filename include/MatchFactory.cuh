@@ -129,8 +129,8 @@ namespace ssrlcv{
     //NOTE nothing for nview is implemented
     //TODO consider making it so features are computed if they arent instead of throwing errors with image parameters
 
-    void refineMatches(Unity<DMatch>* matches, float cutoffRatio);
-    void refineMatches(Unity<FeatureMatch<T>>* matches, float cutoffRatio);
+    void refineMatches(Unity<DMatch>* matches, float threshold);
+    void refineMatches(Unity<FeatureMatch<T>>* matches, float threshold);
 
     /**
     * \brief sorts all matches by mismatch distance

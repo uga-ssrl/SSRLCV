@@ -23,7 +23,7 @@ sigma(sigma),size(size){
         }
     }
     pixels->setData(convolve(this->size,pixels,1,kernelSize,gaussian,true)->device,pixels->numElements,gpu);
-    normalizeImage(pixels);//REMOVE IF POSSIBLE
+    //normalizeImage(pixels);//REMOVE IF POSSIBLE
     pixels->fore = gpu;
     this->pixels = new Unity<float>(nullptr,pixels->numElements,gpu);
     CudaSafeCall(cudaMemcpy(this->pixels->device,pixels->device,pixels->numElements*sizeof(float),cudaMemcpyDeviceToDevice));
@@ -416,6 +416,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::convertToDOG(){
         dogOctaves[o]->numBlurs = dogDepth.y;
         dogOctaves[o]->pixelWidth = this->octaves[o]->pixelWidth;
         pixelsLower = this->octaves[o]->blurs[0]->pixels;
+        normalizeImage(pixelsLower);
         getFlatGridBlock(pixelsLower->numElements,grid,block);
         for(int b = 0; b < dogDepth.y; ++b){
             dogOctaves[o]->blurs[b] = new Octave::Blur();
@@ -424,6 +425,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::convertToDOG(){
             dogOctaves[o]->blurs[b]->sigma = this->octaves[o]->blurs[0]->sigma*powf(this->octaves[o]->blurs[1]->sigma/this->octaves[o]->blurs[0]->sigma,(float)b + 0.5f);
             dogOctaves[o]->blurs[b]->pixels = new Unity<float>(nullptr,pixelsLower->numElements,gpu);
             pixelsUpper = this->octaves[o]->blurs[b+1]->pixels;
+            normalizeImage(pixelsUpper);
             origin[0] = pixelsLower->state;
             origin[1] = pixelsUpper->state;
             if(origin[0] == cpu) pixelsLower->transferMemoryTo(gpu);
@@ -431,7 +433,6 @@ void ssrlcv::FeatureFactory::ScaleSpace::convertToDOG(){
             subtractImages<<<grid,block>>>(pixelsLower->numElements,pixelsUpper->device,pixelsLower->device,dogOctaves[o]->blurs[b]->pixels->device);
             cudaDeviceSynchronize();
             CudaCheckError();
-            normalizeImage(dogOctaves[o]->blurs[b]->pixels);
             if(origin[0] == cpu) pixelsLower->setMemoryState(cpu);
             pixelsLower = pixelsUpper;
         }

@@ -8,30 +8,21 @@ ssrlcv::MatchFactory<T>::MatchFactory(){
 }
 
 template<typename T>
-void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::DMatch>* matches, float cutoffRatio){
-  if(cutoffRatio == 0.0f){
-    std::cout<<"ERROR illegal value used for cutoff ratio: 0.0"<<std::endl;
+void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::DMatch>* matches, float threshold){
+  if(threshold == 0.0f){
+    std::cout<<"ERROR illegal value used for threshold: 0.0"<<std::endl;
     exit(-1);
   }
   MemoryState origin = matches->state;
-  if(origin != both){
-    matches->transferMemoryTo(both);
+  if(origin == cpu || matches->fore == cpu){
+    matches->transferMemoryTo(gpu);
   }
-
-  float max = 0.0f;
-  float min = FLT_MAX;
-  for(int i = 0; i < matches->numElements; ++i){
-    if(matches->host[i].distance < min) min = matches->host[i].distance;
-    if(matches->host[i].distance > max) max = matches->host[i].distance;
-  }
-
-  if(origin == gpu) matches->clear(cpu);
 
   thrust::device_ptr<DMatch> needsCompacting(matches->device);
-  thrust::device_ptr<DMatch> end = thrust::remove_if(needsCompacting, needsCompacting + matches->numElements, match_dist_thresholder((max-min)*cutoffRatio + min));
+  thrust::device_ptr<DMatch> end = thrust::remove_if(needsCompacting, needsCompacting + matches->numElements, match_dist_thresholder(threshold));
   unsigned int numElementsBelowThreshold = end - needsCompacting;
 
-  printf("%d matches have been refined to %d matches using a cutoff of %f (%f percentile)\n",matches->numElements,numElementsBelowThreshold,(max-min)*cutoffRatio + min,cutoffRatio);
+  printf("%d matches have been refined to %d matches using a cutoff of %f\n",matches->numElements,numElementsBelowThreshold,threshold);
 
   FeatureMatch<T>* compactedMatches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&compactedMatches_device,numElementsBelowThreshold*sizeof(DMatch)));
@@ -42,29 +33,23 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::DMatch>* match
   if(origin == cpu) matches->setMemoryState(cpu);
 }
 template<typename T>
-void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T>>* matches, float cutoffRatio){
-  if(cutoffRatio == 0.0f){
+void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T>>* matches, float threshold){
+  if(threshold == 0.0f){
     std::cout<<"ERROR illegal value used for cutoff ratio: 0.0"<<std::endl;
     exit(-1);
   }
   MemoryState origin = matches->state;
-  if(origin != both){
-    matches->transferMemoryTo(both);
+  if(origin == cpu || matches->fore == cpu){
+    matches->transferMemoryTo(gpu);
   }
 
-  float max = 0.0f;
-  float min = FLT_MAX;
-  for(int i = 0; i < matches->numElements; ++i){
-    if(matches->host[i].distance < min) min = matches->host[i].distance;
-    if(matches->host[i].distance > max) max = matches->host[i].distance;
-  }
   if(origin == gpu) matches->clear(cpu);
 
   thrust::device_ptr<FeatureMatch<T>> needsCompacting(matches->device);
-  thrust::device_ptr<FeatureMatch<T>> end = thrust::remove_if(needsCompacting, needsCompacting + matches->numElements, match_dist_thresholder((max-min)*cutoffRatio + min));
+  thrust::device_ptr<FeatureMatch<T>> end = thrust::remove_if(needsCompacting, needsCompacting + matches->numElements, match_dist_thresholder(threshold));
   unsigned int numElementsBelowThreshold = end - needsCompacting;
 
-  printf("%d matches have been refined to %d matches using a cutoff of %f (%f percentile)\n",matches->numElements,numElementsBelowThreshold,(max-min)*cutoffRatio + min,cutoffRatio);
+  printf("%d matches have been refined to %d matches using a cutoff of %f\n",matches->numElements,numElementsBelowThreshold,threshold);
 
   FeatureMatch<T>* compactedMatches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&compactedMatches_device,numElementsBelowThreshold*sizeof(FeatureMatch<T>)));

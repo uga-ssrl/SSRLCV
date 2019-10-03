@@ -525,7 +525,9 @@ float pixelWidth, float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoint
     float2 contribLoc = {0.0f,0.0f};
     float2 gradient = {0.0f,0.0f};
     float2 histLoc = {0.0f,0.0f};
-    bool histFound = false;
+    float temp = 0.0f;
+    float binWidth = windowWidth/2.0f;
+    float angle = 0.0f;
 
     float rad45 = 45.0f*(pi/180.0f);
     for(float y = (float)threadIdx.y - windowWidth; y <= windowWidth; y+=(float)blockDim.y){
@@ -537,19 +539,20 @@ float pixelWidth, float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoint
         //calculate expow
         descriptorGridPoint.x = getMagnitude(gradient)*expf(-getMagnitude(contribLoc)/(2.0f*windowWidth*windowWidth))/2.0f/pi/windowWidth/windowWidth; 
         descriptorGridPoint.y = getTheta(gradient,theta);
-        histFound = false;
 
-        for(float nx = 0; nx < 4.0f && !histFound; nx+=1.0f){
-          for(float ny = 0; ny < 4.0f && !histFound; ny+=1.0f){
+        for(float nx = 0; nx < 4.0f; nx+=1.0f){
+          for(float ny = 0; ny < 4.0f; ny+=1.0f){
             histLoc = {(nx*0.5f - 0.75f)*lambda,(ny*0.5f - 0.75f)*lambda};
             histLoc = {abs(histLoc.x - contribLoc.x),abs(histLoc.y - contribLoc.y)};
-            if(histLoc.x <= lambda*0.5f && histLoc.y <= lambda*0.5f){
-              histFound = true;
-              for(float k = 0; k < 8.0f; k+=1.0f){
-                if(abs(fmodf(descriptorGridPoint.y-(k*rad45),2.0f*pi)) < rad45){
-                  //TODO find solution to rounding here
-                  atomicAdd(&bin_descriptors[(int)nx][(int)ny][(int)k],(1.0f-(2.0f*histLoc.x/lambda))*(1.0f-(2.0f*histLoc.y/lambda))*
-                    (1.0f-(2.0f*abs(fmodf(descriptorGridPoint.y-(k*rad45),2.0f*pi))/pi))*descriptorGridPoint.x);
+            if(histLoc.x <= binWidth && histLoc.y <= binWidth){
+              histLoc = histLoc/binWidth;
+              for(float k = 0; k < 8.0*rad45; k+=rad45){
+                angle = abs(fmodf(descriptorGridPoint.y-k,2.0f*pi));
+                if(angle < rad45){
+                  angle /= (rad45*0.5f);
+                  //rounding to nearest int would help with rounding errors in atomicAdd
+                  temp = (1.0f-histLoc.x)*(1.0f-histLoc.y)*(1.0f-angle)*descriptorGridPoint.x;
+                  atomicAdd(&bin_descriptors[(int)nx][(int)ny][(int)k],temp);
                 }
               }
             }
