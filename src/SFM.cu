@@ -70,7 +70,7 @@ int main(int argc, char *argv[]){
       ssrlcv::bcpFormat bcp;
       if(ssrlcv::readImageMeta(imagePaths[i], bcp)) image->bcp_in(bcp);
 
-      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image);
+      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,true,1,0.8);
       allFeatures.push_back(features);
       images.push_back(image);
     }

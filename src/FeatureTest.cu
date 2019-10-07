@@ -6,6 +6,8 @@
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
 
+//TODO fix gaussian operators - currently creating very low values
+
 void compareEquivalentFeatures(std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures){
   if(allFeatures[0]->numElements != allFeatures[1]->numElements){
     std::cerr<<"Equivalent images do not have the same number of features"<<std::endl;
@@ -32,7 +34,6 @@ void compareEquivalentFeatures(std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv:
     for(int d = 0; d < 128; ++d){
       if(feature1->descriptor.values[d] != feature2->descriptor.values[d]){
         numIncorrect.w++;
-        //break;
       }
     }
   }
@@ -41,6 +42,20 @@ void compareEquivalentFeatures(std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv:
   printf("sigma errors = %d\n",numIncorrect.y);
   printf("theta errors = %d\n",numIncorrect.z);
   printf("SIFT_Descriptor errors = %d\n",numIncorrect.w);
+}
+
+void printSIFTFeature(ssrlcv::Feature<ssrlcv::SIFT_Descriptor> feature){
+  printf("%f,%f,{%f,%f}\n",feature.descriptor.sigma,feature.descriptor.theta,feature.loc.x,feature.loc.y);
+  for(int x = 0,d = 0; x < 4; ++x){
+    std::cout<<std::endl;
+    for(int y = 0; y < 4; ++y){
+      std::cout<<"  ";
+      for(int a = 0; a < 8; ++a){
+          printf("%d",(int) feature.descriptor.values[d++]);
+          if(a < 8) std::cout<<",";
+      }
+    }
+  }
 }
 
 int main(int argc, char *argv[]){
@@ -79,26 +94,15 @@ int main(int argc, char *argv[]){
       images.push_back(image);
       allFeatures.push_back(features);
       features->transferMemoryTo(ssrlcv::cpu);
-      // for(int f = 0; f < features->numElements; ++f){
-      //   printf("%d,%f,%f,{%f,%f}\n",f,features->host[f].descriptor.sigma,features->host[f].descriptor.theta,features->host[f].loc.x,features->host[f].loc.y);
-      //   for(int x = 0,d = 0; x < 4; ++x){
-      //     std::cout<<std::endl;
-      //     for(int y = 0; y < 4; ++y){
-      //       std::cout<<"  ";
-      //       for(int a = 0; a < 8; ++a){
-      //         printf("%d",(int) features->host[f].descriptor.values[d++]);
-      //         if(a < 8) std::cout<<",";
-      //       }
-      //     }
-      //   }
-      //   printf("\n\n");
-      // }
+      for(int f = 0; f < features->numElements; ++f){
+        printSIFTFeature(features->host[i]);
+        printf("\n\n");
+      }
     }
-
     ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>();
     std::cout << "Starting matching, this will take a while ..." << std::endl;
     ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1]);
-    matchFactory.refineMatches(distanceMatches,250.0f);
+    matchFactory.refineMatches(distanceMatches,200.0f);
     if(distanceMatches->state != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
     ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
     delete distanceMatches;
@@ -113,11 +117,11 @@ int main(int argc, char *argv[]){
         line += std::to_string(matches->host[i].keyPoints[1].loc.x) + ",";
         line += std::to_string(matches->host[i].keyPoints[1].loc.y) + "\n";
         matchstream << line;
-        //std::cout<<line;
       }
     }
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
     ssrlcv::Unity<float3>* points = demPoints.stereo_disparity(matches,64.0f);
+
     delete matches;
     ssrlcv::writePLY("out/test.ply",points);
     delete points;

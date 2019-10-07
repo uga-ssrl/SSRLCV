@@ -37,7 +37,7 @@ int main(int argc, char *argv[]){
     testKernel[2] = 1;
     for(int i = 0; i < numImages; ++i){
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
-      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image);
+      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,true,1,0.8);
       allFeatures.push_back(features);
       images.push_back(image);
     }

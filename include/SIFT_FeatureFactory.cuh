@@ -16,7 +16,7 @@ namespace ssrlcv{
 
   private:
 
-    Unity<Feature<SIFT_Descriptor>>* createFeatures(uint2 imageSize, float orientationThreshold, unsigned int maxOrientations, float pixelWidth, Unity<int2>* gradients, Unity<float2>* keyPoints);
+    Unity<Feature<SIFT_Descriptor>>* createFeatures(uint2 imageSize, float orientationThreshold, unsigned int maxOrientations, float pixelWidth, Unity<float2>* gradients, Unity<float2>* keyPoints);
 
   public:
     /**
@@ -37,12 +37,12 @@ namespace ssrlcv{
 
   __global__ void computeThetas(const unsigned long numKeyPoints, const unsigned int imageWidth,
     const float pixelWidth, const float lambda, const float windowWidth, const float2* __restrict__ keyPointLocations,
-    const int2* gradients, int* __restrict__ thetaNumbers, const unsigned int maxOrientations, const float orientationThreshold,
+    const float2* gradients, int* __restrict__ thetaNumbers, const unsigned int maxOrientations, const float orientationThreshold,
     float* __restrict__ thetas);
 
   __global__ void fillDescriptors(const unsigned long numFeatures, const unsigned int imageWidth, Feature<SIFT_Descriptor>* features, 
     const float pixelWidth, const float lambda, const float windowWidth, const float* __restrict__ thetas,
-    const int* __restrict__ keyPointAddresses, const float2* __restrict__ keyPointLocations, const int2* __restrict__ gradients);
+    const int* __restrict__ keyPointAddresses, const float2* __restrict__ keyPointLocations, const float2* __restrict__ gradients);
 
 
   __global__ void checkKeyPoints(unsigned int numKeyPoints, unsigned int keyPointIndex, uint2 imageSize, float pixelWidth, float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoints);

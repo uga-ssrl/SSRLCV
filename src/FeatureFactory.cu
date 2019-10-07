@@ -23,12 +23,12 @@ sigma(sigma),size(size){
         }
     }
     pixels->setData(convolve(this->size,pixels,1,kernelSize,gaussian,true)->device,pixels->numElements,gpu);
-    //normalizeImage(pixels);//REMOVE IF POSSIBLE
     pixels->fore = gpu;
     this->pixels = new Unity<float>(nullptr,pixels->numElements,gpu);
     CudaSafeCall(cudaMemcpy(this->pixels->device,pixels->device,pixels->numElements*sizeof(float),cudaMemcpyDeviceToDevice));
     if(origin == cpu) pixels->setMemoryState(cpu);
     this->gradients = nullptr;
+    normalizeImage(this->pixels);
 }
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::Blur::computeGradients(){
     MemoryState origin = this->pixels->state;
@@ -416,7 +416,6 @@ void ssrlcv::FeatureFactory::ScaleSpace::convertToDOG(){
         dogOctaves[o]->numBlurs = dogDepth.y;
         dogOctaves[o]->pixelWidth = this->octaves[o]->pixelWidth;
         pixelsLower = this->octaves[o]->blurs[0]->pixels;
-        normalizeImage(pixelsLower);
         getFlatGridBlock(pixelsLower->numElements,grid,block);
         for(int b = 0; b < dogDepth.y; ++b){
             dogOctaves[o]->blurs[b] = new Octave::Blur();
@@ -425,7 +424,6 @@ void ssrlcv::FeatureFactory::ScaleSpace::convertToDOG(){
             dogOctaves[o]->blurs[b]->sigma = this->octaves[o]->blurs[0]->sigma*powf(this->octaves[o]->blurs[1]->sigma/this->octaves[o]->blurs[0]->sigma,(float)b + 0.5f);
             dogOctaves[o]->blurs[b]->pixels = new Unity<float>(nullptr,pixelsLower->numElements,gpu);
             pixelsUpper = this->octaves[o]->blurs[b+1]->pixels;
-            normalizeImage(pixelsUpper);
             origin[0] = pixelsLower->state;
             origin[1] = pixelsUpper->state;
             if(origin[0] == cpu) pixelsLower->transferMemoryTo(gpu);
@@ -905,7 +903,7 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
         int regNumOrient = maxOrientations;
 
         float2 min = {(keyPoint.x - windowWidth),(keyPoint.y - windowWidth)};
-        float2 max = {(keyPoint.x + windowWidth),(keyPoint.x + windowWidth)};
+        float2 max = {(keyPoint.x + windowWidth),(keyPoint.y + windowWidth)};
 
         if(min.x < 0.0f || min.y < 0.0f || max.x >= imageSize.x - 1 || max.y >= imageSize.y - 1){
             for(int i = 0; i < regNumOrient; ++i){
@@ -914,7 +912,6 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
             }
             return;
         }
-
         float orientationHist[36] = {0.0f};
         float maxHist = 0.0f;
         float2 gradient = {0.0f,0.0f};
@@ -923,10 +920,7 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
         float weight = 2.0f*lambda*lambda*kp.sigma*kp.sigma;
         for(float y = min.y; y <= max.y; y+=1.0f){
             for(float x = min.x; x <= max.x; x+=1.0f){
-                gradient = {
-                    (float)gradients[llroundf(y)*imageWidth + llroundf(x)].x,
-                    (float)gradients[llroundf(y)*imageWidth + llroundf(x)].y
-                };//may want to do interpolation here
+                gradient = gradients[llroundf(y)*imageWidth + llroundf(x)];//may want to do interpolation here
                 temp2 = {x - keyPoint.x,y - keyPoint.y};
                 orientationHist[llroundf(36.0f*getTheta(gradient)/(2.0f*pi))] += getMagnitude(gradient)*expf(-getMagnitude(temp2)/weight)/pi/weight;
             }
@@ -986,6 +980,7 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
         }
         for(int i = 0; i < regNumOrient; ++i){
             if(bestMagWThetas[i].x == 0.0f){
+                if(i == 0) asm("trap;");
                 thetaNumbers[globalID*regNumOrient + i] = -1;
                 thetas[globalID*regNumOrient + i] = -1.0f;
             }
