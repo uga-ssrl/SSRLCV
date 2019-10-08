@@ -19,7 +19,7 @@ sigma(sigma),size(size){
     float* gaussian = new float[kernelSize.y*kernelSize.x]();
     for(int y = -kernelSize.y/2, i = 0; y <= kernelSize.y/2; ++y){
         for(int x = -kernelSize.x/2; x <= kernelSize.x/2; ++x){
-            gaussian[i++] = expf(-(((x*x) + (y*y))/2.0f/this->sigma/this->sigma));///2.0f/PI/this->sigma/this->sigma;
+            gaussian[i++] = expf(-(((x*x) + (y*y))/2.0f/this->sigma/this->sigma))/2.0f/PI/this->sigma/this->sigma;
         }
     }
     pixels->setData(convolve(this->size,pixels,1,kernelSize,gaussian,true)->device,pixels->numElements,gpu);
@@ -28,7 +28,6 @@ sigma(sigma),size(size){
     CudaSafeCall(cudaMemcpy(this->pixels->device,pixels->device,pixels->numElements*sizeof(float),cudaMemcpyDeviceToDevice));
     if(origin == cpu) pixels->setMemoryState(cpu);
     this->gradients = nullptr;
-    normalizeImage(this->pixels);
 }
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::Blur::computeGradients(){
     MemoryState origin = this->pixels->state;
@@ -337,6 +336,11 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeBorder(float2 border){
     if(origin == cpu && this->extrema != nullptr) this->extrema->setMemoryState(cpu);
 }
 
+void ssrlcv::FeatureFactory::ScaleSpace::Octave::normalize(){
+    for(int i = 0; i < this->numBlurs; ++i){
+        normalizeImage(this->blurs[i]->pixels);
+    }
+}
 
 ssrlcv::FeatureFactory::ScaleSpace::ScaleSpace(){
     this->depth = {0,0};
@@ -389,7 +393,7 @@ depth(depth){
     }
     this->octaves = new Octave*[this->depth.x]();
     for(int i = 0; i < this->depth.x; ++i){
-        this->octaves[i] = new Octave(i,this->depth.y,kernelSize,sigmas,pixels,imageSize,pixelWidth,4);
+        this->octaves[i] = new Octave(i,this->depth.y,kernelSize,sigmas,pixels,imageSize,pixelWidth,this->depth.y - 2);
         if(i + 1 < this->depth.x){
             pixels->setData(bin(imageSize,1,pixels)->device,pixels->numElements/4,gpu);
             imageSize = imageSize/scalar;
@@ -398,8 +402,7 @@ depth(depth){
                 sigmas[b]*=sigmaMultiplier.x;   
             }
         }
-        cudaDeviceSynchronize();
-        CudaCheckError();
+        this->octaves[i]->normalize();
     }
     delete pixels;
     delete[] sigmas;
@@ -424,7 +427,8 @@ void ssrlcv::FeatureFactory::ScaleSpace::convertToDOG(){
             dogOctaves[o]->blurs[b] = new Octave::Blur();
             dogOctaves[o]->id = o;
             dogOctaves[o]->blurs[b]->size = this->octaves[o]->blurs[0]->size;
-            dogOctaves[o]->blurs[b]->sigma = this->octaves[o]->blurs[0]->sigma*powf(this->octaves[o]->blurs[1]->sigma/this->octaves[o]->blurs[0]->sigma,(float)b + 0.5f);
+            dogOctaves[o]->blurs[b]->sigma = this->octaves[o]->blurs[b]->sigma;
+            //dogOctaves[o]->blurs[b]->sigma = this->octaves[o]->blurs[0]*powf(this->octaves[o]->blurs[1]->sigma/this->octaves[o]->blurs[0]->sigma,(float)b + 0.5f);
             dogOctaves[o]->blurs[b]->pixels = new Unity<float>(nullptr,pixelsLower->numElements,gpu);
             pixelsUpper = this->octaves[o]->blurs[b+1]->pixels;
             origin[0] = pixelsLower->state;
@@ -474,6 +478,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, flo
     for(int i = 0; i < this->depth.x; ++i){
         if(i != 0) std::cout<<std::endl;
         this->octaves[i]->searchForExtrema();
+        this->octaves[i]->normalize();
         currentExtrema = this->octaves[i]->extrema;
         if(currentExtrema == nullptr) continue;
         temp = currentExtrema->numElements;
@@ -669,21 +674,6 @@ __device__ __forceinline__ float ssrlcv::getMagnitude(const int2 &vector){
 __device__ __forceinline__ float ssrlcv::getMagnitude(const float2 &vector){
   return sqrtf(dotProduct(vector, vector));
 }
-__device__ __forceinline__ float ssrlcv::getMagnitudeSq(const int2 &vector){
-  return (float)dotProduct(vector, vector);
-}
-__device__ __forceinline__ float ssrlcv::getMagnitudeSq(const float2 &vector){
-  return dotProduct(vector, vector);
-}
-__device__ __forceinline__ float ssrlcv::getTheta(const int2 &vector){
-  return fmodf(atan2f((float)vector.y, (float)vector.x) + pi,2.0f*pi);
-}
-__device__ __forceinline__ float ssrlcv::getTheta(const float2 &vector){
-  return fmodf(atan2f(vector.y, vector.x) + pi,2.0f*pi);
-}
-__device__ __forceinline__ float ssrlcv::getTheta(const float2 &vector, const float &offset){
-  return fmodf((atan2f(vector.y, vector.x) + pi) - offset,2.0f*pi);
-}
 __device__ void ssrlcv::trickleSwap(const float2 &compareWValue, float2* arr, const int &index, const int &length){
   for(int i = index; i < length; ++i){
     if(compareWValue.x > arr[i].x){
@@ -694,44 +684,6 @@ __device__ void ssrlcv::trickleSwap(const float2 &compareWValue, float2* arr, co
     }
   }
 }
-__device__ __forceinline__ long4 ssrlcv::getOrientationContributers(const long2 &loc, const uint2 &imageSize){
-  long4 orientationContributers;
-  long pixelIndex = loc.y*imageSize.x + loc.x;
-  orientationContributers.x = (loc.x == imageSize.x - 1) ? -1 : pixelIndex + 1;
-  orientationContributers.y = (loc.x == 0) ? -1 : pixelIndex - 1;
-  orientationContributers.z = (loc.y == imageSize.y - 1) ? -1 : (loc.y + 1)*imageSize.x + loc.x;
-  orientationContributers.w = (loc.y == 0) ? -1 : (loc.y - 1)*imageSize.x + loc.x;
-  return orientationContributers;
-}
-__device__ __forceinline__ int ssrlcv::floatToOrderedInt(float floatVal){
- int intVal = __float_as_int( floatVal );
- return (intVal >= 0 ) ? intVal : intVal ^ 0x7FFFFFFF;
-}
-__device__ __forceinline__ float ssrlcv::orderedIntToFloat(int intVal){
- return __int_as_float( (intVal >= 0) ? intVal : intVal ^ 0x7FFFFFFF);
-}
-__device__ __forceinline__ float ssrlcv::modulus(const float &x, const float &y){
-    float z = x;
-    int n;
-    if(z < 0){
-        n = (int)((-z)/y)+1;
-        z += n*y;
-    }
-    n = (int)(z/y);
-    z -= n*y;
-    return z;
-}
-__device__ __forceinline__ float2 ssrlcv::rotateAboutPoint(const int2 &loc, const float &theta, const float2 &origin){
-  float2 rotatedPoint = {(float) loc.x, (float) loc.y};
-  rotatedPoint = rotatedPoint - origin;
-  float2 temp = rotatedPoint;
-
-  rotatedPoint.x = (temp.x*cosf(theta)) - (temp.y*sinf(theta)) + origin.x;
-  rotatedPoint.y = (temp.x*sinf(theta)) + (temp.y*cosf(theta)) + origin.y;
-
-  return rotatedPoint;
-}
-
 __device__ __forceinline__ float ssrlcv::atomicMinFloat (float * addr, float value){
   float old;
   old = (value >= 0) ? __int_as_float(atomicMin((int *)addr, __float_as_int(value))) :
@@ -937,11 +889,14 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
         float2 temp2 = {0.0f,0.0f};
         unsigned int imageWidth = imageSize.x;
         float weight = 2.0f*lambda*lambda*kp.sigma*kp.sigma;
+        float angle = 0.0f;
+        float rad10 = pi/18.0f;
         for(float y = min.y; y <= max.y; y+=1.0f){
             for(float x = min.x; x <= max.x; x+=1.0f){
                 gradient = gradients[llroundf(y)*imageWidth + llroundf(x)];//may want to do interpolation here
                 temp2 = {x - keyPoint.x,y - keyPoint.y};
-                orientationHist[llroundf(36.0f*getTheta(gradient)/(2.0f*pi))] += getMagnitude(gradient)*expf(-((temp2.x*temp2.x)+(temp2.y*temp2.y))/weight);///pi/weight;
+                angle = fmodf(atan2f(gradient.y,gradient.x) + (2.0f*pi),2.0f*pi);//atan2f returns between -pi to pi
+                orientationHist[(int)floor(angle/rad10)] += getMagnitude(gradient)*expf(-((temp2.x*temp2.x)+(temp2.y*temp2.y))/weight);///pi/weight;
             }
         }
         float3 convHelper = {orientationHist[35],orientationHist[0],orientationHist[1]};
@@ -982,10 +937,8 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
             }
 
             tempMagWTheta.y *= (pi/36.0f);
-            tempMagWTheta.y += (float)b*(pi/18.0f);
-            // if(tempMagWTheta.y < 0.0f){
-            //   tempMagWTheta.y += 2.0f*pi;
-            // }
+            tempMagWTheta.y += (b*rad10);
+            tempMagWTheta.y = fmodf(tempMagWTheta.y + (2.0f*pi),2.0f*pi);
 
             for(int i = 0; i < regNumOrient; ++i){
               if(tempMagWTheta.x > bestMagWThetas[i].x){

@@ -53,16 +53,13 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     float noiseThreshold = 0.015f;//*(powf(2,1.0f/nspo)-1)/(powf(2,1.0f/3.0f)-1);
     float edgeThreshold = 12.1f;//12.1 = (10.0f + 1)^2 / 10.0f //formula = (r+1)^2/r from lowes paper where r = 10
     
-    DOG* dog = new DOG(image,-1,scaleSpaceDim,sqrtf(2.0f)/2,{2,sqrtf(2.0f)},{8,8});
-    //std::string dump = "out/scalespace";
-    //dog->dumpData(dump);
+    DOG* dog = new DOG(image,-1,scaleSpaceDim,sqrtf(2.0f)/2.0f,{2,sqrtf(2.0f)},{8,8});
     std::cout<<"converting to dog..."<<std::endl;
     dog->convertToDOG();
-    //dump = "out/dog";
-    //dog->dumpData(dump);
+    // std::string dump = "out/dog";
+    // dog->dumpData(dump);
     std::cout<<"looking for keypoints..."<<std::endl;
     dog->findKeyPoints(noiseThreshold,edgeThreshold,true); 
-
 
     ScaleSpace::Octave* currentOctave = nullptr;
     ScaleSpace::Octave::Blur* currentBlur = nullptr;
@@ -246,59 +243,6 @@ __device__ __forceinline__ float ssrlcv::getMagnitude(const int2 &vector){
 __device__ __forceinline__ float ssrlcv::getMagnitude(const float2 &vector){
   return sqrtf(dotProduct(vector, vector));
 }
-__device__ __forceinline__ float ssrlcv::getMagnitudeSq(const int2 &vector){
-  return (float)dotProduct(vector, vector);
-}
-__device__ __forceinline__ float ssrlcv::getMagnitudeSq(const float2 &vector){
-  return dotProduct(vector, vector);
-}
-__device__ __forceinline__ float ssrlcv::getTheta(const int2 &vector){
-  return fmodf(atan2f((float)vector.y, (float)vector.x) + pi,2.0f*pi);
-}
-__device__ __forceinline__ float ssrlcv::getTheta(const float2 &vector){
-  return fmodf(atan2f(vector.y, vector.x) + pi,2.0f*pi);
-}
-__device__ __forceinline__ float ssrlcv::getTheta(const float2 &vector, const float &offset){
-  return fmodf((atan2f(vector.y, vector.x) + pi) - offset,2.0f*pi);
-}
-__device__ __forceinline__ long4 ssrlcv::getOrientationContributers(const long2 &loc, const uint2 &imageSize){
-  long4 orientationContributers;
-  long pixelIndex = loc.y*imageSize.x + loc.x;
-  orientationContributers.x = (loc.x == imageSize.x - 1) ? -1 : pixelIndex + 1;
-  orientationContributers.y = (loc.x == 0) ? -1 : pixelIndex - 1;
-  orientationContributers.z = (loc.y == imageSize.y - 1) ? -1 : (loc.y + 1)*imageSize.x + loc.x;
-  orientationContributers.w = (loc.y == 0) ? -1 : (loc.y - 1)*imageSize.x + loc.x;
-  return orientationContributers;
-}
-__device__ __forceinline__ int ssrlcv::floatToOrderedInt(float floatVal){
- int intVal = __float_as_int( floatVal );
- return (intVal >= 0 ) ? intVal : intVal ^ 0x7FFFFFFF;
-}
-__device__ __forceinline__ float ssrlcv::orderedIntToFloat(int intVal){
- return __int_as_float( (intVal >= 0) ? intVal : intVal ^ 0x7FFFFFFF);
-}
-__device__ __forceinline__ float ssrlcv::modulus(const float &x, const float &y){
-    float z = x;
-    int n;
-    if(z < 0){
-        n = (int)((-z)/y)+1;
-        z += n*y;
-    }
-    n = (int)(z/y);
-    z -= n*y;
-    return z;
-}
-__device__ __forceinline__ float2 ssrlcv::rotateAboutPoint(const int2 &loc, const float &theta, const float2 &origin){
-  float2 rotatedPoint = {(float) loc.x, (float) loc.y};
-  rotatedPoint = rotatedPoint - origin;
-  float2 temp = rotatedPoint;
-
-  rotatedPoint.x = (temp.x*cosf(theta)) - (temp.y*sinf(theta)) + origin.x;
-  rotatedPoint.y = (temp.x*sinf(theta)) + (temp.y*cosf(theta)) + origin.y;
-
-  return rotatedPoint;
-}
-
 __device__ __forceinline__ float ssrlcv::atomicMinFloat (float * addr, float value){
   float old;
   old = (value >= 0) ? __int_as_float(atomicMin((int *)addr, __float_as_int(value))) :
@@ -336,11 +280,14 @@ __global__ void ssrlcv::computeThetas(const unsigned long numKeyPoints, const un
     float2 gradient = {0.0f,0.0f};
     float2 temp2 = {0.0f,0.0f};
     float weight = 2*(windowWidth*pixelWidth/3.0f)*(windowWidth*pixelWidth/3.0f);
+    float angle = 0.0f;
+    float rad10 = 10.0f*pi/180.0f;
     for(float y = (keyPoint.y - windowWidth)/pixelWidth; y <= (keyPoint.y + windowWidth)/pixelWidth; y+=1.0f){
       for(float x = (keyPoint.x - windowWidth)/pixelWidth; x <= (keyPoint.x + windowWidth)/pixelWidth; x+=1.0f){
-        gradient = gradients[llroundf(y)*imageWidth + llroundf(x)];
+        gradient = gradients[llroundf(y)*imageWidth + llroundf(x)];//interpolation?
         temp2 = {x*pixelWidth - keyPoint.x,y*pixelWidth - keyPoint.y};
-        orientationHist[llroundf(36.0f*getTheta(gradient)/(2.0f*pi))] += getMagnitude(gradient)*expf(-getMagnitude(temp2)/weight);///pi/weight;
+        angle = fmodf(atan2f(gradient.y,gradient.x) + (2.0f*pi),2.0f*pi);//atan2f returns from -pi tp pi
+        orientationHist[(int)floor(angle/rad10)] += getMagnitude(gradient)*expf(-((temp2.x*temp2.x)+(temp2.y*temp2.y))/weight);///pi/weight;
       }
     }
     float3 convHelper = {orientationHist[35],orientationHist[0],orientationHist[1]};
@@ -382,10 +329,8 @@ __global__ void ssrlcv::computeThetas(const unsigned long numKeyPoints, const un
       }
 
       tempMagWTheta.y *= (pi/36.0f);
-      tempMagWTheta.y += (float)b*(pi/18.0f);
-      if(tempMagWTheta.y < 0.0f){
-        tempMagWTheta.y += 2.0f*pi;
-      }
+      tempMagWTheta.y += (b*rad10);
+      tempMagWTheta.y = fmodf(tempMagWTheta.y + (2.0f*pi),2.0f*pi);
 
       for(int i = 0; i < regNumOrient; ++i){
         if(tempMagWTheta.x > bestMagWThetas[i].x){
@@ -448,22 +393,21 @@ __global__ void ssrlcv::fillDescriptors(const unsigned long numFeatures, const u
       for(float x = (float)threadIdx.x - windowWidth; x <= windowWidth; x+=(float)blockDim.x){
         contribLoc = {(x*cosf(theta)) + (y*sinf(theta)),(-x*sinf(theta)) + (y*cosf(theta))};
         if(abs(contribLoc.x) > windowWidth || abs(contribLoc.y) > windowWidth) continue;
+        //should interpolate to get proper gradient???
         gradient = gradients[llroundf(contribLoc.y + keyPoint.y)*imageWidth + llroundf(contribLoc.x + keyPoint.x)];
-        
-        //TODO ensure that this gaussian is sufficient
         descriptorGridPoint.x = getMagnitude(gradient)*expf(-((contribLoc.x*contribLoc.x)+(contribLoc.y*contribLoc.y))/(2.0f*windowWidth*windowWidth));///2.0f/pi/windowWidth/windowWidth; 
-        descriptorGridPoint.y = getTheta(gradient,theta);
+        descriptorGridPoint.y = fmodf(atan2f(gradient.y,gradient.x) - theta + (2.0f*pi),2.0f*pi);
 
         for(float nx = 0; nx < 4.0f; nx+=1.0f){
           for(float ny = 0; ny < 4.0f; ny+=1.0f){
-            histLoc = {(nx*0.5f - 0.75f)*lambda,(ny*0.5f - 0.75f)*lambda};
+            histLoc = {(nx*0.5f - 0.75f)*windowWidth,(ny*0.5f - 0.75f)*windowWidth};
             histLoc = {abs(histLoc.x - contribLoc.x),abs(histLoc.y - contribLoc.y)};
             if(histLoc.x <= binWidth && histLoc.y <= binWidth){
               histLoc = histLoc/binWidth;
               for(int k = 0; k < 8; ++k){
-                angle = abs(fmodf(descriptorGridPoint.y-((float)k*rad45),2.0f*pi));
+                angle = abs(descriptorGridPoint.y-((float)k*rad45));
                 if(angle < rad45){
-                  angle /= (rad45*0.5f);
+                  angle /= rad45;
                   //rounding to nearest int would help with rounding errors in atomicAdd
                   temp = (1.0f-histLoc.x)*(1.0f-histLoc.y)*(1.0f-angle)*descriptorGridPoint.x;
                   atomicAdd(&bin_descriptors[(int)nx][(int)ny][k],temp);
@@ -480,18 +424,15 @@ __global__ void ssrlcv::fillDescriptors(const unsigned long numFeatures, const u
     __syncthreads();
     atomicAdd(&normSq, bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]*bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]);
     __syncthreads();
-    
     bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z] /= sqrtf(normSq);
     if(bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z] > 0.2f) bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z] = 0.2f;
-    
     __syncthreads();
     normSq = 0.0f;
     __syncthreads();
     atomicAdd(&normSq, bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]*bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]);
     __syncthreads();
     
-    bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z] /= sqrtf(normSq);
-    features[blockId].descriptor.values[(threadIdx.y*4 + threadIdx.x)*8 + threadIdx.z] = bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]*255;
+    features[blockId].descriptor.values[(threadIdx.y*4 + threadIdx.x)*8 + threadIdx.z] = (unsigned char) bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]*255.0f/sqrtf(normSq);
     if(threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0){
       features[blockId].descriptor.theta = theta;
       features[blockId].descriptor.sigma = 1.0f;
@@ -520,7 +461,6 @@ __global__ void ssrlcv::fillDescriptors(unsigned int numFeatures, uint2 imageSiz
 float pixelWidth, float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoints, float2* gradients){
   unsigned long blockId = blockIdx.y* gridDim.x+ blockIdx.x;
   if(blockId < numFeatures){
-    __shared__ float2 extremas;
     __shared__ float norm;
     norm = 0.0f;
     __shared__ float bin_descriptors[4][4][8];
@@ -529,7 +469,6 @@ float pixelWidth, float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoint
     float2 keyPoint = kp.loc;
     float windowWidth = ceil(kp.sigma*lambda/pixelWidth);
     float theta = kp.theta;
-    extremas = {FLT_MAX,-FLT_MAX};
     __syncthreads();
 
     float2 descriptorGridPoint = {0.0f,0.0f};
@@ -550,18 +489,18 @@ float pixelWidth, float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoint
         if(abs(contribLoc.x) > windowWidth || abs(contribLoc.y) > windowWidth) continue;
         gradient = gradients[llroundf(contribLoc.y + keyPoint.y)*imageWidth + llroundf(contribLoc.x + keyPoint.x)];//this might need to be an interpolation
         descriptorGridPoint.x = getMagnitude(gradient)*expf(-((contribLoc.x*contribLoc.x)+(contribLoc.y*contribLoc.y))/(2.0f*windowWidth*windowWidth));///2.0f/pi/windowWidth/windowWidth; 
-        descriptorGridPoint.y = getTheta(gradient,theta);
+        descriptorGridPoint.y = fmodf(atan2f(gradient.y,gradient.x) - theta + (2.0f*pi),2.0f*pi);
 
         for(float nx = 0; nx < 4.0f; nx+=1.0f){
           for(float ny = 0; ny < 4.0f; ny+=1.0f){
-            histLoc = {(nx*0.5f - 0.75f)*lambda,(ny*0.5f - 0.75f)*lambda};
+            histLoc = {(nx*0.5f - 0.75f)*windowWidth,(ny*0.5f - 0.75f)*windowWidth};
             histLoc = {abs(histLoc.x - contribLoc.x),abs(histLoc.y - contribLoc.y)};
             if(histLoc.x <= binWidth && histLoc.y <= binWidth){
               histLoc = histLoc/binWidth;
               for(int k = 0; k < 8; ++k){
-                angle = abs(fmodf(descriptorGridPoint.y-((float)k*rad45),2.0f*pi));
+                angle = abs(descriptorGridPoint.y-((float)k*rad45));
                 if(angle < rad45){
-                  angle /= (rad45*0.5f);
+                  angle /= rad45;
                   temp = (1.0f-histLoc.x)*(1.0f-histLoc.y)*(1.0f-angle)*descriptorGridPoint.x;
                   atomicAdd(&bin_descriptors[(int)nx][(int)ny][k],temp);
                 }
@@ -578,20 +517,12 @@ float pixelWidth, float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoint
     atomicAdd(&norm, bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]*bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]);
     __syncthreads();
     bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z] /= sqrtf(norm);
-    if(bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z] > 0.2f){
-      bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z] = 0.2f;
-    }
+    if(bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z] > 0.2f) bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z] = 0.2f;    
     __syncthreads();
     norm = 0.0f;    
     __syncthreads();
     atomicAdd(&norm,bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]*bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]);
-    //atomicMinFloat(&extremas.x, bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]);
-    //atomicMaxFloat(&extremas.y, bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]);
     __syncthreads();
-    bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z] /= sqrtf(norm);
-    atomicMinFloat(&extremas.x, bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]);
-    atomicMaxFloat(&extremas.y, bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]);
-    //features[blockId].descriptor.values[(threadIdx.y*4 + threadIdx.x)*8 + threadIdx.z] = (unsigned char) 255.0f*(bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z] - extremas.x)/(extremas.y-extremas.x);
     features[blockId].descriptor.values[(threadIdx.y*4 + threadIdx.x)*8 + threadIdx.z] = (unsigned char) 255.0f*bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]/sqrtf(norm);
     if(threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0){
       features[blockId].descriptor.theta = kp.theta;

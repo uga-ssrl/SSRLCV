@@ -87,13 +87,14 @@ namespace ssrlcv{
 
         Octave();
         //may want to remove kernelSize as it is static in anatomy
-        Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<float>* pixels, uint2 depth, float pixelWidth, int keepPixelsAfterBlur);      
+        Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<float>* pixels, uint2 size, float pixelWidth, int keepPixelsAfterBlur);      
         void searchForExtrema();
         void discardExtrema();
         void refineExtremaLocation();
         void removeNoise(float noiseThreshold);
         void removeEdges(float edgeThreshold);
         void removeBorder(float2 border);
+        void normalize();
 
         ~Octave();
 
@@ -158,25 +159,10 @@ namespace ssrlcv{
   /*
   CUDA variables, methods and kernels
   */
+  extern __constant__ float pi;
   __device__ __forceinline__ float getMagnitude(const int2 &vector);
   __device__ __forceinline__ float getMagnitude(const float2 &vector);
-  __device__ __forceinline__ float getMagnitudeSq(const int2 &vector);
-  __device__ __forceinline__ float getMagnitudeSq(const float2 &vector);
-  __device__ __forceinline__ float getTheta(const int2 &vector);
-  __device__ __forceinline__ float getTheta(const float2 &vector);
-  __device__ __forceinline__ float getTheta(const float2 &vector, const float &offset);
   __device__ void trickleSwap(const float2 &compareWValue, float2* arr, const int &index, const int &length);
-  __device__ __forceinline__ long4 getOrientationContributers(const long2 &loc, const uint2 &imageSize);
-  __device__ __forceinline__ int floatToOrderedInt(float floatVal);
-  __device__ __forceinline__ float orderedIntToFloat(int intVal);
-  __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
-  __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
-  __device__ __forceinline__ float modulus(const float &x, const float &y);
-  __device__ __forceinline__ float2 rotateAboutPoint(const int2 &loc, const float &theta, const float2 &origin);
-
-  extern __constant__ float pi;
-
-
   __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
   __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
   __device__ __forceinline__ float edgeness(const float (&hessian)[2][2]);
