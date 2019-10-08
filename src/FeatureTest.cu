@@ -94,12 +94,12 @@ int main(int argc, char *argv[]){
       images.push_back(image);
       allFeatures.push_back(features);
       features->transferMemoryTo(ssrlcv::cpu);
-      for(int f = 0; f < features->numElements; ++f){
-        printSIFTFeature(features->host[f]);
-        printf("\n\n");
-      }
+      // for(int f = 0; f < features->numElements; ++f){
+      //   printSIFTFeature(features->host[f]);
+      //   printf("\n\n");
+      // }
     }
-    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>();
+    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,200.0f);
     std::cout << "Starting matching, this will take a while ..." << std::endl;
     ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1]);
     distanceMatches->transferMemoryTo(ssrlcv::cpu);
@@ -108,7 +108,6 @@ int main(int argc, char *argv[]){
       if(maxDist < distanceMatches->host[i].distance) maxDist = distanceMatches->host[i].distance;
     }
     printf("%f\n",maxDist);
-    //matchFactory.refineMatches(distanceMatches,maxDist*0.1f);
     if(distanceMatches->state != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
     ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
     delete distanceMatches;

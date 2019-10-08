@@ -74,7 +74,7 @@ namespace ssrlcv {
             *strings >> x1 >> y1 >> s1 >> t1 >> x2 >> y2 >> s2 >> t2; 
             KeyPoint kp1 = { -1, { x1, y1 } };
             KeyPoint kp2 = { -1, { x2, y2 } };
-            datboi.push_back({ kp1, kp2 });
+            datboi.push_back({ false, kp1, kp2 });
 
             delete strings; 
         }

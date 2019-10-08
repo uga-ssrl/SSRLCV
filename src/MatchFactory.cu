@@ -4,9 +4,105 @@ template class ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>;
 
 template<typename T>
 ssrlcv::MatchFactory<T>::MatchFactory(){
+  this->relativeThreshold = 0.8f;
+  this->absoluteThreshold = 250.0f;
+}
+template<typename T>
+ssrlcv::MatchFactory<T>::MatchFactory(float relativeThreshold, float absoluteThreshold) :
+relativeThreshold(relativeThreshold), absoluteThreshold(absoluteThreshold)
+{}
+
+template<typename T>
+void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::Match>* matches){
+  MemoryState origin = matches->state;
+  if(origin == cpu || matches->fore == cpu){
+    matches->transferMemoryTo(gpu);
+  }
+
+  thrust::device_ptr<Match> needsValidating(matches->device);
+  thrust::device_ptr<Match> new_end = thrust::remove_if(needsValidating,needsValidating+matches->numElements,validate());
+  cudaDeviceSynchronize();
+  CudaCheckError();
+  int numMatchesLeft = new_end - needsValidating;
+  if(numMatchesLeft == 0){
+    std::cout<<"No valid matches found"<<std::endl;
+    delete matches;
+    matches = nullptr;
+    return;
+  }
+  
+
+  printf("%d valid matches found out of %d original matches\n",numMatchesLeft,matches->numElements);
+
+  Match* validatedMatches_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(Match)));
+  CudaSafeCall(cudaMemcpy(validatedMatches_device,matches->device,numMatchesLeft*sizeof(Match),cudaMemcpyDeviceToDevice));
+
+  matches->setData(validatedMatches_device,numMatchesLeft,gpu);
+
+  if(origin == cpu) matches->setMemoryState(cpu);
+}
+template<typename T>
+void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::DMatch>* matches){
+  MemoryState origin = matches->state;
+  if(origin == cpu || matches->fore == cpu){
+    matches->transferMemoryTo(gpu);
+  }
+
+  thrust::device_ptr<DMatch> needsValidating(matches->device);
+  thrust::device_ptr<DMatch> new_end = thrust::remove_if(needsValidating,needsValidating+matches->numElements,validate());
+  cudaDeviceSynchronize();
+  CudaCheckError();
+  int numMatchesLeft = new_end - needsValidating;
+  if(numMatchesLeft == 0){
+    std::cout<<"No valid matches found"<<std::endl;
+    delete matches;
+    matches = nullptr;
+    return;
+  }
+  
+
+  printf("%d valid matches found out of %d original matches\n",numMatchesLeft,matches->numElements);
+
+  DMatch* validatedMatches_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(DMatch)));
+  CudaSafeCall(cudaMemcpy(validatedMatches_device,matches->device,numMatchesLeft*sizeof(DMatch),cudaMemcpyDeviceToDevice));
+
+  matches->setData(validatedMatches_device,numMatchesLeft,gpu);
+
+  if(origin == cpu) matches->setMemoryState(cpu);
+}
+template<typename T>
+void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T>>* matches){
+  MemoryState origin = matches->state;
+  if(origin == cpu || matches->fore == cpu){
+    matches->transferMemoryTo(gpu);
+  }
+
+  thrust::device_ptr<FeatureMatch<T>> needsValidating(matches->device);
+  thrust::device_ptr<FeatureMatch<T>> new_end = thrust::remove_if(needsValidating,needsValidating+matches->numElements,validate());
+  cudaDeviceSynchronize();
+  CudaCheckError();
+  int numMatchesLeft = new_end - needsValidating;
+  if(numMatchesLeft == 0){
+    std::cout<<"No valid matches found"<<std::endl;
+    delete matches;
+    matches = nullptr;
+    return;
+  }
+  
+
+  printf("%d valid matches found out of %d original matches\n",numMatchesLeft,matches->numElements);
+
+  FeatureMatch<T>* validatedMatches_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(FeatureMatch<T>)));
+  CudaSafeCall(cudaMemcpy(validatedMatches_device,matches->device,numMatchesLeft*sizeof(FeatureMatch<T>),cudaMemcpyDeviceToDevice));
+
+  matches->setData(validatedMatches_device,numMatchesLeft,gpu);
+
+  if(origin == cpu) matches->setMemoryState(cpu);
 
 }
-
 template<typename T>
 void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::DMatch>* matches, float threshold){
   if(threshold == 0.0f){
@@ -24,7 +120,7 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::DMatch>* match
 
   printf("%d matches have been refined to %d matches using a cutoff of %f\n",matches->numElements,numElementsBelowThreshold,threshold);
 
-  FeatureMatch<T>* compactedMatches_device = nullptr;
+  DMatch* compactedMatches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&compactedMatches_device,numElementsBelowThreshold*sizeof(DMatch)));
   CudaSafeCall(cudaMemcpy(compactedMatches_device,matches->device,numElementsBelowThreshold*sizeof(DMatch),cudaMemcpyDeviceToDevice));
 
@@ -187,10 +283,12 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatches(Image* qu
   clock_t timer = clock();
 
   matchFeaturesBruteForce<<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device);
+    target->id, targetFeatures->numElements, targetFeatures->device, matches->device,this->relativeThreshold,this->absoluteThreshold);
 
   cudaDeviceSynchronize();
   CudaCheckError();
+
+  this->validateMatches(matches);
 
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
@@ -226,11 +324,13 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatchesConstraine
   CudaSafeCall(cudaMemcpy(fundamental_device, fundamental, 3*sizeof(float3), cudaMemcpyHostToDevice));
 
   matchFeaturesConstrained<<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device);
+    target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device,this->relativeThreshold,this->absoluteThreshold);
   cudaDeviceSynchronize();
   CudaCheckError();
 
   CudaSafeCall(cudaFree(fundamental_device));
+
+  this->validateMatches(matches);
 
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
@@ -257,10 +357,13 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatches(
   clock_t timer = clock();
 
   matchFeaturesBruteForce<<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device);
+    target->id, targetFeatures->numElements, targetFeatures->device, matches->device,
+    this->relativeThreshold,this->absoluteThreshold);
 
   cudaDeviceSynchronize();
   CudaCheckError();
+
+  this->validateMatches(matches);
 
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
@@ -296,11 +399,14 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatchesC
   CudaSafeCall(cudaMemcpy(fundamental_device, fundamental, 3*sizeof(float3), cudaMemcpyHostToDevice));
 
   matchFeaturesConstrained<<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device);
+    target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device,
+    this->relativeThreshold,this->absoluteThreshold);
   cudaDeviceSynchronize();
   CudaCheckError();
 
   CudaSafeCall(cudaFree(fundamental_device));
+
+  this->validateMatches(matches);
 
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
@@ -332,10 +438,12 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures){
   clock_t timer = clock();
 
   matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device);
+    target->id, targetFeatures->numElements, targetFeatures->device, matches->device,this->relativeThreshold,this->absoluteThreshold);
 
   cudaDeviceSynchronize();
   CudaCheckError();
+
+  this->validateMatches(matches);
 
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
@@ -373,11 +481,13 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
   CudaSafeCall(cudaMemcpy(fundamental_device, fundamental, 3*sizeof(float3), cudaMemcpyHostToDevice));
 
   matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device);
+    target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device,this->relativeThreshold,this->absoluteThreshold);
   cudaDeviceSynchronize();
   CudaCheckError();
 
   CudaSafeCall(cudaFree(fundamental_device));
+
+  this->validateMatches(matches);
 
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
@@ -550,7 +660,7 @@ __device__ __forceinline__ float ssrlcv::calcElucidSq(const Feature<SIFT_Descrip
   }
   //if(dist < bestMatch) dist += a.descriptor.theta - b.descriptor.theta;
   //else return dist;
-  if(square(a.descriptor.sigma - b.descriptor.sigma) > 2.0f) return FLT_MAX;
+  //if(square(a.descriptor.sigma - b.descriptor.sigma) > 2.0f) return FLT_MAX;
   if(dist < bestMatch) dist += square(a.descriptor.sigma - b.descriptor.sigma);
   //else return dist;
   //if(dist < bestMatch) dist += dotProduct(a.loc - b.loc,a.loc - b.loc);
@@ -581,23 +691,29 @@ __device__ __forceinline__ float ssrlcv::calcElucidSq(const SIFT_Descriptor& a, 
 matching
 */
 //base matching kernels
+
+//TODO VERIFY SECOND NEAREST NEIGHBOR APPROACH WORKS FOR 2 VIEW
+
 template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-ssrlcv::Feature<T>* featuresTarget, Match* matches){
+ssrlcv::Feature<T>* featuresTarget, Match* matches, float relativeThreshold, float absoluteThreshold){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[1024];
+    __shared__ float localSecondNearest[1024];
     __shared__ float localDist[1024];
     localMatch[threadIdx.x] = -1;
     localDist[threadIdx.x] = FLT_MAX;
+    localSecondNearest[threadIdx.x] = FLT_MAX;
     __syncthreads();
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 1024){
-      currentDist = calcElucidSq(feature,featuresTarget[f],localDist[threadIdx.x]);
+      currentDist = calcElucidSq(feature,featuresTarget[f]);
       if(localDist[threadIdx.x] > currentDist){
+        localSecondNearest[threadIdx.x] = localDist[threadIdx.x];
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
       }
@@ -608,35 +724,56 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches){
     int matchIndex = -1;
     for(int i = 0; i < 1024; ++i){
       if(currentDist > localDist[i]){
+        if(currentDist < localSecondNearest[i]) localSecondNearest[i] = currentDist;
         currentDist = localDist[i];
         matchIndex = localMatch[i];
       }
     }
     Match match;
-    match.keyPoints[0].loc = feature.loc;
-    match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
-    match.keyPoints[0].parentId = queryImageID;
-    match.keyPoints[1].parentId = targetImageID;
+    currentDist = sqrtf(currentDist);
+    if(currentDist > absoluteThreshold){
+      match.invalid = true;
+    }
+    else{
+      for(int i = 1; i < 1024; ++i){
+        if(localSecondNearest[0] > localSecondNearest[i]){
+          localSecondNearest[0] = localSecondNearest[i];
+        }
+      }
+      if(currentDist/sqrtf(localSecondNearest[0]) > relativeThreshold){
+        match.invalid = true;
+      }
+      else{
+        match.invalid = false;
+        match.keyPoints[0].loc = feature.loc;
+        match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
+        match.keyPoints[0].parentId = queryImageID;
+        match.keyPoints[1].parentId = targetImageID;
+      }
+    }
     matches[blockId] = match;
   }
 }
 template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-ssrlcv::Feature<T>* featuresTarget, DMatch* matches){
+ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float relativeThreshold, float absoluteThreshold){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[1024];
+    __shared__ float localSecondNearest[1024];
     __shared__ float localDist[1024];
     localMatch[threadIdx.x] = -1;
     localDist[threadIdx.x] = FLT_MAX;
+    localSecondNearest[threadIdx.x] = FLT_MAX;
     __syncthreads();
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 1024){
-      currentDist = calcElucidSq(feature,featuresTarget[f],localDist[threadIdx.x]);
+      currentDist = calcElucidSq(feature,featuresTarget[f]);
       if(localDist[threadIdx.x] > currentDist){
+        localSecondNearest[threadIdx.x] = localDist[threadIdx.x];
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
       }
@@ -647,36 +784,56 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches){
     int matchIndex = -1;
     for(int i = 0; i < 1024; ++i){
       if(currentDist > localDist[i]){
+        if(currentDist < localSecondNearest[i]) localSecondNearest[i] = currentDist;
         currentDist = localDist[i];
         matchIndex = localMatch[i];
       }
     }
     DMatch match;
-    match.keyPoints[0].loc = feature.loc;
-    match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
-    match.keyPoints[0].parentId = queryImageID;
-    match.keyPoints[1].parentId = targetImageID;
     match.distance = sqrtf(currentDist);
+    if(match.distance > absoluteThreshold){
+      match.invalid = true;
+    }
+    else{
+      for(int i = 1; i < 1024; ++i){
+        if(localSecondNearest[0] > localSecondNearest[i]){
+          localSecondNearest[0] = localSecondNearest[i];
+        }
+      }
+      if(match.distance/sqrtf(localSecondNearest[0]) > relativeThreshold){
+        match.invalid = true;
+      }
+      else{
+        match.invalid = false;
+        match.keyPoints[0].loc = feature.loc;
+        match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
+        match.keyPoints[0].parentId = queryImageID;
+        match.keyPoints[1].parentId = targetImageID;
+      }
+    }
     matches[blockId] = match;
   }
 }
 template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches){
+ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float relativeThreshold, float absoluteThreshold){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[1024];
+    __shared__ float localSecondNearest[1024];
     __shared__ float localDist[1024];
     localMatch[threadIdx.x] = -1;
     localDist[threadIdx.x] = FLT_MAX;
+    localSecondNearest[threadIdx.x] = FLT_MAX;
     __syncthreads();
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 1024){
-      currentDist = calcElucidSq(feature,featuresTarget[f],localDist[threadIdx.x]);
+      currentDist = calcElucidSq(feature,featuresTarget[f]);
       if(localDist[threadIdx.x] > currentDist){
+        localSecondNearest[threadIdx.x] = localDist[threadIdx.x];
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
       }
@@ -687,37 +844,59 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches){
     int matchIndex = -1;
     for(int i = 0; i < 1024; ++i){
       if(currentDist > localDist[i]){
+        if(currentDist < localSecondNearest[i]) localSecondNearest[i] = currentDist;
         currentDist = localDist[i];
         matchIndex = localMatch[i];
       }
     }
-    FeatureMatch<T> match;
-    match.descriptors[0] = feature.descriptor;
-    match.descriptors[1] = featuresTarget[matchIndex].descriptor;
-    match.keyPoints[0].loc = feature.loc;
-    match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
-    match.keyPoints[0].parentId = queryImageID;
-    match.keyPoints[1].parentId = targetImageID;
+    FeatureMatch<T> match;    
     match.distance = sqrtf(currentDist);
+    if(match.distance > absoluteThreshold){
+      match.invalid = true;
+    }
+    else{
+      for(int i = 1; i < 1024; ++i){
+        if(localSecondNearest[0] > localSecondNearest[i]){
+          localSecondNearest[0] = localSecondNearest[i];
+        }
+      }
+      if(match.distance/sqrtf(localSecondNearest[0]) > relativeThreshold){
+        match.invalid = true;
+      }
+      else{
+        match.invalid = false;
+        match.descriptors[0] = feature.descriptor;
+        match.descriptors[1] = featuresTarget[matchIndex].descriptor;
+        match.keyPoints[0].loc = feature.loc;
+        match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
+        match.keyPoints[0].parentId = queryImageID;
+        match.keyPoints[1].parentId = targetImageID;
+      }
+    }
     matches[blockId] = match;
   }
 }
 
+
+   
+
 template<typename T>
 __global__ void ssrlcv::matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-ssrlcv::Feature<T>* featuresTarget, Match* matches, float epsilon, float3 fundamental[3]){
+ssrlcv::Feature<T>* featuresTarget, Match* matches, float epsilon, float3 fundamental[3], 
+float relativeThreshold, float absoluteThreshold){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[1024];
+    __shared__ float localSecondNearest[1024];
     __shared__ float localDist[1024];
     localMatch[threadIdx.x] = -1;
     localDist[threadIdx.x] = FLT_MAX;
+    localSecondNearest[threadIdx.x] = FLT_MAX;
     __syncthreads();
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
-
     float3 epipolar = {0.0f,0.0f,0.0f};
     epipolar.x = (fundamental[0].x*feature.loc.x) + (fundamental[0].y*feature.loc.y) + fundamental[0].z;
     epipolar.y = (fundamental[1].x*feature.loc.x) + (fundamental[1].y*feature.loc.y) + fundamental[1].z;
@@ -746,33 +925,53 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float epsilon, float3 fundam
     int matchIndex = -1;
     for(int i = 0; i < 1024; ++i){
       if(currentDist > localDist[i]){
+        if(currentDist < localSecondNearest[i]) localSecondNearest[i] = currentDist;
         currentDist = localDist[i];
         matchIndex = localMatch[i];
       }
     }
     Match match;
-    match.keyPoints[0].loc = feature.loc;
-    match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
-    match.keyPoints[0].parentId = queryImageID;
-    match.keyPoints[1].parentId = targetImageID;
+    currentDist = sqrtf(currentDist);
+    if(currentDist > absoluteThreshold){
+      match.invalid = true;
+    }
+    else{
+      for(int i = 1; i < 1024; ++i){
+        if(localSecondNearest[0] < localSecondNearest[i]){
+          localSecondNearest[0] = localSecondNearest[i];
+        }
+      }
+      if(currentDist/sqrtf(localSecondNearest[0]) > relativeThreshold){
+        match.invalid = true;
+      }
+      else{
+        match.invalid = false;
+        match.keyPoints[0].loc = feature.loc;
+        match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
+        match.keyPoints[0].parentId = queryImageID;
+        match.keyPoints[1].parentId = targetImageID;
+      }
+    }
     matches[blockId] = match;
   }
 }
 template<typename T>
 __global__ void ssrlcv::matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, float3 fundamental[3]){
+ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, float3 fundamental[3], 
+float relativeThreshold, float absoluteThreshold){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[1024];
+    __shared__ float localSecondNearest[1024];
     __shared__ float localDist[1024];
     localMatch[threadIdx.x] = -1;
     localDist[threadIdx.x] = FLT_MAX;
+    localSecondNearest[threadIdx.x] = FLT_MAX;
     __syncthreads();
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
-
     float3 epipolar = {0.0f,0.0f,0.0f};
     epipolar.x = (fundamental[0].x*feature.loc.x) + (fundamental[0].y*feature.loc.y) + fundamental[0].z;
     epipolar.y = (fundamental[1].x*feature.loc.x) + (fundamental[1].y*feature.loc.y) + fundamental[1].z;
@@ -801,34 +1000,53 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, float3 funda
     int matchIndex = -1;
     for(int i = 0; i < 1024; ++i){
       if(currentDist > localDist[i]){
+        if(currentDist < localSecondNearest[i]) localSecondNearest[i] = currentDist;
         currentDist = localDist[i];
         matchIndex = localMatch[i];
       }
     }
     DMatch match;
-    match.keyPoints[0].loc = feature.loc;
-    match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
-    match.keyPoints[0].parentId = queryImageID;
-    match.keyPoints[1].parentId = targetImageID;
     match.distance = sqrtf(currentDist);
+    if(match.distance > absoluteThreshold){
+      match.invalid = true;
+    }
+    else{
+      for(int i = 1; i < 1024; ++i){
+        if(localSecondNearest[0] < localSecondNearest[i]){
+          localSecondNearest[0] = localSecondNearest[i];
+        }
+      }
+      if(match.distance/sqrtf(localSecondNearest[0]) > relativeThreshold){
+        match.invalid = true;
+      }
+      else{
+        match.invalid = false;
+        match.keyPoints[0].loc = feature.loc;
+        match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
+        match.keyPoints[0].parentId = queryImageID;
+        match.keyPoints[1].parentId = targetImageID;
+      }
+    }
     matches[blockId] = match;
   }
 }
 template<typename T>
 __global__ void ssrlcv::matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float epsilon, float3 fundamental[3]){
+ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float epsilon, float3 fundamental[3], 
+float relativeThreshold, float absoluteThreshold){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[1024];
+    __shared__ float localSecondNearest[1024];
     __shared__ float localDist[1024];
     localMatch[threadIdx.x] = -1;
     localDist[threadIdx.x] = FLT_MAX;
+    localSecondNearest[threadIdx.x] = FLT_MAX;
     __syncthreads();
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
-
     float3 epipolar = {0.0f,0.0f,0.0f};
     epipolar.x = (fundamental[0].x*feature.loc.x) + (fundamental[0].y*feature.loc.y) + fundamental[0].z;
     epipolar.y = (fundamental[1].x*feature.loc.x) + (fundamental[1].y*feature.loc.y) + fundamental[1].z;
@@ -857,18 +1075,35 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float epsi
     int matchIndex = -1;
     for(int i = 0; i < 1024; ++i){
       if(currentDist > localDist[i]){
+        if(currentDist < localSecondNearest[i]) localSecondNearest[i] = currentDist;
         currentDist = localDist[i];
         matchIndex = localMatch[i];
       }
     }
-    FeatureMatch<T> match;
-    match.descriptors[0] = feature.descriptor;
-    match.descriptors[1] = featuresTarget[matchIndex].descriptor;
-    match.keyPoints[0].loc = feature.loc;
-    match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
-    match.keyPoints[0].parentId = queryImageID;
-    match.keyPoints[1].parentId = targetImageID;
+    FeatureMatch<T> match;    
     match.distance = sqrtf(currentDist);
+    if(match.distance > absoluteThreshold){
+      match.invalid = true;
+    }
+    else{
+      for(int i = 1; i < 1024; ++i){
+        if(localSecondNearest[0] < localSecondNearest[i]){
+          localSecondNearest[0] = localSecondNearest[i];
+        }
+      }
+      if(match.distance/sqrtf(localSecondNearest[0]) > relativeThreshold){
+        match.invalid = true;
+      }
+      else{
+        match.invalid = false;
+        match.descriptors[0] = feature.descriptor;
+        match.descriptors[1] = featuresTarget[matchIndex].descriptor;
+        match.keyPoints[0].loc = feature.loc;
+        match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
+        match.keyPoints[0].parentId = queryImageID;
+        match.keyPoints[1].parentId = targetImageID;
+      }
+    }
     matches[blockId] = match;
   }
 }
