@@ -20,18 +20,24 @@ CXXFLAGS += -Wall -std=c++11
 NVCCFLAGS += ${COMMONFLAGS}
 NVCCFLAGS += -std=c++11
 
-SMDETECTOR_EXISTS := $(shell ./util/detect-compute-capability 2> /dev/null)
-ifndef SMDETECTOR_EXISTS
-SMDETECTOR : ./util/detect-compute-capability.cu
-	${NVCC} ${INCLUDES} \
-	-gencode arch=compute_35,code=sm_35 -gencode arch=compute_37,code=sm_37 -gencode arch=compute_50,code=sm_50 \
-	-gencode arch=compute_52,code=sm_52 -gencode arch=compute_60,code=sm_60 -gencode arch=compute_61,code=sm_61 \
-	-gencode arch=compute_62,code=sm_62 -o ./util/detect-compute-capability ./util/detect-compute-capability.cu
-endif 
+# Gencode arguments
+SM ?= 35 37 50 52 60 61 70
 
-COMPUTE = $(shell ./util/detect-compute-capability)
+ifeq ($(SM),)
+$(info >>> WARNING - no SM architectures have been specified - waiving sample <<<)
+SAMPLE_ENABLED := 0
+endif
 
-GENCODEFLAGS = -gencode arch=compute_$(COMPUTE),code=compute_$(COMPUTE)
+ifeq ($(GENCODEFLAGS),)
+# Generate SASS code for each SM architecture listed in $(SMS)
+$(foreach sm,$(SM),$(eval GENCODEFLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
+
+# Generate PTX code from the highest SM architecture in $(SMS) to guarantee forward-compatibility
+HIGHEST_SM := $(lastword $(sort $(SM)))
+ifneq ($(HIGHEST_SM),)
+GENCODEFLAGS += -gencode arch=compute_$(HIGHEST_SM),code=compute_$(HIGHEST_SM)
+endif
+endif
 
 
 #
@@ -67,20 +73,20 @@ _SD_OBJS = ${BASE_OBJS}
 _SD_OBJS += StereoDisparity.cu.o
 _T_OBJS = ${BASE_OBJS}
 _T_OBJS += Tester.cu.o
-_SS_OBJS = ${BASE_OBJS}
-_SS_OBJS += ScaleSpaceTest.cu.o
+_F_OBJS = ${BASE_OBJS}
+_F_OBJS += FeatureTest.cu.o
 
 SFM_OBJS = ${patsubst %, ${OBJDIR}/%, ${_SFM_OBJS}}
 SD_OBJS = ${patsubst %, ${OBJDIR}/%, ${_SD_OBJS}}
 T_OBJS = ${patsubst %, ${OBJDIR}/%, ${_T_OBJS}}
-SS_OBJS = ${patsubst %, ${OBJDIR}/%, ${_SS_OBJS}}
+F_OBJS = ${patsubst %, ${OBJDIR}/%, ${_F_OBJS}}
 
 TEST_OBJS = ${patsubst %, ${OBJDIR}/%, ${BASE_OBJS}}
 
 TARGET_SFM = SFM
 TARGET_SD = StereoDisparity
 TARGET_T = Tester
-TARGET_SS = ScaleSpaceTest
+TARGET_F = FeatureTest
 
 ## Test sensing
 TestsIn_cpp 	= $(wildcard ${TESTDIR}/src/*.cpp)
@@ -93,12 +99,12 @@ NVCCFLAGS += ${GENCODEFLAGS}
 LINKLINE_SFM = ${LINK} ${GENCODEFLAGS} ${SFM_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SFM}
 LINKLINE_SD = ${LINK} ${GENCODEFLAGS} ${SD_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SD}
 LINKLINE_T = ${LINK} ${GENCODEFLAGS} ${T_OBJS} ${LIB} -o ${BINDIR}/${TARGET_T}
-LINKLINE_SS = ${LINK} ${GENCODEFLAGS} ${SS_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SS}
+LINKLINE_F = ${LINK} ${GENCODEFLAGS} ${F_OBJS} ${LIB} -o ${BINDIR}/${TARGET_F}
 
 .SUFFIXES: .cpp .cu .o
 .PHONY: all clean test
 
-all: ${BINDIR}/${TARGET_SFM} ${BINDIR}/${TARGET_SD} ${BINDIR}/${TARGET_T} ${BINDIR}/${TARGET_SS} ${TESTS}
+all: ${BINDIR}/${TARGET_SFM} ${BINDIR}/${TARGET_SD} ${BINDIR}/${TARGET_T} ${BINDIR}/${TARGET_F} ${TESTS}
 
 test: all ${TEST_OBJS}
 	cd ${TESTDIR}; ./test-all
@@ -133,8 +139,8 @@ ${BINDIR}/${TARGET_SD}: ${SD_OBJS} Makefile
 ${BINDIR}/${TARGET_T}: ${T_OBJS} Makefile
 	${LINKLINE_T}
 
-${BINDIR}/${TARGET_SS}: ${SS_OBJS} Makefile
-	${LINKLINE_SS}
+${BINDIR}/${TARGET_F}: ${F_OBJS} Makefile
+	${LINKLINE_F}
 
 
 #

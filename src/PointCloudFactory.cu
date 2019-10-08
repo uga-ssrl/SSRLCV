@@ -386,11 +386,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   cudaMalloc((void**) &points_device, matches->numElements*sizeof(float3));
 
   //
-  int blockSize = 1024;
-  int gridSize = (int) ceil((float) matches->numElements / blockSize);
-
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(matches->numElements,grid,block);
   //
-  computeStereo<<<gridSize, blockSize>>>(matches->numElements, matches->device, points_device, scale);
+  computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, scale);
 
   Unity<float3>* points = new Unity<float3>(points_device, matches->numElements,gpu);
   if(origin == cpu) matches->setMemoryState(cpu);
@@ -463,7 +463,6 @@ __global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, floa
   if(!(globalID<numMatches))return;
 	//check out globalID cheat sheet jackson gave you for this
 	int matchIndex = globalID; //need to define once I calculate grid/block size
-	//printf("thread index %d", getGlobalIdx_1D_1D());
 	float4 match = matches[globalID];
 
 

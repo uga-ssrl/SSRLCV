@@ -60,7 +60,13 @@ namespace ssrlcv{
   * \brief base Match struct pair of keypoints
   */
   struct Match{
+    bool invalid;
     KeyPoint keyPoints[2];
+  };
+  struct validate{
+    __device__ __host__ bool operator()(const Match &m){
+      return m.invalid;
+    }
   };
   /**
   * \brief derived Match struct with distance
@@ -121,16 +127,21 @@ namespace ssrlcv{
   */
   template<typename T>
   class MatchFactory{
-
   public:
-
+    float absoluteThreshold;
+    float relativeThreshold;
     MatchFactory();
+    MatchFactory(float relativeThreshold, float absoluteThreshold);
 
     //NOTE nothing for nview is implemented
     //TODO consider making it so features are computed if they arent instead of throwing errors with image parameters
 
-    void refineMatches(Unity<DMatch>* matches, float cutoffRatio);
-    void refineMatches(Unity<FeatureMatch<T>>* matches, float cutoffRatio);
+    void validateMatches(Unity<Match>* matches);
+    void validateMatches(Unity<DMatch>* matches);
+    void validateMatches(Unity<FeatureMatch<T>>* matches);
+
+    void refineMatches(Unity<DMatch>* matches, float threshold);
+    void refineMatches(Unity<FeatureMatch<T>>* matches, float threshold);
 
     /**
     * \brief sorts all matches by mismatch distance
@@ -222,27 +233,30 @@ namespace ssrlcv{
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, Match* matches);
+    Feature<T>* featuresTarget, Match* matches, float relativeThreshold, float absoluteThreshold);
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, DMatch* matches);
+    Feature<T>* featuresTarget, DMatch* matches, float relativeThreshold, float absoluteThreshold);
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, FeatureMatch<T>* matches);
+    Feature<T>* featuresTarget, FeatureMatch<T>* matches, float relativeThreshold, float absoluteThreshold);
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, Match* matches, float epsilon, float3 fundamental[3]);
+    Feature<T>* featuresTarget, Match* matches, float epsilon, float3 fundamental[3], 
+    float relativeThreshold, float absoluteThreshold);
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, DMatch* matches, float epsilon, float3 fundamental[3]);
+    Feature<T>* featuresTarget, DMatch* matches, float epsilon, float3 fundamental[3], 
+    float relativeThreshold, float absoluteThreshold);
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, FeatureMatch<T>* matches, float epsilon, float3 fundamental[3]);
+    Feature<T>* featuresTarget, FeatureMatch<T>* matches, float epsilon, float3 fundamental[3], 
+    float relativeThreshold, float absoluteThreshold);
 
 
 
@@ -257,7 +271,9 @@ namespace ssrlcv{
   __global__ void determineSubPixelLocationsBruteForce(float increment, unsigned long numMatches, FeatureMatch<T>* matches, Spline* splines);
 
   //utility kernels
-  __global__ void convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::Match* matches);
+  __global__ void convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::DMatch* matches);
+  template<typename T>
+  __global__ void convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::FeatureMatch<T>* matches);
 
 }
 
