@@ -83,6 +83,7 @@ namespace ssrlcv{
   Unity<float>* convertImageToFlt(Unity<unsigned char>* pixels);
 
   void normalizeImage(Unity<float>* pixels);
+  void normalizeImage(Unity<float>* pixels, float2 minMax);
 
   void convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth);
   void convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth);

@@ -132,10 +132,11 @@ ssrlcv::Unity<float>* ssrlcv::convertImageToFlt(Unity<unsigned char>* pixels){
   getFlatGridBlock(pixels->numElements,grid,block);
   Unity<float>* castPixels = new Unity<float>(nullptr,pixels->numElements,gpu);
   convertToFltImage<<<grid,block>>>(pixels->numElements,pixels->device,castPixels->device);
+  cudaDeviceSynchronize();
+  CudaCheckError();
   if(origin == cpu){
     pixels->setMemoryState(cpu);
-    castPixels->transferMemoryTo(cpu);
-    castPixels->clear(gpu);
+    castPixels->setMemoryState(cpu);
   }
   return castPixels;
 }
@@ -150,7 +151,21 @@ void ssrlcv::normalizeImage(Unity<float>* pixels){
       if(minMax.x > pixels->host[i]) minMax.x = pixels->host[i];
       if(minMax.y < pixels->host[i]) minMax.y = pixels->host[i];
   }
-  if(origin == cpu || pixels->fore == gpu) pixels->setMemoryState(gpu);
+  if(origin == cpu || pixels->fore == cpu) pixels->setMemoryState(gpu);
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(pixels->numElements,grid,block);
+  normalize<<<grid,block>>>(pixels->numElements,pixels->device,minMax);
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  pixels->fore = gpu;
+
+  if(origin == cpu) pixels->setMemoryState(cpu);  
+}
+void ssrlcv::normalizeImage(Unity<float>* pixels, float2 minMax){
+  MemoryState origin = pixels->state;
+  if(origin == cpu || pixels->fore == cpu) pixels->setMemoryState(gpu);
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   getFlatGridBlock(pixels->numElements,grid,block);

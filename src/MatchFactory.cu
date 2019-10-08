@@ -539,7 +539,7 @@ __device__ __forceinline__ float ssrlcv::calcElucidSq(const Feature<SIFT_Descrip
     dist += square(((float)a.descriptor.values[i]-b.descriptor.values[i]));
   }
   //dist += a.descriptor.theta - b.descriptor.theta;
-  dist += square(a.descriptor.sigma - b.descriptor.sigma);
+  //dist += square(a.descriptor.sigma - b.descriptor.sigma);
   //dist += dotProduct(a.loc - b.loc,a.loc - b.loc);
   return dist;
 }
@@ -550,7 +550,7 @@ __device__ __forceinline__ float ssrlcv::calcElucidSq(const Feature<SIFT_Descrip
   }
   //if(dist < bestMatch) dist += a.descriptor.theta - b.descriptor.theta;
   //else return dist;
-  if(dist < bestMatch) dist += square(a.descriptor.sigma - b.descriptor.sigma);
+  //if(dist < bestMatch) dist += square(a.descriptor.sigma - b.descriptor.sigma);
   //else return dist;
   //if(dist < bestMatch) dist += dotProduct(a.loc - b.loc,a.loc - b.loc);
   return dist;
@@ -561,7 +561,7 @@ __device__ __forceinline__ float ssrlcv::calcElucidSq(const SIFT_Descriptor& a, 
     dist += square(((float)a.values[i]-b.values[i]));
   }
   //dist += a.theta - b.theta;
-  dist += square(a.sigma - b.sigma);
+  //dist += square(a.sigma - b.sigma);
   return dist;
 }
 __device__ __forceinline__ float ssrlcv::calcElucidSq(const SIFT_Descriptor& a, const SIFT_Descriptor& b, const float &bestMatch){
@@ -571,7 +571,7 @@ __device__ __forceinline__ float ssrlcv::calcElucidSq(const SIFT_Descriptor& a, 
   }
   //if(dist < bestMatch) dist += a.theta - b.theta;
   //else return dist;
-  if(dist < bestMatch) dist += square(a.sigma - b.sigma);
+  //if(dist < bestMatch) dist += square(a.sigma - b.sigma);
   return dist;
 }
 
@@ -655,7 +655,7 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches){
     match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
     match.keyPoints[0].parentId = queryImageID;
     match.keyPoints[1].parentId = targetImageID;
-    match.distance = currentDist;//sqrtf(currentDist);
+    match.distance = sqrtf(currentDist);
     matches[blockId] = match;
   }
 }
@@ -697,7 +697,7 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches){
     match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
     match.keyPoints[0].parentId = queryImageID;
     match.keyPoints[1].parentId = targetImageID;
-    match.distance = currentDist;//sqrtf(currentDist);
+    match.distance = sqrtf(currentDist);
     matches[blockId] = match;
   }
 }
@@ -809,7 +809,7 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, float3 funda
     match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
     match.keyPoints[0].parentId = queryImageID;
     match.keyPoints[1].parentId = targetImageID;
-    match.distance = currentDist;//sqrtf(currentDist);
+    match.distance = sqrtf(currentDist);
     matches[blockId] = match;
   }
 }
@@ -867,7 +867,7 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float epsi
     match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
     match.keyPoints[0].parentId = queryImageID;
     match.keyPoints[1].parentId = targetImageID;
-    match.distance = currentDist;//sqrtf(currentDist);
+    match.distance = sqrtf(currentDist);
     matches[blockId] = match;
   }
 }

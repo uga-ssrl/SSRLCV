@@ -19,7 +19,7 @@ sigma(sigma),size(size){
     float* gaussian = new float[kernelSize.y*kernelSize.x]();
     for(int y = -kernelSize.y/2, i = 0; y <= kernelSize.y/2; ++y){
         for(int x = -kernelSize.x/2; x <= kernelSize.x/2; ++x){
-            gaussian[i++] = expf(-(((x*x) + (y*y))/2.0f/this->sigma/this->sigma))/2.0f/PI/this->sigma/this->sigma;
+            gaussian[i++] = expf(-(((x*x) + (y*y))/2.0f/this->sigma/this->sigma));///2.0f/PI/this->sigma/this->sigma;
         }
     }
     pixels->setData(convolve(this->size,pixels,1,kernelSize,gaussian,true)->device,pixels->numElements,gpu);
@@ -182,6 +182,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::discardExtrema(){
         CudaSafeCall(cudaMemcpy(temp[i],this->extrema->device + this->extremaBlurIndices[i],numExtremaAtBlur*sizeof(SSKeyPoint),cudaMemcpyDeviceToDevice));
     }
     int totalKept = 0;
+
     for(int i = 0; i < this->numBlurs; ++i){
         numExtremaAtBlur = 0;
         if(temp[i] != nullptr){
@@ -220,7 +221,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::discardExtrema(){
 }
 
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(){
-
+    if(this->extrema == nullptr) return;
     MemoryState origin = this->extrema->state;
     if(origin == cpu || this->extrema->fore == cpu) this->extrema->transferMemoryTo(gpu);
     MemoryState* pixelsOrigin = new MemoryState[this->numBlurs];
@@ -253,6 +254,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(){
     this->extrema->fore = gpu;
 
     this->discardExtrema();
+    if(this->extrema == nullptr) return;
 
     thrust::device_ptr<SSKeyPoint> kp(this->extrema->device);
     thrust::stable_sort(kp, kp + this->extrema->numElements);
@@ -273,6 +275,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(){
     delete[] pixelsOrigin;
 }
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeNoise(float noiseThreshold){
+    if(this->extrema == nullptr) return;
     MemoryState origin = this->extrema->state;
     if(origin == cpu || this->extrema->fore == cpu) this->extrema->transferMemoryTo(gpu);
     dim3 grid = {1,1,1};
@@ -283,9 +286,10 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeNoise(float noiseThreshol
     CudaCheckError();
     this->extrema->fore = gpu;
     this->discardExtrema();
-    if(origin == cpu) this->extrema->setMemoryState(cpu);
+    if(origin == cpu && this->extrema != nullptr) this->extrema->setMemoryState(cpu);
 }
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeEdges(float edgeThreshold){
+    if(this->extrema == nullptr) return;
     MemoryState origin = this->extrema->state;
     if(origin == cpu || this->extrema->fore == cpu) this->extrema->transferMemoryTo(gpu);
     dim3 grid = {1,1,1};
@@ -314,7 +318,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeEdges(float edgeThreshold
     }
     this->extrema->fore = gpu;
     this->discardExtrema();
-    if(origin == cpu) this->extrema->setMemoryState(cpu);
+    if(origin == cpu && this->extrema != nullptr) this->extrema->setMemoryState(cpu);
 }
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeBorder(float2 border){
     if(this->extrema == nullptr) return;
@@ -330,7 +334,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeBorder(float2 border){
        
     this->extrema->fore = gpu;
     this->discardExtrema();
-    if(origin == cpu) this->extrema->setMemoryState(cpu);
+    if(origin == cpu && this->extrema != nullptr) this->extrema->setMemoryState(cpu);
 }
 
 
@@ -384,7 +388,6 @@ depth(depth){
         sigmas[i] = sigmas[i-1]*sigmaMultiplier.y;
     }
     this->octaves = new Octave*[this->depth.x]();
-    //normalizeImage(pixels);
     for(int i = 0; i < this->depth.x; ++i){
         this->octaves[i] = new Octave(i,this->depth.y,kernelSize,sigmas,pixels,imageSize,pixelWidth,4);
         if(i + 1 < this->depth.x){
@@ -430,7 +433,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::convertToDOG(){
             if(origin[1] == cpu) pixelsUpper->transferMemoryTo(gpu);
             subtractImages<<<grid,block>>>(pixelsLower->numElements,pixelsUpper->device,pixelsLower->device,dogOctaves[o]->blurs[b]->pixels->device);
             cudaDeviceSynchronize();
-            CudaCheckError();
+            CudaCheckError();            
             if(origin[0] == cpu) pixelsLower->setMemoryState(cpu);
             pixelsLower = pixelsUpper;
         }
@@ -467,29 +470,45 @@ void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, flo
         exit(-1);
     }
     int temp = 0;
+    Unity<SSKeyPoint>* currentExtrema = nullptr;
     for(int i = 0; i < this->depth.x; ++i){
+        if(i != 0) std::cout<<std::endl;
         this->octaves[i]->searchForExtrema();
-        temp = this->octaves[i]->extrema->numElements;
-        std::cout<<"keypoints in octave["<<i<<"] = "<<temp;
-        if(temp > 0){
-            this->octaves[i]->removeNoise(noiseThreshold*0.8);
-            std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
-            if(subpixel){
-                this->octaves[i]->refineExtremaLocation();
-                std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
-                this->octaves[i]->removeNoise(noiseThreshold);
-                std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
-            }
-            this->octaves[i]->removeEdges(edgeThreshold);
-            std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
-            std::cout<<"="<<this->octaves[i]->extrema->numElements<<std::endl;
-        }  
-        if(this->octaves[i]->extrema->numElements == 0){
-            std::cout<<std::endl;
-            delete this->octaves[i]->extrema;
+        currentExtrema = this->octaves[i]->extrema;
+        if(currentExtrema == nullptr) continue;
+        temp = currentExtrema->numElements;
+        if(currentExtrema == nullptr) continue;
+        std::cout<<"keypoints in octave["<<i<<"] = ";
+        if(currentExtrema == nullptr){
+            std::cout<<0;
+            continue;
+        }
+        std::cout<<temp;
+        this->octaves[i]->removeNoise(noiseThreshold*0.8);
+        std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
+        if(currentExtrema == nullptr) continue;
+        if(subpixel){
+            temp = currentExtrema->numElements;
+            this->octaves[i]->refineExtremaLocation();
+            if(currentExtrema == nullptr) continue;
+            std::cout<<"-"<<temp - currentExtrema->numElements;
+            if(currentExtrema == nullptr) continue;
+            temp = currentExtrema->numElements;
+            this->octaves[i]->removeNoise(noiseThreshold);
+            if(currentExtrema == nullptr) continue;
+            std::cout<<"-"<<temp - currentExtrema->numElements;
+        }
+        temp = currentExtrema->numElements;
+        this->octaves[i]->removeEdges(edgeThreshold);
+        if(currentExtrema == nullptr) continue;
+        std::cout<<"-"<<temp - currentExtrema->numElements;
+        std::cout<<"="<<currentExtrema->numElements<<std::endl;
+    }
+    std::cout<<std::endl;
+    for(int i = 0; i < this->depth.x; ++i){
+        if(this->octaves[i]->extrema == nullptr){
             delete[] this->octaves[i]->extremaBlurIndices;
             this->octaves[i]->extremaBlurIndices = nullptr;
-            this->octaves[i]->extrema = nullptr;
         }
     }
 }
@@ -585,7 +604,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
             } 
 
             thrust::device_ptr<float> t(thetas_device);
-            thrust::device_ptr<float> new_end = thrust::remove(t, t + (numKeyPointsAtBlur*maxOrientations), -1.0f);
+            thrust::device_ptr<float> new_end = thrust::remove(t, t + (numKeyPointsAtBlur*maxOrientations), -FLT_MAX);
             thrust::device_ptr<int> tN(thetaAddresses_device);
             thrust::device_ptr<int> end = thrust::remove(tN, tN + (numKeyPointsAtBlur*maxOrientations), -1);
             numOrientedKeyPoints = end - tN;
@@ -899,7 +918,7 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
     if(globalID < numKeyPoints){
         FeatureFactory::ScaleSpace::SSKeyPoint kp = keyPoints[globalID+keyPointIndex];
         float2 keyPoint = kp.loc;
-        float windowWidth = kp.sigma*3.0f*lambda/pixelWidth;
+        float windowWidth = ceil(kp.sigma*3.0f*lambda/pixelWidth);
         int regNumOrient = maxOrientations;
 
         float2 min = {(keyPoint.x - windowWidth),(keyPoint.y - windowWidth)};
@@ -908,7 +927,7 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
         if(min.x < 0.0f || min.y < 0.0f || max.x >= imageSize.x - 1 || max.y >= imageSize.y - 1){
             for(int i = 0; i < regNumOrient; ++i){
                 thetaNumbers[globalID*regNumOrient + i] = -1;
-                thetas[globalID*regNumOrient + i] = -1.0f;
+                thetas[globalID*regNumOrient + i] = -FLT_MAX;
             }
             return;
         }
@@ -922,7 +941,7 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
             for(float x = min.x; x <= max.x; x+=1.0f){
                 gradient = gradients[llroundf(y)*imageWidth + llroundf(x)];//may want to do interpolation here
                 temp2 = {x - keyPoint.x,y - keyPoint.y};
-                orientationHist[llroundf(36.0f*getTheta(gradient)/(2.0f*pi))] += getMagnitude(gradient)*expf(-getMagnitude(temp2)/weight)/pi/weight;
+                orientationHist[llroundf(36.0f*getTheta(gradient)/(2.0f*pi))] += getMagnitude(gradient)*expf(-((temp2.x*temp2.x)+(temp2.y*temp2.y))/weight);///pi/weight;
             }
         }
         float3 convHelper = {orientationHist[35],orientationHist[0],orientationHist[1]};
@@ -964,9 +983,9 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
 
             tempMagWTheta.y *= (pi/36.0f);
             tempMagWTheta.y += (float)b*(pi/18.0f);
-            if(tempMagWTheta.y < 0.0f){
-              tempMagWTheta.y += 2.0f*pi;
-            }
+            // if(tempMagWTheta.y < 0.0f){
+            //   tempMagWTheta.y += 2.0f*pi;
+            // }
 
             for(int i = 0; i < regNumOrient; ++i){
               if(tempMagWTheta.x > bestMagWThetas[i].x){
@@ -980,9 +999,8 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
         }
         for(int i = 0; i < regNumOrient; ++i){
             if(bestMagWThetas[i].x == 0.0f){
-                if(i == 0) asm("trap;");
                 thetaNumbers[globalID*regNumOrient + i] = -1;
-                thetas[globalID*regNumOrient + i] = -1.0f;
+                thetas[globalID*regNumOrient + i] = -FLT_MAX;
             }
             else{
                 thetaNumbers[globalID*regNumOrient + i] = globalID + keyPointIndex;
