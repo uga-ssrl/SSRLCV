@@ -81,10 +81,6 @@ int main(int argc, char *argv[]){
 
     int numImages = (int) imagePaths.size();
 
-    /*
-    DENSE SIFT
-    */
-
     ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1.5f,6.0f);
     std::vector<ssrlcv::Image*> images;
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
@@ -94,10 +90,6 @@ int main(int argc, char *argv[]){
       images.push_back(image);
       allFeatures.push_back(features);
       features->transferMemoryTo(ssrlcv::cpu);
-      // for(int f = 0; f < features->numElements; ++f){
-      //   printSIFTFeature(features->host[f]);
-      //   printf("\n\n");
-      // }
     }
     ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,200.0f);
     std::cout << "Starting matching, this will take a while ..." << std::endl;
