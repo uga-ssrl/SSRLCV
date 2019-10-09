@@ -73,20 +73,16 @@ _SD_OBJS = ${BASE_OBJS}
 _SD_OBJS += StereoDisparity.cu.o
 _T_OBJS = ${BASE_OBJS}
 _T_OBJS += Tester.cu.o
-_F_OBJS = ${BASE_OBJS}
-_F_OBJS += FeatureTest.cu.o
 
 SFM_OBJS = ${patsubst %, ${OBJDIR}/%, ${_SFM_OBJS}}
 SD_OBJS = ${patsubst %, ${OBJDIR}/%, ${_SD_OBJS}}
 T_OBJS = ${patsubst %, ${OBJDIR}/%, ${_T_OBJS}}
-F_OBJS = ${patsubst %, ${OBJDIR}/%, ${_F_OBJS}}
 
 TEST_OBJS = ${patsubst %, ${OBJDIR}/%, ${BASE_OBJS}}
 
 TARGET_SFM = SFM
 TARGET_SD = StereoDisparity
 TARGET_T = Tester
-TARGET_F = FeatureTest
 
 ## Test sensing
 TestsIn_cpp 	= $(wildcard ${TESTDIR}/src/*.cpp)
@@ -99,7 +95,6 @@ NVCCFLAGS += ${GENCODEFLAGS}
 LINKLINE_SFM = ${LINK} ${GENCODEFLAGS} ${SFM_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SFM}
 LINKLINE_SD = ${LINK} ${GENCODEFLAGS} ${SD_OBJS} ${LIB} -o ${BINDIR}/${TARGET_SD}
 LINKLINE_T = ${LINK} ${GENCODEFLAGS} ${T_OBJS} ${LIB} -o ${BINDIR}/${TARGET_T}
-LINKLINE_F = ${LINK} ${GENCODEFLAGS} ${F_OBJS} ${LIB} -o ${BINDIR}/${TARGET_F}
 
 .SUFFIXES: .cpp .cu .o
 .PHONY: all clean test
@@ -139,10 +134,6 @@ ${BINDIR}/${TARGET_SD}: ${SD_OBJS} Makefile
 ${BINDIR}/${TARGET_T}: ${T_OBJS} Makefile
 	${LINKLINE_T}
 
-${BINDIR}/${TARGET_F}: ${F_OBJS} Makefile
-	${LINKLINE_F}
-
-
 #
 # Tests
 #
@@ -155,10 +146,6 @@ ${TESTDIR}/obj/%.cu.o: ${TESTDIR}/src/%.cu ${TESTDIR}/unit-testing.h
 
 ${TESTDIR}/bin/cpp/%: ${TESTDIR}/obj/%.cpp.o ${TEST_OBJS}
 	${LINK} ${GENCODEFLAGS} ${LIB} ${TEST_OBJS} $< -o $@
-
-${TESTDIR}/bin/cu/%: ${TESTDIR}/obj/%.cu.o ${TEST_OBJS}
-	${LINK} ${GENCODEFLAGS} ${LIB} ${TEST_OBJS} $< -o $@
-
 
 
 #

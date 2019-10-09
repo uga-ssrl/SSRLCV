@@ -350,10 +350,12 @@ ssrlcv::FeatureFactory::ScaleSpace::ScaleSpace(){
 ssrlcv::FeatureFactory::ScaleSpace::ScaleSpace(Image* image, int startingOctave, uint2 depth, float initialSigma, float2 sigmaMultiplier, int2 kernelSize) : 
 depth(depth){ 
 
-    if(image->size.x/powf(2, startingOctave+depth.x) == 0 || image->size.x/powf(2, startingOctave+depth.x) == 0){
+    int numResize = (int)powf(2, startingOctave+depth.x);
+    if(image->size.x/numResize == 0 || image->size.x/numResize == 0){
         std::cerr<<"This image is too small to make a ScaleSpace of the specified depth"<<std::endl;
         exit(-1);
     }
+
     printf("creating scalespace with depth {%d,%d}\n",this->depth.x,this->depth.y);
     Unity<float>* pixels = nullptr;
     
@@ -370,10 +372,17 @@ depth(depth){
     else{
         pixels = convertImageToFlt(image->pixels);
     }
-
     uint2 imageSize = image->size;
     uint2 scalar = {2,2};
-   
+
+    if(imageSize.x%numResize != 0 || imageSize.y%numResize != 0){
+        if(pixels->state != gpu) pixels->setMemoryState(gpu);
+        int2 border = {(numResize-(imageSize.x%numResize))/2,(numResize-(imageSize.y%numResize))/2};
+        uint2 newSize = {border.x*2 + imageSize.x, border.y*2 + imageSize.y};
+        pixels->setData(addBufferBorder(imageSize,pixels,border)->device,newSize.x*newSize.y,gpu);
+        imageSize = newSize;
+    }
+
     float pixelWidth = 1.0f;
 
     for(int i = startingOctave; i < 0; ++i){

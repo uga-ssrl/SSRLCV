@@ -79,6 +79,9 @@ namespace ssrlcv{
 
   };
 
+  Unity<unsigned char>* addBufferBorder(uint2 size, ssrlcv::Unity<unsigned char>* pixels, int2 border);
+  Unity<float>* addBufferBorder(uint2 size, ssrlcv::Unity<float>* pixels, int2 border);
+
   Unity<unsigned char>* convertImageToChar(Unity<float>* pixels);
   Unity<float>* convertImageToFlt(Unity<unsigned char>* pixels);
 

@@ -106,6 +106,64 @@ void ssrlcv::Image::alterSize(int scalingFactor){
   if(origin == cpu) this->pixels->setMemoryState(cpu);
 }
 
+
+ssrlcv::Unity<unsigned char>* ssrlcv::addBufferBorder(uint2 size, ssrlcv::Unity<unsigned char>* pixels, int2 border){
+  if(border.x == 0|| border.y == 0){
+    std::cerr<<"ERROR border cannot be 0"<<std::endl;
+    exit(-1);
+  }
+  if(border.x*2 + (int) size.x < 0 || border.y*2 + (int)size.y < 0){
+    std::cerr<<"ERROR border causes negative dimensions"<<std::endl;
+    exit(-1);
+  }
+  if(pixels->numElements%((int)size.x*size.y) != 0){
+    std::cerr<<"ERROR color depth cannot be determined due to pixels->numElements%(size.x*size.y) != 0"<<std::endl;
+  }  
+  MemoryState origin = pixels->state;
+  if(origin == cpu || pixels->fore == cpu) pixels->setMemoryState(cpu);
+  uint2 newSize = {size.x + (border.x*2),size.y + (border.y*2)};
+  int colorDepth = pixels->numElements/((int)size.x*size.y);
+  unsigned char* bufferedPixels_host = new unsigned char[newSize.x*newSize.y*colorDepth]();
+  Unity<unsigned char>* bufferedPixels = new Unity<unsigned char>(bufferedPixels_host,newSize.x*newSize.y*colorDepth,cpu);
+  bufferedPixels->setMemoryState(gpu);
+  for(int y = border.y; y < (int)size.y + border.y; ++y){
+    CudaSafeCall(cudaMemcpy(bufferedPixels->device + (y*newSize.x) + border.x,pixels->device + (y*size.x),size.x*sizeof(unsigned char),cudaMemcpyDeviceToDevice));
+  }
+  bufferedPixels->fore = gpu;
+  if(origin != gpu){
+    bufferedPixels->setMemoryState(origin);
+    pixels->setMemoryState(origin);
+  }
+}
+ssrlcv::Unity<float>* ssrlcv::addBufferBorder(uint2 size, ssrlcv::Unity<float>* pixels, int2 border){
+  if(border.x == 0|| border.y == 0){
+    std::cerr<<"ERROR border cannot be 0"<<std::endl;
+    exit(-1);
+  }
+  if(border.x*2 + (int) size.x < 0 || border.y*2 + (int)size.y < 0){
+    std::cerr<<"ERROR border causes negative dimensions"<<std::endl;
+    exit(-1);
+  }
+  if(pixels->numElements%((int)size.x*size.y) != 0){
+    std::cerr<<"ERROR color depth cannot be determined due to pixels->numElements%(size.x*size.y) != 0"<<std::endl;
+  }
+  MemoryState origin = pixels->state;
+  if(origin == cpu || pixels->fore == cpu) pixels->setMemoryState(cpu);
+  uint2 newSize = {size.x + (border.x*2),size.y + (border.y*2)};
+  int colorDepth = pixels->numElements/((int)size.x*size.y);
+  float* bufferedPixels_host = new float[newSize.x*newSize.y*colorDepth]();
+  Unity<float>* bufferedPixels = new Unity<float>(bufferedPixels_host,newSize.x*newSize.y*colorDepth,cpu);
+  bufferedPixels->setMemoryState(gpu);
+  for(int y = 0; y < (int)size.y; ++y){
+    CudaSafeCall(cudaMemcpy(bufferedPixels->device + ((y+border.y)*newSize.x) + border.x,pixels->device + (y*size.x),size.x*sizeof(float),cudaMemcpyDeviceToDevice));
+  }
+  bufferedPixels->fore = gpu;  
+  if(origin != gpu){
+    bufferedPixels->setMemoryState(origin);
+    pixels->setMemoryState(origin);
+  }
+}
+
 ssrlcv::Unity<unsigned char>* ssrlcv::convertImageToChar(Unity<float>* pixels){
   MemoryState origin = pixels->state;
   if(origin == cpu || pixels->fore == cpu) pixels->setMemoryState(gpu);
@@ -626,8 +684,6 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<float>* pixels, un
   CudaSafeCall(cudaMemcpy(kernel_device,kernel,kernelSize.x*kernelSize.y*sizeof(float),cudaMemcpyHostToDevice));
   dim3 grid = {(imageSize.x/32)+1,(imageSize.y/32)+1,colorDepth};
   dim3 block = {32,32,1};
-  float2 minMax = {FLT_MAX,-FLT_MAX};
-  float* min = nullptr;
  
   if(symmetric){
     convolveImage_symmetric<<<grid,block>>>(imageSize, pixels->device, colorDepth, kernelSize, kernel_device, convolvedImage->device);

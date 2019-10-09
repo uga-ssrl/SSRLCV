@@ -117,6 +117,11 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::DMatch>* match
   thrust::device_ptr<DMatch> needsCompacting(matches->device);
   thrust::device_ptr<DMatch> end = thrust::remove_if(needsCompacting, needsCompacting + matches->numElements, match_dist_thresholder(threshold));
   unsigned int numElementsBelowThreshold = end - needsCompacting;
+  if(numElementsBelowThreshold == 0){
+    delete matches;
+    matches = nullptr;
+    return;
+  }
 
   printf("%d matches have been refined to %d matches using a cutoff of %f\n",matches->numElements,numElementsBelowThreshold,threshold);
 
@@ -144,6 +149,11 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T
   thrust::device_ptr<FeatureMatch<T>> needsCompacting(matches->device);
   thrust::device_ptr<FeatureMatch<T>> end = thrust::remove_if(needsCompacting, needsCompacting + matches->numElements, match_dist_thresholder(threshold));
   unsigned int numElementsBelowThreshold = end - needsCompacting;
+  if(numElementsBelowThreshold == 0){
+    delete matches;
+    matches = nullptr;
+    return;
+  }
 
   printf("%d matches have been refined to %d matches using a cutoff of %f\n",matches->numElements,numElementsBelowThreshold,threshold);
 
