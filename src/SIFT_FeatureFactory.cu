@@ -43,7 +43,6 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     image->pixels->clear(gpu);//may want to nullify pixels for space
 
     features = this->createFeatures(image->size,orientationThreshold,maxOrientations,1.0f,gradients,keyPoints);
-
     delete gradients;
     delete keyPoints;
   }
@@ -431,8 +430,7 @@ __global__ void ssrlcv::fillDescriptors(const unsigned long numFeatures, const u
     __syncthreads();
     atomicAdd(&normSq, bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]*bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]);
     __syncthreads();
-    
-    features[blockId].descriptor.values[(threadIdx.y*4 + threadIdx.x)*8 + threadIdx.z] = (unsigned char) bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]*255.0f/sqrtf(normSq);
+    features[blockId].descriptor.values[(threadIdx.y*4 + threadIdx.x)*8 + threadIdx.z] = (unsigned char) roundf(255.0f*bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]/sqrtf(normSq));
     if(threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0){
       features[blockId].descriptor.theta = theta;
       features[blockId].descriptor.sigma = 1.0f;
@@ -523,7 +521,7 @@ float pixelWidth, float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoint
     __syncthreads();
     atomicAdd(&norm,bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]*bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]);
     __syncthreads();
-    features[blockId].descriptor.values[(threadIdx.y*4 + threadIdx.x)*8 + threadIdx.z] = (unsigned char) 255.0f*bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]/sqrtf(norm);
+    features[blockId].descriptor.values[(threadIdx.y*4 + threadIdx.x)*8 + threadIdx.z] = (unsigned char) roundf(255.0f*bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]/sqrtf(norm));
     if(threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0){
       features[blockId].descriptor.theta = kp.theta;
       features[blockId].descriptor.sigma = kp.sigma;

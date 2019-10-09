@@ -56,6 +56,7 @@ void printSIFTFeature(ssrlcv::Feature<ssrlcv::SIFT_Descriptor> feature){
       }
     }
   }
+  printf("\n\n");
 }
 
 int main(int argc, char *argv[]){
@@ -65,11 +66,6 @@ int main(int argc, char *argv[]){
     cuInit(0);
     clock_t totalTimer = clock();
     clock_t partialTimer = clock();
-
-    //these images are equivalent and are for testing feature matching and generation
-    // std::vector<std::string> imagePaths;
-    // imagePaths.push_back("data/feature_test/ev00.png");
-    // imagePaths.push_back("data/feature_test/ev01.png");
 
     //ARG PARSING
     if(argc < 2 || argc > 4){
@@ -89,7 +85,6 @@ int main(int argc, char *argv[]){
       ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
       images.push_back(image);
       allFeatures.push_back(features);
-      features->transferMemoryTo(ssrlcv::cpu);
     }
     ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,200.0f);
     std::cout << "Starting matching, this will take a while ..." << std::endl;
