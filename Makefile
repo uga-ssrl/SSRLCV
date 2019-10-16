@@ -147,6 +147,10 @@ ${TESTDIR}/obj/%.cu.o: ${TESTDIR}/src/%.cu ${TESTDIR}/unit-testing.h
 ${TESTDIR}/bin/cpp/%: ${TESTDIR}/obj/%.cpp.o ${TEST_OBJS}
 	${LINK} ${GENCODEFLAGS} ${LIB} ${TEST_OBJS} $< -o $@
 
+${TESTDIR}/bin/cu/%: ${TESTDIR}/obj/%.cu.o ${TEST_OBJS}
+	${LINK} ${GENCODEFLAGS} ${LIB} ${TEST_OBJS} $< -o $@
+
+
 
 #
 # Clean
