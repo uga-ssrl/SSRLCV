@@ -6,13 +6,16 @@ data/*
 bin/*
 .csv
 *.ply
+
 .DS_Store
 */.DS_Store
 */*/.DS_Store
 */*/*/.DS_Store
 */*/*/*/.DS_Store
+
 util/.DS_Store
 src/.DS_Store
+
 data/.DS_Store
 data/img/.DS_Store
 data/img/carl_pan/.DS_Store
@@ -26,12 +29,17 @@ util/io/._*
 
 doc/doxygen/documentation/*
 
+util/detect-compute-capability
 util/CI/bin/cpp/*
 util/CI/bin/cu/*
 util/CI/obj/*
 util/CI/tmp/*
 
+doc/paper/*.aux
+doc/paper/*.toc
+doc/paper/*.xml
+doc/paper/*.bcf
+doc/paper/*.~
+
 project.*
 .vscode/
-
-util/detect-compute-capability
