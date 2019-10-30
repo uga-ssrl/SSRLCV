@@ -1,12 +1,144 @@
 \chapter{N/Multiview Reprojection}
 
 \section{Overview}
+At this stage we are exclusivley in $\mathbb{R}^{3}$.
+For the purpose of our software, we expect points in the form $P = (p_x, p_y, p_z)$
+and their corresponding orientation as a unit vector $\hat{U} = (\hat{u}_x, \hat{u}_y, \hat{u}_z)$,
+we expect these together in a tuple $ ((p_x, p_y, p_z), (\hat{u}_x, \hat{u}_y, \hat{u}_z))_n $.
+This tuple comes with several ($n$ many) tuples which all uniquely correspond with a matched set.
+So we have a $\mathbb{R}^{3}$ match set $M = \{ (P, \hat{U})_0, (P, \hat{U})_1, ... , (P, \hat{U})_n \}$
+where $n$ is the numnber of tuple pairs and has a one-to-one correspondence with
+the number of views in which the $\mathbb{R}^{2}$ match was found.
+We all also get a set of $\mathbb{R}^{3}$ matches,
+$M_i$,
+resulting in a set which has a one-to-one correspondence with the total number
+of points we should have after reprojection.
 
-For the purpose of our software, we expect a set of points $P_n = (p_x, p_y, p_z)$
-and their corresponding orientation as a unit vector $\hat{P}_n = (\hat{u}_x, \hat{u}_y, \hat{u}_z)$
-orientations , at this stage we are exclusivley in $\mathbb{R}^{3}$
+\begin{center}
+\begin{tikzpicture}
+
+% the grid and stuff
+\draw[step=1cm,gray,very thin] (0,0) grid (5,5);
+\foreach \x in {0,1,2,3,4,5}
+   \draw (\x cm,1pt) -- (\x cm,-1pt) node[anchor=north] {$\x$};
+\foreach \y in {0,1,2,3,4,5}
+    \draw (1pt,\y cm) -- (-1pt,\y cm) node[anchor=east] {$\y$};
+
+% the arrows
+\draw[->](1,0.5) -- (1.5,1.5);
+\draw[->](2.5,0.5) -- (2.5,1.5);
+\draw[->](4,0.5) -- (3.4,1.5);
+
+% dotted lines
+\draw[red,thin,dashed] (1.5,1.5) -- (3.25,5.0);
+\draw[red,thin,dashed] (2.5,1.5) -- (2.5,5.0);
+\draw[red,thin,dashed] (3.4,1.5) -- (1.3,5.0);
+
+% points
+\filldraw (1,0.5) circle[radius=1.5pt];
+\node[left=8pt of {(1,0.5)}, outer sep=1pt] {$(P,\hat{U})_0$};
+\filldraw (2.5,0.5) circle[radius=1.5pt];
+\node[below=8pt of {(2.5,0.5)}] {$(P,\hat{U})_1$};
+\filldraw (4,0.5) circle[radius=1.5pt];
+\node[right=8pt of {(4,0.5)}, outer sep=1pt] {$(P,\hat{U})_2$};
+\filldraw (2.45,3.25) circle[radius=1.5pt];
+\node[right=8pt of {(2.45,3.25)}, outer sep=1pt] {$C$};
+
+% labels
+
+\end{tikzpicture}
+\end{center}
+
+I know I said we're in $\mathbb{R}^{3}$ (and we are), just imagine that the diagram
+above illustrates the values within a particular Z plane. Note that the diagram
+could be similar if any arbitary plane is chosen.\\
+\\
+In the above diagram, assume that point $C$ is the correct real world point and
+has no orientation. We're trying to make a best guess at was $C$ is given our
+imperfect information.
 
 \section{3 by 3 Inversion Method}
-Caleb made up the name to this method, so don't search it because you probably
-won't find anything about it. \\
+Caleb (me the person writing this) made up the name to this method, so don't
+search it because you probably won't find anything about it. \\
 \\
+First, remember the identity:
+\[
+(m \times n) \cdot (m \times n) = || m ||^2  || n ||^2 - (m \cdot n)^2
+\]
+Then note, we have the distance function, measuring how much a given
+$((p_x, p_y, p_z), (\hat{u}_x, \hat{u}_y, \hat{u}_z))_n$ tuple (which represents
+a line) misses the real world targe point $C$. Not this function is calculated
+for each tuple.
+\[
+D_n = \frac{||(C - P_n) \times \hat{U}_n || }{ || \hat{U}_n ||}
+\]
+We will want to use the square of the distance (as is common in many optimization
+problems) to insure convex optimization and positive distance values. We also use
+the identity mentioned above to get our primary distance equation. Then, taking
+the first derivative of the distance function will, to find a $0$ solution, will
+give us a local minimum value.
+\begin{align*}
+    D_n &= \frac{||(C - P_n) \times \hat{U}_n || }{ || \hat{U}_n ||} \\
+    D_n^2 &= \Big( \frac{||(C - P_n) \times \hat{U}_n || }{ || \hat{U}_n ||} \Big)^2 \\
+    D_n^2 &= \frac{||(C - P_n) \times \hat{U}_n ||^2  }{ || \hat{U}_n ||^2 }\\
+    D_n^2 &= \frac{ || C - P_n ||^2   || \hat{U}_n ||^2 - ||(C - P_n) \cdot \hat{U}_n ||^2 }{ || \hat{U}_n ||^2 }\\
+    D_n^2 &= || C - P_n ||^2  - \frac{ ||(C - P_n) \cdot \hat{U}_n ||^2 }{|| \hat{U}_n ||^2} \\
+    \frac{d D_n^2}{d C} &= 2 (C - P_n) - 2 \hat{U}_n  \frac{ (C - P_n) \cdot \hat{U}_n }{ || \hat{U}_n ||^2 }
+\end{align*}
+So, we need to find a zero for the following (note that we are dealing with a
+vector in $\mathbb{R}^{3}$, so $0 = [0 , 0, 0]^T$). the value $m$ is the total number
+of $\mathbb{R}^{3}$ match points:
+
+\begin{align*}
+  0 &= \sum_{n=0}^m C - P_n - \hat{U}_n \frac{ (C - P_n) \cdot \hat{U}_n }{ || \hat{U}_n ||^2 }\\
+  0 &= \sum_{n=0}^m C - P_n - \frac{ \hat{U}_n ( C \cdot \hat{U}_n ) }{ || \hat{U}_n ||^2 } + \frac{ \hat{U}_n ( P_n \cdot \hat{U}_n ) }{ || \hat{U}_n ||^2 } \\
+  0 &= \sum_{n=0}^m C - P_n - \frac{ \hat{U}_n \hat{U}_n^T C }{ || \hat{U}_n ||^2 } + \frac{ \hat{U}_n \hat{U}_n^T P_n }{ || \hat{U}_n ||^2 }\\
+  0 &= \sum_{n=0}^m \Big( I -  \frac{ \hat{U}_n \hat{U}_n^T }{ || \hat{U}_n ||^2 }  \Big) C - \Big( P_n - \frac{ \hat{U}_n \hat{U}_n^T P_n }{ || \hat{U}_n ||^2 } \Big)
+\end{align*}
+
+Notice this is of the form $Ax = b$ because we now have $0 = Ax - b$. The next
+thing to note is we can remove the summations and get a system that results in
+taking an inverse of a 3 by 3 matrix.\\
+\\
+Notice the possible expansion:
+\begin{align*}
+  0 &= \sum_{n=0}^m \Big( I -  \frac{ \hat{U}_n \hat{U}_n^T }{ || \hat{U}_n ||^2 }  \Big) C - \Big( P_n - \frac{ \hat{U}_n \hat{U}_n^T P_n }{ || \hat{U}_n ||^2 } \Big)\\
+  0 &= \Bigg( \Big( I -  \frac{ \hat{U}_0 \hat{U}_0^T }{ || \hat{U}_0 ||^2 }  \Big) + \Big( I -  \frac{ \hat{U}_1 \hat{U}_1^T }{ || \hat{U}_1 ||^2 } \Big) + \Big( I -  \frac{ \hat{U}_2 \hat{U}_2^T }{ || \hat{U}_2 ||^2 } \Big) + ...  \Bigg) C - \Bigg( \Big( P_0 - \frac{ \hat{U}_0 \hat{U}_0^T P_0 }{ || \hat{U}_0 ||^2 } \Big) + \Big( P_1 - \frac{ \hat{U}_1 \hat{U}_1^T P_1 }{ || \hat{U}_1 ||^2 } \Big) + ... \Bigg) \\
+  0 &= (A) C - (b)\\
+  AC &= b \\
+  C &= A^{-1}b
+\end{align*}
+So, the meat of this method is to calculate the $A$ matrix's inverse and muplyply
+it by vector $b$ to find the estimated point $C$. succinctly, these are calcualted:
+\[
+A = \sum_{n=0}^m \Big( I -  \frac{ \hat{U}_n \hat{U}_n^T }{ || \hat{U}_n ||^2 } \Big)
+\]
+\[
+b = \sum_{n=0}^m \Big( P_n - \frac{ \hat{U}_n \hat{U}_n^T P_n }{ || \hat{U}_n ||^2 } \Big)
+\]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+% yeet

@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.4.16)  30 OCT 2019 14:10
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.4.16)  30 OCT 2019 16:15
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1113,13 +1113,25 @@ Chapter 5.
 
  (./nviewreprojection.tex
 Chapter 6.
-)
-Underfull \hbox (badness 10000) in paragraph at lines 10--78
+
+Overfull \hbox (13.04695pt too wide) in paragraph at lines 4--16
+\OT1/cmr/m/n/10 their cor-re-spond-ing ori-en-ta-tion as a unit vec-tor $[] = (
+[]\OML/cmm/m/it/10 ; []; []\OT1/cmr/m/n/10 )$, we ex-pect these to-gether in a 
+tu-ple $((\OML/cmm/m/it/10 p[]; p[]; p[]\OT1/cmr/m/n/10 )\OML/cmm/m/it/10 ; \OT
+1/cmr/m/n/10 ([]\OML/cmm/m/it/10 ; []; []\OT1/cmr/m/n/10 ))[]$.
+ []
+
+Missing character: There is no ) in font nullfont!
+Missing character: There is no ) in font nullfont!
+Missing character: There is no ) in font nullfont!
+Missing character: There is no ) in font nullfont!
+
+Underfull \hbox (badness 10000) in paragraph at lines 52--59
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 10--78
+Underfull \hbox (badness 10000) in paragraph at lines 61--65
 
  []
 
@@ -1128,11 +1140,16 @@ Underfull \hbox (badness 10000) in paragraph at lines 10--78
 
 
 ]
+Underfull \hbox (badness 10000) in paragraph at lines 99--104
+
+ []
+
+) [11]
 \openout2 = `reconstruction.aux'.
 
  (./reconstruction.tex
 Chapter 7.
-) [11
+) [12
 
 
 
@@ -1146,11 +1163,11 @@ Underfull \hbox (badness 10000) in paragraph at lines 9--10
 
  []
 
-[12
+[13
 
 
 
-] [13] (./main.aux (./intro.aux) (./featuredetection.aux)
+] [14] (./main.aux (./intro.aux) (./featuredetection.aux)
 (./featureextraction.aux) (./featurematching.aux) (./2viewreprojection.aux)
 (./nviewreprojection.aux) (./reconstruction.aux) (./BA.aux))
 Package logreq Info: Writing requests to 'main.run.xml'.
@@ -1160,13 +1177,13 @@ Package logreq Info: Writing requests to 'main.run.xml'.
 (\end occurred when \iftrue on line 80 was incomplete)
 (\end occurred when \ifnum on line 80 was incomplete) 
 Here is how much of TeX's memory you used:
- 31738 strings out of 492649
- 758810 string characters out of 6129622
+ 31759 strings out of 492649
+ 759308 string characters out of 6129622
  1280391 words of memory out of 5000000
- 35052 multiletter control sequences out of 15000+600000
+ 35073 multiletter control sequences out of 15000+600000
  13185 words of font info for 51 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 62i,10n,96p,815b,920s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 62i,12n,96p,815b,920s stack positions out of 5000i,500n,10000p,200000b,80000s
 </usr/local/texlive/2018/t
 exmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></usr/local/texlive/2018/te
 xmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/local/texlive/2018/tex
@@ -1191,10 +1208,10 @@ msfonts/cm/cmsy7.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/ams
 fonts/cm/cmsy8.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfo
 nts/cm/cmtt12.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfon
 ts/symbols/msbm10.pfb>
-Output written on main.pdf (14 pages, 577239 bytes).
+Output written on main.pdf (15 pages, 585761 bytes).
 PDF statistics:
- 149 PDF objects out of 1000 (max. 8388607)
- 106 compressed objects within 2 object streams
+ 152 PDF objects out of 1000 (max. 8388607)
+ 108 compressed objects within 2 object streams
  0 named destinations out of 1000 (max. 500000)
  18 words of extra memory for PDF output out of 10000 (max. 10000000)
 
