@@ -39,6 +39,7 @@ doc/paper/*.aux
 doc/paper/*.toc
 doc/paper/*.xml
 doc/paper/*.bcf
+doc/paper/*.~
 
 project.*
 .vscode/
