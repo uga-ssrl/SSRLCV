@@ -78,6 +78,10 @@ int main(int argc, char *argv[]){
     int numImages = (int) imagePaths.size();
 
     ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1.5f,6.0f);
+    ssrlcv::Image* seed = new ssrlcv::Image("../data/seed_images/seed_noise.png",-1);
+    ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8);  
+    
+
     std::vector<ssrlcv::Image*> images;
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
     for(int i = 0; i < numImages; ++i){

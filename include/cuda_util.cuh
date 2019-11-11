@@ -10,6 +10,8 @@
 #include <cusolverDn.h>
 #include <stdio.h>
 #include <iostream>
+#include <map>
+#include <string>
 
 /*
 NOTE cannot use device inline statements (nvcc link issue)
@@ -178,13 +180,16 @@ __device__ __forceinline__ unsigned long getGlobalIdx_3D_3D(){
 }
 */
 
-//TODO make grid and block setting max occupancy and add more overloaded methods for various situations
-//currently only supports up to grid.x grid.y
-void getFlatGridBlock(unsigned long size, dim3 &grid, dim3 &block);
-void getGrid(unsigned long size, dim3 &grid);
+//NOTE these only consider max number of threads for a given device
+void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, int device = 0);
+void getGrid(unsigned long numElements, dim3 &grid, int device = 0);
+void checkDims(dim3 grid, dim3 block, int device = 0);  
+//max occupancy needs to be completed
+void convertToMaxOccupancy(unsigned long numElements, dim3 &grid, dim3 &block, int device = 0);
+
+
 __host__ void cusolverCheckError(cusolverStatus_t cusolver_status);
 void printDeviceProperties();
-
 
 /* We can overload the following
 + 	- 	* 	/ 	% 	^
