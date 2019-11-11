@@ -564,7 +564,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
     float* thetas_device = nullptr;
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
-    unsigned int numKeyPointsAtBlur = 0;
+    unsigned long numKeyPointsAtBlur = 0;
     MemoryState origin;
     unsigned int numOrientedKeyPoints = 0;
     unsigned int totalKeyPoints = 0;
@@ -606,7 +606,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
             gradientsExisted = currentBlur->gradients != nullptr;
             if(!gradientsExisted) currentBlur->computeGradients();
             if(currentBlur->gradients->state != gpu) currentBlur->gradients->setMemoryState(gpu);
-        
+            
             computeThetas<<<grid,block>>>(numKeyPointsAtBlur,keyPointIndex,currentBlur->size, currentOctave->pixelWidth,
                 contributerWindowWidth,currentOctave->extrema->device, currentBlur->gradients->device, thetaAddresses_device, maxOrientations, orientationThreshold, thetas_device);
             cudaDeviceSynchronize();
@@ -635,6 +635,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
                 cudaDeviceSynchronize();
                 CudaCheckError();
             }
+
             CudaSafeCall(cudaFree(thetas_device));
             CudaSafeCall(cudaFree(thetaAddresses_device));
         }

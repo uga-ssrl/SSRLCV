@@ -283,6 +283,10 @@ __device__ __host__ bool operator<(const float2 &a, const int2 &b){
   return (a.x < b.x) && (a.y < b.y);
 }
 
+//todo fill in with https://en.wikipedia.org/wiki/CUDA 
+//std::map<std::string,int> compute_maxResidentBlocks;
+//std::map<float,int> compute_maxRegisterPerThread;
+
 
 
 
@@ -290,40 +294,114 @@ void max_occupancy(dim3 &grid, dim3 &block, const int &gridDim, const int &block
 
 }
 
-void getFlatGridBlock(unsigned long size, dim3 &grid, dim3 &block) {
-  if(2147483647 > size){
-    grid.x = size;
+//block size should reflect device capability 
+void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, int device) {
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, device);
+  cudaDeviceSynchronize();
+  grid = {prop.maxGridSize[0],prop.maxGridSize[1],prop.maxGridSize[2]};
+  block = {320,1,1};  
+
+  if(numElements < block.x){
+    block.x = numElements;
+    grid = {1,1,1};
   }
-  else if((unsigned long) 2147483647 * 1024 > size){
-    grid.x = 2147483647;
-    block.x = 1024;
-    while(block.x * grid.x > size){
-      block.x--;
-    }
-    block.x++;
+  else if(numElements < grid.x*block.x*block.y*block.z){
+    grid.x = numElements/(block.x*block.y*block.z);
+    grid.x++;
+    grid.y = 1;
+    grid.z = 1;
   }
   else{
-    grid.x = 65535;
-    block.x = 1024;
-    grid.y = 1;
-    while(grid.x * grid.y * block.x < size){
+    grid.x = 65536;
+    if(numElements < grid.x*grid.y*block.x*block.y*block.z){
+      grid.y = numElements/(grid.x*block.x*block.y*block.z);
       grid.y++;
+      grid.z = 1;
+    }
+    else if(numElements < grid.x*grid.y*grid.z*block.x*block.y*block.z){
+      grid.z = numElements/(grid.x*grid.y*block.x*block.y*block.z);
+      grid.z++;
     }
   }
 }
-void getGrid(unsigned long size, dim3 &grid) {
-  if(2147483647 > size){
-    grid.x = size;
+void getGrid(unsigned long numElements, dim3 &grid, int device) {
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, device);
+  grid = {prop.maxGridSize[0],prop.maxGridSize[1],prop.maxGridSize[2]};
+  if(numElements < grid.x){
+    grid.x = numElements;
+    grid.y = 1;
+    grid.z = 1;
   }
   else{
-    grid.x = 65535;
-    grid.y = 1;
-    while(grid.x * grid.y * grid.y < size){
+    grid.x = 65536;
+    if(numElements < grid.x*grid.y){
+      grid.y = numElements/grid.x;
       grid.y++;
+      grid.z = 1;
     }
+    else if(numElements < grid.x*grid.y*grid.z){
+      grid.z = numElements/(grid.x*grid.y);
+      grid.z++;
+    }
+  }
+}
+void checkDims(dim3 grid, dim3 block, int device){
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, device);
+  bool goodDims = true;
+  if(grid.x > prop.maxGridSize[0]){
+    goodDims = false;
+  }
+  else if(grid.y > prop.maxGridSize[1]){
+    goodDims = false;
+  }
+  else if(grid.z > prop.maxGridSize[2]){
+    goodDims = false;
+  }
+  else if(block.x > prop.maxThreadsDim[0]){
+    goodDims = false;
+  }
+  else if(block.y > prop.maxThreadsDim[1]){
+    goodDims = false;
+  }
+  else if(block.z > prop.maxThreadsDim[2]){
+    goodDims = false;
+  }
+  else if(block.x*block.y*block.z > prop.maxThreadsPerBlock){
+    goodDims = false;
+  }
+  if(!goodDims){
+    std::cerr<<"ERROR: grid or block dims are invalid for given device"<<std::endl;
+    exit(-1);
+    //TODO replace with exception and make more specific
+    //maybe make macro like CudaSafeCall()
   }
 }
 
+//TODO complete this method
+void convertToMaxOccupancy(unsigned long numElements, dim3 &grid, dim3 &block, int device){
+  /*
+  Occupancy = Active Warps / Maximum Active Warps
+  Remember: resources are allocated for the entire block
+    - resources are finite
+    - utilizing too many resources per thread may limit the occupancy
+  Limiters of Occupancy
+    - register usage
+      - to determine register usage compile with --ptxas-options=-v
+      - can control register usage with nvcc flag --maxrregcount
+    - shared memory usage
+    - block size  printf("  -Shared Memory per block (bytes): %lo\n", prop.sharedMemPerBlock);
+  */
+  dim3 originalGrid = grid;
+  dim3 originalBlock = block;
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, device);
+  // TODO make a table from this wikipedi page based on compute capability
+  // https://en.wikipedia.org/wiki/CUDA 
+  // this will get max number of active blocks per sm
+}
 __host__ void cusolverCheckError(cusolverStatus_t cusolver_status){
   switch (cusolver_status){
       case CUSOLVER_STATUS_SUCCESS:
@@ -475,116 +553,3 @@ void printDeviceProperties(){
   std::cout<<"\n----------------END OF DEVICE PROPERTIES----------------\n"<<std::endl;
 }
 
-void checkDims(dim3 grid, dim3 block, int device){
-  cudaDeviceProp prop;
-  cudaGetDeviceProperties(&prop, device);
-  bool goodDims = true;
-  if(grid.x > prop.maxGridSize[0]){
-    goodDims = false;
-  }
-  else if(grid.y > prop.maxGridSize[1]){
-    goodDims = false;
-  }
-  else if(grid.z > prop.maxGridSize[2]){
-    goodDims = false;
-  }
-  else if(block.x > prop.maxThreadsDim[0]){
-    goodDims = false;
-  }
-  else if(block.y > prop.maxThreadsDim[1]){
-    goodDims = false;
-  }
-  else if(block.z > prop.maxThreadsDim[2]){
-    goodDims = false;
-  }
-  else if(block.x*block.y*block.z > prop.maxThreadsPerBlock){
-    goodDims = false;
-  }
-  if(!goodDims){
-    std::cerr<<"ERROR: grid or block dims are invalid for given device"<<std::endl;
-    exit(-1);
-    //TODO replace with exception and make more specific
-    //maybe make macro like CudaSafeCall()
-  }
-}
-void getMaxGrid(unsigned long numElements, dim3 &grid, int device){
-  cudaDeviceProp prop;
-  cudaGetDeviceProperties(&prop, device);
-  grid = {prop.maxGridSize[0],prop.maxGridSize[1],prop.maxGridSize[2]};
-  if(numElements < grid.x){
-    grid.y = 1;
-    grid.z = 1;
-  }
-  else if(numElements < grid.x*grid.y){
-    while(numElements < grid.x*(--grid.y));
-    grid.y++;
-    grid.z = 1;
-  }
-  else if(numElements < grid.x*grid.y*grid.z){
-    while(numElements < grid.x*grid.y*(--grid.z));
-    grid.z++;
-  }
-}
-void getMaxFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, int device){
-  /*
-  Occupancy = Active Warps / Maximum Active Warps
-  Remember: resources are allocated for the entire block
-    - resources are finite
-    - utilizing too many resources per thread may limit the occupancy
-  Limiters of Occupancy
-    - register usage
-      - to determine register usage compile with --ptxas-options=-v
-      - can control register usage with nvcc flag --maxrregcount
-    - shared memory usage
-    - block size  printf("  -Shared Memory per block (bytes): %lo\n", prop.sharedMemPerBlock);
-  */
-  cudaDeviceProp prop;
-  cudaGetDeviceProperties(&prop, device);
-  grid = {prop.maxGridSize[0],prop.maxGridSize[1],prop.maxGridSize[2]};
-  block = {prop.maxThreadsDim[0],prop.maxThreadsDim[1],prop.maxThreadsDim[2]};  
-
-  if(prop.maxThreadsPerBlock < block.x){
-    block.y = 1;
-    block.z = 1;
-  }
-  else if(prop.maxThreadsPerBlock < block.x*block.y){
-    while(prop.maxThreadsPerBlock < block.x*(--block.y));
-    block.z = 1;
-  }
-  else if(prop.maxThreadsPerBlock < block.x*block.y*block.z){
-    while(prop.maxThreadsPerBlock < block.x*block.y*(--block.z));
-  }
-
-  if(numElements < grid.x*block.x*block.y*block.z){
-    grid.y = 1;
-    grid.z = 1;
-  }
-  else if(numElements < grid.x*grid.y*block.x*block.y*block.z){
-    while(numElements < grid.x*(--grid.y)*block.x*block.y*block.z);
-    grid.y++;
-    grid.z = 1;
-  }
-  else if(numElements < grid.x*grid.y*grid.z*block.x*block.y*block.z){
-    while(numElements < grid.x*grid.y*(--grid.z)*block.x*block.y*block.z);
-    grid.z++;
-  }
-  // printf("  -32bit Registers per block: %d\n", prop.regsPerBlock);
-  // printf("  -Threads per warp: %d\n\n", prop.warpSize);
-  // printf("  -Total number of Multiprocessors: %d\n",prop.multiProcessorCount);
-  // printf("  -Shared Memory per Multiprocessor (bytes): %lo\n",prop.sharedMemPerMultiprocessor);
-  // printf("  -32bit Registers per Multiprocessor: %d\n\n", prop.regsPerMultiprocessor);
-  // printf("  -Number of asynchronous engines: %d\n", prop.asyncEngineCount);
-  // printf(" -Device Compute Capability:\n  -Major revision #: %d\n  -Minor revision #: %d\n", prop.major, prop.minor);
-}
-
-
-//TODO complete this method
-void convertToMaxOccupancy(unsigned long numElements, dim3 &grid, dim3 &block, int device){
-  dim3 originalGrid = grid;
-  dim3 originalBlock = block;
-  cudaDeviceProp prop;
-  cudaGetDeviceProperties(&prop, device);
-  //TODO make a table from this wikipedi page based on compute capability
-  // https://en.wikipedia.org/wiki/CUDA 
-  // this will get max number of active blocks per sm
-}
