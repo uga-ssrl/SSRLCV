@@ -30,6 +30,7 @@ namespace ssrlcv{
     struct Camera{
       float3 cam_pos;/**\brief position of camera*/
       float3 cam_vec;/**\brief pointing vector of camera*/
+      float axangle; /**\brief the axis angle or rotation aroud the camera vector */
       float fov;/**\brief feild of fiew of camera*/
       float foc;/**\brief focal length of camera*/
       float2 dpix;/**\brief real world size of each pixel*/
@@ -70,6 +71,9 @@ namespace ssrlcv{
       this->camera.cam_vec.y  = data.vec[1];
       this->camera.cam_vec.z  = data.vec[2];
 
+      // TODO: Need to pass through an axis angle
+      //this->camera.axangle  = data.axangle;
+
       this->camera.fov        = data.fov;
       this->camera.foc        = data.foc;
 
@@ -96,12 +100,12 @@ namespace ssrlcv{
 
   /**
   *\brief generate int2 gradients for each pixel with borders being symmetrized with an offset inward
-  * this symmetrization is based on finite difference and gradient approx 
+  * this symmetrization is based on finite difference and gradient approx
   */
   Unity<int2>* generatePixelGradients(uint2 imageSize, Unity<unsigned char>* pixels);
   /**
   *\brief generate float2 gradients for each pixel with borders being symmetrized with an offset inward
-  * this symmetrization is based on finite difference and gradient approx 
+  * this symmetrization is based on finite difference and gradient approx
   */
   Unity<float2>* generatePixelGradients(uint2 imageSize, Unity<float>* pixels);
   /**
@@ -124,7 +128,7 @@ namespace ssrlcv{
   Unity<float>* scaleImage(uint2 imageSize, unsigned int colorDepth, Unity<float>* pixels, float outputPixelWidth);
 
 
-  
+
   Unity<float>* convolve(uint2 imageSize, Unity<unsigned char>* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, bool symmetric = true);
   Unity<float>* convolve(uint2 imageSize, Unity<float>* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, bool symmetric = true);
 
@@ -158,7 +162,7 @@ namespace ssrlcv{
   __global__ void binImage(uint2 imageSize, unsigned int colorDepth, float* pixels, float* binnedImage);
   __global__ void upsampleImage(uint2 imageSize, unsigned int colorDepth, float* pixels, float* upsampledImage);
   __global__ void bilinearInterpolation(uint2 imageSize, unsigned int colorDepth, float* pixels, float* outputPixels, float outputPixelWidth);
-  
+
 
   //border condition 0
   __global__ void convolveImage(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
@@ -166,11 +170,11 @@ namespace ssrlcv{
   //border condition non0
   __global__ void convolveImage_symmetric(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
   __global__ void convolveImage_symmetric(uint2 imageSize, float* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
- 
+
   __global__ void convertToCharImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels);
   __global__ void convertToFltImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels);
   __global__ void normalize(unsigned long numPixels, float* pixels, float2 minMax);
-  
+
   __global__ void applyBorder(uint2 imageSize, unsigned int* featureNumbers, unsigned int* featureAddresses, float2 border);
   __global__ void getPixelCenters(unsigned int numValidPixels, uint2 imageSize, unsigned int* pixelAddresses, float2* pixelCenters);
 

@@ -3,6 +3,7 @@
 __device__ __host__ ssrlcv::Image::Camera::Camera(){
   this->cam_vec = {0.0f,0.0f,0.0f};
   this->cam_pos = {0.0f,0.0f,0.0f};
+  this->axangle = 0.0f;
   this->fov = 0;
   this->foc = 0;
   this->dpix = {0.0f,0.0f};
@@ -11,6 +12,7 @@ __device__ __host__ ssrlcv::Image::Camera::Camera(){
 __device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size){
   this->cam_vec = {0.0f,0.0f,0.0f};
   this->cam_pos = {0.0f,0.0f,0.0f};
+  this->axangle = 0.0f;
   this->fov = 0;
   this->foc = 0;
   this->dpix = {0.0f,0.0f};
@@ -19,6 +21,7 @@ __device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size){
 __device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size, float3 cam_pos, float3 camp_dir){
   this->cam_pos = cam_pos;
   this->cam_vec = cam_vec;
+  this->axangle = 0.0f;
   this->fov = 0;
   this->foc = 0;
   this->dpix = {0.0f,0.0f};
@@ -118,7 +121,7 @@ ssrlcv::Unity<unsigned char>* ssrlcv::addBufferBorder(uint2 size, ssrlcv::Unity<
   }
   if(pixels->numElements%((int)size.x*size.y) != 0){
     std::cerr<<"ERROR color depth cannot be determined due to pixels->numElements%(size.x*size.y) != 0"<<std::endl;
-  }  
+  }
   MemoryState origin = pixels->state;
   if(origin == cpu || pixels->fore == cpu) pixels->setMemoryState(cpu);
   uint2 newSize = {size.x + (border.x*2),size.y + (border.y*2)};
@@ -157,7 +160,7 @@ ssrlcv::Unity<float>* ssrlcv::addBufferBorder(uint2 size, ssrlcv::Unity<float>* 
   for(int y = 0; y < (int)size.y; ++y){
     CudaSafeCall(cudaMemcpy(bufferedPixels->device + ((y+border.y)*newSize.x) + border.x,pixels->device + (y*size.x),size.x*sizeof(float),cudaMemcpyDeviceToDevice));
   }
-  bufferedPixels->fore = gpu;  
+  bufferedPixels->fore = gpu;
   if(origin != gpu){
     bufferedPixels->setMemoryState(origin);
     pixels->setMemoryState(origin);
@@ -219,7 +222,7 @@ void ssrlcv::normalizeImage(Unity<float>* pixels){
 
   pixels->fore = gpu;
 
-  if(origin == cpu) pixels->setMemoryState(cpu);  
+  if(origin == cpu) pixels->setMemoryState(cpu);
 }
 void ssrlcv::normalizeImage(Unity<float>* pixels, float2 minMax){
   MemoryState origin = pixels->state;
@@ -233,7 +236,7 @@ void ssrlcv::normalizeImage(Unity<float>* pixels, float2 minMax){
 
   pixels->fore = gpu;
 
-  if(origin == cpu) pixels->setMemoryState(cpu);  
+  if(origin == cpu) pixels->setMemoryState(cpu);
 }
 
 void ssrlcv::convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth){
@@ -523,7 +526,7 @@ ssrlcv::Unity<unsigned char>* ssrlcv::bin(uint2 imageSize, unsigned int colorDep
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  
+
   if(origin == cpu) pixels->setMemoryState(cpu);
   if(origin != gpu) binnedImage->setMemoryState(origin);
   return binnedImage;
@@ -542,7 +545,7 @@ ssrlcv::Unity<float>* ssrlcv::bin(uint2 imageSize, unsigned int colorDepth, Unit
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  
+
   if(origin == cpu) pixels->setMemoryState(cpu);
   if(origin != gpu) binnedImage->setMemoryState(origin);
   return binnedImage;
@@ -656,7 +659,7 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<unsigned char>* pi
   dim3 block = {32,32,1};
   float2 minMax = {FLT_MAX,-FLT_MAX};
   float* min = nullptr;
- 
+
   if(symmetric){
     convolveImage_symmetric<<<grid,block>>>(imageSize, pixels->device, colorDepth, kernelSize, kernel_device, convolvedImage->device);
   }
@@ -684,7 +687,7 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<float>* pixels, un
   CudaSafeCall(cudaMemcpy(kernel_device,kernel,kernelSize.x*kernelSize.y*sizeof(float),cudaMemcpyHostToDevice));
   dim3 grid = {(imageSize.x/32)+1,(imageSize.y/32)+1,colorDepth};
   dim3 block = {32,32,1};
- 
+
   if(symmetric){
     convolveImage_symmetric<<<grid,block>>>(imageSize, pixels->device, colorDepth, kernelSize, kernel_device, convolvedImage->device);
   }
