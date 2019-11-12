@@ -127,11 +127,14 @@ namespace ssrlcv{
   */
   template<typename T>
   class MatchFactory{
+  private:
+    Unity<Feature<T>>* seedFeatures;
   public:
     float absoluteThreshold;
     float relativeThreshold;
     MatchFactory();
     MatchFactory(float relativeThreshold, float absoluteThreshold);
+    void setSeedFeatures(Unity<Feature<T>>* seedFeatures);//implement
 
     //NOTE nothing for nview is implemented
     //TODO consider making it so features are computed if they arent instead of throwing errors with image parameters
@@ -152,35 +155,37 @@ namespace ssrlcv{
     Unity<Match>* getRawMatches(Unity<DMatch>* matches);
     Unity<Match>* getRawMatches(Unity<FeatureMatch<T>>* matches);
 
+    Unity<float>* getSeedDistances(Unity<Feature<T>>* features);
 
     /**
     * \brief Generates matches between sift features
     */
-    Unity<Match>* generateMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures);
+    Unity<Match>* generateMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances = nullptr);
     /**
     * \brief Generates matches between sift features constrained by epipolar line
     * \warning This method requires Images to have filled out Camera variables
     */
-    Unity<Match>* generateMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon);
+    Unity<Match>* generateMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, Unity<float>* seedDistances = nullptr);
+    
     /**
     * \brief Generates matches between sift features
     */
-    Unity<DMatch>* generateDistanceMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures);
+    Unity<DMatch>* generateDistanceMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances = nullptr);
     /**
     * \brief Generates matches between sift features constrained by epipolar line
     * \warning This method requires Images to have filled out Camera variables
     */
-    Unity<DMatch>* generateDistanceMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon);
+    Unity<DMatch>* generateDistanceMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, Unity<float>* seedDistances = nullptr);
+    
     /**
     * \brief Generates matches between sift features
     */
-    Unity<FeatureMatch<T>>* generateFeatureMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures);
+    Unity<FeatureMatch<T>>* generateFeatureMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances = nullptr);
     /**
     * \brief Generates matches between sift features constrained by epipolar line
     * \warning This method requires Images to have filled out Camera variables
     */
-    Unity<FeatureMatch<T>>* generateFeatureMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon);
-
+    Unity<FeatureMatch<T>>* generateFeatureMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, Unity<float>* seedDistances = nullptr);
 
     /**
     * \brief interpolates Matches between multiple images
@@ -229,33 +234,63 @@ namespace ssrlcv{
 
 
 
+  template<typename T>
+  __global__ void getSeedMatchDistances(unsigned long numFeaturesQuery, Feature<T>* featuresQuery, unsigned long numSeedFeatures,
+    Feature<T>* seedFeatures, float* matchDistances);
+
   //base matching kernels
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, Match* matches, float relativeThreshold, float absoluteThreshold);
+    Feature<T>* featuresTarget, Match* matches, float absoluteThreshold);
+  template<typename T>
+  __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, Match* matches, float epsilon, float3 fundamental[3], float absoluteThreshold);
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, DMatch* matches, float relativeThreshold, float absoluteThreshold);
+    Feature<T>* featuresTarget, Match* matches, float* seedDistances ,float relativeThreshold, float absoluteThreshold);
+  template<typename T>
+  __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, Match* matches, float epsilon, float3 fundamental[3], float* seedDistances ,float relativeThreshold, float absoluteThreshold);
+
+
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, FeatureMatch<T>* matches, float relativeThreshold, float absoluteThreshold);
+    Feature<T>* featuresTarget, DMatch* matches, float absoluteThreshold);
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, Match* matches, float epsilon, float3 fundamental[3], 
+    Feature<T>* featuresTarget, DMatch* matches, float epsilon, float3 fundamental[3], float absoluteThreshold);
+  template<typename T>
+  __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, DMatch* matches, float* seedDistances, float relativeThreshold, float absoluteThreshold);
+  template<typename T>
+  __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, DMatch* matches, float epsilon, float3 fundamental[3], float* seedDistances,
     float relativeThreshold, float absoluteThreshold);
+  
+  template<typename T>
+  __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, FeatureMatch<T>* matches, float absoluteThreshold);
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, DMatch* matches, float epsilon, float3 fundamental[3], 
-    float relativeThreshold, float absoluteThreshold);
+    Feature<T>* featuresTarget, FeatureMatch<T>* matches, float epsilon, float3 fundamental[3], float absoluteThreshold);
+  template<typename T>
+  __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, FeatureMatch<T>* matches, float* seedDistances, float relativeThreshold, float absoluteThreshold);
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, FeatureMatch<T>* matches, float epsilon, float3 fundamental[3], 
+    Feature<T>* featuresTarget, FeatureMatch<T>* matches, float epsilon, float3 fundamental[3], float* seedDistances, 
     float relativeThreshold, float absoluteThreshold);
 
 

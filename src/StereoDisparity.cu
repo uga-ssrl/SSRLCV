@@ -69,7 +69,7 @@ int main(int argc, char *argv[]){
 
     //ARG PARSING
     if(argc < 2 || argc > 4){
-      std::cout<<"USAGE ./bin/StereoDisparity </path/to/image/directory/>"<<std::endl;
+      std::cout<<"USAGE ./bin/StereoDisparity </path/to/image/directory/> </path/to/optional/seedimage.png>"<<std::endl;
       exit(-1);
     }
     std::string path = argv[1];
@@ -78,9 +78,21 @@ int main(int argc, char *argv[]){
     int numImages = (int) imagePaths.size();
 
     ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1.5f,6.0f);
-    ssrlcv::Image* seed = new ssrlcv::Image("../data/seed_images/seed_noise.png",-1);
-    ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8);  
-    
+    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,250.0f);
+
+    /*
+    FEATURE EXTRACTION
+    */
+    //seed features extraction
+
+    ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* seedFeatures = nullptr;
+    if(argc == 3){
+      std::string seedPath = argv[2];
+      ssrlcv::Image* seed = new ssrlcv::Image(seedPath,-1);
+      seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8); 
+      matchFactory.setSeedFeatures(seedFeatures);
+      delete seed;
+    } 
 
     std::vector<ssrlcv::Image*> images;
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
@@ -90,9 +102,17 @@ int main(int argc, char *argv[]){
       images.push_back(image);
       allFeatures.push_back(features);
     }
-    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,200.0f);
-    std::cout << "Starting matching, this will take a while ..." << std::endl;
-    ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1]);
+    
+    /*
+    MATCHING
+    */
+    //seeding with false photo
+
+    std::cout << "Starting matching..." << std::endl;
+    ssrlcv::Unity<float>* seedDistances = (argc == 3) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;    
+    ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
+    if(seedDistances != nullptr) delete seedDistances;
+
     distanceMatches->transferMemoryTo(ssrlcv::cpu);
     float maxDist = 0.0f;
     for(int i = 0; i < distanceMatches->numElements; ++i){
@@ -117,6 +137,10 @@ int main(int argc, char *argv[]){
         matchstream << line;
       }
     }
+
+    /*
+    STEREODISPARITY
+    */
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
     ssrlcv::Unity<float3>* points = demPoints.stereo_disparity(matches,64.0f);
 
