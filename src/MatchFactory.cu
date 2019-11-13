@@ -726,6 +726,31 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
   return matches;
 }
 
+
+void ssrlcv::writeMatchFile(Unity<Match>* matches, std::string pathToFile){
+  std::ofstream matchstream(pathToFile);
+  MemoryState origin = matches->state;
+  if(origin == gpu) matches->transferMemoryTo(cpu);
+  if(matchstream.is_open()){
+    std::string line;
+    for(int i = 0; i < matches->numElements; ++i){
+      line = std::to_string(matches->host[i].keyPoints[0].loc.x) + ",";
+      line += std::to_string(matches->host[i].keyPoints[0].loc.y) + ",";
+      line += std::to_string(matches->host[i].keyPoints[1].loc.x) + ",";
+      line += std::to_string(matches->host[i].keyPoints[1].loc.y) + "\n";
+      matchstream << line;
+    }
+    matchstream.close();
+  }
+  else{
+    std::cerr<<"ERROR: cannot write match files"<<std::endl;
+    exit(-1);
+  }
+  std::cout<<pathToFile<<" has been written"<<std::endl;
+  if(origin == gpu) matches->setMemoryState(gpu);
+}
+
+
 /*
 CUDA implementations
 */

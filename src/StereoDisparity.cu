@@ -123,26 +123,17 @@ int main(int argc, char *argv[]){
     ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
     delete distanceMatches;
     std::string delimiter = "/";
-    std::string newFile = imagePaths[0].substr(0,imagePaths[0].rfind(delimiter)) + "/matches.txt";
-    std::ofstream matchstream(newFile);
-    std::cout<<newFile<<std::endl;
-    matches->transferMemoryTo(ssrlcv::cpu);
-    if(matchstream.is_open()){
-      std::string line;
-      for(int i = 0; i < matches->numElements; ++i){
-        line = std::to_string(matches->host[i].keyPoints[0].loc.x) + ",";
-        line += std::to_string(matches->host[i].keyPoints[0].loc.y) + ",";
-        line += std::to_string(matches->host[i].keyPoints[1].loc.x) + ",";
-        line += std::to_string(matches->host[i].keyPoints[1].loc.y) + "\n";
-        matchstream << line;
-      }
-    }
-
+    std::string matchFile = imagePaths[0].substr(0,imagePaths[0].rfind(delimiter)) + "/matches.txt";
+    ssrlcv::writeMatchFile(matches, matchFile);
+    
     /*
     STEREODISPARITY
     */
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
     ssrlcv::Unity<float3>* points = demPoints.stereo_disparity(matches,64.0f);
+    std::string disparityFile = imagePaths[0].substr(0,imagePaths[0].rfind(delimiter));
+    disparityFile = disparityFile.substr(0,disparityFile.rfind(delimiter))  + "/disparity.png";
+    ssrlcv::writeDisparityImage(points,63,disparityFile);
 
     delete matches;
     ssrlcv::writePLY("out/test.ply",points);

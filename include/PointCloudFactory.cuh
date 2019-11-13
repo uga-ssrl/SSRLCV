@@ -8,6 +8,7 @@
 #include "Image.cuh"
 #include "MatchFactory.cuh"
 #include "Unity.cuh"
+#include "io_util.h"
 
 
 namespace ssrlcv{
@@ -58,10 +59,9 @@ namespace ssrlcv{
     BundleSet generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images);
 
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float scale);
+  };  
 
-  };
-
-
+  void writeDisparityImage(Unity<float3>* points, unsigned int disparityLevels, std::string pathToFile);
 
   __global__ void generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras);
 

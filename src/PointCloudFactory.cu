@@ -398,6 +398,41 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   return points;
 }
 
+void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int disparityLevels, std::string pathToFile){
+  if(disparityLevels > 255){
+    std::cerr<<"ERROR: only can write disparity file with max disparities of 256 or below"<<std::endl;
+    exit(-1);
+  }
+  MemoryState origin = points->state;
+  if(origin == gpu) points->transferMemoryTo(cpu);
+  float3 min = {FLT_MAX,FLT_MAX,FLT_MAX};
+  float3 max = {-FLT_MAX,-FLT_MAX,-FLT_MAX};
+  for(int i = 0; i < points->numElements; ++i){
+    if(points->host[i].x < min.x) min.x = points->host[i].x;
+    if(points->host[i].x > max.x) max.x = points->host[i].x;
+    if(points->host[i].y < min.y) min.y = points->host[i].y;
+    if(points->host[i].y > max.y) max.y = points->host[i].y;
+    if(points->host[i].z < min.z) min.z = points->host[i].z;
+    if(points->host[i].z > max.z) max.z = points->host[i].z;
+  }
+  uint2 imageDim = {(int)ceil(max.x-min.x),(int)ceil(max.y-min.y)}; 
+  unsigned char* disparityImage = new unsigned char[imageDim.x*imageDim.y]();
+  for(int i = 0; i < points->numElements; ++i){
+    float3 temp = points->host[i];
+    temp = temp - min;
+    //TODO use disparity levels
+    temp.z /= (max.z - min.z);
+    temp.z *= disparityLevels;
+    int color = roundf(temp.z);
+    color *= 255/disparityLevels;
+    disparityImage[((int)ceil(temp.y)*imageDim.x) + (int)ceil(temp.x)] = (unsigned char)roundf((ceil(temp.x)-temp.x)*(ceil(temp.y)-temp.y))*color;
+    disparityImage[((int)ceil(temp.y)*imageDim.x) + (int)floor(temp.x)] = (unsigned char)roundf((temp.x-floor(temp.x))*(ceil(temp.y)-temp.y))*color;
+    disparityImage[((int)floor(temp.y)*imageDim.x) + (int)ceil(temp.x)] = (unsigned char)roundf((ceil(temp.x)-temp.x)*(temp.y-floor(temp.y)))*color;
+    disparityImage[((int)floor(temp.y)*imageDim.x) + (int)floor(temp.x)] = (unsigned char)roundf((temp.x-floor(temp.x))*(temp.y-floor(temp.y)))*color;
+  }
+  writePNG(pathToFile.c_str(),disparityImage,1,imageDim.x,imageDim.y);
+}
+
 
 // device methods
 

@@ -221,6 +221,9 @@ namespace ssrlcv{
 
 
   };
+
+  void writeMatchFile(Unity<Match>* matches, std::string pathToFile);
+
   /* CUDA variable, method and kernel defintions */
 
   extern __constant__ float matchTreshold;
