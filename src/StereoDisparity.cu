@@ -89,10 +89,10 @@ int main(int argc, char *argv[]){
     if(argc == 3){
       std::string seedPath = argv[2];
       ssrlcv::Image* seed = new ssrlcv::Image(seedPath,-1);
-      seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8); 
+      seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8);
       matchFactory.setSeedFeatures(seedFeatures);
       delete seed;
-    } 
+    }
 
     std::vector<ssrlcv::Image*> images;
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
@@ -102,14 +102,45 @@ int main(int argc, char *argv[]){
       images.push_back(image);
       allFeatures.push_back(features);
     }
-    
+
+    // TODO this needs tp be handled by setting stuff with the binary camera
+    // param reader and done at about the same time as image loading
+    images[0]->id = 0;
+    images[0]->camera.size = {1024,1024};
+    images[0]->camera.cam_pos = {7.81417,0.0,44.3630};
+    images[0]->camera.cam_vec = {-0.173648,0.0,-0.984808};
+    images[0]->camera.axangle = 0.0f;
+    images[0]->camera.fov = (11.4212 * (M_PI/180.0)); // 11.4212 degrees
+    images[0]->camera.foc = 0.16; // 160mm, 0.16m
+    // this can also be a passthru (and really should be)
+    images[0]->camera.dpix.x = (images[0]->camera.foc * tanf(images[0]->camera.fov / 2.0f)) / (images[0]->camera.size.x / 2.0f );
+    images[0]->camera.dpix.y = images[0]->camera.dpix.y;
+
+    images[1]->id = 1;
+    images[1]->camera.size = {1024,1024};
+    images[1]->camera.cam_pos = {0.0,0.0,45.0};
+    images[1]->camera.cam_vec = {0.0, 0.0,-1.0};
+    images[0]->camera.axangle = 0.0f;
+    images[1]->camera.fov = (0.0 * (M_PI/180.0));// 0 degress
+    images[1]->camera.foc = 0.16; //160mm, 0.16m
+    // this can also be a passthru (and really should be)
+    images[1]->camera.dpix.x = (images[1]->camera.foc * tanf(images[1]->camera.fov / 2.0f)) / (images[1]->camera.size.x / 2.0f );
+    images[1]->camera.dpix.y = images[1]->camera.dpix.y;
+
+    // make the camera array
+    size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
+    ssrlcv::Image::Camera* cameras;
+    cameras = (ssrlcv::Image::Camera*) malloc(cam_bytes);
+    cameras[0] = images[0]->camera;
+    cameras[1] = images[1]->camera;
+
     /*
     MATCHING
     */
     //seeding with false photo
 
     std::cout << "Starting matching..." << std::endl;
-    ssrlcv::Unity<float>* seedDistances = (argc == 3) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;    
+    ssrlcv::Unity<float>* seedDistances = (argc == 3) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
     ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
     if(seedDistances != nullptr) delete seedDistances;
 
@@ -142,7 +173,7 @@ int main(int argc, char *argv[]){
     STEREODISPARITY
     */
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
-    ssrlcv::Unity<float3>* points = demPoints.stereo_disparity(matches,64.0f);
+    ssrlcv::Unity<float3>* points = demPoints.stereo_disparity(matches,cameras);
 
     delete matches;
     ssrlcv::writePLY("out/test.ply",points);

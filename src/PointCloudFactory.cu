@@ -378,8 +378,12 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
 */
 ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>* matches, Image::Camera* cameras){
 
-  // float baseline = ;
-  float scale = 1.0f;
+  float baseline = sqrtf( (cameras[0].cam_pos.x - cameras[1].cam_pos.x)*(cameras[0].cam_pos.x - cameras[1].cam_pos.x)
+                        + (cameras[0].cam_pos.y - cameras[1].cam_pos.y)*(cameras[0].cam_pos.y - cameras[1].cam_pos.y)
+                        + (cameras[0].cam_pos.z - cameras[1].cam_pos.z)*(cameras[0].cam_pos.z - cameras[1].cam_pos.z));
+  float scale = (baseline * cameras[0].fov )/(cameras[0].dpix.x);
+
+  std::cout << "Stereo Baseline: " << baseline << ", Stereo Scale Factor: " << scale <<  ", Inverted Stereo Scale Factor: " << (1.0/scale) << std::endl;
 
   MemoryState origin = matches->state;
   if(origin == cpu) matches->transferMemoryTo(gpu);
@@ -394,6 +398,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   dim3 block = {1,1,1};
   getFlatGridBlock(matches->numElements,grid,block);
   //
+  // computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, 8.0);
   computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, scale);
 
   Unity<float3>* points = new Unity<float3>(points_device, matches->numElements,gpu);
@@ -489,7 +494,7 @@ __global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, f
   if (globalID < numMatches) {
     Match match = matches[globalID];
     float3 point = {match.keyPoints[0].loc.x,match.keyPoints[0].loc.y,0.0f};
-    point.z = sqrtf(scale*dotProduct(match.keyPoints[0].loc-match.keyPoints[1].loc,match.keyPoints[0].loc-match.keyPoints[1].loc));
+    point.z = scale / sqrtf( dotProduct(match.keyPoints[0].loc-match.keyPoints[1].loc,match.keyPoints[0].loc-match.keyPoints[1].loc)) ;
     points[globalID] = point;
   }
 }
