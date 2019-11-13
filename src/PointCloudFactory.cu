@@ -365,10 +365,47 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   return bundleSet;
 }
 
+// TODO fillout
+/**
+* Preforms a Stereo Disparity with the correct scalar, calcualated form camera
+* parameters
+* @param matches0
+* @param matches1
+* @param points assumes this has been allocated prior to method call
+* @param n the number of matches
+* @param cameras a camera array of only 2 Image::Camera structs. This is used to
+* dynamically calculate a scaling factor
+*/
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>* matches, Image::Camera* cameras){
+
+  // float baseline = ;
+  float scale = 1.0f;
+
+  MemoryState origin = matches->state;
+  if(origin == cpu) matches->transferMemoryTo(gpu);
+
+  // depth points
+  float3 *points_device = nullptr;
+
+  cudaMalloc((void**) &points_device, matches->numElements*sizeof(float3));
+
+  //
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(matches->numElements,grid,block);
+  //
+  computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, scale);
+
+  Unity<float3>* points = new Unity<float3>(points_device, matches->numElements,gpu);
+  if(origin == cpu) matches->setMemoryState(cpu);
+
+  return points;
+}
 
 // TODO fillout
 /**
-* Preforms a Stereo Disparity
+* Preforms a Stereo Disparity, this SHOULD NOT BE THE DEFAULT as the scale is not
+* dyamically calculated
 * @param matches0
 * @param matches1
 * @param points assumes this has been allocated prior to method call
