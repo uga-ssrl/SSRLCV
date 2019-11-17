@@ -17,20 +17,30 @@ namespace ssrlcv{
   /**
   * \brief method that allows Feature's with SIFT_Descriptor's to be matching in this class
   */
-  __device__ __forceinline__ float calcElucidSq(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b);
+  __device__ __forceinline__ float dist(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b);
   /**
   * \brief method that allows Feature's with SIFT_Descriptor's to be matching in this class
   */
-  __device__ __forceinline__ float calcElucidSq(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b, const float &bestMatch);
+  __device__ __forceinline__ float dist(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b, const float &bestMatch);
   /**
   * \brief method that allows SIFT_Descriptor's to be matching in this class
   */
-  __device__ __forceinline__ float calcElucidSq(const SIFT_Descriptor& a, const SIFT_Descriptor& b);
+  __device__ __forceinline__ float dist(const SIFT_Descriptor& a, const SIFT_Descriptor& b);
   /**
   * \brief method that allows SIFT_Descriptor's to be matching in this class
   */
-  __device__ __forceinline__ float calcElucidSq(const SIFT_Descriptor& a, const SIFT_Descriptor& b, const float &bestMatch);
+  __device__ __forceinline__ float dist(const SIFT_Descriptor& a, const SIFT_Descriptor& b, const float &bestMatch);
 
+  __device__ __forceinline__ int dist(const Window_3x3& a, const Window_3x3& b);
+  __device__ __forceinline__ int dist(const Window_9x9& a, const Window_9x9& b);
+  __device__ __forceinline__ int dist(const Window_15x15& a, const Window_15x15& b);
+  __device__ __forceinline__ int dist(const Window_25x25& a, const Window_25x25& b);
+  __device__ __forceinline__ int dist(const Window_35x35& a, const Window_35x35& b);
+  __device__ __forceinline__ int dist(const Window_3x3& a, const Window_3x3& b, const int &bestMatch);
+  __device__ __forceinline__ int dist(const Window_9x9& a, const Window_9x9& b, const int &bestMatch);
+  __device__ __forceinline__ int dist(const Window_15x15& a, const Window_15x15& b, const int &bestMatch);
+  __device__ __forceinline__ int dist(const Window_25x25& a, const Window_25x25& b, const int &bestMatch);
+  __device__ __forceinline__ int dist(const Window_35x35& a, const Window_35x35& b, const int &bestMatch);
 
   /**
   * \brief simple struct meant to fill out matches

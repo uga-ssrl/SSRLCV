@@ -666,6 +666,99 @@ ssrlcv::FeatureFactory::FeatureFactory(float orientationContribWidth, float desc
 orientationContribWidth(orientationContribWidth), descriptorContribWidth(descriptorContribWidth)
 {}
 
+
+ssrlcv::Unity<ssrlcv::Window_3x3>* ssrlcv::FeatureFactory::generate3x3Windows(Image* image){
+    MemoryState origin = image->pixels->state;
+    if(origin == cpu || image->pixels->fore == cpu){
+        image->pixels->setMemoryState(gpu);
+    }
+    dim3 grid = {1,1,1};
+    dim3 block = {3,3,1};
+    unsigned int numWindows = (image->size.x-2)*(image->size.y-2);
+    Unity<Window_3x3>* windows = new Unity<Window_3x3>(nullptr,numWindows,gpu);
+    fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
+    cudaDeviceSynchronize();
+    CudaCheckError();
+    if(origin == cpu){
+        image->pixels->setMemoryState(cpu);
+        windows->setMemoryState(cpu);
+    }    
+    return windows;
+}
+ssrlcv::Unity<ssrlcv::Window_9x9>* ssrlcv::FeatureFactory::generate9x9Windows(Image* image){
+    MemoryState origin = image->pixels->state;
+    if(origin == cpu || image->pixels->fore == cpu){
+        image->pixels->setMemoryState(gpu);
+    }
+    dim3 grid = {1,1,1};
+    dim3 block = {9,9,1};
+    unsigned int numWindows = (image->size.x-8)*(image->size.y-8);
+    Unity<Window_9x9>* windows = new Unity<Window_9x9>(nullptr,numWindows,gpu);
+    fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
+    cudaDeviceSynchronize();
+    CudaCheckError();
+    if(origin == cpu){
+        image->pixels->setMemoryState(cpu);
+        windows->setMemoryState(cpu);
+    }
+    return windows;
+}
+ssrlcv::Unity<ssrlcv::Window_15x15>* ssrlcv::FeatureFactory::generate15x15Windows(Image* image){
+    MemoryState origin = image->pixels->state;
+    if(origin == cpu || image->pixels->fore == cpu){
+        image->pixels->setMemoryState(gpu);
+    }
+    dim3 grid = {1,1,1};
+    dim3 block = {15,15,1};
+    unsigned int numWindows = (image->size.x-14)*(image->size.y-14);
+    Unity<Window_15x15>* windows = new Unity<Window_15x15>(nullptr,numWindows,gpu);
+    fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
+    cudaDeviceSynchronize();
+    CudaCheckError();
+    if(origin == cpu){
+        image->pixels->setMemoryState(cpu);
+        windows->setMemoryState(cpu);
+    }
+    return windows;
+}
+ssrlcv::Unity<ssrlcv::Window_25x25>* ssrlcv::FeatureFactory::generat25x25Windows(Image* image){
+    MemoryState origin = image->pixels->state;
+    if(origin == cpu || image->pixels->fore == cpu){
+        image->pixels->setMemoryState(gpu);
+    }
+    dim3 grid = {1,1,1};
+    dim3 block = {25,25,1};
+    unsigned int numWindows = (image->size.x-24)*(image->size.y-24);
+    Unity<Window_25x25>* windows = new Unity<Window_25x25>(nullptr,numWindows,gpu);
+    fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
+    cudaDeviceSynchronize();
+    CudaCheckError();
+    if(origin == cpu){
+        image->pixels->setMemoryState(cpu);
+        windows->setMemoryState(cpu);
+    }    
+    return windows;
+}
+ssrlcv::Unity<ssrlcv::Window_35x35>* ssrlcv::FeatureFactory::generate35x35Windows(Image* image){
+    MemoryState origin = image->pixels->state;
+    if(origin == cpu || image->pixels->fore == cpu){
+        image->pixels->setMemoryState(gpu);
+    }
+    dim3 grid = {1,1,1};
+    dim3 block = {35,35,1};
+    unsigned int numWindows = (image->size.x-34)*(image->size.y-34);
+    Unity<Window_35x35>* windows = new Unity<Window_35x35>(nullptr,numWindows,gpu);
+    fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
+    cudaDeviceSynchronize();
+    CudaCheckError();
+    if(origin == cpu){
+        image->pixels->setMemoryState(cpu);
+        windows->setMemoryState(cpu);
+    }
+    return windows;
+}
+
+
 ssrlcv::FeatureFactory::~FeatureFactory(){
 
 }
@@ -709,6 +802,57 @@ __device__ __forceinline__ float ssrlcv::atomicMaxFloat (float * addr, float val
 __device__ __forceinline__ float ssrlcv::edgeness(const float (&hessian)[2][2]){
     float e = trace(hessian);
     return e*e/determinant(hessian);    
+}
+
+__global__ void ssrlcv::fillWindows(uint2 size, int parent, unsigned char* pixels, Window_3x3* windows){
+    unsigned long blockId = blockIdx.y* gridDim.x+ blockIdx.x;
+    uint2 loc = {blockId/size.x + 3,blockId%size.x + 3};
+    if(loc.x < size.x && loc.y < size.y){
+        Window_3x3 window;// = Window_3x3();
+        window.descriptor[threadIdx.x][threadIdx.y] = pixels[(loc.y+threadIdx.y-1)*size.x + (loc.x+threadIdx.x-1)];
+        window.loc = {(float)loc.x,(float)loc.y};
+        window.parent = parent;
+    }
+}
+__global__ void ssrlcv::fillWindows(uint2 size, int parent, unsigned char* pixels, Window_9x9* windows){
+    unsigned long blockId = blockIdx.y* gridDim.x+ blockIdx.x;
+    uint2 loc = {blockId/size.x + 9,blockId%size.x + 9};
+    if(loc.x < size.x && loc.y < size.y){
+        Window_9x9 window = Window_9x9();
+        window.descriptor[threadIdx.x][threadIdx.y] = pixels[(loc.y+threadIdx.y-4)*size.x + (loc.x+threadIdx.x-4)];
+        window.loc = {(float)loc.x,(float)loc.y};
+        window.parent = parent;
+    }
+}
+__global__ void ssrlcv::fillWindows(uint2 size, int parent, unsigned char* pixels, Window_15x15* windows){
+    unsigned long blockId = blockIdx.y* gridDim.x+ blockIdx.x;
+    uint2 loc = {blockId/size.x + 15,blockId%size.x + 15};
+    if(loc.x < size.x && loc.y < size.y){
+        Window_15x15 window = Window_15x15();
+        window.descriptor[threadIdx.x][threadIdx.y] = pixels[(loc.y+threadIdx.y-7)*size.x + (loc.x+threadIdx.x-7)];
+        window.loc = {(float)loc.x,(float)loc.y};
+        window.parent = parent;
+    }
+}
+__global__ void ssrlcv::fillWindows(uint2 size, int parent, unsigned char* pixels, Window_25x25* windows){
+    unsigned long blockId = blockIdx.y* gridDim.x+ blockIdx.x;
+    uint2 loc = {blockId/size.x + 25,blockId%size.x + 25};
+    if(loc.x < size.x && loc.y < size.y){
+        Window_25x25 window = Window_25x25();
+        window.descriptor[threadIdx.x][threadIdx.y] = pixels[(loc.y+threadIdx.y-12)*size.x + (loc.x+threadIdx.x-12)];
+        window.loc = {(float)loc.x,(float)loc.y};
+        window.parent = parent;
+    }
+}
+__global__ void ssrlcv::fillWindows(uint2 size, int parent, unsigned char* pixels, Window_35x35* windows){
+    unsigned long blockId = blockIdx.y* gridDim.x+ blockIdx.x;
+    uint2 loc = {blockId/size.x + 35,blockId%size.x + 35};
+    if(loc.x < size.x && loc.y < size.y){
+        Window_35x35 window = Window_35x35();
+        window.descriptor[threadIdx.x][threadIdx.y] = pixels[(loc.y+threadIdx.y-17)*size.x + (loc.x+threadIdx.x-17)];
+        window.loc = {(float)loc.x,(float)loc.y};
+        window.parent = parent;
+    }
 }
 
 __global__ void ssrlcv::subtractImages(unsigned int numPixels, float* pixelsUpper, float* pixelsLower, float* pixelsOut){

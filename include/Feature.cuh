@@ -46,6 +46,18 @@ namespace ssrlcv{
   };
 
 
+  /*
+  TYPEDEFS FOR EXISTING FEATURES
+  */
+  typedef Feature<SIFT_Descriptor> SIFT_Feature;
+
+  typedef Feature<unsigned char[3][3]> Window_3x3; 
+  typedef Feature<unsigned char[9][9]> Window_9x9; 
+  typedef Feature<unsigned char[15][15]> Window_15x15; 
+  typedef Feature<unsigned char[25][25]> Window_25x25; 
+  typedef Feature<unsigned char[35][35]> Window_35x35; 
+
+
 }
 
 #endif /* FEATURE_CUH */

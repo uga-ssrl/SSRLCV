@@ -784,7 +784,7 @@ __device__ __forceinline__ float ssrlcv::findSubPixelContributer(const float2 &l
   return ((loc.y - 12)*(width - 24)) + (loc.x - 12);
 }
 
-__device__ __forceinline__ float ssrlcv::calcElucidSq(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b){
+__device__ __forceinline__ float ssrlcv::dist(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b){
   float dist = 0.0f;
   for(int i = 0; i < 128; ++i){
     dist += square(((float)a.descriptor.values[i]-b.descriptor.values[i]));
@@ -794,7 +794,7 @@ __device__ __forceinline__ float ssrlcv::calcElucidSq(const Feature<SIFT_Descrip
   //dist += dotProduct(a.loc - b.loc,a.loc - b.loc);
   return dist;
 }
-__device__ __forceinline__ float ssrlcv::calcElucidSq(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b, const float &bestMatch){
+__device__ __forceinline__ float ssrlcv::dist(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b, const float &bestMatch){
   float dist = 0.0f;
   for(int i = 0; i < 128 && dist < bestMatch; ++i){
     dist += square(((float)a.descriptor.values[i]-b.descriptor.values[i]));
@@ -807,7 +807,7 @@ __device__ __forceinline__ float ssrlcv::calcElucidSq(const Feature<SIFT_Descrip
   //if(dist < bestMatch) dist += dotProduct(a.loc - b.loc,a.loc - b.loc);
   return dist;
 }
-__device__ __forceinline__ float ssrlcv::calcElucidSq(const SIFT_Descriptor& a, const SIFT_Descriptor& b){
+__device__ __forceinline__ float ssrlcv::dist(const SIFT_Descriptor& a, const SIFT_Descriptor& b){
   float dist = 0.0f;
   for(int i = 0; i < 128; ++i){
     dist += square(((float)a.values[i]-b.values[i]));
@@ -816,7 +816,7 @@ __device__ __forceinline__ float ssrlcv::calcElucidSq(const SIFT_Descriptor& a, 
   dist += square(a.sigma - b.sigma);
   return dist;
 }
-__device__ __forceinline__ float ssrlcv::calcElucidSq(const SIFT_Descriptor& a, const SIFT_Descriptor& b, const float &bestMatch){
+__device__ __forceinline__ float ssrlcv::dist(const SIFT_Descriptor& a, const SIFT_Descriptor& b, const float &bestMatch){
   float dist = 0.0f;
   for(int i = 0; i < 128 && dist < bestMatch; ++i){
     dist += square(((float)a.values[i]-b.values[i]));
@@ -825,6 +825,97 @@ __device__ __forceinline__ float ssrlcv::calcElucidSq(const SIFT_Descriptor& a, 
   //else return dist;
   if(dist < bestMatch) dist += square(a.sigma - b.sigma);
   return dist;
+}
+
+__device__ __forceinline__ int ssrlcv::dist(const Window_3x3& a, const Window_3x3& b){
+  int absDiff = 0;
+  for(int x = 0; x < 3; ++x){
+    for(int y = 0; y < 3; ++y){
+      absDiff += abs((int)a.descriptor[x][y]-(int)b.descriptor[x][y]);
+    }
+  }
+  return absDiff;
+}
+__device__ __forceinline__ int ssrlcv::dist(const Window_9x9& a, const Window_9x9& b){
+  int absDiff = 0;
+  for(int x = 0; x < 9; ++x){
+    for(int y = 0; y < 9; ++y){
+      absDiff += abs((int)a.descriptor[x][y]-(int)b.descriptor[x][y]);
+    }
+  }
+  return absDiff;
+}
+__device__ __forceinline__ int ssrlcv::dist(const Window_15x15& a, const Window_15x15& b){
+  int absDiff = 0;
+  for(int x = 0; x < 15; ++x){
+    for(int y = 0; y < 15; ++y){
+      absDiff += abs((int)a.descriptor[x][y]-(int)b.descriptor[x][y]);
+    }
+  }
+  return absDiff;
+}
+__device__ __forceinline__ int ssrlcv::dist(const Window_25x25& a, const Window_25x25& b){
+  int absDiff = 0;
+  for(int x = 0; x < 25; ++x){
+    for(int y = 0; y < 25; ++y){
+      absDiff += abs((int)a.descriptor[x][y]-(int)b.descriptor[x][y]);
+    }
+  }
+  return absDiff;
+}
+__device__ __forceinline__ int ssrlcv::dist(const Window_35x35& a, const Window_35x35& b){
+  int absDiff = 0;
+  for(int x = 0; x < 35; ++x){
+    for(int y = 0; y < 35; ++y){
+      absDiff += abs((int)a.descriptor[x][y]-(int)b.descriptor[x][y]);
+    }
+  }
+  return absDiff;
+}
+__device__ __forceinline__ int ssrlcv::dist(const Window_3x3& a, const Window_3x3& b, const int &bestMatch){
+  int absDiff = 0;
+  for(int x = 0; x < 3 && absDiff < bestMatch; ++x){
+    for(int y = 0; y < 3 && absDiff < bestMatch; ++y){
+      absDiff += abs((int)a.descriptor[x][y]-(int)b.descriptor[x][y]);
+    }
+  }
+  return absDiff;
+}
+__device__ __forceinline__ int ssrlcv::dist(const Window_9x9& a, const Window_9x9& b, const int &bestMatch){
+  int absDiff = 0;
+  for(int x = 0; x < 9 && absDiff < bestMatch; ++x){
+    for(int y = 0; y < 9 && absDiff < bestMatch; ++y){
+      absDiff += abs((int)a.descriptor[x][y]-(int)b.descriptor[x][y]);
+    }
+  }
+  return absDiff;
+}
+__device__ __forceinline__ int ssrlcv::dist(const Window_15x15& a, const Window_15x15& b, const int &bestMatch){
+  int absDiff = 0;
+  for(int x = 0; x < 15 && absDiff < bestMatch; ++x){
+    for(int y = 0; y < 15 && absDiff < bestMatch; ++y){
+      absDiff += abs((int)a.descriptor[x][y]-(int)b.descriptor[x][y]);
+    }
+  }
+  return absDiff;
+}
+__device__ __forceinline__ int ssrlcv::dist(const Window_25x25& a, const Window_25x25& b, const int &bestMatch){
+  int absDiff = 0;
+  for(int x = 0; x < 25 && absDiff < bestMatch; ++x){
+    for(int y = 0; y < 25 && absDiff < bestMatch; ++y){
+      absDiff += abs((int)a.descriptor[x][y]-(int)b.descriptor[x][y]);
+    }
+  }
+  return absDiff;
+}
+__device__ __forceinline__ int ssrlcv::dist(const Window_35x35& a, const Window_35x35& b, const int &bestMatch){
+  int absDiff = 0;
+  for(int x = 0; x < 35 && absDiff < bestMatch; ++x){
+    for(int y = 0; y < 35 && absDiff < bestMatch; ++y){
+      absDiff += abs((int)a.descriptor[x][y]-(int)b.descriptor[x][y]);
+    }
+  }
+  return absDiff;
 }
 
 
@@ -845,7 +936,7 @@ Feature<T>* seedFeatures, float* matchDistances){
     float currentDist = 0.0f;
     unsigned long numSeedFeatures_reg = numSeedFeatures;
     for(int f = threadIdx.x; f < numSeedFeatures_reg; f += 1024){
-      currentDist = calcElucidSq(feature,seedFeatures[f]);
+      currentDist = dist(feature,seedFeatures[f]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
       }
@@ -878,7 +969,7 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float absoluteThreshold){
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 1024){
-      currentDist = calcElucidSq(feature,featuresTarget[f]);
+      currentDist = dist(feature,featuresTarget[f]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -939,7 +1030,7 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float epsilon, float3 fundam
       //ax + by + c = 0
       p = -1*((epipolar.x*currentFeature.loc.x) + epipolar.z)/epipolar.y;
       if(abs(currentFeature.loc.y - p) >= regEpsilon) continue;
-      currentDist = calcElucidSq(feature,currentFeature,localDist[threadIdx.x]);
+      currentDist = dist(feature,currentFeature,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -986,7 +1077,7 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float* seedDistances, float 
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 1024){
-      currentDist = calcElucidSq(feature,featuresTarget[f]);
+      currentDist = dist(feature,featuresTarget[f]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -1053,7 +1144,7 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float epsilon, float3 fundam
       //ax + by + c = 0
       p = -1*((epipolar.x*currentFeature.loc.x) + epipolar.z)/epipolar.y;
       if(abs(currentFeature.loc.y - p) >= regEpsilon) continue;
-      currentDist = calcElucidSq(feature,currentFeature,localDist[threadIdx.x]);
+      currentDist = dist(feature,currentFeature,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -1106,7 +1197,7 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float absoluteThreshold){
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 1024){
-      currentDist = calcElucidSq(feature,featuresTarget[f]);
+      currentDist = dist(feature,featuresTarget[f]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -1167,7 +1258,7 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, float3 funda
       //ax + by + c = 0
       p = -1*((epipolar.x*currentFeature.loc.x) + epipolar.z)/epipolar.y;
       if(abs(currentFeature.loc.y - p) >= regEpsilon) continue;
-      currentDist = calcElucidSq(feature,currentFeature,localDist[threadIdx.x]);
+      currentDist = dist(feature,currentFeature,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -1215,7 +1306,7 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 1024){
-      currentDist = calcElucidSq(feature,featuresTarget[f]);
+      currentDist = dist(feature,featuresTarget[f]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -1283,7 +1374,7 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
       //ax + by + c = 0
       p = -1*((epipolar.x*currentFeature.loc.x) + epipolar.z)/epipolar.y;
       if(abs(currentFeature.loc.y - p) >= regEpsilon) continue;
-      currentDist = calcElucidSq(feature,currentFeature,localDist[threadIdx.x]);
+      currentDist = dist(feature,currentFeature,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -1335,7 +1426,7 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float abso
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 1024){
-      currentDist = calcElucidSq(feature,featuresTarget[f]);
+      currentDist = dist(feature,featuresTarget[f]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -1398,7 +1489,7 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float epsi
       //ax + by + c = 0
       p = -1*((epipolar.x*currentFeature.loc.x) + epipolar.z)/epipolar.y;
       if(abs(currentFeature.loc.y - p) >= regEpsilon) continue;
-      currentDist = calcElucidSq(feature,currentFeature,localDist[threadIdx.x]);
+      currentDist = dist(feature,currentFeature,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -1448,7 +1539,7 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 1024){
-      currentDist = calcElucidSq(feature,featuresTarget[f]);
+      currentDist = dist(feature,featuresTarget[f]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -1518,7 +1609,7 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
       //ax + by + c = 0
       p = -1*((epipolar.x*currentFeature.loc.x) + epipolar.z)/epipolar.y;
       if(abs(currentFeature.loc.y - p) >= regEpsilon) continue;
-      currentDist = calcElucidSq(feature,currentFeature,localDist[threadIdx.x]);
+      currentDist = dist(feature,currentFeature,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -1579,11 +1670,11 @@ uint2 targetSize, unsigned long numFeaturesTarget, ssrlcv::Feature<T>* featuresT
     bool foundM2 = false;
 
     if(contribTarget >= 0 && contribTarget < numFeaturesTarget){
-      subDescriptor.M1[threadIdx.x][threadIdx.y] = calcElucidSq(featuresQuery[blockId], featuresTarget[contribTarget]);
+      subDescriptor.M1[threadIdx.x][threadIdx.y] = dist(featuresQuery[blockId], featuresTarget[contribTarget]);
       foundM1 = true;
     }
     if(contribQuery >= 0 && contribQuery < numFeaturesQuery){
-      subDescriptor.M2[threadIdx.x][threadIdx.y] = calcElucidSq(featuresQuery[contribQuery], featuresTarget[pairedMatchIndex]);
+      subDescriptor.M2[threadIdx.x][threadIdx.y] = dist(featuresQuery[contribQuery], featuresTarget[pairedMatchIndex]);
       foundM2 = true;
     }
     __syncthreads();

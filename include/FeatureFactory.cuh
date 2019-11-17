@@ -152,6 +152,16 @@ namespace ssrlcv{
     * \brief set contributer window width for orientation computation
     */
     void setOrientationContribWidth(float orientationContribWidth);
+
+    /*
+    very simple feature generators for stereodisparity
+    */
+    Unity<Window_3x3>* generate3x3Windows(Image* image);
+    Unity<Window_9x9>* generate9x9Windows(Image* image);
+    Unity<Window_15x15>* generate15x15Windows(Image* image);
+    Unity<Window_25x25>* generat25x25Windows(Image* image);
+    Unity<Window_35x35>* generate35x35Windows(Image* image);
+
     ~FeatureFactory();  
 
   };
@@ -166,6 +176,14 @@ namespace ssrlcv{
   __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
   __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
   __device__ __forceinline__ float edgeness(const float (&hessian)[2][2]);
+
+
+  __global__ void fillWindows(uint2 size, int parent, unsigned char* pixels, Window_3x3* windows);
+  __global__ void fillWindows(uint2 size, int parent, unsigned char* pixels, Window_9x9* windows);
+  __global__ void fillWindows(uint2 size, int parent, unsigned char* pixels, Window_15x15* windows);
+  __global__ void fillWindows(uint2 size, int parent, unsigned char* pixels, Window_25x25* windows);
+  __global__ void fillWindows(uint2 size, int parent, unsigned char* pixels, Window_35x35* windows);
+
 
   __global__ void subtractImages(unsigned int numPixels, float* pixelsUpper, float* pixelsLower, float* pixelsOut);
 
