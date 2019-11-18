@@ -287,9 +287,12 @@ void ssrlcv::convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth)
   pixels->setData(rgbPixels_device, 3*numPixels, gpu);
   if(origin == cpu) pixels->setMemoryState(origin);
 }
+//TODO implement
+void calcFundamentalMatrix_2View(float cam0[3][3], float cam1[3][3], float (&F)[3][3]){
 
+}
 void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F)[3]){
-  if(query->camera.fov != target->camera.fov || query->camera.foc != target->camera.foc){
+  if(query->camera.foc != target->camera.foc){
     std::cout<<"ERROR calculating fundamental matrix for 2view needs to bet taken with same camera (foc&fov are same)"<<std::endl;
     exit(-1);
   }
@@ -395,8 +398,8 @@ void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F
   multiply(rot2Transpose, temp, temp2);
 
   float3 K[3] = {
-    {query->camera.foc/query->camera.dpix.x, 0, ((float)query->size.x)/2.0f},
-    {0, query->camera.foc/query->camera.dpix.y, ((float)query->size.y)/2.0f},
+    {query->camera.foc, 0, ((float)query->size.x)/2.0f},//NOTE the foc was divided by dpix.x and dpix.y but currently using foc in pixels
+    {0, query->camera.foc, ((float)query->size.y)/2.0f},//NOTE the foc was divided by dpix.x and dpix.y but currently using foc in pixels
     {0, 0, 1}
   };
   float3 K_inv[3];

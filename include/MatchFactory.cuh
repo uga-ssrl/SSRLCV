@@ -14,33 +14,8 @@
 
 namespace ssrlcv{
 
-  /**
-  * \brief method that allows Feature's with SIFT_Descriptor's to be matching in this class
-  */
-  __device__ __forceinline__ float dist(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b);
-  /**
-  * \brief method that allows Feature's with SIFT_Descriptor's to be matching in this class
-  */
-  __device__ __forceinline__ float dist(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b, const float &bestMatch);
-  /**
-  * \brief method that allows SIFT_Descriptor's to be matching in this class
-  */
-  __device__ __forceinline__ float dist(const SIFT_Descriptor& a, const SIFT_Descriptor& b);
-  /**
-  * \brief method that allows SIFT_Descriptor's to be matching in this class
-  */
-  __device__ __forceinline__ float dist(const SIFT_Descriptor& a, const SIFT_Descriptor& b, const float &bestMatch);
+  //TODO differentiate distance methods and pass function pointers to matching kernels
 
-  __device__ __forceinline__ int dist(const Window_3x3& a, const Window_3x3& b);
-  __device__ __forceinline__ int dist(const Window_9x9& a, const Window_9x9& b);
-  __device__ __forceinline__ int dist(const Window_15x15& a, const Window_15x15& b);
-  __device__ __forceinline__ int dist(const Window_25x25& a, const Window_25x25& b);
-  __device__ __forceinline__ int dist(const Window_35x35& a, const Window_35x35& b);
-  __device__ __forceinline__ int dist(const Window_3x3& a, const Window_3x3& b, const int &bestMatch);
-  __device__ __forceinline__ int dist(const Window_9x9& a, const Window_9x9& b, const int &bestMatch);
-  __device__ __forceinline__ int dist(const Window_15x15& a, const Window_15x15& b, const int &bestMatch);
-  __device__ __forceinline__ int dist(const Window_25x25& a, const Window_25x25& b, const int &bestMatch);
-  __device__ __forceinline__ int dist(const Window_35x35& a, const Window_35x35& b, const int &bestMatch);
 
   /**
   * \brief simple struct meant to fill out matches
@@ -74,12 +49,13 @@ namespace ssrlcv{
     KeyPoint keyPoints[2];
   };
   struct validate{
-    __device__ __host__ bool operator()(const Match &m){
+    __host__ __device__ bool operator()(const Match &m){
       return m.invalid;
     }
   };
   /**
   * \brief derived Match struct with distance
+  * \note distance is squared here to prevent use of sqrtf
   */
   struct DMatch: Match{
     float distance;
@@ -93,17 +69,6 @@ namespace ssrlcv{
   };
 
   namespace{
-    struct Spline{
-      float coeff[6][6][4][4];
-    };
-    typedef struct Spline Spline;
-
-    struct SubpixelM7x7{
-      float M1[9][9];
-      float M2[9][9];
-    };
-    typedef struct SubpixelM7x7 SubpixelM7x7;
-
     struct match_above_cutoff{
       __host__ __device__
       bool operator()(DMatch m){
@@ -140,7 +105,7 @@ namespace ssrlcv{
   private:
     Unity<Feature<T>>* seedFeatures;
   public:
-    float absoluteThreshold;
+    float absoluteThreshold;//squared distance
     float relativeThreshold;
     MatchFactory();
     MatchFactory(float relativeThreshold, float absoluteThreshold);
@@ -214,25 +179,11 @@ namespace ssrlcv{
     MatchSet* getMultiViewMatches(std::vector<Image*> images, Unity<FeatureMatch<T>>* matches);
 
 
-    /*
-    METHODS IN MATCHFACTORY BELOW THIS ONLY WORK FOR DENSE FEATURES THAT HAVE NOT BEEN FILTERED
-    */
-    /**
-    * \brief Generates subpixel matches between sift features
-    * \warning This only works for dense features
-    */
-    Unity<FeatureMatch<T>>* generateSubPixelMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures);
-    /**
-    * \brief Generates subpixel matches between sift features constrained by the epipolar line
-    * \warning This only works for dense features
-    * \warning This method requires Images to have filled out Camera variable
-    */
-    Unity<FeatureMatch<T>>* generateSubPixelMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon);
-
-
+    
   };
 
   void writeMatchFile(Unity<Match>* matches, std::string pathToFile);
+  Unity<Match>* readMatchFile(std::string pathToFile);
 
   /* CUDA variable, method and kernel defintions */
 
@@ -240,10 +191,10 @@ namespace ssrlcv{
   extern __constant__ int splineHelper[4][4];
   extern __constant__ int splineHelperInv[4][4];
 
-  __device__ __host__ __forceinline__ float sum(const float3 &a);
-  __device__ __forceinline__ float square(const float &a);
+  __host__ __device__ __forceinline__ float sum(const float3 &a);
+  __host__ __device__ __forceinline__ float square(const float &a);
   __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
-  __device__ __forceinline__ float findSubPixelContributer(const float2 &loc, const int &width);
+  __host__ __device__ __forceinline__ float findSubPixelContributer(const float2 &loc, const int &width);
 
 
 
@@ -305,19 +256,7 @@ namespace ssrlcv{
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
     Feature<T>* featuresTarget, FeatureMatch<T>* matches, float epsilon, float3 fundamental[3], float* seedDistances, 
     float relativeThreshold, float absoluteThreshold);
-
-
-
-  //subpixel kernels
-  template<typename T>
-  __global__ void initializeSubPixels(unsigned long numMatches, FeatureMatch<T>* matches, SubpixelM7x7* subPixelDescriptors,
-    uint2 querySize, unsigned long numFeaturesQuery, Feature<T>* featuresQuery,
-    uint2 targetSize, unsigned long numFeaturesTarget, Feature<T>* featuresTarget);
-
-  __global__ void fillSplines(unsigned long numMatches, SubpixelM7x7* subPixelDescriptors, Spline* splines);
-  template<typename T>
-  __global__ void determineSubPixelLocationsBruteForce(float increment, unsigned long numMatches, FeatureMatch<T>* matches, Spline* splines);
-
+ 
   //utility kernels
   __global__ void convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::DMatch* matches);
   template<typename T>

@@ -398,11 +398,27 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   return points;
 }
 
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>* matches, float foc, float baseline, float doffset){
+
+  MemoryState origin = matches->state;
+  if(origin == cpu) matches->transferMemoryTo(gpu);
+
+
+  Unity<float3>* points = new Unity<float3>(nullptr, matches->numElements,gpu);
+  //
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(matches->numElements,grid,block);
+  //
+  computeStereo<<<grid, block>>>(matches->numElements, matches->device, points->device, foc, baseline, doffset);
+
+  if(origin == cpu) matches->setMemoryState(cpu);
+
+  return points;
+}
+
+
 void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int disparityLevels, std::string pathToFile){
-  if(disparityLevels > 255){
-    std::cerr<<"ERROR: only can write disparity file with max disparities of 256 or below"<<std::endl;
-    exit(-1);
-  }
   MemoryState origin = points->state;
   if(origin == gpu) points->transferMemoryTo(cpu);
   float3 min = {FLT_MAX,FLT_MAX,FLT_MAX};
@@ -415,22 +431,53 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int disparityLe
     if(points->host[i].z < min.z) min.z = points->host[i].z;
     if(points->host[i].z > max.z) max.z = points->host[i].z;
   }
-  uint2 imageDim = {(int)ceil(max.x-min.x),(int)ceil(max.y-min.y)}; 
-  unsigned char* disparityImage = new unsigned char[imageDim.x*imageDim.y]();
-  for(int i = 0; i < points->numElements; ++i){
-    float3 temp = points->host[i];
-    temp = temp - min;
-    //TODO use disparity levels
-    temp.z /= (max.z - min.z);
-    temp.z *= disparityLevels;
-    int color = roundf(temp.z);
-    color *= 255/disparityLevels;
-    disparityImage[((int)ceil(temp.y)*imageDim.x) + (int)ceil(temp.x)] = (unsigned char)roundf((ceil(temp.x)-temp.x)*(ceil(temp.y)-temp.y))*color;
-    disparityImage[((int)ceil(temp.y)*imageDim.x) + (int)floor(temp.x)] = (unsigned char)roundf((temp.x-floor(temp.x))*(ceil(temp.y)-temp.y))*color;
-    disparityImage[((int)floor(temp.y)*imageDim.x) + (int)ceil(temp.x)] = (unsigned char)roundf((ceil(temp.x)-temp.x)*(temp.y-floor(temp.y)))*color;
-    disparityImage[((int)floor(temp.y)*imageDim.x) + (int)floor(temp.x)] = (unsigned char)roundf((temp.x-floor(temp.x))*(temp.y-floor(temp.y)))*color;
+  uint2 imageDim = {(unsigned int)ceil(max.x-min.x)+1,(unsigned int)ceil(max.y-min.y)+1}; 
+  unsigned char* disparityImage = new unsigned char[imageDim.x*imageDim.y*3];
+  std::vector<float> flt_colors;
+  for(int i = 0; i < imageDim.x*imageDim.y*3; ++i){
+    if(i < imageDim.x*imageDim.y){
+      flt_colors.push_back(0.0f);
+    }
+    disparityImage[i] = 0;
   }
-  writePNG(pathToFile.c_str(),disparityImage,1,imageDim.x,imageDim.y);
+  for(int i = 0; i < points->numElements; ++i){
+    float3 temp = points->host[i] - min;
+    if(ceil(temp.x) != temp.x || ceil(temp.y) != temp.y){
+      flt_colors[((int)ceil(temp.y)*imageDim.x) + (int)ceil(temp.x)] += (1-ceil(temp.x)-temp.x)*(1-ceil(temp.y)-temp.y)*temp.z/(max.z-min.z);
+      flt_colors[((int)ceil(temp.y)*imageDim.x) + (int)floor(temp.x)] += (1-temp.x-floor(temp.x))*(1-ceil(temp.y)-temp.y)*temp.z/(max.z-min.z);
+      flt_colors[((int)floor(temp.y)*imageDim.x) + (int)ceil(temp.x)] += (1-ceil(temp.x)-temp.x)*(1-temp.y-floor(temp.y))*temp.z/(max.z-min.z);
+      flt_colors[((int)floor(temp.y)*imageDim.x) + (int)floor(temp.x)] += (1-temp.x-floor(temp.x))*(1-temp.y-floor(temp.y))*temp.z/(max.z-min.z);
+    }
+    else{
+      flt_colors[(int)temp.y*imageDim.x + (int)temp.x] += temp.z/(max.z-min.z);
+    }
+  }
+  min.z = FLT_MAX;
+  max.z = -FLT_MAX;
+  for(int i = 0; i < imageDim.x*imageDim.y; ++i){
+    if(min.z > flt_colors[i]) min.z = flt_colors[i];
+    if(max.z < flt_colors[i]) max.z = flt_colors[i];
+  }
+  for(int i = 0; i < imageDim.x*imageDim.y; ++i){
+    flt_colors[i] -= min.z;
+    flt_colors[i] /= (max.z-min.z);
+    flt_colors[i] *= disparityLevels;
+    flt_colors[i] = floor(flt_colors[i]);
+    flt_colors[i] *= ((255.0f*3.0f)/disparityLevels);
+    int color = (int)roundf(flt_colors[i]);
+    if(color/255 == 2){
+      disparityImage[i*3] = 255;
+      disparityImage[i*3 + 1] = 255;
+      disparityImage[i*3 + 2] = color - 510;
+    } 
+    else if(color/255 == 1){
+      disparityImage[i*3] = 255;
+      disparityImage[i*3 + 1] = color - 255;
+    } 
+    else disparityImage[i*3] = color;
+  }
+  writePNG(pathToFile.c_str(),disparityImage,3,imageDim.x,imageDim.y);
+  delete disparityImage;
 }
 
 
@@ -488,6 +535,17 @@ __global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, f
     Match match = matches[globalID];
     float3 point = {match.keyPoints[0].loc.x,match.keyPoints[0].loc.y,0.0f};
     point.z = sqrtf(scale*dotProduct(match.keyPoints[0].loc-match.keyPoints[1].loc,match.keyPoints[0].loc-match.keyPoints[1].loc));
+    points[globalID] = point;
+  }
+}
+
+__global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, float3* points, float foc, float baseLine, float doffset){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID < numMatches) {
+    Match match = matches[globalID];
+    float3 point = {match.keyPoints[0].loc.x,match.keyPoints[0].loc.y,0.0f};
+    point.z = sqrtf(dotProduct(match.keyPoints[1].loc-match.keyPoints[0].loc,match.keyPoints[1].loc-match.keyPoints[0].loc));
+    point.z = foc*baseLine/(point.z+doffset);
     points[globalID] = point;
   }
 }

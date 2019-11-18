@@ -43,21 +43,46 @@ namespace ssrlcv{
     __device__ __host__ SIFT_Descriptor();
     __device__ __host__ SIFT_Descriptor(float theta);
     __device__ __host__ SIFT_Descriptor(float theta, unsigned char values[128]);
+    //dist here is euclidian distance squared
+    __device__ __host__ float distProtocol(const SIFT_Descriptor& b, const float &bestMatch);
   };
 
-
-  /*
-  TYPEDEFS FOR EXISTING FEATURES
-  */
-  typedef Feature<SIFT_Descriptor> SIFT_Feature;
-
-  typedef Feature<unsigned char[3][3]> Window_3x3; 
-  typedef Feature<unsigned char[9][9]> Window_9x9; 
-  typedef Feature<unsigned char[15][15]> Window_15x15; 
-  typedef Feature<unsigned char[25][25]> Window_25x25; 
-  typedef Feature<unsigned char[35][35]> Window_35x35; 
-
-
+  struct Window_3x3{
+    unsigned char values[3][3];
+    __device__ __host__ Window_3x3();
+    __device__ __host__ Window_3x3(unsigned char values[3][3]);
+    //distance here is sum of absolute differences
+    __device__ __host__ float distProtocol(const Window_3x3& b, const float &bestMatch);
+  };
+  struct Window_9x9{
+    unsigned char values[9][9];
+    __device__ __host__ Window_9x9();
+    __device__ __host__ Window_9x9(unsigned char values[9][9]);
+    //distance here is sum of absolute differences
+    __device__ __host__ float distProtocol(const Window_9x9& b, const float &bestMatch);
+  };
+  struct Window_15x15{
+    unsigned char values[15][15];
+    __device__ __host__ Window_15x15();
+    __device__ __host__ Window_15x15(unsigned char values[15][15]);
+    //distance here is sum of absolute differences
+    __device__ __host__ float distProtocol(const Window_15x15& b, const float &bestMatch);
+  };
+  struct Window_25x25{
+    unsigned char values[25][25];
+    __device__ __host__ Window_25x25();
+    __device__ __host__ Window_25x25(unsigned char values[25][25]);
+    //distance here is sum of absolute differences
+    __device__ __host__ float distProtocol(const Window_25x25& b, const float &bestMatch);
+  };
+  struct Window_31x31{
+    unsigned char values[31][31];
+    __device__ __host__ Window_31x31();
+    __device__ __host__ Window_31x31(unsigned char values[31][31]);
+    //distance here is sum of absolute differences
+    __device__ __host__ float distProtocol(const Window_31x31& b, const float &bestMatch);
+  };
 }
+
 
 #endif /* FEATURE_CUH */

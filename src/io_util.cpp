@@ -1,8 +1,5 @@
 #include "io_util.h"
 
-#include <stdio.h>
-
-
 void ssrlcv::getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths){
   DIR* dir;
   if (nullptr == (dir = opendir(dirPath.c_str()))){
@@ -114,7 +111,6 @@ unsigned char* ssrlcv::readPNG(const char* filePath, unsigned int &height, unsig
 }
 
 void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height){
-
   /* create file */
   FILE *fp = fopen(filePath, "wb");
   if(!fp){
@@ -128,6 +124,7 @@ void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned
     std::cout<<"[write_png_file] png_create_write_struct failed "<<std::endl;
   }
 
+
   png_infop info_ptr = png_create_info_struct(png_ptr);
 
   if (!info_ptr){
@@ -137,7 +134,7 @@ void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned
   if (setjmp(png_jmpbuf(png_ptr))){
     std::cout<<"[write_png_file] Error during init_io "<<std::endl;
   }
-
+  
   png_init_io(png_ptr, fp);
 
   /* write header */
@@ -309,3 +306,5 @@ void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
 
   if(origin == gpu) points->setMemoryState(gpu);
 }
+
+

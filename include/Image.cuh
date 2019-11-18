@@ -95,6 +95,9 @@ namespace ssrlcv{
   void convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth);
   void convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth);
 
+  //TODO implement
+  void calcFundamentalMatrix_2View(float cam0[3][3], float cam1[3][3], float (&F)[3][3]);
+  
   void calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F)[3]);
   void get_cam_params2view(Image* cam1, Image* cam2, std::string infile);
 
