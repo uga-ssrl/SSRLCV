@@ -724,7 +724,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_15x15>>* ssrlcv::FeatureFactory::ge
     }
     return windows;
 }
-ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_25x25>>* ssrlcv::FeatureFactory::generat25x25Windows(Image* image){
+ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_25x25>>* ssrlcv::FeatureFactory::generate25x25Windows(Image* image){
     MemoryState origin = image->pixels->state;
     if(origin == cpu || image->pixels->fore == cpu){
         image->pixels->setMemoryState(gpu);

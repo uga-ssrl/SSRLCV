@@ -140,8 +140,8 @@ namespace ssrlcv{
     * \brief Generates matches between sift features constrained by epipolar line
     * \warning This method requires Images to have filled out Camera variables
     */
-    Unity<Match>* generateMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, Unity<float>* seedDistances = nullptr);
-    
+    Unity<Match>* generateMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
+
     /**
     * \brief Generates matches between sift features
     */
@@ -150,7 +150,7 @@ namespace ssrlcv{
     * \brief Generates matches between sift features constrained by epipolar line
     * \warning This method requires Images to have filled out Camera variables
     */
-    Unity<DMatch>* generateDistanceMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, Unity<float>* seedDistances = nullptr);
+    Unity<DMatch>* generateDistanceMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
     
     /**
     * \brief Generates matches between sift features
@@ -160,7 +160,7 @@ namespace ssrlcv{
     * \brief Generates matches between sift features constrained by epipolar line
     * \warning This method requires Images to have filled out Camera variables
     */
-    Unity<FeatureMatch<T>>* generateFeatureMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, Unity<float>* seedDistances = nullptr);
+    Unity<FeatureMatch<T>>* generateFeatureMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
 
     /**
     * \brief interpolates Matches between multiple images
@@ -181,6 +181,8 @@ namespace ssrlcv{
 
     
   };
+
+  Unity<Match>* generateDiparityMatches(uint2 querySize, Unity<unsigned char>* queryPixels, uint2 targetSize, Unity<unsigned char>* targetPixels, float fundamental[3][3], unsigned int windowSize = 3, uint2 border = {0,0});
 
   void writeMatchFile(Unity<Match>* matches, std::string pathToFile);
   Unity<Match>* readMatchFile(std::string pathToFile);
@@ -203,6 +205,9 @@ namespace ssrlcv{
     Feature<T>* seedFeatures, float* matchDistances);
 
   //base matching kernels
+  __global__ void disparityMatching(uint2 querySize, unsigned char* pixelsQuery, uint2 targetSize, unsigned char* pixelsTarget, float* fundamental, Match* matches, uint2 numWindows, uint2 border);
+  __global__ void disparityScanMatching(uint2 querySize, unsigned char* pixelsQuery, uint2 targetSize, unsigned char* pixelsTarget, Match* matches, uint2 numWindows, uint2 border);
+
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
@@ -210,7 +215,7 @@ namespace ssrlcv{
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, Match* matches, float epsilon, float3 fundamental[3], float absoluteThreshold);
+    Feature<T>* featuresTarget, Match* matches, float epsilon, float* fundamental, float absoluteThreshold);
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
@@ -218,7 +223,7 @@ namespace ssrlcv{
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, Match* matches, float epsilon, float3 fundamental[3], float* seedDistances ,float relativeThreshold, float absoluteThreshold);
+    Feature<T>* featuresTarget, Match* matches, float epsilon, float* fundamental, float* seedDistances ,float relativeThreshold, float absoluteThreshold);
 
 
   template<typename T>
@@ -228,7 +233,7 @@ namespace ssrlcv{
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, DMatch* matches, float epsilon, float3 fundamental[3], float absoluteThreshold);
+    Feature<T>* featuresTarget, DMatch* matches, float epsilon, float* fundamental, float absoluteThreshold);
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
@@ -236,7 +241,7 @@ namespace ssrlcv{
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, DMatch* matches, float epsilon, float3 fundamental[3], float* seedDistances,
+    Feature<T>* featuresTarget, DMatch* matches, float epsilon, float* fundamental, float* seedDistances,
     float relativeThreshold, float absoluteThreshold);
   
   template<typename T>
@@ -246,7 +251,7 @@ namespace ssrlcv{
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, FeatureMatch<T>* matches, float epsilon, float3 fundamental[3], float absoluteThreshold);
+    Feature<T>* featuresTarget, FeatureMatch<T>* matches, float epsilon, float* fundamental, float absoluteThreshold);
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
@@ -254,7 +259,7 @@ namespace ssrlcv{
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, FeatureMatch<T>* matches, float epsilon, float3 fundamental[3], float* seedDistances, 
+    Feature<T>* featuresTarget, FeatureMatch<T>* matches, float epsilon, float* fundamental, float* seedDistances, 
     float relativeThreshold, float absoluteThreshold);
  
   //utility kernels

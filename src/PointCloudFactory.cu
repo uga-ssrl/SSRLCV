@@ -461,6 +461,7 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int disparityLe
   for(int i = 0; i < imageDim.x*imageDim.y; ++i){
     flt_colors[i] -= min.z;
     flt_colors[i] /= (max.z-min.z);
+    flt_colors[i] = 1 - flt_colors[i];
     flt_colors[i] *= disparityLevels;
     flt_colors[i] = floor(flt_colors[i]);
     flt_colors[i] *= ((255.0f*3.0f)/disparityLevels);

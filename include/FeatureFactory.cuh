@@ -159,7 +159,7 @@ namespace ssrlcv{
     Unity<Feature<Window_3x3>>* generate3x3Windows(Image* image);
     Unity<Feature<Window_9x9>>* generate9x9Windows(Image* image);
     Unity<Feature<Window_15x15>>* generate15x15Windows(Image* image);
-    Unity<Feature<Window_25x25>>* generat25x25Windows(Image* image);
+    Unity<Feature<Window_25x25>>* generate25x25Windows(Image* image);
     Unity<Feature<Window_31x31>>* generate31x31Windows(Image* image);
 
     ~FeatureFactory();  
