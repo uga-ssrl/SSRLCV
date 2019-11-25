@@ -616,19 +616,34 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
 
 }
 
+ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, Unity<unsigned char>* queryPixels, uint2 targetSize, Unity<unsigned char>* targetPixels, 
+  float fundamental[3][3], unsigned int maxDisparity,unsigned int windowSize, Direction direction){
+  if(direction != right && direction != left && direction != undefined){
+    std::cerr<<"ERROR: unsupported search direction for disparity matching"<<std::endl;
+    exit(-1);
+  }
+  if(maxDisparity > querySize.x){
+    std::cerr<<"Max disparity cannot be larger than image size"<<std::endl;
+    exit(-1);
+  }
+  printf(
+    "running disparity matching on parallel images \n\timage[0] = %lux%lu\n\timage[1] = %lux%lu\n\tmaxDisparity = %d\n\twindow size = %lux%lu\n",
+    querySize.x,querySize.y,targetSize.x,targetSize.y,maxDisparity,windowSize,windowSize
+  );
 
-
-ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, Unity<unsigned char>* queryPixels, uint2 targetSize, Unity<unsigned char>* targetPixels, float fundamental[3][3],unsigned int windowSize, uint2 border){
   if(windowSize == 0 || windowSize % 2 == 0 || windowSize > 31){
     std::cerr<<"ERROR window size for disparity matching must be greater than 0, less than 31 and odd"<<std::endl;
+    exit(-1);
   }
+
   MemoryState origin[2] = {queryPixels->state, targetPixels->state};
 
   if(queryPixels->fore == cpu) queryPixels->setMemoryState(gpu);
   if(targetPixels->fore == cpu) targetPixels->setMemoryState(gpu);
-  uint2 numWindows = {querySize.x/windowSize,querySize.y/windowSize};
+  
+  uint2 minimizedSize = {querySize.x-windowSize-1,querySize.y-windowSize-1};
 
-  unsigned int numPossibleMatches = querySize.x*querySize.y;
+  unsigned int numPossibleMatches = minimizedSize.x*minimizedSize.y;
 
   Match* matches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(Match)));
@@ -637,7 +652,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, U
 
   dim3 grid = {1,1,1};
   dim3 block = {windowSize,windowSize,1};
-  getGrid(numWindows.x*numWindows.y,grid);
+  getGrid(numPossibleMatches,grid);
 
   bool parallel = true;
   for(int x = 0; x < 3 && parallel; ++x){
@@ -656,20 +671,19 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, U
     float* fundamental_device = nullptr;
     CudaSafeCall(cudaMalloc((void**)&fundamental_device,9*sizeof(float)));
     CudaSafeCall(cudaMemcpy(fundamental_device,fundamental,9*sizeof(float),cudaMemcpyHostToDevice));
-    disparityMatching<<<grid, block>>>(querySize,queryPixels->device,targetSize,targetPixels->device,fundamental_device,matches->device,numWindows,border);
+    disparityMatching<<<grid, block>>>(querySize,queryPixels->device,targetSize,targetPixels->device,fundamental_device,matches->device,maxDisparity,direction);
     CudaSafeCall(cudaFree(fundamental_device));
   }
   else{
-    disparityScanMatching<<<grid,block>>>(querySize,queryPixels->device,targetSize,targetPixels->device,matches->device,numWindows,border);
+    disparityScanMatching<<<grid,block>>>(querySize,queryPixels->device,targetSize,targetPixels->device,matches->device,maxDisparity,direction);
   }
   
   cudaDeviceSynchronize();
-  CudaCheckError();
-  
+  CudaCheckError();  
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
   if(origin[0] != queryPixels->state) queryPixels->setMemoryState(origin[0]);
-  if(origin[1] != queryPixels->state) queryPixels->setMemoryState(origin[1]);
+  if(origin[1] != targetPixels->state) targetPixels->setMemoryState(origin[1]);
 
   thrust::device_ptr<Match> needsValidating(matches->device);
   thrust::device_ptr<Match> new_end = thrust::remove_if(needsValidating,needsValidating+matches->numElements,validate());
@@ -688,7 +702,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, U
     CudaSafeCall(cudaMemcpy(validatedMatches_device,matches->device,numMatchesLeft*sizeof(Match),cudaMemcpyDeviceToDevice));
     matches->setData(validatedMatches_device,numMatchesLeft,gpu);
   }
-  
+
   return matches;
 }
 
@@ -697,6 +711,7 @@ void ssrlcv::writeMatchFile(Unity<Match>* matches, std::string pathToFile){
   std::ofstream matchstream(pathToFile);
   MemoryState origin = matches->state;
   if(origin == gpu) matches->transferMemoryTo(cpu);
+  validate checker;
   if(matchstream.is_open()){
     std::string line;
     for(int i = 0; i < matches->numElements; ++i){
@@ -787,86 +802,136 @@ matching
 
 //base matching kernels
 //TODO block this out
-__global__ void ssrlcv::disparityMatching(uint2 querySize, unsigned char* pixelsQuery, uint2 targetSize, unsigned char* pixelsTarget, float* fundamental, Match* matches, uint2 numWindows, uint2 border){
+__global__ void ssrlcv::disparityMatching(uint2 querySize, unsigned char* pixelsQuery, uint2 targetSize, unsigned char* pixelsTarget, float* fundamental, Match* matches, unsigned int maxDisparity, Direction direction){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
-  uint2 modifiedSize = {(querySize.x-blockDim.x+1),(querySize.y-blockDim.y+1)};
-  if(blockId < modifiedSize.x*modifiedSize.y){
-    int2 loc = {blockId%(modifiedSize.x) + (blockDim.x/2),blockId/(modifiedSize.x) + (blockDim.y/2)};
+  uint2 minimizedSize = {querySize.x-blockDim.x-1,querySize.y-blockDim.x-1};
+  if(blockId < minimizedSize.x*minimizedSize.y){
+    int2 loc = {blockId%minimizedSize.x + (blockDim.x/2),blockId/minimizedSize.x + (blockDim.y/2)};
     int2 threadLoc = {threadIdx.x - (blockDim.x/2),threadIdx.y - (blockDim.y/2)};
     __shared__ int3 matchInfo;
-    matchInfo = {-1,-1,INT_MAX};
     __shared__ int currentDist;
-    currentDist = 0;
-    __syncthreads();
-    
-    float3 epipolar = {0.0f,0.0f,0.0f};
-    epipolar.x = (fundamental[0]*loc.x) + (fundamental[1]*loc.y) + fundamental[2];
-    epipolar.y = (fundamental[3]*loc.x) + (fundamental[4]*loc.y) + fundamental[5];
-    epipolar.z = (fundamental[6]*loc.x) + (fundamental[7]*loc.y) + fundamental[8];
-
-    int y = 0;
-    int threadPixel = pixelsQuery[(loc.y + threadLoc.y)*querySize.x + loc.x + threadLoc.x];
-    for(int x = blockDim.x; x < targetSize.x - blockDim.x; ++x){
-      y = (int)floor(-1*((epipolar.x*x) + epipolar.z)/epipolar.y);
-      if(y < blockDim.y || y > targetSize.y - blockDim.y) continue;
-      __syncthreads();
-      atomicAdd(&currentDist,abs(threadPixel-pixelsTarget[(y + threadLoc.y)*targetSize.x + x + threadLoc.x]));
-      __syncthreads();
-      if(currentDist < matchInfo.z & threadIdx.x + threadIdx.y == 0) matchInfo = {x,y,currentDist};
+    __shared__ float3 epipolar;
+    __shared__ int2 searchLoc;
+    __shared__ int stop;
+    stop = maxDisparity; 
+    int stride = 1;
+    if(threadIdx.x + threadIdx.y == 0){
+      matchInfo = {-1,-1,INT_MAX};
       currentDist = 0;
+      epipolar.x = (fundamental[0]*loc.x) + (fundamental[1]*loc.y) + fundamental[2];
+      epipolar.y = (fundamental[3]*loc.x) + (fundamental[4]*loc.y) + fundamental[5];
+      epipolar.z = (fundamental[6]*loc.x) + (fundamental[7]*loc.y) + fundamental[8];
+      if(direction == right){
+        searchLoc.x = loc.x;
+        stop -= querySize.x - ((int)maxDisparity + loc.x);
+      }
+      else if(direction == left){
+        stride = -1;
+        searchLoc.x = loc.x;
+        stop += loc.x - (int)maxDisparity;
+      }
+      else{
+        searchLoc.x = loc.x - ((int)maxDisparity/2);
+        if(searchLoc.x < 0){
+          searchLoc.x = 0;
+        }
+      }
+      searchLoc.y = (int)floor(-1*((epipolar.x*searchLoc.x) + epipolar.z)/epipolar.y);
+    }  
+    __syncthreads();
+
+    int threadPixel = pixelsQuery[(loc.y + threadLoc.y)*querySize.x + loc.x + threadLoc.x];
+    for(int i = 0; i < stop; ++i){
+      atomicAdd(&currentDist,abs(threadPixel-(int)pixelsTarget[(searchLoc.y+threadLoc.y)*targetSize.x + searchLoc.x + threadLoc.x]));
+      __syncthreads();
+      if(threadIdx.x + threadIdx.y == 0){
+        if(currentDist < matchInfo.z){
+          matchInfo = {searchLoc.x,searchLoc.y,currentDist};
+        }
+        searchLoc.x+=stride;
+        searchLoc.y = (int)floor(-1*((epipolar.x*searchLoc.x) + epipolar.z)/epipolar.y);
+        currentDist = 0;
+      } 
       __syncthreads();
     }
-    __syncthreads();
-    if(threadIdx.x + threadIdx.y != 0) return;
-    
+
     Match match;
-    match.invalid = false;
-    match.keyPoints[0].loc = {(float)loc.x,(float)loc.y};
-    match.keyPoints[1].loc = {(float)matchInfo.x,(float)matchInfo.y};
-    match.keyPoints[0].parentId = 0;
-    match.keyPoints[1].parentId = 1;
-    matches[blockId] = match;
+    if(matchInfo.x == -1){
+      match.invalid = true;
+    }
+    else{
+      match.invalid = false;
+      match.keyPoints[0].loc = {(float)loc.x + threadLoc.x,(float)loc.y + threadLoc.y};
+      match.keyPoints[1].loc = {(float)matchInfo.x + threadLoc.x,(float)loc.y + threadLoc.y};
+      match.keyPoints[0].parentId = 0;
+      match.keyPoints[1].parentId = 1;
+    }
+    matches[(loc.y+threadLoc.y)*minimizedSize.x + loc.x + threadLoc.x] = match;
   }
 }
-__global__ void ssrlcv::disparityScanMatching(uint2 querySize, unsigned char* pixelsQuery, uint2 targetSize, unsigned char* pixelsTarget, Match* matches, uint2 numWindows, uint2 border){
+__global__ void ssrlcv::disparityScanMatching(uint2 querySize, unsigned char* pixelsQuery, uint2 targetSize, unsigned char* pixelsTarget, Match* matches, unsigned int maxDisparity, Direction direction){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
-  uint2 windowID = {blockId%numWindows.x,blockId/numWindows.x};
-  if(windowID.x < numWindows.x && windowID.y < numWindows.y){
-    __shared__ int2 matchInfo;
-    matchInfo = {-1,INT_MAX};
-    __shared__ int currentDist;
-    currentDist = 0;
-    __syncthreads();
-
-    int2 loc = {windowID.x*blockDim.x + (blockDim.x/2), windowID.y*blockDim.y + (blockDim.y/2)};
+  uint2 minimizedSize = {querySize.x-blockDim.x-1,querySize.y-blockDim.x-1};
+  if(blockId < minimizedSize.x*minimizedSize.y){
+    int2 loc = {blockId%minimizedSize.x + (blockDim.x/2), blockId/minimizedSize.x + (blockDim.y/2)};
     int2 threadLoc = {threadIdx.x - (blockDim.x/2),threadIdx.y - (blockDim.y/2)};
-
-    if(windowID.x*blockDim.x <= border.x || windowID.y*blockDim.y <= border.y || windowID.x*blockDim.x >= querySize.x - border.x && windowID.y*blockDim.y >= querySize.y - border.y){
-      Match match;
-      match.invalid = true;
-      matches[(loc.y+threadLoc.y)*querySize.x + loc.x + threadLoc.x] = match;
-      return;
+    __shared__ int2 matchInfo;
+    __shared__ int currentDist;
+    __shared__ int searchX;
+    __shared__ int stop;
+    stop = maxDisparity;
+    int stride = 1;
+    if(threadIdx.x + threadIdx.y == 0){
+      matchInfo = {-1,INT_MAX};
+      currentDist = 0;
+      if(direction == right){
+        searchX = loc.x;
+        if(stop + loc.x > targetSize.x){
+          stop = targetSize.x - loc.x;
+        }
+      }
+      else if(direction == left){
+        stride = -1;
+        searchX = loc.x;
+        if(loc.x - stop < 0){
+          stop = loc.x;
+        }
+      }
+      else{
+        searchX = loc.x - ((int)maxDisparity/2);
+        if(searchX < 0){
+          searchX = 0;
+        }
+      }
     }
-
+    __syncthreads();
     int threadPixel = pixelsQuery[(loc.y + threadLoc.y)*querySize.x + loc.x + threadLoc.x];
     int indexHelper = (loc.y + threadLoc.y)*targetSize.x;
-
-    for(int x = blockDim.x/2; x < targetSize.x - (blockDim.x/2); x+=blockDim.x){
-      atomicAdd(&currentDist,abs(threadPixel-pixelsTarget[indexHelper + x + threadLoc.x]));
+    for(int i = 0; i < stop; ++i){
+      atomicAdd(&currentDist,abs(threadPixel - (int)pixelsTarget[indexHelper + searchX + threadLoc.x]));
       __syncthreads();
-      if(currentDist < matchInfo.y & threadIdx.x + threadIdx.y == 0) matchInfo = {x,currentDist};
-      currentDist = 0;
+      if(threadIdx.x + threadIdx.y == 0){
+        if(currentDist < matchInfo.y){
+          matchInfo = {searchX,currentDist};
+        }
+        searchX+=stride;
+        currentDist = 0;
+      }
       __syncthreads();
     }
     
     Match match;
-    match.invalid = false;
-    match.keyPoints[0].loc = {(float)loc.x + threadLoc.x,(float)loc.y + threadLoc.y};
-    match.keyPoints[1].loc = {(float)matchInfo.x + threadLoc.x,(float)loc.y + threadLoc.y};
-    match.keyPoints[0].parentId = 0;
-    match.keyPoints[1].parentId = 1;
-    matches[(loc.y+threadLoc.y)*querySize.x + loc.x + threadLoc.x] = match;
-    
+    if(matchInfo.x == -1){
+      match.invalid = true;
+    }
+    else{
+      match.invalid = false;
+      match.keyPoints[0].loc = {(float)loc.x + threadLoc.x,(float)loc.y + threadLoc.y};
+      match.keyPoints[1].loc = {(float)matchInfo.x + threadLoc.x,(float)loc.y + threadLoc.y};
+      match.keyPoints[0].parentId = 0;
+      match.keyPoints[1].parentId = 1;
+    }
+    matches[(loc.y+threadLoc.y)*minimizedSize.x + loc.x + threadLoc.x] = match;
   }
 }
 

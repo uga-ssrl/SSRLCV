@@ -32,12 +32,24 @@ ssrlcv::Image::Image(){
   this->id = -1;
   this->filePath = "n/a";
 }
+
+ssrlcv::Image::Image(uint2 size, unsigned int colorDepth, Unity<unsigned char>* pixels){
+  this->filePath = "n/a";
+  this->id = -1;
+  this->colorDepth = colorDepth;
+  this->pixels = pixels;
+  this->camera.size = size;
+  this->size = size;
+}
+
+
 ssrlcv::Image::Image(std::string filePath, int id){
   this->filePath = filePath;
   this->id = id;
   this->colorDepth = 1;
   unsigned char* pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
   this->camera.size = this->size;
+  this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
 }
 ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int id){
@@ -46,6 +58,7 @@ ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int
   this->colorDepth = 1;
   unsigned char* pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
   this->camera.size = this->size;
+  this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
   if(convertColorDepthTo == 1){
     convertToBW(this->pixels, this->colorDepth);
@@ -785,11 +798,11 @@ __global__ void ssrlcv::binImage(uint2 imageSize, unsigned int colorDepth, unsig
   unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
   if(x < imageSize.x/2 && y < imageSize.y/2){
     for(int d = 0; d < colorDepth; ++d){
-      float sumPix = pixels[y*colorDepth*2*imageSize.x + x*2*colorDepth + d] +
-      pixels[(y*2+1)*colorDepth*imageSize.x + x*2*colorDepth + d] +
-      pixels[y*2*colorDepth*imageSize.x + (x*2+1)*colorDepth + d] +
-      pixels[(y*2+1)*colorDepth*imageSize.x + (x*2+1)*colorDepth + d];
-      binnedImage[y*colorDepth*(imageSize.x/2) + x*colorDepth + d] = (unsigned char) roundf(sumPix/4.0f);
+      float sumPix = pixels[y*colorDepth*2*imageSize.x + (x*2*colorDepth) + d] +
+      pixels[(y*2+1)*colorDepth*imageSize.x + (x*2*colorDepth) + d] +
+      pixels[y*2*colorDepth*imageSize.x + ((x*2+1)*colorDepth) + d] +
+      pixels[(y*2+1)*colorDepth*imageSize.x + ((x*2+1)*colorDepth) + d];
+      binnedImage[y*colorDepth*(imageSize.x/2) + (x*colorDepth) + d] = (unsigned char) roundf(sumPix/4.0f);
     }
   }
 }

@@ -16,7 +16,6 @@ namespace ssrlcv{
 
   //TODO differentiate distance methods and pass function pointers to matching kernels
 
-
   /**
   * \brief simple struct meant to fill out matches
   */
@@ -181,8 +180,8 @@ namespace ssrlcv{
 
     
   };
-
-  Unity<Match>* generateDiparityMatches(uint2 querySize, Unity<unsigned char>* queryPixels, uint2 targetSize, Unity<unsigned char>* targetPixels, float fundamental[3][3], unsigned int windowSize = 3, uint2 border = {0,0});
+  Unity<Match>* generateDiparityMatches(uint2 querySize, Unity<unsigned char>* queryPixels, uint2 targetSize, Unity<unsigned char>* targetPixels, 
+    float fundamental[3][3], unsigned int maxDisparity, unsigned int windowSize = 3, Direction direction = undefined);
 
   void writeMatchFile(Unity<Match>* matches, std::string pathToFile);
   Unity<Match>* readMatchFile(std::string pathToFile);
@@ -205,8 +204,8 @@ namespace ssrlcv{
     Feature<T>* seedFeatures, float* matchDistances);
 
   //base matching kernels
-  __global__ void disparityMatching(uint2 querySize, unsigned char* pixelsQuery, uint2 targetSize, unsigned char* pixelsTarget, float* fundamental, Match* matches, uint2 numWindows, uint2 border);
-  __global__ void disparityScanMatching(uint2 querySize, unsigned char* pixelsQuery, uint2 targetSize, unsigned char* pixelsTarget, Match* matches, uint2 numWindows, uint2 border);
+  __global__ void disparityMatching(uint2 querySize, unsigned char* pixelsQuery, uint2 targetSize, unsigned char* pixelsTarget, float* fundamental, Match* matches, unsigned int maxDisparity, Direction direction);
+  __global__ void disparityScanMatching(uint2 querySize, unsigned char* pixelsQuery, uint2 targetSize, unsigned char* pixelsTarget, Match* matches, unsigned int maxDisparity, Direction direction);
 
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,

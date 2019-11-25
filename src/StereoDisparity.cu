@@ -133,7 +133,7 @@ int main(int argc, char *argv[]){
     ssrlcv::Unity<float3>* points = demPoints.stereo_disparity(matches,64.0f);
     std::string disparityFile = imagePaths[0].substr(0,imagePaths[0].rfind(delimiter));
     disparityFile = disparityFile.substr(0,disparityFile.rfind(delimiter))  + "/disparity.png";
-    ssrlcv::writeDisparityImage(points,63,disparityFile);
+    ssrlcv::writeDisparityImage(points,0,disparityFile);
 
     delete matches;
     ssrlcv::writePLY("out/test.ply",points);

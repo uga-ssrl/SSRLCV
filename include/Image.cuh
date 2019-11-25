@@ -49,6 +49,7 @@ namespace ssrlcv{
     Unity<unsigned char>* pixels;/**\brief pixels of image flattened row-wise*/
 
     Image();
+    Image(uint2 size, unsigned int colorDepth, Unity<unsigned char>* pixels);
     Image(std::string filePath, int id = -1);
     Image(std::string filePath, unsigned int convertColorDepthTo, int id = -1);
     ~Image();

@@ -64,13 +64,15 @@ namespace ssrlcv{
 
   };  
 
-  void writeDisparityImage(Unity<float3>* points, unsigned int disparityLevels, std::string pathToFile);
+  void writeDisparityImage(Unity<float3>* points, unsigned int interpolationRadius, std::string pathToFile);
 
   __global__ void generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras);
 
   __global__ void computeStereo(unsigned int numMatches, Match* matches, float3* points, float foc, float baseLine, float doffset);
 
   __global__ void computeStereo(unsigned int numMatches, Match* matches, float3* points, float scale);
+
+  __global__ void interpolateDepth(uint2 disparityMapSize, int influenceRadius, float* disparities, float* interpolated);
 
   __global__ void two_view_reproject(int numMatches, float4* matches, float cam1C[3],
   	float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9],

@@ -418,7 +418,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
 }
 
 
-void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int disparityLevels, std::string pathToFile){
+void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolationRadius, std::string pathToFile){
   MemoryState origin = points->state;
   if(origin == gpu) points->transferMemoryTo(cpu);
   float3 min = {FLT_MAX,FLT_MAX,FLT_MAX};
@@ -433,50 +433,80 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int disparityLe
   }
   uint2 imageDim = {(unsigned int)ceil(max.x-min.x)+1,(unsigned int)ceil(max.y-min.y)+1}; 
   unsigned char* disparityImage = new unsigned char[imageDim.x*imageDim.y*3];
-  std::vector<float> flt_colors;
+  Unity<float>* colors = new Unity<float>(nullptr,imageDim.x*imageDim.y,cpu);
   for(int i = 0; i < imageDim.x*imageDim.y*3; ++i){
-    if(i < imageDim.x*imageDim.y){
-      flt_colors.push_back(0.0f);
-    }
     disparityImage[i] = 0;
   }
   for(int i = 0; i < points->numElements; ++i){
     float3 temp = points->host[i] - min;
     if(ceil(temp.x) != temp.x || ceil(temp.y) != temp.y){
-      flt_colors[((int)ceil(temp.y)*imageDim.x) + (int)ceil(temp.x)] += (1-ceil(temp.x)-temp.x)*(1-ceil(temp.y)-temp.y)*temp.z/(max.z-min.z);
-      flt_colors[((int)ceil(temp.y)*imageDim.x) + (int)floor(temp.x)] += (1-temp.x-floor(temp.x))*(1-ceil(temp.y)-temp.y)*temp.z/(max.z-min.z);
-      flt_colors[((int)floor(temp.y)*imageDim.x) + (int)ceil(temp.x)] += (1-ceil(temp.x)-temp.x)*(1-temp.y-floor(temp.y))*temp.z/(max.z-min.z);
-      flt_colors[((int)floor(temp.y)*imageDim.x) + (int)floor(temp.x)] += (1-temp.x-floor(temp.x))*(1-temp.y-floor(temp.y))*temp.z/(max.z-min.z);
+      colors->host[((int)ceil(temp.y)*imageDim.x) + (int)ceil(temp.x)] += (1-ceil(temp.x)-temp.x)*(1-ceil(temp.y)-temp.y)*temp.z/(max.z-min.z);
+      colors->host[((int)ceil(temp.y)*imageDim.x) + (int)floor(temp.x)] += (1-temp.x-floor(temp.x))*(1-ceil(temp.y)-temp.y)*temp.z/(max.z-min.z);
+      colors->host[((int)floor(temp.y)*imageDim.x) + (int)ceil(temp.x)] += (1-ceil(temp.x)-temp.x)*(1-temp.y-floor(temp.y))*temp.z/(max.z-min.z);
+      colors->host[((int)floor(temp.y)*imageDim.x) + (int)floor(temp.x)] += (1-temp.x-floor(temp.x))*(1-temp.y-floor(temp.y))*temp.z/(max.z-min.z);
     }
     else{
-      flt_colors[(int)temp.y*imageDim.x + (int)temp.x] += temp.z/(max.z-min.z);
+      colors->host[(int)temp.y*imageDim.x + (int)temp.x] += temp.z/(max.z-min.z);
     }
   }
+  
+  /*
+  INTERPOLATE
+  */
+  if(interpolationRadius != 0){
+    colors->setMemoryState(gpu);
+    float* interpolated = nullptr;
+    CudaSafeCall(cudaMalloc((void**)&interpolated,imageDim.x*imageDim.y*sizeof(float)));
+    dim3 block = {1,1,1};
+    dim3 grid = {1,1,1};
+    getFlatGridBlock(imageDim.x*imageDim.y,grid,block);
+    interpolateDepth<<<grid,block>>>(imageDim,1,colors->device,interpolated);
+    cudaDeviceSynchronize();
+    CudaCheckError();
+    colors->setData(interpolated,colors->numElements,gpu);
+    colors->setMemoryState(cpu);
+  }
+
   min.z = FLT_MAX;
   max.z = -FLT_MAX;
   for(int i = 0; i < imageDim.x*imageDim.y; ++i){
-    if(min.z > flt_colors[i]) min.z = flt_colors[i];
-    if(max.z < flt_colors[i]) max.z = flt_colors[i];
+    if(min.z > colors->host[i]) min.z = colors->host[i];
+    if(max.z < colors->host[i]) max.z = colors->host[i];
   }
+  // float3 colorMap[7] = {
+  //   {127.5f,0,0},
+  //   {255.0f,0,0},
+  //   {255.0f,127.5f,0},
+  //   {0,255.0f,0.0f},
+  //   {0,255.0f,127.5f},
+  //   {0,0,255.0f},
+  //   {0,0,127.5f}
+  // };
+  float3 colorMap[3]{
+    {255,0,0},
+    {0,255,0},
+    {0,0,255}
+  };
+
+  float2 ratio = {0.0f,0.0f};
+  float3 rgb;
   for(int i = 0; i < imageDim.x*imageDim.y; ++i){
-    flt_colors[i] -= min.z;
-    flt_colors[i] /= (max.z-min.z);
-    flt_colors[i] = 1 - flt_colors[i];
-    flt_colors[i] *= disparityLevels;
-    flt_colors[i] = floor(flt_colors[i]);
-    flt_colors[i] *= ((255.0f*3.0f)/disparityLevels);
-    int color = (int)roundf(flt_colors[i]);
-    if(color/255 == 2){
-      disparityImage[i*3] = 255;
-      disparityImage[i*3 + 1] = 255;
-      disparityImage[i*3 + 2] = color - 510;
-    } 
-    else if(color/255 == 1){
-      disparityImage[i*3] = 255;
-      disparityImage[i*3 + 1] = color - 255;
-    } 
-    else disparityImage[i*3] = color;
+    colors->host[i] -= min.z;
+    colors->host[i] /= (max.z-min.z);
+    colors->host[i] *= 2;
+    ratio.x = 1 - ceil(colors->host[i]) - colors->host[i];
+    ratio.y = 1 - colors->host[i] - floor(colors->host[i]);
+    rgb = colorMap[(int)roundf(colors->host[i])];
+    rgb = colorMap[(int)ceil(colors->host[i])]*ratio.x + rgb;
+    rgb = colorMap[(int)floor(colors->host[i])]*ratio.y + rgb;
+    if(rgb.x > 255) rgb.x = 255;
+    if(rgb.y > 255) rgb.y = 255;
+    if(rgb.z > 255) rgb.z = 255;
+    disparityImage[i*3] = (unsigned char) rgb.x;
+    disparityImage[i*3 + 1] = (unsigned char) rgb.y;
+    disparityImage[i*3 + 2] = (unsigned char) rgb.z;
   }
+  delete colors;
   writePNG(pathToFile.c_str(),disparityImage,3,imageDim.x,imageDim.y);
   delete disparityImage;
 }
@@ -544,12 +574,28 @@ __global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, f
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if (globalID < numMatches) {
     Match match = matches[globalID];
-    float3 point = {match.keyPoints[0].loc.x,match.keyPoints[0].loc.y,0.0f};
-    point.z = sqrtf(dotProduct(match.keyPoints[1].loc-match.keyPoints[0].loc,match.keyPoints[1].loc-match.keyPoints[0].loc));
-    point.z = foc*baseLine/(point.z+doffset);
+    float3 point = {match.keyPoints[1].loc.x,match.keyPoints[1].loc.y,0.0f};
+    //point.z = sqrtf(dotProduct(match.keyPoints[1].loc-match.keyPoints[0].loc,match.keyPoints[1].loc-match.keyPoints[0].loc));
+    //with non parrallel or nonrecitified then replace .x - .x below with above
+    point.z = foc*baseLine/(match.keyPoints[0].loc.x-match.keyPoints[1].loc.x+doffset);
     points[globalID] = point;
   }
 }
+
+__global__ void ssrlcv::interpolateDepth(uint2 disparityMapSize, int influenceRadius, float* disparities, float* interpolated){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if(globalID < (disparityMapSize.x-(2*influenceRadius))*(disparityMapSize.y-(2*influenceRadius))){
+    float disparity = disparities[globalID];
+    int2 loc = {globalID%disparityMapSize.x + influenceRadius,globalID/disparityMapSize.x + influenceRadius};
+    for(int y = loc.y - influenceRadius; y >= loc.y + influenceRadius; ++y){
+      for(int x = loc.x - influenceRadius; x >= loc.x + influenceRadius; ++x){
+        disparity += disparities[y*disparityMapSize.x + x]*(1 - abs((x-loc.x)/influenceRadius))*(1 - abs((y-loc.y)/influenceRadius));
+      }
+    } 
+    interpolated[globalID] = disparity;
+  }
+}
+
 
 __global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, float cam1C[3], float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9], float rotationTranspose1[9], float rotationTranspose2[9], float3* points){
    unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
