@@ -195,9 +195,11 @@ void createMatchTestSet(std::string pfmFile){
 void runPipelineOn(std::string matchFile, float3 calib){
   std::string resultFolder = matchFile.substr(0,matchFile.find_last_of("/")+1);
   ssrlcv::Unity<ssrlcv::Match>* matches = ssrlcv::readMatchFile(matchFile);
-  ssrlcv::writeMatchFile(matches,resultFolder + "matches.bin",calib,true);
+  ssrlcv::writeMatchFile(matches,resultFolder + "matches.bin",true);
+  clock_t disparityTimer = clock();
   matches->setMemoryState(ssrlcv::gpu);
   ssrlcv::Unity<float3>* points = localizer.stereo_disparity(matches,calib.x,calib.y,calib.z);
+  printf("\tcomputing %d disparities took %f seconds.\n",(int)matches->numElements, ((float)clock()-disparityTimer)/CLOCKS_PER_SEC);
   delete matches;
   ssrlcv::writePLY((resultFolder + "disparity.ply").c_str(),points);
   ssrlcv::writeDisparityImage(points,0,resultFolder + "disparity.png");

@@ -183,7 +183,7 @@ namespace ssrlcv{
   Unity<Match>* generateDiparityMatches(uint2 querySize, Unity<unsigned char>* queryPixels, uint2 targetSize, Unity<unsigned char>* targetPixels, 
     float fundamental[3][3], unsigned int maxDisparity, unsigned int windowSize = 3, Direction direction = undefined);
 
-  void writeMatchFile(Unity<Match>* matches, std::string pathToFile,  float3 calib = {0.0f,0.0f,0.0f}, bool binary = false);
+  void writeMatchFile(Unity<Match>* matches, std::string pathToFile, bool binary = false);
   Unity<Match>* readMatchFile(std::string pathToFile);
 
   /* CUDA variable, method and kernel defintions */

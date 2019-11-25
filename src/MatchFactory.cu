@@ -707,13 +707,12 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, U
 }
 
 
-void ssrlcv::writeMatchFile(Unity<Match>* matches, std::string pathToFile, float3 calib, bool binary){
+void ssrlcv::writeMatchFile(Unity<Match>* matches, std::string pathToFile, bool binary){
   MemoryState origin = matches->state;
   if(origin == gpu) matches->transferMemoryTo(cpu);
   if(binary){
     std::ofstream matchstream(pathToFile,std::ios_base::binary);
     if(matchstream.is_open()){
-      matchstream.write((char*)&calib,3*sizeof(float));
       for(int i = 0; i < matches->numElements; ++i){
         matchstream.write((char*)&matches->host[i].keyPoints[0].loc,2*sizeof(float));
         matchstream.write((char*)&matches->host[i].keyPoints[1].loc,2*sizeof(float));
@@ -728,7 +727,6 @@ void ssrlcv::writeMatchFile(Unity<Match>* matches, std::string pathToFile, float
     std::ofstream matchstream(pathToFile);
     if(matchstream.is_open()){
       std::string line;
-      line = std::to_string(calib.x) + "," + std::to_string(calib.y) + "," + std::to_string(calib.z) + "\n";
       for(int i = 0; i < matches->numElements; ++i){
         line = std::to_string(matches->host[i].keyPoints[0].loc.x) + ",";
         line += std::to_string(matches->host[i].keyPoints[0].loc.y) + ",";
