@@ -417,6 +417,39 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   return points;
 }
 
+uchar3 ssrlcv::heatMap(float value){
+  uchar3 rgb;
+  // float3 colorMap[5] = {
+  //   {255.0f,0,0},
+  //   {127.5f,127.5f,0},
+  //   {0,255.0f,0.0f},
+  //   {0,127.7f,127.5f},
+  //   {0,0,255.0f},
+  // };
+  // float temp = colors->host[i];
+  // colors->host[i] *= 5.0f;
+  // colors->host[i] = floor(colors->host[i]);
+  // if(colors->host[i] == 5.0f) colors->host[i] = 4.0f;
+  // if(colors->host[i] == 0.0f) colors->host[i] = 1.0f;
+  // rgb.x = (1-temp)*colorMap[(int)colors->host[i]-1].x + (temp*colorMap[(int)colors->host[i]].x);
+  // rgb.y = (1-temp)*colorMap[(int)colors->host[i]-1].y + (temp*colorMap[(int)colors->host[i]].y);
+  // rgb.z = (1-temp)*colorMap[(int)colors->host[i]-1].z + (temp*colorMap[(int)colors->host[i]].z);
+
+
+  if(value <= 0.5f){
+    value *= 2.0f;
+    rgb.x = (unsigned char) 255*(1-value) + 0.5;
+    rgb.y = (unsigned char) 255*value + 0.5;
+    rgb.z = 0;
+  }
+  else{
+    value = value*2.0f - 1;
+    rgb.x = 0;
+    rgb.y = (unsigned char) 255*(1-value) + 0.5;
+    rgb.z = (unsigned char) 255*value + 0.5;
+  }
+  return rgb;
+}
 
 void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolationRadius, std::string pathToFile){
   MemoryState origin = points->state;
@@ -460,7 +493,7 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolati
     dim3 block = {1,1,1};
     dim3 grid = {1,1,1};
     getFlatGridBlock(imageDim.x*imageDim.y,grid,block);
-    interpolateDepth<<<grid,block>>>(imageDim,1,colors->device,interpolated);
+    interpolateDepth<<<grid,block>>>(imageDim,interpolationRadius,colors->device,interpolated);
     cudaDeviceSynchronize();
     CudaCheckError();
     colors->setData(interpolated,colors->numElements,gpu);
@@ -473,38 +506,16 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolati
     if(min.z > colors->host[i]) min.z = colors->host[i];
     if(max.z < colors->host[i]) max.z = colors->host[i];
   }
-  // float3 colorMap[7] = {
-  //   {127.5f,0,0},
-  //   {255.0f,0,0},
-  //   {255.0f,127.5f,0},
-  //   {0,255.0f,0.0f},
-  //   {0,255.0f,127.5f},
-  //   {0,0,255.0f},
-  //   {0,0,127.5f}
-  // };
-  float3 colorMap[3]{
-    {255,0,0},
-    {0,255,0},
-    {0,0,255}
-  };
 
-  float2 ratio = {0.0f,0.0f};
-  float3 rgb;
+
+  uchar3 rgb;
   for(int i = 0; i < imageDim.x*imageDim.y; ++i){
     colors->host[i] -= min.z;
     colors->host[i] /= (max.z-min.z);
-    colors->host[i] *= 2;
-    ratio.x = 1 - ceil(colors->host[i]) - colors->host[i];
-    ratio.y = 1 - colors->host[i] - floor(colors->host[i]);
-    rgb = colorMap[(int)roundf(colors->host[i])];
-    rgb = colorMap[(int)ceil(colors->host[i])]*ratio.x + rgb;
-    rgb = colorMap[(int)floor(colors->host[i])]*ratio.y + rgb;
-    if(rgb.x > 255) rgb.x = 255;
-    if(rgb.y > 255) rgb.y = 255;
-    if(rgb.z > 255) rgb.z = 255;
-    disparityImage[i*3] = (unsigned char) rgb.x;
-    disparityImage[i*3 + 1] = (unsigned char) rgb.y;
-    disparityImage[i*3 + 2] = (unsigned char) rgb.z;
+    rgb = heatMap(colors->host[i]);
+    disparityImage[i*3] = rgb.x;
+    disparityImage[i*3 + 1] = rgb.y;
+    disparityImage[i*3 + 2] = rgb.z;
   }
   delete colors;
   writePNG(pathToFile.c_str(),disparityImage,3,imageDim.x,imageDim.y);

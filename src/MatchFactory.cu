@@ -707,26 +707,43 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, U
 }
 
 
-void ssrlcv::writeMatchFile(Unity<Match>* matches, std::string pathToFile){
-  std::ofstream matchstream(pathToFile);
+void ssrlcv::writeMatchFile(Unity<Match>* matches, std::string pathToFile, float3 calib, bool binary){
   MemoryState origin = matches->state;
   if(origin == gpu) matches->transferMemoryTo(cpu);
-  validate checker;
-  if(matchstream.is_open()){
-    std::string line;
-    for(int i = 0; i < matches->numElements; ++i){
-      line = std::to_string(matches->host[i].keyPoints[0].loc.x) + ",";
-      line += std::to_string(matches->host[i].keyPoints[0].loc.y) + ",";
-      line += std::to_string(matches->host[i].keyPoints[1].loc.x) + ",";
-      line += std::to_string(matches->host[i].keyPoints[1].loc.y) + "\n";
-      matchstream << line;
+  if(binary){
+    std::ofstream matchstream(pathToFile,std::ios_base::binary);
+    if(matchstream.is_open()){
+      matchstream.write((char*)&calib,3*sizeof(float));
+      for(int i = 0; i < matches->numElements; ++i){
+        matchstream.write((char*)&matches->host[i].keyPoints[0].loc,2*sizeof(float));
+        matchstream.write((char*)&matches->host[i].keyPoints[1].loc,2*sizeof(float));
+      }
+    }
+    else{
+      std::cerr<<"ERROR: cannot write "<<pathToFile<<std::endl;
     }
     matchstream.close();
+  }
+  else{
+    std::ofstream matchstream(pathToFile);
+    if(matchstream.is_open()){
+      std::string line;
+      line = std::to_string(calib.x) + "," + std::to_string(calib.y) + "," + std::to_string(calib.z) + "\n";
+      for(int i = 0; i < matches->numElements; ++i){
+        line = std::to_string(matches->host[i].keyPoints[0].loc.x) + ",";
+        line += std::to_string(matches->host[i].keyPoints[0].loc.y) + ",";
+        line += std::to_string(matches->host[i].keyPoints[1].loc.x) + ",";
+        line += std::to_string(matches->host[i].keyPoints[1].loc.y) + "\n";
+        matchstream << line;
+      }
+      matchstream.close();
   }
   else{
     std::cerr<<"ERROR: cannot write match files"<<std::endl;
     exit(-1);
   }
+  }
+  
   std::cout<<pathToFile<<" has been written"<<std::endl;
   if(origin == gpu) matches->setMemoryState(gpu);
 }
@@ -737,6 +754,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::readMatchFile(std::string pathToFile){
   if(matchstream.is_open()){
     std::string line;
     std::string item;
+    getline(matchstream,line);//calibration parameters
     while(getline(matchstream,line)){
       std::istringstream s(line);
       Match match = Match();

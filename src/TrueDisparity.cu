@@ -193,13 +193,14 @@ void createMatchTestSet(std::string pfmFile){
   delete matches;
 }
 void runPipelineOn(std::string matchFile, float3 calib){
+  std::string resultFolder = matchFile.substr(0,matchFile.find_last_of("/")+1);
   ssrlcv::Unity<ssrlcv::Match>* matches = ssrlcv::readMatchFile(matchFile);
+  ssrlcv::writeMatchFile(matches,resultFolder + "matches.bin",calib,true);
   matches->setMemoryState(ssrlcv::gpu);
   ssrlcv::Unity<float3>* points = localizer.stereo_disparity(matches,calib.x,calib.y,calib.z);
   delete matches;
-  std::string resultFolder = matchFile.substr(0,matchFile.find_last_of("/")+1);
   ssrlcv::writePLY((resultFolder + "disparity.ply").c_str(),points);
-  ssrlcv::writeDisparityImage(points,500,resultFolder + "disparity.png");
+  ssrlcv::writeDisparityImage(points,0,resultFolder + "disparity.png");
   delete points;
 }
 //hard coded locations
@@ -303,6 +304,7 @@ void runfullSIFTPipeline(std::string folder, std::string seedImage){
 
 int main(int argc, char *argv[]){
   try{
+    //datasets coming from http://vision.middlebury.edu/stereo/data/scenes2014/
     //Make sure that matches.txt exists for all tests
     // createMatchTestSet("data/disparityTest/Adirondack/disp0.pfm");
     // createMatchTestSet("data/disparityTest/Mask/disp0.pfm");

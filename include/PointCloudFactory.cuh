@@ -64,6 +64,8 @@ namespace ssrlcv{
 
   };  
 
+  uchar3 heatMap(float value);
+
   void writeDisparityImage(Unity<float3>* points, unsigned int interpolationRadius, std::string pathToFile);
 
   __global__ void generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras);
