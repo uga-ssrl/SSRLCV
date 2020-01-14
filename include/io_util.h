@@ -8,7 +8,7 @@
 #include "Unity.cuh"
 #include "tinyply.h"
 #include "Octree.cuh"
-
+#include <stdio.h>
 
 namespace ssrlcv{
 

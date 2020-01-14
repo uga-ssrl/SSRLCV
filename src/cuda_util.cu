@@ -206,6 +206,18 @@ __device__ __host__ uint2 operator*(const uint2 &a, const uint2 &b){
 __device__ __host__ uint2 operator/(const uint2 &a, const uint2 &b){
   return {a.x / b.x, a.y / b.y};
 }
+__device__ __host__ uint2 operator+(const uint2 &a, const int &b){
+  return {a.x + b, a.y + b};
+}
+__device__ __host__ uint2 operator-(const uint2 &a, const int &b){
+  return {a.x - b, a.y - b};
+}
+__device__ __host__ uint2 operator*(const uint2 &a, const int &b){
+  return {a.x * b, a.y * b};
+}
+__device__ __host__ uint2 operator/(const uint2 &a, const int &b){
+  return {a.x / b, a.y / b};
+}
 __device__ __host__ int2 operator+(const int2 &a, const uint2 &b){
   return {a.x + b.x, a.y + b.y};
 }

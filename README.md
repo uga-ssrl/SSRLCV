@@ -26,6 +26,8 @@ For sm detection related to gpu architecture you must make twice, once
 to compile the detection program, and once to actually compile the program. 
 After doing this once you will not have to compile the sm detector again. 
 
+https://www.sharcnet.ca/help/index.php/Porting_CUDA_to_OpenCL 
+
 ## Documentation
 * Generate Doxygen by executing `doxygen doc/doxygen/Doxyfile` from within the projects root directory
 * index.html will be available in doc/doxygen/documentation/html and will allow traversal of the documentation

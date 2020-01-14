@@ -45,6 +45,26 @@
 
 #define PI 3.1415926535897932384626433832795028841971693993
 
-
+namespace ssrlcv{
+    typedef enum Direction{
+        up,
+        down,
+        left,
+        right,
+        forward,
+        backward,
+        in,
+        out,
+        north,
+        south,
+        east,
+        west,
+        northwest,
+        northeast,
+        southwest,
+        southeast,
+        undefined
+    } Direction;
+}
 
 #endif /* COMMON_INCLUDES_H */

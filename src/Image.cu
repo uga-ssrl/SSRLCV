@@ -32,12 +32,24 @@ ssrlcv::Image::Image(){
   this->id = -1;
   this->filePath = "n/a";
 }
+
+ssrlcv::Image::Image(uint2 size, unsigned int colorDepth, Unity<unsigned char>* pixels){
+  this->filePath = "n/a";
+  this->id = -1;
+  this->colorDepth = colorDepth;
+  this->pixels = pixels;
+  this->camera.size = size;
+  this->size = size;
+}
+
+
 ssrlcv::Image::Image(std::string filePath, int id){
   this->filePath = filePath;
   this->id = id;
   this->colorDepth = 1;
   unsigned char* pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
   this->camera.size = this->size;
+  this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
 }
 ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int id){
@@ -46,6 +58,7 @@ ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int
   this->colorDepth = 1;
   unsigned char* pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
   this->camera.size = this->size;
+  this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
   if(convertColorDepthTo == 1){
     convertToBW(this->pixels, this->colorDepth);
@@ -287,9 +300,12 @@ void ssrlcv::convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth)
   pixels->setData(rgbPixels_device, 3*numPixels, gpu);
   if(origin == cpu) pixels->setMemoryState(origin);
 }
+//TODO implement
+void calcFundamentalMatrix_2View(float cam0[3][3], float cam1[3][3], float (&F)[3][3]){
 
+}
 void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F)[3]){
-  if(query->camera.fov != target->camera.fov || query->camera.foc != target->camera.foc){
+  if(query->camera.foc != target->camera.foc){
     std::cout<<"ERROR calculating fundamental matrix for 2view needs to bet taken with same camera (foc&fov are same)"<<std::endl;
     exit(-1);
   }
@@ -395,8 +411,8 @@ void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F
   multiply(rot2Transpose, temp, temp2);
 
   float3 K[3] = {
-    {query->camera.foc/query->camera.dpix.x, 0, ((float)query->size.x)/2.0f},
-    {0, query->camera.foc/query->camera.dpix.y, ((float)query->size.y)/2.0f},
+    {query->camera.foc, 0, ((float)query->size.x)/2.0f},//NOTE the foc was divided by dpix.x and dpix.y but currently using foc in pixels
+    {0, query->camera.foc, ((float)query->size.y)/2.0f},//NOTE the foc was divided by dpix.x and dpix.y but currently using foc in pixels
     {0, 0, 1}
   };
   float3 K_inv[3];
@@ -782,11 +798,11 @@ __global__ void ssrlcv::binImage(uint2 imageSize, unsigned int colorDepth, unsig
   unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
   if(x < imageSize.x/2 && y < imageSize.y/2){
     for(int d = 0; d < colorDepth; ++d){
-      float sumPix = pixels[y*colorDepth*2*imageSize.x + x*2*colorDepth + d] +
-      pixels[(y*2+1)*colorDepth*imageSize.x + x*2*colorDepth + d] +
-      pixels[y*2*colorDepth*imageSize.x + (x*2+1)*colorDepth + d] +
-      pixels[(y*2+1)*colorDepth*imageSize.x + (x*2+1)*colorDepth + d];
-      binnedImage[y*colorDepth*(imageSize.x/2) + x*colorDepth + d] = (unsigned char) roundf(sumPix/4.0f);
+      float sumPix = pixels[y*colorDepth*2*imageSize.x + (x*2*colorDepth) + d] +
+      pixels[(y*2+1)*colorDepth*imageSize.x + (x*2*colorDepth) + d] +
+      pixels[y*2*colorDepth*imageSize.x + ((x*2+1)*colorDepth) + d] +
+      pixels[(y*2+1)*colorDepth*imageSize.x + ((x*2+1)*colorDepth) + d];
+      binnedImage[y*colorDepth*(imageSize.x/2) + (x*colorDepth) + d] = (unsigned char) roundf(sumPix/4.0f);
     }
   }
 }
