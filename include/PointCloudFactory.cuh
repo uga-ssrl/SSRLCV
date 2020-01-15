@@ -58,6 +58,10 @@ namespace ssrlcv{
 
     BundleSet generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images);
 
+    // stereo with auto cacluated scalar from camera params
+    ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, Image::Camera* cameras);
+
+    // setero with scalar pass thru
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float scale);
     
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float foc, float baseline, float doffset);

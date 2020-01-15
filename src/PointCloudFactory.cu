@@ -4,317 +4,6 @@ ssrlcv::PointCloudFactory::PointCloudFactory(){
 
 }
 
-/*
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::reproject(Unity<Match>* matches, Image* target, Image* query){
-  float3* pointCloud_device = nullptr;
-  CudaSafeCall(cudaMalloc((void**)&pointCloud_device, matches->numElements*sizeof(float3)));
-  Unity<float3>* pointCloud = new Unity<float3>(pointCloud_device,matches->numElements,gpu);
-
-  // //initiliaze camera matrices
-  // Camera cam1 = cData->cameras[0];
-  // Camera cam2 = cData->cameras[1];
-  // float cam1C[3] =
-  // {
-  //   cam1.val1, cam1.val2, cam1.val3
-  // };
-  // float cam1V[3] =
-  // {
-  //   -1*cam1.val4, -1*cam1.val5, -1*cam1.val6
-  // };
-  // float cam2C[3] =
-  // {
-  //   cam2.val1, cam2.val2, cam2.val3
-  // };
-  // float cam2V[3] =
-  // {
-  //   -1*cam2.val4, -1*cam2.val5, -1*cam2.val6
-  // };
-  //
-  // //other matrix data needed by all threads
-  // float K[3][3];  // intrinsic camera matrix
-  // float K_inv[3][3];  // inverse of K
-  //
-  // K[0][0] = foc/dpix;
-  // K[0][1] = 0;
-  // K[0][2] = (float)(res/2.0);
-  // K[1][0] = 0;
-  // K[1][1] = foc/dpix;
-  // K[1][2] = (float)(res/2.0);
-  // K[2][0] = 0;
-  // K[2][1] = 0;
-  // K[2][2] = 1;
-  // inverse3x3_cpu(K, K_inv);
-  //
-  // float x;
-  // float y;
-  // float z;
-  // // Rotate cam1V about the x axis
-  // x = cam1V[0];
-  // y = cam1V[1];
-  // z = cam1V[2];
-  // float angle1;  // angle between cam1V and x axis
-  // if (abs(z) < .00001)
-  // {
-  //   if (y > 0)
-  //   {
-  //     angle1 = PI/2;
-  //   }
-  //   else
-  //   {
-  //     angle1 = -1*PI/2;
-  //   }
-  // }
-  // else
-  // {
-  //   angle1 = atan(y/z);
-  //   if (z < 0 && y >= 0)
-  //   {
-  //     angle1 +=PI;
-  //   }
-  //   if (z < 0 && y < 0)
-  //   {
-  //     angle1 -= PI;
-  //   }
-  // }
-  // float A1[3][3] =
-  // {
-  //   {1, 0, 0},
-  //   {0, cos(angle1), -sin(angle1)},
-  //   {0, sin(angle1), cos(angle1)}
-  // };
-  //
-  // float temp[3];
-  // //apply transform matrix we just got
-  // multiply3x3x1_cpu(A1, cam1V, temp);
-  //
-  // //rotate around the y axis
-  // x = temp[0];
-  // y = temp[1];
-  // z = temp[2];
-  // float angle2;  // angle between temp and y axis
-  // if (abs(z) < .00001)
-  // {
-  //   if (x <= 0)
-  //   {
-  //     angle2 = PI/2;
-  //   }else
-  //   {
-  //     angle2 = -1*PI/2;
-  //   }
-  // }else
-  // {
-  //   angle2 = atan(-1*x / z);
-  //   if(z < 0 && x < 0)
-  //   {
-  //     angle2 += PI;
-  //   }
-  //   if(z < 0 && x > 0)
-  //   {
-  //     angle2 -= PI;
-  //   }
-  // }
-  //
-  // float B1[3][3] =
-  // {
-  //   {cos(angle2), 0, sin(angle2)},
-  //   {0, 1, 0},
-  //   {-sin(angle2), 0, cos(angle2)}
-  // };
-  //
-  // float rotCam1[3];
-  // // apply transformation matrix B. store in rotcam1
-  // multiply3x3x1_cpu(B1, temp, rotCam1);
-  //
-  // float rotationMatrix1[3][3];
-  // float rotationTranspose1[3][3];
-  //
-  // //get rotation matrix as a single transform matrix
-  // multiply3x3_cpu(B1, A1, rotationMatrix1);
-  // transpose_cpu(rotationMatrix1, rotationTranspose1);
-  // multiply3x3x1_cpu(rotationTranspose1, rotCam1, temp); // temp should be original cam1C now
-  //
-  // // Rotate cam2V about the x axis
-  // x = cam2V[0];
-  // y = cam2V[1];
-  // z = cam2V[2];
-  //
-  // if(abs(z) < .00001)
-  // {
-  //   if(y > 0)
-  //   {
-  //     angle1 = PI/2;
-  //   } else
-  //   {
-  //     angle1 = -1*PI/2;
-  //   }
-  // } else
-  // {
-  //   angle1 = atan(y / z);
-  //   if(z<0 && y>=0)
-  //   {
-  //     angle1 += PI;
-  //   }
-  //   if(z<0 && y<0)
-  //   {
-  //     angle1 -= PI;
-  //   }
-  // }
-  // float A2[3][3] =
-  // {
-  //   {1, 0, 0},
-  //   {0, cos(angle1), -sin(angle1)},
-  //   {0, sin(angle1), cos(angle1)}
-  // };
-  // // apply transformation matrix A
-  // multiply3x3x1_cpu(A2, cam2V, temp);
-  //
-  // // Rotate about the y axis
-  // x = temp[0];
-  // y = temp[1];
-  // z = temp[2];
-  // if(abs(z) < .00001)
-  // {
-  //   if(x <= 0){
-  //     angle2 = PI/2;
-  //   }else
-  //   {
-  //     angle2 = -1*PI/2;
-  //   }
-  // } else
-  // {
-  //   angle2 = atan(-1*x / z);
-  //   if(z<0 && x<0)
-  //   {
-  //     angle2 += PI;
-  //   }
-  //   if(z<0 && x>0)
-  //   {
-  //     angle2 -= PI;
-  //   }
-  // }
-  // float B2[3][3] =
-  // {
-  //   {cos(angle2), 0, sin(angle2)},
-  //   {0, 1, 0},
-  //   {-sin(angle2), 0, cos(angle2)}
-  // };
-  // // apply transformation matrix B
-  // float rotCam2[3];
-  // multiply3x3x1_cpu(B2, temp, rotCam2);
-  //
-  // float rotationMatrix2[3][3];
-  // float rotationTranspose2[3][3];
-  //
-  // // Get rotation matrix as a single transformation matrix
-  // multiply3x3_cpu(B2, A2, rotationMatrix2);
-  // transpose_cpu(rotationMatrix2, rotationTranspose2);
-  // multiply3x3x1_cpu(rotationTranspose2, rotCam2, temp); // temp should be original cam2C now
-  //
-  // //linearize matrices
-  // //position in linear matrix = 3*x +y, [x][y]
-  // float K_inv_lin[9];
-  // K_inv_lin[0] = K_inv[0][0];
-  // K_inv_lin[1] = K_inv[0][1];
-  // K_inv_lin[2] = K_inv[0][2];
-  // K_inv_lin[3] = K_inv[1][0];
-  // K_inv_lin[4] = K_inv[1][1];
-  // K_inv_lin[5] = K_inv[1][2];
-  // K_inv_lin[6] = K_inv[2][0];
-  // K_inv_lin[7] = K_inv[2][1];
-  // K_inv_lin[8] = K_inv[2][2];
-  //
-  // float rotTran1_lin[9];
-  // rotTran1_lin[0] = rotationTranspose1[0][0];
-  // rotTran1_lin[1] = rotationTranspose1[0][1];
-  // rotTran1_lin[2] = rotationTranspose1[0][2];
-  // rotTran1_lin[3] = rotationTranspose1[1][0];
-  // rotTran1_lin[4] = rotationTranspose1[1][1];
-  // rotTran1_lin[5] = rotationTranspose1[1][2];
-  // rotTran1_lin[6] = rotationTranspose1[2][0];
-  // rotTran1_lin[7] = rotationTranspose1[2][1];
-  // rotTran1_lin[8] = rotationTranspose1[2][2];
-  //
-  // float rotTran2_lin[9];
-  // rotTran2_lin[0] = rotationTranspose2[0][0];
-  // rotTran2_lin[1] = rotationTranspose2[0][1];
-  // rotTran2_lin[2] = rotationTranspose2[0][2];
-  // rotTran2_lin[3] = rotationTranspose2[1][0];
-  // rotTran2_lin[4] = rotationTranspose2[1][1];
-  // rotTran2_lin[5] = rotationTranspose2[1][2];
-  // rotTran2_lin[6] = rotationTranspose2[2][0];
-  // rotTran2_lin[7] = rotationTranspose2[2][1];
-  // rotTran2_lin[8] = rotationTranspose2[2][2];
-  //
-  // //initialize point cloud data to 0
-  // //pointCloud->points = new  float3[POINT_CLOUD_SIZE];
-  // float3* currentPoint;
-  // for(int i = 0; i < POINT_CLOUD_SIZE; ++i)
-  // {
-  //   currentPoint = &(pointCloud->points[i]);
-  //   currentPoint->x = 0.0f;
-  //   currentPoint->y = 0.0f;
-  //   currentPoint->z = 0.0f;
-  // }
-  //
-  // //create pointers on the device. d_ indicates pointer to mem on device
-  // float4* d_in_matches; 		 //where feature matches data is stored
-  // float* d_in_cam1C; 		 //where camera data is stored
-  // float* d_in_cam1V; 		 //where camera data is stored
-  // float* d_in_cam2C; 		 //where camera data is stored
-  // float* d_in_cam2V; 		 //where camera data is stored
-  // float* d_in_k_inv;
-  // float* d_in_rotTran1;
-  //
-  // float* d_in_rotTran2;
-  // float3* d_out_pointCloud; //where point cloud output is stored
-  //
-  // //allocate the mem on the gpu
-  // cudaMalloc((void**) &d_in_matches, FEATURE_DATA_BYTES);
-  // cudaMalloc((void**) &d_in_cam1C, CAMERA_DATA_BYTES);
-  // cudaMalloc((void**) &d_in_cam1V, CAMERA_DATA_BYTES);
-  // cudaMalloc((void**) &d_in_cam2C, CAMERA_DATA_BYTES);
-  // cudaMalloc((void**) &d_in_cam2V, CAMERA_DATA_BYTES);
-  // cudaMalloc((void**) &d_in_k_inv, MATRIX_DAYA_BYTES);
-  // cudaMalloc((void**) &d_in_rotTran1, MATRIX_DAYA_BYTES);
-  // cudaMalloc((void**) &d_in_rotTran2, MATRIX_DAYA_BYTES);
-  // cudaMalloc((void**) &d_out_pointCloud, POINT_CLOUD_BYTES);
-  //
-  // //transfer input data to mem on the gpu
-  // cudaMemcpy(d_in_matches, fMatches->matches, FEATURE_DATA_BYTES, cudaMemcpyHostToDevice);
-  // cudaMemcpy(d_in_cam1C, cam1C, CAMERA_DATA_BYTES, cudaMemcpyHostToDevice);
-  // cudaMemcpy(d_in_cam1V, cam1V, CAMERA_DATA_BYTES, cudaMemcpyHostToDevice);
-  // cudaMemcpy(d_in_cam2C, cam2C, CAMERA_DATA_BYTES, cudaMemcpyHostToDevice);
-  // cudaMemcpy(d_in_cam2V, cam2V, CAMERA_DATA_BYTES, cudaMemcpyHostToDevice);
-  // cudaMemcpy(d_in_k_inv, K_inv_lin, MATRIX_DAYA_BYTES, cudaMemcpyHostToDevice);
-  // cudaMemcpy(d_in_rotTran1, rotTran1_lin, MATRIX_DAYA_BYTES, cudaMemcpyHostToDevice);
-  // cudaMemcpy(d_in_rotTran2, rotTran2_lin, MATRIX_DAYA_BYTES, cudaMemcpyHostToDevice);
-  // cudaMemcpy(d_out_pointCloud, pointCloud->points, POINT_CLOUD_BYTES, cudaMemcpyHostToDevice);
-  //
-  // //block and thread count
-  // dim3 THREAD_COUNT = {512, 1, 1};
-  // dim3 BLOCK_COUNT = {(unsigned int)ceil((POINT_CLOUD_SIZE+512)/512),1, 1}; //(unsigned int)ceil(POINT_CLOUD_SIZE/512)
-  //
-  // //call kernel
-  // two_view_reproject<<<BLOCK_COUNT, THREAD_COUNT>>>(POINT_CLOUD_SIZE, d_in_matches, d_in_cam1C, d_in_cam1V, d_in_cam2C, d_in_cam2V, d_in_k_inv, d_in_rotTran1, d_in_rotTran2, d_out_pointCloud);
-  //
-  // //error check
-  // CudaCheckError();
-  //
-  // //get result
-  // cudaMemcpy(pointCloud->points, d_out_pointCloud, POINT_CLOUD_BYTES, cudaMemcpyDeviceToHost);
-  //
-  // pointCloud->numPoints = fMatches->numMatches;
-  // //free mem on gpu
-  // cudaFree(d_in_matches);
-  // cudaFree(d_in_cam1C);
-  // cudaFree(d_in_cam1V);
-  // cudaFree(d_in_cam2C);
-  // cudaFree(d_in_cam2V);
-  // cudaFree(d_out_pointCloud);
-  return pointCloud;
-}
-*/
-
 ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
 
 
@@ -365,10 +54,52 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   return bundleSet;
 }
 
-
-// TODO fillout
 /**
-* Preforms a Stereo Disparity
+* Preforms a Stereo Disparity with the correct scalar, calcualated form camera
+* parameters
+* @param matches0
+* @param matches1
+* @param points assumes this has been allocated prior to method call
+* @param n the number of matches
+* @param cameras a camera array of only 2 Image::Camera structs. This is used to
+* dynamically calculate a scaling factor
+*/
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>* matches, Image::Camera* cameras){
+
+  float baseline = sqrtf( (cameras[0].cam_pos.x - cameras[1].cam_pos.x)*(cameras[0].cam_pos.x - cameras[1].cam_pos.x)
+                        + (cameras[0].cam_pos.y - cameras[1].cam_pos.y)*(cameras[0].cam_pos.y - cameras[1].cam_pos.y)
+                        + (cameras[0].cam_pos.z - cameras[1].cam_pos.z)*(cameras[0].cam_pos.z - cameras[1].cam_pos.z));
+  float scale = (baseline * cameras[0].foc )/(cameras[0].dpix.x);
+
+  std::cout << "Stereo Baseline: " << baseline << ", Stereo Scale Factor: " << scale <<  ", Inverted Stereo Scale Factor: " << (1.0/scale) << std::endl;
+
+  MemoryState origin = matches->state;
+  if(origin == cpu) matches->transferMemoryTo(gpu);
+
+  // depth points
+  float3 *points_device = nullptr;
+
+  cudaMalloc((void**) &points_device, matches->numElements*sizeof(float3));
+
+  //
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(matches->numElements,grid,block);
+  //
+  computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, 8.0);
+  // focal lenth / baseline
+
+  // computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, 64.0);
+
+  Unity<float3>* points = new Unity<float3>(points_device, matches->numElements,gpu);
+  if(origin == cpu) matches->setMemoryState(cpu);
+
+  return points;
+}
+
+/**
+* Preforms a Stereo Disparity, this SHOULD NOT BE THE DEFAULT as the scale is not
+* dyamically calculated
 * @param matches0
 * @param matches1
 * @param points assumes this has been allocated prior to method call
@@ -576,7 +307,7 @@ __global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, f
   if (globalID < numMatches) {
     Match match = matches[globalID];
     float3 point = {match.keyPoints[0].loc.x,match.keyPoints[0].loc.y,0.0f};
-    point.z = sqrtf(scale*dotProduct(match.keyPoints[0].loc-match.keyPoints[1].loc,match.keyPoints[0].loc-match.keyPoints[1].loc));
+    point.z = scale / sqrtf( dotProduct(match.keyPoints[0].loc-match.keyPoints[1].loc,match.keyPoints[0].loc-match.keyPoints[1].loc)) ;
     points[globalID] = point;
   }
 }
