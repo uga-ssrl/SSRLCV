@@ -27,9 +27,14 @@ make -j# SM=##
 | Device        | Reccomended           | 
 | ------------- |:-------------:|
 | TX2i          | `make -j3 SM=52` | 
-| Jetson Nano      | `make -j3 SM=51`     | 
+| Jetson Nano      | `make -j3 SM=53`   
 |  re neat      | `make -j9 SM=61` |
 
+You can also clean out the repo, to just have the standard files again, with
+
+```
+make clean
+```
 
 ## Documentation
 * Generate Doxygen by executing `doxygen doc/doxygen/Doxyfile` from within the projects root directory
