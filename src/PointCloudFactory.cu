@@ -54,7 +54,6 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   return bundleSet;
 }
 
-// TODO fillout
 /**
 * Preforms a Stereo Disparity with the correct scalar, calcualated form camera
 * parameters
@@ -87,8 +86,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   dim3 block = {1,1,1};
   getFlatGridBlock(matches->numElements,grid,block);
   //
-  // computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, 8.0);
-  computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, scale);
+  computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, 8.0);
+  // focal lenth / baseline
+
+  // computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, 64.0);
 
   Unity<float3>* points = new Unity<float3>(points_device, matches->numElements,gpu);
   if(origin == cpu) matches->setMemoryState(cpu);
@@ -96,7 +97,6 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   return points;
 }
 
-// TODO fillout
 /**
 * Preforms a Stereo Disparity, this SHOULD NOT BE THE DEFAULT as the scale is not
 * dyamically calculated
