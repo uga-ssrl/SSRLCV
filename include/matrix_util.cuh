@@ -23,7 +23,7 @@ namespace ssrlcv{
   __device__ __host__ void transpose(const float3 (&M)[3], float3 (&M_out)[3]);
   __device__ __host__ void transpose(const float (&M)[3][3], float (&M_out)[3][3]);
   __device__ __host__ void transpose(const float (&M)[2][2], float (&M_out)[2][2]);
-  
+
   __device__ __host__ float determinant(const float (&M)[2][2]);
   __device__ __host__ float trace(const float(&M)[2][2]);
   __device__ __host__ float trace(const float(&M)[3][3]);
@@ -33,10 +33,10 @@ namespace ssrlcv{
   __device__ __host__ float magnitude(const float (&v)[3]);
   __device__ __host__ float magnitude(const float3 &v);
 
-
   __device__ float3 matrixMulVector(float3 x, float A[3][3]);
   __device__ float3 getVectorAngles(float3 v);
   __device__ float3 rotatePoint(float3 point, float3 angles);
+  __device__ float3 rotatePointKP(float3 point, float3 goal, float axangle);
 
 }
 

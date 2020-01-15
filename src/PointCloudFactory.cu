@@ -195,7 +195,7 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolati
     if(points->host[i].z < min.z) min.z = points->host[i].z;
     if(points->host[i].z > max.z) max.z = points->host[i].z;
   }
-  uint2 imageDim = {(unsigned int)ceil(max.x-min.x)+1,(unsigned int)ceil(max.y-min.y)+1}; 
+  uint2 imageDim = {(unsigned int)ceil(max.x-min.x)+1,(unsigned int)ceil(max.y-min.y)+1};
   unsigned char* disparityImage = new unsigned char[imageDim.x*imageDim.y*3];
   Unity<float>* colors = new Unity<float>(nullptr,imageDim.x*imageDim.y,cpu);
   for(int i = 0; i < imageDim.x*imageDim.y*3; ++i){
@@ -213,7 +213,7 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolati
       colors->host[(int)temp.y*imageDim.x + (int)temp.x] += temp.z/(max.z-min.z);
     }
   }
-  
+
   /*
   INTERPOLATE
   */
@@ -267,8 +267,10 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
   for (int i = match.index, k = 0; i < end; i++,k++){
     currentKP = keyPoints[i];
     printf("[%lu][%d] camera vec: <%f,%f,%f>\n", globalID,k, cameras[currentKP.parentId].cam_vec.x,cameras[currentKP.parentId].cam_vec.y,cameras[currentKP.parentId].cam_vec.z);
+    // may not be needed w new method??
     normalize(cameras[currentKP.parentId].cam_vec);
     printf("[%lu][%d] norm camera vec: <%f,%f,%f>\n", globalID,k, cameras[currentKP.parentId].cam_vec.x,cameras[currentKP.parentId].cam_vec.y,cameras[currentKP.parentId].cam_vec.z);
+    printf("[%lu][%d] camera axangle: %f \n",globalID,k,cameras[currentKP.parentId].axangle);
     // set dpix values
     printf("[%lu][%d] dpix calc dump: (foc: %f) (fov: %f) (tanf: %f) (size: %d) \n", globalID,k, cameras[currentKP.parentId].foc, cameras[currentKP.parentId].fov, tanf(cameras[currentKP.parentId].fov / 2.0f), cameras[currentKP.parentId].size.x);
     cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
@@ -276,29 +278,39 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
     // temp
     printf("[%lu][%d] dpix calculated as: %f \n", globalID,k, cameras[currentKP.parentId].dpix.x);
 
+    // here we imagine the image plane is in the X Y plane AT a particular Z value, which is the focal length
+    // We need to slowly transform this later so that it has the correct orientation
     kp[k] = {
       cameras[currentKP.parentId].dpix.x * ((currentKP.loc.x) - (cameras[currentKP.parentId].size.x / 2.0f)),
       cameras[currentKP.parentId].dpix.y * ((-1.0f * currentKP.loc.y) - (cameras[currentKP.parentId].size.y / 2.0f)),
-      0.0f
+      cameras[currentKP.parentId].foc // this is the focal length
     }; // set the key point
 
     printf("[%lu][%d] kp, pre-rotation: (%f,%f,%f) \n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
-    kp[k] = rotatePoint(kp[k], getVectorAngles(cameras[currentKP.parentId].cam_vec));
-    printf("[%lu][%d] kp, angles: (%f,%f,%f) \n", globalID,k, getVectorAngles(cameras[currentKP.parentId].cam_vec).x, getVectorAngles(cameras[currentKP.parentId].cam_vec).y, getVectorAngles(cameras[currentKP.parentId].cam_vec).z);
+
+    // old thing
+    // kp[k] = rotatePoint(kp[k], getVectorAngles(cameras[currentKP.parentId].cam_vec));
+
+    // attempting new thing
+    kp[k] = rotatePointKP(kp[k], cameras[currentKP.parentId].cam_vec, cameras[currentKP.parentId].axangle);
     printf("[%lu][%d] kp, post-rotation: (%f,%f,%f) \n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
-    // NOTE: will need to adjust foc with scale or x/y component here in the future
-    kp[k].x = cameras[currentKP.parentId].cam_pos.x - (kp[k].x + (cameras[currentKP.parentId].cam_vec.x * cameras[currentKP.parentId].foc));
-    kp[k].y = cameras[currentKP.parentId].cam_pos.y - (kp[k].y + (cameras[currentKP.parentId].cam_vec.y * cameras[currentKP.parentId].foc));
-    kp[k].z = cameras[currentKP.parentId].cam_pos.z - (kp[k].z + (cameras[currentKP.parentId].cam_vec.z * cameras[currentKP.parentId].foc));
-    printf("[%lu][%d] kp in R3: (%f,%f,%f)\n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
-    lines[i].vec = {
-      cameras[currentKP.parentId].cam_pos.x - kp[k].x,
-      cameras[currentKP.parentId].cam_pos.y - kp[k].y,
-      cameras[currentKP.parentId].cam_pos.z - kp[k].z
-    };
-    normalize(lines[i].vec);
-    printf("[%lu][%d] %f,%f,%f\n",globalID,k,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z);
-    lines[i].pnt = cameras[currentKP.parentId].cam_pos;
+
+
+  //   printf("[%lu][%d] kp, angles: (%f,%f,%f) \n", globalID,k, getVectorAngles(cameras[currentKP.parentId].cam_vec).x, getVectorAngles(cameras[currentKP.parentId].cam_vec).y, getVectorAngles(cameras[currentKP.parentId].cam_vec).z);
+  //   printf("[%lu][%d] kp, post-rotation: (%f,%f,%f) \n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
+  //   // NOTE: will need to adjust foc with scale or x/y component here in the future
+  //   kp[k].x = cameras[currentKP.parentId].cam_pos.x - (kp[k].x + (cameras[currentKP.parentId].cam_vec.x * cameras[currentKP.parentId].foc));
+  //   kp[k].y = cameras[currentKP.parentId].cam_pos.y - (kp[k].y + (cameras[currentKP.parentId].cam_vec.y * cameras[currentKP.parentId].foc));
+  //   kp[k].z = cameras[currentKP.parentId].cam_pos.z - (kp[k].z + (cameras[currentKP.parentId].cam_vec.z * cameras[currentKP.parentId].foc));
+  //   printf("[%lu][%d] kp in R3: (%f,%f,%f)\n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
+  //   lines[i].vec = {
+  //     cameras[currentKP.parentId].cam_pos.x - kp[k].x,
+  //     cameras[currentKP.parentId].cam_pos.y - kp[k].y,
+  //     cameras[currentKP.parentId].cam_pos.z - kp[k].z
+  //   };
+  //   normalize(lines[i].vec);
+  //   printf("[%lu][%d] %f,%f,%f\n",globalID,k,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z);
+  //   lines[i].pnt = cameras[currentKP.parentId].cam_pos;
   }
 }
 
@@ -333,7 +345,7 @@ __global__ void ssrlcv::interpolateDepth(uint2 disparityMapSize, int influenceRa
       for(int x = loc.x - influenceRadius; x >= loc.x + influenceRadius; ++x){
         disparity += disparities[y*disparityMapSize.x + x]*(1 - abs((x-loc.x)/influenceRadius))*(1 - abs((y-loc.y)/influenceRadius));
       }
-    } 
+    }
     interpolated[globalID] = disparity;
   }
 }
