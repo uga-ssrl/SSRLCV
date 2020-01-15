@@ -12,7 +12,7 @@ LIB :=  -L/usr/local/cuda/lib64 -lcublas -lcuda -lcudart -lcusparse -lcusolver\
 
 # Common flags
 COMMONFLAGS += ${INCLUDES}
-COMMONFLAGS += -g # Output debug symbols 
+COMMONFLAGS += -g # Output debug symbols
 CXXFLAGS += ${COMMONFLAGS}
 CXXFLAGS += -Wall -std=c++11
 # compute_<#> and sm_<#> will need to change depending on the device
@@ -41,7 +41,7 @@ endif
 
 
 #
-# Files 
+# Files
 #
 
 SRCDIR 		= ./src
@@ -157,6 +157,12 @@ ${TESTDIR}/bin/cpp/%: ${TESTDIR}/obj/%.cpp.o ${TEST_OBJS}
 
 ${TESTDIR}/bin/cu/%: ${TESTDIR}/obj/%.cu.o ${TEST_OBJS}
 	${LINK} ${GENCODEFLAGS} ${LIB} ${TEST_OBJS} $< -o $@
+
+#
+# Docs
+#
+docs:
+	doxygen doc/doxygen/Doxyfile
 
 #
 # Clean
