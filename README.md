@@ -28,7 +28,7 @@ make -j# SM=##
 | ------------- |:-------------:|
 | TX2i          | `make -j3 SM=52` | 
 | Jetson Nano      | `make -j3 SM=53`   
-|  re neat      | `make -j9 SM=61` |
+|  Ubuntu 16.04 with GTX 1070     | `make -j9 SM=61` |
 
 You can also clean out the repo, to just have the standard files again, with
 
