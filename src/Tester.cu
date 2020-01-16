@@ -44,16 +44,16 @@ int main(int argc, char *argv[]){
     // fill the test camera params
     std::cout << "Filling in Test Camera Params ..." << std::endl;
     images_vec[0]->id = 0;
-    images_vec[0]->camera.size = {100,100};
+    images_vec[0]->camera.size = {2,2};
     images_vec[0]->camera.cam_pos = {0.0,0.0,0.0};
     images_vec[0]->camera.cam_vec = {1.0,1.0,1.0};
     images_vec[0]->camera.axangle = 0.0;
     images_vec[0]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
     images_vec[0]->camera.foc = 0.25;
     images_vec[1]->id = 1;
-    images_vec[1]->camera.size = {100,100};
-    images_vec[1]->camera.cam_pos = {0.0,-1.0,0.0};
-    images_vec[1]->camera.cam_vec = {1.0, 0.0,0.0};
+    images_vec[1]->camera.size = {2,2};
+    images_vec[1]->camera.cam_pos = {0.0,0.0,0.0};
+    images_vec[1]->camera.cam_vec = {-1.0, -1.0, -1.0};
     images_vec[1]->camera.axangle = M_PI/2.0;
     images_vec[1]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
     images_vec[1]->camera.foc = 0.25;
@@ -65,8 +65,8 @@ int main(int argc, char *argv[]){
     ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 1, ssrlcv::cpu);
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[1].parentId = 1;
-    matches->host[0].keyPoints[0].loc = {50.0,50.0}; // at the center!
-    matches->host[0].keyPoints[1].loc = {0.0,0.0}; // in the corner
+    matches->host[0].keyPoints[0].loc = {1.0,1.0}; // at the center!
+    matches->host[0].keyPoints[1].loc = {1.0,1.0}; // in the corner
 
     // test the line gen method
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
@@ -93,7 +93,7 @@ int main(int argc, char *argv[]){
     }
     std::cout << "</lines end>" << std::endl;
 
-    std::cout << "=========================== TEST 03 ===========================" << std::endl;
+    std::cout << "=========================== TEST 02 ===========================" << std::endl;
     std::cout << "Making fake image guys ..." << std::endl;
     std::vector<ssrlcv::Image*> images_vec_2;
 
@@ -109,22 +109,22 @@ int main(int argc, char *argv[]){
     images_vec_2[0]->id = 0;
     images_vec_2[0]->camera.size = {2,2};
     images_vec_2[0]->camera.cam_pos = {0.0,0.0,0.0};
-    images_vec_2[0]->camera.cam_vec = {1.0,1.0,0.0};
-    images_vec_2[0]->camera.axangle = 0.0;
+    images_vec_2[0]->camera.cam_vec = {M_PI/4.0,0.0,0.0};
+    // images_vec_2[0]->camera.axangle = 0.0;
     images_vec_2[0]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
     images_vec_2[0]->camera.foc = 1.0; // for easy testing
     images_vec_2[1]->id = 1;
     images_vec_2[1]->camera.size = {2,2};
-    images_vec_2[1]->camera.cam_pos = {-1.0,1.0,0.0};
-    images_vec_2[1]->camera.cam_vec = {1.0,0.0,0.0};
-    images_vec_2[1]->camera.axangle = M_PI/2.0;
+    images_vec_2[1]->camera.cam_pos = {1.0,0.0,0.0};
+    images_vec_2[1]->camera.cam_vec = {0.0,M_PI/4.0,0.0};
+    // images_vec_2[1]->camera.axangle = M_PI/2.0;
     images_vec_2[1]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
     images_vec_2[1]->camera.foc = 1.0;
     images_vec_2[2]->id = 2;
     images_vec_2[2]->camera.size = {2,2};
-    images_vec_2[2]->camera.cam_pos = {1.0,1.0,3.0};
-    images_vec_2[2]->camera.cam_vec = {0.0, 0.0, -1.0};
-    images_vec_2[2]->camera.axangle = M_PI;
+    images_vec_2[2]->camera.cam_pos = {2.0,0.0,0.0};
+    images_vec_2[2]->camera.cam_vec = {0.0, 0.0, M_PI/4.0};
+    // images_vec_2[2]->camera.axangle = M_PI;
     images_vec_2[2]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
     images_vec_2[2]->camera.foc = 1.0;
     // ssrlcv::Unity<ssrlcv::Image>* images = new ssrlcv::Unity<ssrlcv::Image>(images_vec, 2, ssrlcv::cpu);
