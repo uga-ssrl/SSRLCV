@@ -93,77 +93,81 @@ int main(int argc, char *argv[]){
     }
     std::cout << "</lines end>" << std::endl;
 
-    // std::cout << "=========================== TEST 02 ===========================" << std::endl;
-    // std::cout << "Making fake image guys ..." << std::endl;
-    // std::vector<ssrlcv::Image*> images_vec_2;
-    //
-    // ssrlcv::Image* image0_2 = new ssrlcv::Image();
-    // ssrlcv::Image* image1_2 = new ssrlcv::Image();
-    // ssrlcv::Image* image2_2 = new ssrlcv::Image();
-    // images_vec_2.push_back(image0_2);
-    // images_vec_2.push_back(image1_2);
-    // images_vec_2.push_back(image2_2);
-    //
-    // // fill the test camera params
-    // std::cout << "Filling in Test Camera Params ..." << std::endl;
-    // images_vec_2[0]->id = 0;
-    // images_vec_2[0]->camera.size = {2,2};
-    // images_vec_2[0]->camera.cam_pos = {0.0,0.0,0.0};
-    // images_vec_2[0]->camera.cam_vec = {1.0,1.0,0.0};
-    // images_vec_2[0]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
-    // images_vec_2[0]->camera.foc = 0.25;
-    // images_vec_2[1]->id = 1;
-    // images_vec_2[1]->camera.size = {2,2};
-    // images_vec_2[1]->camera.cam_pos = {-1.0,1.0,0.0};
-    // images_vec_2[1]->camera.cam_vec = {1.0,0.0,0.0};
-    // images_vec_2[1]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
-    // images_vec_2[1]->camera.foc = 0.25;
-    // images_vec_2[2]->id = 2;
-    // images_vec_2[2]->camera.size = {2,2};
-    // images_vec_2[2]->camera.cam_pos = {1.0,1.0,3.0};
-    // images_vec_2[2]->camera.cam_vec = {0.0, 0.0, -1.0};
-    // images_vec_2[2]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
-    // images_vec_2[2]->camera.foc = 0.25;
-    // // ssrlcv::Unity<ssrlcv::Image>* images = new ssrlcv::Unity<ssrlcv::Image>(images_vec, 2, ssrlcv::cpu);
-    //
-    // // fill the test match points
-    // std::cout << "Filling in Matches ..." << std::endl;
-    //
-    // //match interpolation method will take the place of this here.
-    // ssrlcv::MatchSet matchSet_2;
-    // // 2 sets of keyPoints total
-    // // 1 set of 3 keyPoints
-    // // 1 set of 2 keypoints
-    // matchSet_2.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,2,ssrlcv::cpu);
-    // matchSet_2.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,(3+2),ssrlcv::cpu);
-    //
-    // // define the guys
-    // matchSet_2.matches->host[0] = {3,0};
-    // // that set of matches
-    // matchSet_2.keyPoints->host[0] = {{0},{1.0,1.0}};
-    // matchSet_2.keyPoints->host[1] = {{1},{1.0,1.0}};
-    // matchSet_2.keyPoints->host[2] = {{2},{1.0,1.0}};
-    // // define the guys
-    // matchSet_2.matches->host[1] = {2,3};
-    // // that set of matches
-    // matchSet_2.keyPoints->host[3] = {{0},{1.0,1.0}};
-    // matchSet_2.keyPoints->host[4] = {{1},{1.0,1.0}};
-    //
-    //
-    // // test the line gen method
-    // ssrlcv::PointCloudFactory demPoints_2 = ssrlcv::PointCloudFactory();
-    //
-    // std::cout << "WOW!! look at these bundles: " << std::endl;
-    // ssrlcv::BundleSet bundleSet_2 = demPoints_2.generateBundles(&matchSet_2,images_vec_2);
-    // std::cout << "<lines start>" << std::endl;
-    // for(int i = 0; i < bundleSet_2.bundles->numElements; i ++){
-    //   for (int j = bundleSet_2.bundles->host[i].index; j < bundleSet_2.bundles->host[i].index + bundleSet_2.bundles->host[i].numLines; j++){
-    //     std::cout << "(" << bundleSet_2.lines->host[j].pnt.x << "," << bundleSet_2.lines->host[j].pnt.y << "," << bundleSet_2.lines->host[j].pnt.z << ")    ";
-    //     std::cout << "<" << bundleSet_2.lines->host[j].vec.x << "," << bundleSet_2.lines->host[j].vec.y << "," << bundleSet_2.lines->host[j].vec.z << ">" << std::endl;
-    //   }
-    //   std::cout << std::endl;
-    // }
-    // std::cout << "</lines end>" << std::endl;
+    std::cout << "=========================== TEST 03 ===========================" << std::endl;
+    std::cout << "Making fake image guys ..." << std::endl;
+    std::vector<ssrlcv::Image*> images_vec_2;
+
+    ssrlcv::Image* image0_2 = new ssrlcv::Image();
+    ssrlcv::Image* image1_2 = new ssrlcv::Image();
+    ssrlcv::Image* image2_2 = new ssrlcv::Image();
+    images_vec_2.push_back(image0_2);
+    images_vec_2.push_back(image1_2);
+    images_vec_2.push_back(image2_2);
+
+    // fill the test camera params
+    std::cout << "Filling in Test Camera Params ..." << std::endl;
+    images_vec_2[0]->id = 0;
+    images_vec_2[0]->camera.size = {2,2};
+    images_vec_2[0]->camera.cam_pos = {0.0,0.0,0.0};
+    images_vec_2[0]->camera.cam_vec = {1.0,1.0,0.0};
+    images_vec_2[0]->camera.axangle = 0.0;
+    images_vec_2[0]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
+    images_vec_2[0]->camera.foc = 1.0; // for easy testing
+    images_vec_2[1]->id = 1;
+    images_vec_2[1]->camera.size = {2,2};
+    images_vec_2[1]->camera.cam_pos = {-1.0,1.0,0.0};
+    images_vec_2[1]->camera.cam_vec = {1.0,0.0,0.0};
+    images_vec_2[1]->camera.axangle = M_PI/2.0;
+    images_vec_2[1]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
+    images_vec_2[1]->camera.foc = 1.0;
+    images_vec_2[2]->id = 2;
+    images_vec_2[2]->camera.size = {2,2};
+    images_vec_2[2]->camera.cam_pos = {1.0,1.0,3.0};
+    images_vec_2[2]->camera.cam_vec = {0.0, 0.0, -1.0};
+    images_vec_2[2]->camera.axangle = M_PI;
+    images_vec_2[2]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
+    images_vec_2[2]->camera.foc = 1.0;
+    // ssrlcv::Unity<ssrlcv::Image>* images = new ssrlcv::Unity<ssrlcv::Image>(images_vec, 2, ssrlcv::cpu);
+
+    // fill the test match points
+    std::cout << "Filling in Matches ..." << std::endl;
+
+    //match interpolation method will take the place of this here.
+    ssrlcv::MatchSet matchSet_2;
+    // 2 sets of keyPoints total
+    // 1 set of 3 keyPoints
+    // 1 set of 2 keypoints
+    matchSet_2.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,2,ssrlcv::cpu);
+    matchSet_2.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,(3+2),ssrlcv::cpu);
+
+    // define the guys
+    matchSet_2.matches->host[0] = {3,0};
+    // that set of matches
+    matchSet_2.keyPoints->host[0] = {{0},{1.0,1.0}};
+    matchSet_2.keyPoints->host[1] = {{1},{1.0,1.0}};
+    matchSet_2.keyPoints->host[2] = {{2},{1.0,1.0}};
+    // define the guys
+    matchSet_2.matches->host[1] = {2,3};
+    // that set of matches
+    matchSet_2.keyPoints->host[3] = {{0},{1.0,1.0}};
+    matchSet_2.keyPoints->host[4] = {{1},{1.0,1.0}};
+
+    // test the line gen method
+    ssrlcv::PointCloudFactory demPoints_2 = ssrlcv::PointCloudFactory();
+
+    std::cout << "WOW!! look at these bundles: " << std::endl;
+    ssrlcv::BundleSet bundleSet_2 = demPoints_2.generateBundles(&matchSet_2,images_vec_2);
+    std::cout << "<lines start>" << std::endl;
+    for(int i = 0; i < bundleSet_2.bundles->numElements; i ++){
+      for (int j = bundleSet_2.bundles->host[i].index; j < bundleSet_2.bundles->host[i].index + bundleSet_2.bundles->host[i].numLines; j++){
+        std::cout << "(" << bundleSet_2.lines->host[j].pnt.x << "," << bundleSet_2.lines->host[j].pnt.y << "," << bundleSet_2.lines->host[j].pnt.z << ")    ";
+        std::cout << "<" << bundleSet_2.lines->host[j].vec.x << "," << bundleSet_2.lines->host[j].vec.y << "," << bundleSet_2.lines->host[j].vec.z << ">" << std::endl;
+      }
+      std::cout << std::endl;
+    }
+    std::cout << "</lines end>" << std::endl;
+
+
 
 
     // ===================================================================
