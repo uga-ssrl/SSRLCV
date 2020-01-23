@@ -616,6 +616,63 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
 
 }
 
+template<typename T>
+ssrlcv::MatchSet* ssrlcv::MatchFactory<T>::generateFeatureMatchesExaustive(std::vector<ssrlcv::Image*> images, std::vector<ssrlcv::Unity<ssrlcv::Feature<T>>*> features, bool ordered, int estimatedOverlap){
+  MatchSet* matchSet = nullptr;
+  matchSet->keyPoints = nullptr;
+  matchSet->matches = nullptr;
+  if(estimatedOverlap == 0){
+    std::cerr<<"WARNING: estimated overlap being 0 requires unordered match interpolation"<<std::endl;
+  }
+  if(ordered && estimatedOverlap > 0){
+    
+  }
+  else{
+    for(auto image = images.begin(), auto featuresI = features.begin(); image != images.end(); ++image, ++featuresI){
+      for(auto image = images.begin(), auto featuresI = features.begin(); image != images.end(); ++image, ++featuresI){
+        if(image == image) continue;
+        
+      }
+    }
+  }
+  return matchSet;
+}
+template<typename T>
+ssrlcv::MatchSet* ssrlcv::MatchFactory<T>::generateFeatureMatchesBBF(std::vector<ssrlcv::Image*> images, std::vector<ssrlcv::Unity<ssrlcv::Feature<T>>*> features, bool ordered, int estimatedOverlap){
+  MatchSet* matchSet = nullptr;
+  matchSet->keyPoints = nullptr;
+  matchSet->matches = nullptr;
+  if(estimatedOverlap == 0){
+    std::cerr<<"WARNING: estimated overlap being 0 requires unordered match interpolation"<<std::endl;
+  }
+  if(ordered && estimatedOverlap > 0){
+    
+  }
+  else{
+
+  }
+  return matchSet;
+}
+
+template<typename T>
+ssrlcv::MatchSet* ssrlcv::MatchFactory<T>::generateFeatureMatchesKDTree(std::vector<ssrlcv::Image*> images, std::vector<ssrlcv::Unity<ssrlcv::Feature<T>>*> features, bool ordered, int estimatedOverlap){
+  MatchSet* matchSet = nullptr;
+  matchSet->keyPoints = nullptr;
+  matchSet->matches = nullptr;
+  if(estimatedOverlap == 0){
+    std::cerr<<"WARNING: estimated overlap being 0 requires unordered match interpolation"<<std::endl;
+  }
+  if(ordered && estimatedOverlap > 0){
+    
+  }
+  else{
+
+  }
+  return matchSet;
+}
+
+
+
 ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, Unity<unsigned char>* queryPixels, uint2 targetSize, Unity<unsigned char>* targetPixels, 
   float fundamental[3][3], unsigned int maxDisparity,unsigned int windowSize, Direction direction){
   if(direction != right && direction != left && direction != undefined){

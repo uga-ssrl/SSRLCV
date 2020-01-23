@@ -34,6 +34,7 @@
 #include <png.h>
 
 #include <cstring>
+#include <cstdint>
 #include <cmath>
 #include <time.h>
 #include <dirent.h>

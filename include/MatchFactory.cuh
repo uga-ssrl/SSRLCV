@@ -161,24 +161,13 @@ namespace ssrlcv{
     */
     Unity<FeatureMatch<T>>* generateFeatureMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
 
-    /**
-    * \brief interpolates Matches between multiple images
-    * \todo implement
-    */
-    MatchSet* getMultiViewMatches(std::vector<Image*> images, Unity<Match>* matches);
-    /**
-    * \brief interpolates Matches between multiple images
-    * \todo implement
-    */
-    MatchSet* getMultiViewMatches(std::vector<Image*> images, Unity<DMatch>* matches);
-    /**
-    * \brief interpolates Matches between multiple images
-    * \todo implement
-    */
-    MatchSet* getMultiViewMatches(std::vector<Image*> images, Unity<FeatureMatch<T>>* matches);
 
+    MatchSet* generateFeatureMatchesExaustive(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, int estimatedOverlap = 0);
+    MatchSet* generateFeatureMatchesBBF(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, int estimatedOverlap = 0);
+    MatchSet* generateFeatureMatchesKDTree(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, int estimatedOverlap = 0);
 
     
+
   };
   Unity<Match>* generateDiparityMatches(uint2 querySize, Unity<unsigned char>* queryPixels, uint2 targetSize, Unity<unsigned char>* targetPixels, 
     float fundamental[3][3], unsigned int maxDisparity, unsigned int windowSize = 3, Direction direction = undefined);
