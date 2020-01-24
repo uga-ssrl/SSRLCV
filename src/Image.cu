@@ -170,6 +170,7 @@ ssrlcv::Unity<float>* ssrlcv::addBufferBorder(uint2 size, ssrlcv::Unity<float>* 
   float* bufferedPixels_host = new float[newSize.x*newSize.y*colorDepth]();
   Unity<float>* bufferedPixels = new Unity<float>(bufferedPixels_host,newSize.x*newSize.y*colorDepth,cpu);
   bufferedPixels->setMemoryState(gpu);
+  std::cout<<"applying border"<<std::endl;
   for(int y = 0; y < (int)size.y; ++y){
     CudaSafeCall(cudaMemcpy(bufferedPixels->device + ((y+border.y)*newSize.x) + border.x,pixels->device + (y*size.x),size.x*sizeof(float),cudaMemcpyDeviceToDevice));
   }

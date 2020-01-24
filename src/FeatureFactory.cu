@@ -380,7 +380,7 @@ depth(depth){
         if(pixels->state != gpu) pixels->setMemoryState(gpu);
         int2 border = {(numResize-(imageSize.x%numResize))/2,(numResize-(imageSize.y%numResize))/2};
         uint2 newSize = {border.x*2 + imageSize.x, border.y*2 + imageSize.y};
-        std::cout<<border.x<<","<<border.y<<"|"<<newSize.x<<","<<newSize.y<<"|"<<imageSize.x<<","<<imageSize.y<<std::endl;
+        std::cout<<numResize<<"|"<<border.x<<","<<border.y<<"|"<<newSize.x<<","<<newSize.y<<"|"<<imageSize.x<<","<<imageSize.y<<std::endl;
         pixels->setData(addBufferBorder(imageSize,pixels,border)->device,newSize.x*newSize.y,gpu);
         imageSize = newSize;
     }
