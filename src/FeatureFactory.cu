@@ -372,6 +372,7 @@ depth(depth){
     else{
         pixels = convertImageToFlt(image->pixels);
     }
+    std::cout<<"image converted to float"<<std::endl;
     uint2 imageSize = image->size;
     uint2 scalar = {2,2};
 
@@ -384,6 +385,8 @@ depth(depth){
     }
 
     float pixelWidth = 1.0f;
+
+    std::cout<<"initializing base of scalespace"<<std::endl;
 
     for(int i = startingOctave; i < 0; ++i){
         pixels->setData(upsample(imageSize,1,pixels)->device,pixels->numElements*4,gpu);   
@@ -401,6 +404,7 @@ depth(depth){
         sigmas[i] = sigmas[i-1]*sigmaMultiplier.y;
     }
     this->octaves = new Octave*[this->depth.x]();
+    std::cout<<"filling other octaves"<<std::endl;
     for(int i = 0; i < this->depth.x; ++i){
         this->octaves[i] = new Octave(i,this->depth.y,kernelSize,sigmas,pixels,imageSize,pixelWidth,this->depth.y - 2);
         if(i + 1 < this->depth.x){
