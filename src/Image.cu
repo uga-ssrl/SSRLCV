@@ -230,7 +230,7 @@ void ssrlcv::normalizeImage(Unity<float>* pixels){
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(unsigned long, float*, float2) = &normalize;
-  getFlatGridBlock(pixels->numElements,grid,block,fp);
+  getFlatGridBlock(pixels->numElements,grid,block,(void*)fp);
   normalize<<<grid,block>>>(pixels->numElements,pixels->device,minMax);
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -244,8 +244,8 @@ void ssrlcv::normalizeImage(Unity<float>* pixels, float2 minMax){
   if(origin == cpu || pixels->fore == cpu) pixels->setMemoryState(gpu);
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  void (*fp)(unsigned long, unsigned*, float2) = &normalize;
-  getFlatGridBlock(pixels->numElements,grid,block,fp);
+  void (*fp)(unsigned long, float*, float2) = &normalize;
+  getFlatGridBlock(pixels->numElements,grid,block,(void*)fp);
   normalize<<<grid,block>>>(pixels->numElements,pixels->device,minMax);
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -506,7 +506,7 @@ ssrlcv::Unity<int2>* ssrlcv::generatePixelGradients(uint2 imageSize, Unity<unsig
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2,unsigned char*,int2*) = &calculatePixelGradients;
-  getFlatGridBlock(pixels->numElements,grid,block,fp);
+  getFlatGridBlock(pixels->numElements,grid,block,(void*)fp);
   calculatePixelGradients<<<grid,block>>>(imageSize,pixels->device,gradients_device);
   CudaCheckError();
 
@@ -524,7 +524,7 @@ ssrlcv::Unity<float2>* ssrlcv::generatePixelGradients(uint2 imageSize, Unity<flo
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2,float*,float2*) = &calculatePixelGradients;
-  getFlatGridBlock(pixels->numElements,grid,block,fp);
+  getFlatGridBlock(pixels->numElements,grid,block,(void*)fp);
   calculatePixelGradients<<<grid,block>>>(imageSize,pixels->device,gradients_device);
   CudaCheckError();
 

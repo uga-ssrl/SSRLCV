@@ -147,7 +147,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
         void (*fp)(const unsigned long, const unsigned int, Feature<SIFT_Descriptor>*,
           const float, const float, const float, const float*,
           const int*, const float2*, const float2*) = &fillDescriptors;
-        getGrid(numKeyPointsInBlur,grid,fp);
+        getGrid(numKeyPointsInBlur,grid,(void*)fp);
         fillDescriptors<<<grid,block>>>(numKeyPointsInBlur,currentBlur->size, 
           features->device + numFeaturesProduced, currentOctave->pixelWidth, this->descriptorContribWidth,
           currentOctave->extrema->device + currentOctave->extremaBlurIndices[b], currentBlur->gradients->device);
@@ -190,7 +190,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     const float2*, int*, const unsigned int, const float,
     float*) = &computeThetas;
 
-  getFlatGridBlock(keyPoints->numElements,grid,block,fp);
+  getFlatGridBlock(keyPoints->numElements,grid,block,(void*)fp);
 
   computeThetas<<<grid,block>>>(keyPoints->numElements,imageSize.x,pixelWidth,
     this->orientationContribWidth,ceil(3.0f*this->orientationContribWidth/pixelWidth),
