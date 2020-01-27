@@ -187,7 +187,7 @@ ssrlcv::Unity<unsigned char>* ssrlcv::convertImageToChar(Unity<float>* pixels){
   normalizeImage(pixels);
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(pixels->numElements,grid,block,(void*)convertToCharImage);
+  getFlatGridBlock(pixels->numElements,grid,block,convertToCharImage);
   Unity<unsigned char>* castPixels = new Unity<unsigned char>(nullptr,pixels->numElements,gpu);
   convertToCharImage<<<grid,block>>>(pixels->numElements,castPixels->device,pixels->device);
   cudaDeviceSynchronize();
@@ -204,7 +204,7 @@ ssrlcv::Unity<float>* ssrlcv::convertImageToFlt(Unity<unsigned char>* pixels){
   if(origin == cpu || pixels->fore == cpu) pixels->transferMemoryTo(gpu);
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(pixels->numElements,grid,block,(void*)convertToFltImage);
+  getFlatGridBlock(pixels->numElements,grid,block,convertToFltImage);
   Unity<float>* castPixels = new Unity<float>(nullptr,pixels->numElements,gpu);
   convertToFltImage<<<grid,block>>>(pixels->numElements,pixels->device,castPixels->device);
   cudaDeviceSynchronize();
@@ -230,7 +230,7 @@ void ssrlcv::normalizeImage(Unity<float>* pixels){
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(unsigned long, float*, float2) = &normalize;
-  getFlatGridBlock(pixels->numElements,grid,block,(void*)fp);
+  getFlatGridBlock(pixels->numElements,grid,block,fp);
   normalize<<<grid,block>>>(pixels->numElements,pixels->device,minMax);
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -245,7 +245,7 @@ void ssrlcv::normalizeImage(Unity<float>* pixels, float2 minMax){
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(unsigned long, float*, float2) = &normalize;
-  getFlatGridBlock(pixels->numElements,grid,block,(void*)fp);
+  getFlatGridBlock(pixels->numElements,grid,block,fp);
   normalize<<<grid,block>>>(pixels->numElements,pixels->device,minMax);
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -271,7 +271,7 @@ void ssrlcv::convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth){
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(numPixels, grid, block,(void*)generateBW);
+  getFlatGridBlock(numPixels, grid, block,generateBW);
   generateBW<<<grid,block>>>(numPixels, colorDepth, pixels->device, bwPixels_device);
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -295,7 +295,7 @@ void ssrlcv::convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth)
 
   dim3 grid;
   dim3 block;
-  getFlatGridBlock(numPixels, grid, block,(void*)generateRGB);
+  getFlatGridBlock(numPixels, grid, block,generateRGB);
   generateRGB<<<grid,block>>>(numPixels, colorDepth, pixels->device, rgbPixels_device);
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -506,7 +506,7 @@ ssrlcv::Unity<int2>* ssrlcv::generatePixelGradients(uint2 imageSize, Unity<unsig
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2,unsigned char*,int2*) = &calculatePixelGradients;
-  getFlatGridBlock(pixels->numElements,grid,block,(void*)fp);
+  getFlatGridBlock(pixels->numElements,grid,block,fp);
   calculatePixelGradients<<<grid,block>>>(imageSize,pixels->device,gradients_device);
   CudaCheckError();
 
@@ -524,7 +524,7 @@ ssrlcv::Unity<float2>* ssrlcv::generatePixelGradients(uint2 imageSize, Unity<flo
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2,float*,float2*) = &calculatePixelGradients;
-  getFlatGridBlock(pixels->numElements,grid,block,(void*)fp);
+  getFlatGridBlock(pixels->numElements,grid,block,fp);
   calculatePixelGradients<<<grid,block>>>(imageSize,pixels->device,gradients_device);
   CudaCheckError();
 

@@ -185,8 +185,6 @@ __device__ __forceinline__ unsigned long getGlobalIdx_3D_3D(){
 }
 */
 
-//NOTE these only consider max number of threads for a given device
-void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void* kernel, size_t dynamicSharedMem = 0, int device = 0);
 
 // template<typename T, typename... Types>
 // void getGridWithLargestBlock(unsigned long numElements, dim3 &grid, dim3& block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0);
@@ -197,7 +195,71 @@ void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void* 
 // template<typename T, typename... Types>
 // void getGridWithSetBlock(unsigned long numElements, dim3 &grid, const dim3& block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0);
 
-void getGrid(unsigned long numElements, dim3 &grid, void *kernel, size_t dynamicSharedMem = 0, int device = 0);
+template<typename... Types>
+void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0){
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, device);
+
+  //cudaOccDeviceProp occProp = prop;
+  
+  int blockSize;
+  int minGridSize;
+
+  cudaOccupancyMaxPotentialBlockSize(
+    &minGridSize,
+    &blockSize,
+    kernel,
+    dynamicSharedMem,
+    numElements
+  );
+  block = {blockSize,1,1}; 
+  unsigned long gridSize = (numElements + blockSize - 1) / blockSize;
+
+  if(gridSize > 2147483647){
+    if(gridSize >= 65535*65535*65535){
+      grid = {65535,65535,65535};
+    }
+    else{
+      gridSize = (gridSize/2147483647) + 1;
+      grid.x = 65535;
+      if(gridSize > 65535){
+        grid.z = (grid.y/65535) + 1;
+        grid.y = 65535; 
+      }
+      else{
+        grid.y = 65535;
+        grid.z = 1;
+      }
+    }
+  }
+}
+template<typename... Types>
+void getGrid(unsigned long numElements, dim3 &grid, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0){
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, device);
+    
+  grid = {prop.maxGridSize[0],prop.maxGridSize[1],prop.maxGridSize[2]};
+  if(numElements < grid.x){
+    grid.x = numElements;
+    grid.y = 1;
+    grid.z = 1;
+  }
+  else{
+    grid.x = 65536;
+    if(numElements < grid.x*grid.y){
+      grid.y = numElements/grid.x;
+      grid.y++;
+      grid.z = 1;
+    }
+    else if(numElements < grid.x*grid.y*grid.z){
+      grid.z = numElements/(grid.x*grid.y);
+      grid.z++;
+    }
+  }
+}
+
+
+
 void checkDims(dim3 grid, dim3 block, int device = 0);  
 
 

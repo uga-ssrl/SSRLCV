@@ -29,7 +29,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(bundles->numElements,grid,block,(void*)generateBundle);
+  getFlatGridBlock(bundles->numElements,grid,block,generateBundle);
 
   //in this kernel fill lines and bundles from keyPoints and matches
   std::cout << "calling kernel ..." << std::endl;
@@ -85,7 +85,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(unsigned int, Match*, float3*, float) = &computeStereo;
-  getFlatGridBlock(matches->numElements,grid,block,(void*)fp);
+  getFlatGridBlock(matches->numElements,grid,block,fp);
   //
   computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, 8.0);
   // focal lenth / baseline
@@ -121,7 +121,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(unsigned int, Match*, float3*, float) = &computeStereo;
-  getFlatGridBlock(matches->numElements,grid,block,(void*)fp);
+  getFlatGridBlock(matches->numElements,grid,block,fp);
   //
   computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, scale);
 
@@ -142,7 +142,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(unsigned int, Match*, float3*, float, float, float) = &computeStereo;
-  getFlatGridBlock(matches->numElements,grid,block,(void*)fp);
+  getFlatGridBlock(matches->numElements,grid,block,fp);
   //
   computeStereo<<<grid, block>>>(matches->numElements, matches->device, points->device, foc, baseline, doffset);
 
@@ -226,7 +226,7 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolati
     CudaSafeCall(cudaMalloc((void**)&interpolated,imageDim.x*imageDim.y*sizeof(float)));
     dim3 block = {1,1,1};
     dim3 grid = {1,1,1};
-    getFlatGridBlock(imageDim.x*imageDim.y,grid,block,(void*)interpolateDepth);
+    getFlatGridBlock(imageDim.x*imageDim.y,grid,block,interpolateDepth);
     interpolateDepth<<<grid,block>>>(imageDim,interpolationRadius,colors->device,interpolated);
     cudaDeviceSynchronize();
     CudaCheckError();

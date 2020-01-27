@@ -90,7 +90,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
         currentBlur = currentOctave->blurs[b];
         grid = {1,1,1};
         block = {1,1,1};
-        getFlatGridBlock(numKeyPointsInBlur,grid,block,(void*)checkKeyPoints);
+        getFlatGridBlock(numKeyPointsInBlur,grid,block,checkKeyPoints);
 
         checkKeyPoints<<<grid,block>>>(numKeyPointsInBlur,currentOctave->extremaBlurIndices[b],currentBlur->size, currentOctave->pixelWidth,
           this->descriptorContribWidth,currentOctave->extrema->device);
@@ -147,7 +147,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
         void (*fp)(const unsigned long, const unsigned int, Feature<SIFT_Descriptor>*,
           const float, const float, const float, const float*,
           const int*, const float2*, const float2*) = &fillDescriptors;
-        getGrid(numKeyPointsInBlur,grid,(void*)fp);
+        getGrid(numKeyPointsInBlur,grid,fp);
         fillDescriptors<<<grid,block>>>(numKeyPointsInBlur,currentBlur->size, 
           features->device + numFeaturesProduced, currentOctave->pixelWidth, this->descriptorContribWidth,
           currentOctave->extrema->device + currentOctave->extremaBlurIndices[b], currentBlur->gradients->device);
@@ -190,7 +190,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     const float2*, int*, const unsigned int, const float,
     float*) = &computeThetas;
 
-  getFlatGridBlock(keyPoints->numElements,grid,block,(void*)fp);
+  getFlatGridBlock(keyPoints->numElements,grid,block,fp);
 
   computeThetas<<<grid,block>>>(keyPoints->numElements,imageSize.x,pixelWidth,
     this->orientationContribWidth,ceil(3.0f*this->orientationContribWidth/pixelWidth),
@@ -217,7 +217,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
   void (*fp2)(const unsigned long, const unsigned int, Feature<SIFT_Descriptor>*,
     const float, const float, const float, const float*,
     const int*, const float2*, const float2*) = &fillDescriptors;
-  getGrid(numFeatures,grid,(void*)fp2);
+  getGrid(numFeatures,grid,fp2);
 
   Feature<SIFT_Descriptor>* features_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&features_device,numFeatures*sizeof(Feature<SIFT_Descriptor>)));
