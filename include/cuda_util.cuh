@@ -185,16 +185,6 @@ __device__ __forceinline__ unsigned long getGlobalIdx_3D_3D(){
 }
 */
 
-
-// template<typename T, typename... Types>
-// void getGridWithLargestBlock(unsigned long numElements, dim3 &grid, dim3& block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0);
-// template<typename T, typename... Types>
-// void getFlatGrid(unsigned long numElements, dim3 &grid, dim3& block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0);
-// template<typename T, typename... Types>
-// void getGrid(unsigned long numElements, dim3 &grid, dim3& block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0);
-// template<typename T, typename... Types>
-// void getGridWithSetBlock(unsigned long numElements, dim3 &grid, const dim3& block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0);
-
 template<typename... Types>
 void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0){
   cudaDeviceProp prop;
@@ -204,7 +194,6 @@ void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (
   
   int blockSize;
   int minGridSize;
-
   cudaOccupancyMaxPotentialBlockSize(
     &minGridSize,
     &blockSize,
@@ -213,14 +202,13 @@ void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (
     numElements
   );
   block = {blockSize,1,1}; 
-  unsigned long gridSize = (numElements + blockSize - 1) / blockSize;
-
-  if(gridSize > 2147483647){
-    if(gridSize >= 65535*65535*65535){
+  unsigned long gridSize = (numElements + (unsigned long)blockSize - 1) / (unsigned long)blockSize;
+  if(gridSize > prop.maxGridSize[0]){
+    if(gridSize >= 65535L*65535L*65535L){
       grid = {65535,65535,65535};
     }
     else{
-      gridSize = (gridSize/2147483647) + 1;
+      gridSize = (gridSize/65535L) + 1;
       grid.x = 65535;
       if(gridSize > 65535){
         grid.z = (grid.y/65535) + 1;
@@ -231,6 +219,9 @@ void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (
         grid.z = 1;
       }
     }
+  }
+  else{
+    grid = {gridSize,1,1};
   }
 }
 template<typename... Types>

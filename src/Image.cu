@@ -256,6 +256,7 @@ void ssrlcv::normalizeImage(Unity<float>* pixels, float2 minMax){
 }
 
 void ssrlcv::convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth){
+  std::cout<<"converting to bw"<<std::endl;
   if(colorDepth == 1){
     std::cout<<"Pixels are already bw"<<std::endl;
     return;
@@ -272,6 +273,7 @@ void ssrlcv::convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth){
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   getFlatGridBlock(numPixels, grid, block,generateBW);
+
   generateBW<<<grid,block>>>(numPixels, colorDepth, pixels->device, bwPixels_device);
   cudaDeviceSynchronize();
   CudaCheckError();

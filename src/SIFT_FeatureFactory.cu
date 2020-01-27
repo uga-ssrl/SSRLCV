@@ -6,8 +6,8 @@ ssrlcv::SIFT_FeatureFactory::SIFT_FeatureFactory(float orientationContribWidth, 
 }
 
 ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFactory::generateFeatures(ssrlcv::Image* image, bool dense, unsigned int maxOrientations, float orientationThreshold){
+  std::cout<<"Generating SIFT features  for image "<<image->id<<std::endl;
   Unity<Feature<SIFT_Descriptor>>* features = nullptr;
-
   if(image->pixels->fore == cpu){
     image->pixels->transferMemoryTo(gpu);
   }
@@ -15,7 +15,6 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     convertToBW(image->pixels,image->colorDepth);
     image->colorDepth = 1;
   }
-
   if(dense){
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};

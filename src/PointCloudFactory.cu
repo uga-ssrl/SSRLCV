@@ -310,7 +310,7 @@ __global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, f
   if (globalID < numMatches) {
     Match match = matches[globalID];
     float3 point = {match.keyPoints[0].loc.x,match.keyPoints[0].loc.y,0.0f};
-    point.z = scale / sqrtf( dotProduct(match.keyPoints[0].loc-match.keyPoints[1].loc,match.keyPoints[0].loc-match.keyPoints[1].loc)) ;
+    point.z = scale*sqrtf( dotProduct(match.keyPoints[0].loc-match.keyPoints[1].loc,match.keyPoints[0].loc-match.keyPoints[1].loc)) ;
     points[globalID] = point;
   }
 }
