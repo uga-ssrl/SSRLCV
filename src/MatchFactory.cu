@@ -243,7 +243,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::getRawMatches(Unity<DMatc
     CudaSafeCall(cudaMalloc((void**)&rawMatches_device, matches->numElements*sizeof(Match)));
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
-    getFlatGridBlock(matches->numElements,grid,block);
+    getFlatGridBlock(matches->numElements,grid,block,convertMatchToRaw);
     convertMatchToRaw<<<grid,block>>>(matches->numElements,rawMatches_device,matches->device);
     cudaDeviceSynchronize();
     CudaCheckError();
@@ -266,7 +266,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::getRawMatches(Unity<Featu
     CudaSafeCall(cudaMalloc((void**)&rawMatches_device, matches->numElements*sizeof(Match)));
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
-    getFlatGridBlock(matches->numElements,grid,block);
+    getFlatGridBlock(matches->numElements,grid,block,convertMatchToRaw);
     convertMatchToRaw<<<grid,block>>>(matches->numElements,rawMatches_device,matches->device);
     cudaDeviceSynchronize();
     CudaCheckError();
@@ -296,7 +296,7 @@ ssrlcv::Unity<float>* ssrlcv::MatchFactory<T>::getSeedDistances(Unity<Feature<T>
 
   dim3 grid = {1,1,1};
   dim3 block = {192,1,1};
-  getGrid(matchDistances->numElements,grid);
+  getGrid(matchDistances->numElements,grid,getSeedMatchDistances);
 
   clock_t timer = clock();
 
@@ -329,7 +329,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatches(Image* qu
 
   dim3 grid = {1,1,1};
   dim3 block = {192,1,1};
-  getGrid(matches->numElements,grid);
+  getGrid(matches->numElements,grid,matchFeaturesBruteForce);
 
   clock_t timer = clock();
 
@@ -376,7 +376,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatchesConstraine
 
   dim3 grid = {1,1,1};
   dim3 block = {192,1,1};
-  getGrid(matches->numElements,grid);
+  getGrid(matches->numElements,grid,matchFeaturesConstrained);
 
   float* fundamental_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&fundamental_device,9*sizeof(float)));
@@ -428,7 +428,7 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatches(
 
   dim3 grid = {1,1,1};
   dim3 block = {192,1,1};
-  getGrid(matches->numElements,grid);
+  getGrid(matches->numElements,grid,matchFeaturesBruteForce);
 
   clock_t timer = clock();
 
@@ -474,7 +474,7 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatchesC
 
   dim3 grid = {1,1,1};
   dim3 block = {192,1,1};
-  getGrid(matches->numElements,grid);
+  getGrid(matches->numElements,grid,matchFeaturesConstrained);
 
   float* fundamental_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&fundamental_device,9*sizeof(float)));
@@ -530,7 +530,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, Unity<
 
   dim3 grid = {1,1,1};
   dim3 block = {192,1,1};
-  getGrid(matches->numElements,grid);
+  getGrid(matches->numElements,grid,matchFeaturesBruteForce);
 
   clock_t timer = clock();
 
@@ -578,7 +578,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
 
   dim3 grid = {1,1,1};
   dim3 block = {192,1,1};
-  getGrid(matches->numElements,grid);
+  getGrid(matches->numElements,grid,matchFeaturesConstrained);
 
   float* fundamental_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&fundamental_device,9*sizeof(float)));
@@ -652,7 +652,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, U
 
   dim3 grid = {1,1,1};
   dim3 block = {windowSize,windowSize,1};
-  getGrid(numPossibleMatches,grid);
+  getGrid(numPossibleMatches,grid,disparityMatching);
 
   bool parallel = true;
   for(int x = 0; x < 3 && parallel; ++x){

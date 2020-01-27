@@ -9,6 +9,7 @@
 #include <cuda.h>
 #include <cusolverDn.h>
 #include <stdio.h>
+#include <cuda_occupancy.h>
 #include <iostream>
 #include <map>
 #include <string>
@@ -185,11 +186,9 @@ __device__ __forceinline__ unsigned long getGlobalIdx_3D_3D(){
 */
 
 //NOTE these only consider max number of threads for a given device
-void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, int device = 0);
-void getGrid(unsigned long numElements, dim3 &grid, int device = 0);
+void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void* kernel, size_t dynamicSharedMem = 0, int device = 0);
+void getGrid(unsigned long numElements, dim3 &grid, void* kernel, size_t dynamicSharedMem = 0, int device = 0);
 void checkDims(dim3 grid, dim3 block, int device = 0);  
-//max occupancy needs to be completed
-void convertToMaxOccupancy(unsigned long numElements, dim3 &grid, dim3 &block, int device = 0);
 
 
 __host__ void cusolverCheckError(cusolverStatus_t cusolver_status);
