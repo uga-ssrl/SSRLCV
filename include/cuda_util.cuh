@@ -197,7 +197,7 @@ void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void* 
 // template<typename T, typename... Types>
 // void getGridWithSetBlock(unsigned long numElements, dim3 &grid, const dim3& block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0);
 
-void getGrid(unsigned long numElements, dim3 &grid, void* kernel, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0);
+void getGrid(unsigned long numElements, dim3 &grid, void* kernel, void *kernel, size_t dynamicSharedMem = 0, int device = 0);
 void checkDims(dim3 grid, dim3 block, int device = 0);  
 
 
