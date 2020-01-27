@@ -187,7 +187,17 @@ __device__ __forceinline__ unsigned long getGlobalIdx_3D_3D(){
 
 //NOTE these only consider max number of threads for a given device
 void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void* kernel, size_t dynamicSharedMem = 0, int device = 0);
-void getGrid(unsigned long numElements, dim3 &grid, void* kernel, size_t dynamicSharedMem = 0, int device = 0);
+
+template<typename T, typename... Types>
+void getGridWithLargestBlock(unsigned long numElements, dim3 &grid, dim3& block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0);
+template<typename T, typename... Types>
+void getFlatGrid(unsigned long numElements, dim3 &grid, dim3& block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0);
+template<typename T, typename... Types>
+void getGrid(unsigned long numElements, dim3 &grid, dim3& block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0);
+template<typename T, typename... Types>
+void getGridWithSetBlock(unsigned long numElements, dim3 &grid, const dim3& block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0);
+
+void getGrid(unsigned long numElements, dim3 &grid, void* kernel, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0);
 void checkDims(dim3 grid, dim3 block, int device = 0);  
 
 

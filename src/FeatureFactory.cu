@@ -99,7 +99,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
     int extremaAtDepth = 0;
 
     pixelsLower = this->blurs[0]->pixels;
-    getGrid(pixelsLower->numElements,grid2D,findExtrema);
+    getGrid(pixelsLower->numElements,grid2D,(void*)findExtrema);
     int* temp = new int[pixelsLower->numElements];
     for(int i = 0; i < pixelsLower->numElements; ++i){
         temp[i] = -1;
@@ -132,7 +132,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
         if(extremaAtDepth != 0){
             CudaSafeCall(cudaMalloc((void**)&extrema2D[b-1],extremaAtDepth*sizeof(ScaleSpace::SSKeyPoint)));
             grid = {1,1,1}; block = {1,1,1};
-            getFlatGridBlock(extremaAtDepth,grid,block,fillExtrema);
+            getFlatGridBlock(extremaAtDepth,grid,block,(void*)fillExtrema);
             fillExtrema<<<grid,block>>>(extremaAtDepth,this->blurs[b]->size,this->pixelWidth,{this->id,b},this->blurs[b]->sigma,extremaAddresses,pixelsMiddle->device,extrema2D[b-1]);
             CudaCheckError();
         }
@@ -244,7 +244,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(){
 
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
-    getFlatGridBlock(this->extrema->numElements,grid,block,refineLocation);
+    getFlatGridBlock(this->extrema->numElements,grid,block,(void*)refineLocation);
     refineLocation<<<grid,block>>>(this->extrema->numElements, this->blurs[0]->size, this->blurs[0]->sigma, this->blurs[1]->sigma/this->blurs[0]->sigma, this->numBlurs, allPixels_device, this->extrema->device);
     cudaDeviceSynchronize();
     CudaCheckError();
@@ -279,7 +279,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeNoise(float noiseThreshol
     if(origin == cpu || this->extrema->fore == cpu) this->extrema->transferMemoryTo(gpu);
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
-    getFlatGridBlock(this->extrema->numElements,grid,block,flagNoise);
+    getFlatGridBlock(this->extrema->numElements,grid,block,(void*)flagNoise);
     flagNoise<<<grid,block>>>(this->extrema->numElements,this->extrema->device,noiseThreshold);
     cudaDeviceSynchronize();
     CudaCheckError();
@@ -307,7 +307,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeEdges(float edgeThreshold
         if(numExtremaAtBlur == 0) continue;
         pixelOrigin = this->blurs[i+1]->pixels->state;
         if(pixelOrigin == cpu || this->blurs[i+1]->pixels->fore == cpu) this->blurs[i]->pixels->transferMemoryTo(gpu);
-        getFlatGridBlock(numExtremaAtBlur,grid,block,flagEdges);
+        getFlatGridBlock(numExtremaAtBlur,grid,block,(void*)flagEdges);
         flagEdges<<<grid,block>>>(numExtremaAtBlur, this->extremaBlurIndices[i], this->blurs[0]->size,this->extrema->device,this->blurs[i]->pixels->device,edgeThreshold);
         cudaDeviceSynchronize();
         CudaCheckError();
@@ -326,7 +326,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeBorder(float2 border){
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     int numExtremaAtBlur = 0;
-    getFlatGridBlock(numExtremaAtBlur,grid,block,flagBorder);
+    getFlatGridBlock(numExtremaAtBlur,grid,block,(void*)flagBorder);
     flagBorder<<<grid,block>>>(numExtremaAtBlur, this->blurs[0]->size,this->extrema->device,border);
     cudaDeviceSynchronize();
     CudaCheckError();
@@ -436,7 +436,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::convertToDOG(){
         dogOctaves[o]->numBlurs = dogDepth.y;
         dogOctaves[o]->pixelWidth = this->octaves[o]->pixelWidth;
         pixelsLower = this->octaves[o]->blurs[0]->pixels;
-        getFlatGridBlock(pixelsLower->numElements,grid,block,subtractImages);
+        getFlatGridBlock(pixelsLower->numElements,grid,block,(void*)subtractImages);
         for(int b = 0; b < dogDepth.y; ++b){
             dogOctaves[o]->blurs[b] = new Octave::Blur();
             dogOctaves[o]->id = o;
@@ -601,7 +601,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
             keyPointIndex = currentOctave->extremaBlurIndices[b];
             grid = {1,1,1};
             block = {1,1,1}; 
-            getFlatGridBlock(numKeyPointsAtBlur, grid, block,computeThetas);
+            getFlatGridBlock(numKeyPointsAtBlur, grid, block,(void*)computeThetas);
             
             //determine how to best record num orientations for a keypoint
             
@@ -634,7 +634,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
             if(numOrientedKeyPoints != 0){
                 grid = {1,1,1};
                 block = {1,1,1};
-                getFlatGridBlock(numOrientedKeyPoints,grid,block,expandKeyPoints);
+                getFlatGridBlock(numOrientedKeyPoints,grid,block,(void*)expandKeyPoints);
                 CudaSafeCall(cudaMalloc((void**)&orientedKeyPoints2D[b],numOrientedKeyPoints*sizeof(ScaleSpace::SSKeyPoint)));
                 expandKeyPoints<<<grid,block>>>(numOrientedKeyPoints, currentOctave->extrema->device, orientedKeyPoints2D[b], thetaAddresses_device, thetas_device);
                 cudaDeviceSynchronize();

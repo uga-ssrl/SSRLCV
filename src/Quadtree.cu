@@ -143,7 +143,8 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(){
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   if(this->colorDepth > 1){
-    getGrid(numLeafNodes/this->colorDepth,grid);
+    void (*fp)(int*, float2*, uint2, int2, unsigned int, unsigned int) = &getKeys;
+    getGrid(numLeafNodes/this->colorDepth,grid,(void*)fp);
     block = {this->colorDepth,1,1};
     getKeys<<<grid,block>>>(leafNodeKeys_device, leafNodeCenters_device, this->size, this->border, this->depth, this->colorDepth);
     cudaDeviceSynchronize();
@@ -243,7 +244,7 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(numUniqueNodes, grid, block);
+  getFlatGridBlock(numUniqueNodes, grid, block,(void*)findAllNodes<T>);
 
   for(int d = this->depth; d >= 0; --d){
 
@@ -279,7 +280,7 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
       grid = {1,1,1};
       block = {1,1,1};
       CudaSafeCall(cudaMalloc((void**)&uniqueNodes_device, numUniqueNodes*sizeof(Node)));
-      getFlatGridBlock(numUniqueNodes, grid, block);
+      getFlatGridBlock(numUniqueNodes, grid, block,(void*)buildParentalNodes<T>);
       buildParentalNodes<T><<<grid,block>>>(numNodesAtDepth,totalNodes,nodes2D[this->depth - d],uniqueNodes_device,this->size);
       cudaDeviceSynchronize();
       CudaCheckError();
@@ -317,14 +318,14 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
     if(i != (int)this->depth){
       numNodesAtDepth = this->nodeDepthIndex->host[i + 1] - depthStartingIndex;
     }
-    getGrid(numNodesAtDepth, grid);
+    getGrid(numNodesAtDepth, grid,(void*)fillParentIndex<T>);
     fillParentIndex<T><<<grid, block>>>(numNodesAtDepth, depthStartingIndex, this->nodes->device);
     CudaCheckError();
   }
 
   grid = {1,1,1};
   block = {1,1,1};
-  getFlatGridBlock(this->nodeDepthIndex->host[1],grid,block);
+  getFlatGridBlock(this->nodeDepthIndex->host[1],grid,block,(void*)fillDataNodeIndex<T>);
   fillDataNodeIndex<T><<<grid,block>>>(this->nodeDepthIndex->host[1],this->nodes->device, this->dataNodeIndex->device);
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -369,7 +370,7 @@ void ssrlcv::Quadtree<T>::fillNeighborhoods(){
     if(i != this->depth){
       numNodesAtDepth = this->nodeDepthIndex->host[i + 1] - depthStartingIndex;
     }
-    getGrid(numNodesAtDepth, grid);
+    getGrid(numNodesAtDepth, grid,(void*)computeNeighboringNodes<T>);
     computeNeighboringNodes<T><<<grid, block>>>(numNodesAtDepth, depthStartingIndex, parentLUT_device, childLUT_device, this->nodes->device);
     cudaDeviceSynchronize();
     CudaCheckError();
@@ -412,7 +413,7 @@ void ssrlcv::Quadtree<T>::generateVertices(){
       numNodesAtDepth = this->nodeDepthIndex->host[i + 1] - this->nodeDepthIndex->host[i];
     }
 
-    getGrid(numNodesAtDepth,grid);
+    getGrid(numNodesAtDepth,grid,(void*)findVertexOwners<T>);
 
     int* ownerInidices = new int[numNodesAtDepth*4];
     for(int v = 0;v < numNodesAtDepth*4; ++v){
@@ -455,7 +456,7 @@ void ssrlcv::Quadtree<T>::generateVertices(){
 
     grid = {1,1,1};
     block = {1,1,1};
-    getGrid(numVertices - prevCount, grid);
+    getGrid(numVertices - prevCount, grid,(void*)fillUniqueVertexArray<T>);
 
     fillUniqueVertexArray<T><<<grid, block>>>(this->nodeDepthIndex->host[i], this->nodes->device, numVertices - prevCount,
       vertexDepthIndex_host[i], vertices2D[i], this->depth - i, compactedOwnerArray_device, compactedVertexPlacement_device,this->size);
@@ -513,7 +514,7 @@ void ssrlcv::Quadtree<T>::generateEdges(){
       numNodesAtDepth = this->nodeDepthIndex->host[i + 1] - this->nodeDepthIndex->host[i];
     }
 
-    getGrid(numNodesAtDepth,grid);
+    getGrid(numNodesAtDepth,grid,(void*)findEdgeOwners<T>);
 
     int* ownerInidices = new int[numNodesAtDepth*4];
     for(int v = 0;v < numNodesAtDepth*4; ++v){
@@ -556,7 +557,7 @@ void ssrlcv::Quadtree<T>::generateEdges(){
     //reset and allocated resources
     grid = {1,1,1};
     block = {1,1,1};
-    getGrid(numEdges - prevCount, grid);
+    getGrid(numEdges - prevCount, grid,(void*)fillUniqueEdgeArray<T>);
 
 
     fillUniqueEdgeArray<T><<<grid, block>>>(this->nodeDepthIndex->host[i], this->nodes->device, numEdges - prevCount,
@@ -621,8 +622,8 @@ void ssrlcv::Quadtree<T>::setNodeFlags(ssrlcv::Unity<bool>* hashMap, bool requir
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(numNodes, grid, block);
-
+  void (*fp)(unsigned int, unsigned int, typename Quadtree<T>::Node*, bool*, bool) = &applyNodeFlags<T>;
+  getFlatGridBlock(numNodes, grid, block,(void*)fp);
   applyNodeFlags<T><<<grid,block>>>(numNodes,nodeDepthIndex,this->nodes->device,hashMap->device,requireFullNeighbors);
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -666,7 +667,8 @@ void ssrlcv::Quadtree<T>::setNodeFlags(float2 flagBorder, bool requireFullNeighb
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(numNodes, grid, block);
+  void (*fp)(unsigned int, unsigned int, typename Quadtree<T>::Node*, float4, bool) = &applyNodeFlags<T>;
+  getFlatGridBlock(numNodes, grid, block,(void*)fp);
 
   printf("Setting node flags based on distance from edge = {%f,%f} ",flagBorder.x,flagBorder.y);
   if(requireFullNeighbors)printf("while also requiring full neighbors");

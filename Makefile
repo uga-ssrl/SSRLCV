@@ -99,7 +99,7 @@ LINKLINE_T = $(LINK) $(GENCODEFLAGS) $(BASE_OBJS) $(T_OBJS) $(LIB) -o $(BINDIR)/
 
 base: $(BASE_OBJS)
 
-all: $(info >>> WARNING - making all targets <<<) base $(BINDIR)/$(TARGET_SFM) $(BINDIR)/$(TARGET_SD) $(BINDIR)/$(TARGET_TD) $(BINDIR)/$(TARGET_T) $(TESTS)
+all: base $(BINDIR)/$(TARGET_SFM) $(BINDIR)/$(TARGET_SD) $(BINDIR)/$(TARGET_TD) $(BINDIR)/$(TARGET_T) $(TESTS)
 
 sfm: base $(BINDIR)/$(TARGET_SFM)
 

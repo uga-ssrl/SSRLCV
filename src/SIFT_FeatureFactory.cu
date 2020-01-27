@@ -90,7 +90,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
         currentBlur = currentOctave->blurs[b];
         grid = {1,1,1};
         block = {1,1,1};
-        getFlatGridBlock(numKeyPointsInBlur,grid,block,checkKeyPoints);
+        getFlatGridBlock(numKeyPointsInBlur,grid,block,(void*)checkKeyPoints);
 
         checkKeyPoints<<<grid,block>>>(numKeyPointsInBlur,currentOctave->extremaBlurIndices[b],currentBlur->size, currentOctave->pixelWidth,
           this->descriptorContribWidth,currentOctave->extrema->device);
@@ -217,7 +217,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
   void (*fp2)(const unsigned long, const unsigned int, Feature<SIFT_Descriptor>*,
     const float, const float, const float, const float*,
     const int*, const float2*, const float2*) = &fillDescriptors;
-  getGrid(numFeatures,grid,fp2);
+  getGrid(numFeatures,grid,(void*)fp2);
 
   Feature<SIFT_Descriptor>* features_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&features_device,numFeatures*sizeof(Feature<SIFT_Descriptor>)));
