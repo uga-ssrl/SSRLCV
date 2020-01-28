@@ -243,6 +243,7 @@ namespace ssrlcv{
       case cpu:
         if(this->host != nullptr){
           delete[] this->host;
+          this->host = nullptr;
           this->state = null;
           this->fore = null;
         }
@@ -250,6 +251,7 @@ namespace ssrlcv{
       case gpu:
         if(this->device != nullptr){
           CudaSafeCall(cudaFree(this->device));
+          this->device = nullptr;
           this->state = null;
           this->fore = null;
         }
@@ -273,19 +275,19 @@ namespace ssrlcv{
         else{
           if(host != nullptr){
             delete[] this->host;
+            this->host = nullptr;
           }
           if(device != nullptr){
             CudaSafeCall(cudaFree(this->device));
+            this->device = nullptr;
           }
+          this->state = null;
+          this->fore = null;
         }
         break;
       default:
         throw IllegalUnityTransition("unknown memory state");
     }
-    this->host = nullptr;
-    this->device = nullptr;
-    this->state = null;
-    this->fore = null;
     this->numElements = 0;
   }
 

@@ -136,16 +136,14 @@ ssrlcv::Unity<unsigned char>* ssrlcv::addBufferBorder(uint2 size, ssrlcv::Unity<
     std::cerr<<"ERROR color depth cannot be determined due to pixels->numElements%(size.x*size.y) != 0"<<std::endl;
   }
   MemoryState origin = pixels->state;
-  if(origin == cpu || pixels->fore == cpu) pixels->setMemoryState(cpu);
+  if(pixels->fore == cpu) pixels->clear(gpu);
+  if(origin != gpu) pixels->setMemoryState(gpu);
   uint2 newSize = {size.x + (border.x*2),size.y + (border.y*2)};
   int colorDepth = pixels->numElements/((int)size.x*size.y);
-  unsigned char* bufferedPixels_host = new unsigned char[newSize.x*newSize.y*colorDepth]();
-  Unity<unsigned char>* bufferedPixels = new Unity<unsigned char>(bufferedPixels_host,newSize.x*newSize.y*colorDepth,cpu);
-  bufferedPixels->setMemoryState(gpu);
+  Unity<unsigned char>* bufferedPixels = new Unity<unsigned char>(nullptr,newSize.x*newSize.y*colorDepth,gpu);
   for(int y = border.y; y < (int)size.y + border.y; ++y){
     CudaSafeCall(cudaMemcpy(bufferedPixels->device + (y*newSize.x) + border.x,pixels->device + (y*size.x),size.x*sizeof(unsigned char),cudaMemcpyDeviceToDevice));
   }
-  bufferedPixels->fore = gpu;
   if(origin != gpu){
     bufferedPixels->setMemoryState(origin);
     pixels->setMemoryState(origin);
@@ -164,21 +162,19 @@ ssrlcv::Unity<float>* ssrlcv::addBufferBorder(uint2 size, ssrlcv::Unity<float>* 
     std::cerr<<"ERROR color depth cannot be determined due to pixels->numElements%(size.x*size.y) != 0"<<std::endl;
   }
   MemoryState origin = pixels->state;
-  if(origin == cpu || pixels->fore == cpu) pixels->setMemoryState(cpu);
+  if(pixels->fore == cpu) pixels->clear(gpu);
+  if(origin != gpu) pixels->setMemoryState(gpu);
   uint2 newSize = {size.x + (border.x*2),size.y + (border.y*2)};
   int colorDepth = pixels->numElements/((int)size.x*size.y);
-  float* bufferedPixels_host = new float[newSize.x*newSize.y*colorDepth]();
-  Unity<float>* bufferedPixels = new Unity<float>(bufferedPixels_host,newSize.x*newSize.y*colorDepth,cpu);
-  bufferedPixels->setMemoryState(gpu);
-  std::cout<<"applying border"<<std::endl;
+  Unity<float>* bufferedPixels = new Unity<float>(nullptr,newSize.x*newSize.y*colorDepth,gpu);
   for(int y = 0; y < (int)size.y; ++y){
     CudaSafeCall(cudaMemcpy(bufferedPixels->device + ((y+border.y)*newSize.x) + border.x,pixels->device + (y*size.x),size.x*sizeof(float),cudaMemcpyDeviceToDevice));
   }
-  bufferedPixels->fore = gpu;
   if(origin != gpu){
     bufferedPixels->setMemoryState(origin);
     pixels->setMemoryState(origin);
   }
+  std::cout<<"done applying border"<<std::endl;
 }
 
 ssrlcv::Unity<unsigned char>* ssrlcv::convertImageToChar(Unity<float>* pixels){

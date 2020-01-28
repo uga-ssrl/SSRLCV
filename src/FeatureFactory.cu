@@ -358,37 +358,34 @@ depth(depth){
 
     printf("creating scalespace with depth {%d,%d}\n",this->depth.x,this->depth.y);
     Unity<float>* pixels = nullptr;
-    
+    MemoryState origin = image->pixels->state;
+    if(image->pixels->fore == cpu) image->pixels->clear(gpu);
+    if(origin != gpu) image->pixels->setMemoryState(gpu);
     if(image->colorDepth != 1){
         Unity<unsigned char>* charPixels = new Unity<unsigned char>(nullptr,image->pixels->numElements,gpu);
-        MemoryState origin = image->pixels->state;
-        if(origin == cpu || image->pixels->fore == cpu) image->pixels->transferMemoryTo(gpu);
         CudaSafeCall(cudaMemcpy(charPixels->device, image->pixels->device, pixels->numElements*sizeof(unsigned char),cudaMemcpyDeviceToDevice));
         convertToBW(charPixels,image->colorDepth);
         pixels = convertImageToFlt(charPixels);
-        if(origin == cpu) image->pixels->setMemoryState(cpu);
         delete charPixels;
     }
     else{
         pixels = convertImageToFlt(image->pixels);
     }
-    std::cout<<"image converted to float"<<std::endl;
+    if(origin != gpu) image->pixels->setMemoryState(origin);
+    if(pixels->state != gpu) pixels->setMemoryState(gpu);
     uint2 imageSize = image->size;
     uint2 scalar = {2,2};
-
+    
     if(imageSize.x%numResize != 0 || imageSize.y%numResize != 0){
-        if(pixels->state != gpu) pixels->setMemoryState(gpu);
+        std::cout<<"adding border to image"<<std::endl;
         int2 border = {(numResize-(imageSize.x%numResize))/2,(numResize-(imageSize.y%numResize))/2};
         uint2 newSize = {border.x*2 + imageSize.x, border.y*2 + imageSize.y};
-        std::cout<<numResize<<"|"<<border.x<<","<<border.y<<"|"<<newSize.x<<","<<newSize.y<<"|"<<imageSize.x<<","<<imageSize.y<<std::endl;
         pixels->setData(addBufferBorder(imageSize,pixels,border)->device,newSize.x*newSize.y,gpu);
         imageSize = newSize;
     }
-
     float pixelWidth = 1.0f;
-
     std::cout<<"initializing base of scalespace"<<std::endl;
-
+    
     for(int i = startingOctave; i < 0; ++i){
         pixels->setData(upsample(imageSize,1,pixels)->device,pixels->numElements*4,gpu);   
         imageSize = imageSize*scalar;
