@@ -681,16 +681,18 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<unsigned char>* pi
   
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  void (*fp)(uint2, unsigned char*, unsigned int, int2, float*, float*) = &convolveImage;
-  get2DGridBlock(imageSize,grid,block,fp);
   
   float2 minMax = {FLT_MAX,-FLT_MAX};
   float* min = nullptr;
 
   if(symmetric){
+    void (*fp)(uint2, unsigned char*, unsigned int, int2, float*, float*) = &convolveImage_symmetric;
+    get2DGridBlock(imageSize,grid,block,fp);
     convolveImage_symmetric<<<grid,block>>>(imageSize, pixels->device, colorDepth, kernelSize, kernel_device, convolvedImage->device);
   }
   else{
+    void (*fp)(uint2, unsigned char*, unsigned int, int2, float*, float*) = &convolveImage;
+    get2DGridBlock(imageSize,grid,block,fp);
     convolveImage<<<grid,block>>>(imageSize, pixels->device, colorDepth, kernelSize, kernel_device, convolvedImage->device);
   }
   cudaDeviceSynchronize();
@@ -715,13 +717,15 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<float>* pixels, un
   
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  void (*fp)(uint2, float*, unsigned int, int2, float*, float*) = &convolveImage;
-  get2DGridBlock(imageSize,grid,block,fp);
 
   if(symmetric){
+    void (*fp)(uint2, float*, unsigned int, int2, float*, float*) = &convolveImage_symmetric;
+    get2DGridBlock(imageSize,grid,block,fp);
     convolveImage_symmetric<<<grid,block>>>(imageSize, pixels->device, colorDepth, kernelSize, kernel_device, convolvedImage->device);
   }
   else{
+    void (*fp)(uint2, float*, unsigned int, int2, float*, float*) = &convolveImage;
+    get2DGridBlock(imageSize,grid,block,fp);
     convolveImage<<<grid,block>>>(imageSize, pixels->device, colorDepth, kernelSize, kernel_device, convolvedImage->device);
   }
   cudaDeviceSynchronize();
