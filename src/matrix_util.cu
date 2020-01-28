@@ -219,6 +219,9 @@ __device__ float3 ssrlcv::getVectorAngles(float3 v){
   return angles;
 }
 
+/**
+* Rotates a point around the x, y, and z axis by the given angles.
+*/
 __device__ float3 ssrlcv::rotatePoint(float3 point, float3 angle) {
   float rotationMatrix[3][3];
   rotationMatrix[0][0] = cosf(angle.z) * cosf(angle.y);
@@ -230,6 +233,28 @@ __device__ float3 ssrlcv::rotatePoint(float3 point, float3 angle) {
   rotationMatrix[2][0] = -1 * sinf(angle.y);	
   rotationMatrix[2][1] = cosf(angle.y) * sinf(angle.x);
   rotationMatrix[2][2] = cosf(angle.y) * cosf(angle.x);
+  point = matrixMulVector(point, rotationMatrix);
+  return point;
+}
+
+/**
+* Rotates a point around a given axis given by a unit vector through the origin
+* by a given angle. The resulting point can be found by first rotating the axis
+* to the z-axis, performing the rotation, and rotating the axis back to the orginal orientation.
+*/
+__device__ float3 ssrlcv::rotatePointArbitrary(float3 point, float3 axis, float angle) {
+  float rotationMatrix[3][3];
+  float k = (1- cosf(angle));
+  normalize(axis);
+  rotationMatrix[0][0] = axis.x * axis.x * k + cosf(angle);
+  rotationMatrix[0][1] = axis.x * axis.y * k - axis.z * sinf(angle);
+  rotationMatrix[0][2] = axis.x * axis.z * k + axis.y * sinf(angle);
+  rotationMatrix[1][0] = axis.x * axis.y * k + axis.z * sinf(angle);
+  rotationMatrix[1][1] = axis.y * axis.y * k + cosf(angle);
+  rotationMatrix[1][2] = axis.y * axis.z * k - axis.x * sinf(angle);
+  rotationMatrix[2][0] = axis.x * axis.z * k - axis.y * sinf(angle);	
+  rotationMatrix[2][1] = axis.y * axis.z * k + axis.x * sinf(angle);
+  rotationMatrix[2][2] = axis.z * axis.z * k + cosf(angle);
   point = matrixMulVector(point, rotationMatrix);
   return point;
 }

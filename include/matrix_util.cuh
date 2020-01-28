@@ -36,7 +36,8 @@ namespace ssrlcv{
   __device__ float3 matrixMulVector(float3 x, float A[3][3]);
   __device__ float3 getVectorAngles(float3 v);
   __device__ float3 rotatePoint(float3 point, float3 angles);
-  __device__ float3 rotatePointKP(float3 point, float3 goal, float axangle);
+  __device__ float3 rotatePointTest(float3 point, float3 angles);
+  __device__ float3 rotatePointArbitrary(float3 point, float3 axis, float angle);
 
 }
 
