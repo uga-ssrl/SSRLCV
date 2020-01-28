@@ -189,8 +189,6 @@ template<typename... Types>
 void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0){
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
-
-  //cudaOccDeviceProp occProp = prop;
   
   int blockSize;
   int minGridSize;
@@ -225,32 +223,27 @@ void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (
   }
 }
 template<typename... Types>
-void getGrid(unsigned long numElements, dim3 &grid, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0){
+void get2DGridBlock(uint2 size, dim3 &grid, dim3 &block,  void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0){
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
-    
-  grid = {prop.maxGridSize[0],prop.maxGridSize[1],prop.maxGridSize[2]};
-  if(numElements < grid.x){
-    grid.x = numElements;
-    grid.y = 1;
-    grid.z = 1;
-  }
-  else{
-    grid.x = 65536;
-    if(numElements < grid.x*grid.y){
-      grid.y = numElements/grid.x;
-      grid.y++;
-      grid.z = 1;
-    }
-    else if(numElements < grid.x*grid.y*grid.z){
-      grid.z = numElements/(grid.x*grid.y);
-      grid.z++;
-    }
-  }
+  
+  int blockSize;
+  int minGridSize;
+  cudaOccupancyMaxPotentialBlockSize(
+    &minGridSize,
+    &blockSize,
+    kernel,
+    dynamicSharedMem,
+    size.x*size.y
+  );
+  block = {sqrt(blockSize),1,1}; 
+  block.y = block.x;
+  grid = {(size.x + (unsigned long)block.x - 1) / (unsigned long)block.x,
+    (size.y + (unsigned long)block.y - 1) / (unsigned long)block.y,
+    1};
+  
 }
-
-
-
+void getGrid(unsigned long numElements, dim3 &grid, int device = 0);
 void checkDims(dim3 grid, dim3 block, int device = 0);  
 
 

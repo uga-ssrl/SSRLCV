@@ -34,6 +34,7 @@ __device__ __host__ void printBits(size_t const size, void const * const ptr){
   printf("\n");
 }
 
+//xorswap
 __device__ void orderInt3(int3 &toOrder){
   if(toOrder.x > toOrder.y){
     toOrder.x ^= toOrder.y;
@@ -295,7 +296,32 @@ __device__ __host__ bool operator<(const float2 &a, const int2 &b){
   return (a.x < b.x) && (a.y < b.y);
 }
 
-void checkDims(dim3 grid, dim3 block, size_t dynamicSharedMem, int device){
+void getGrid(unsigned long numElements, dim3 &grid, int device){
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, device);
+    
+  grid = {prop.maxGridSize[0],prop.maxGridSize[1],prop.maxGridSize[2]};
+  if(numElements < grid.x){
+    grid.x = numElements;
+    grid.y = 1;
+    grid.z = 1;
+  }
+  else{
+    grid.x = 65536;
+    if(numElements < grid.x*grid.y){
+      grid.y = numElements/grid.x;
+      grid.y++;
+      grid.z = 1;
+    }
+    else if(numElements < grid.x*grid.y*grid.z){
+      grid.z = numElements/(grid.x*grid.y);
+      grid.z++;
+    }
+  }
+}
+
+
+void checkDims(dim3 grid, dim3 block, int device){
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
   bool goodDims = true;

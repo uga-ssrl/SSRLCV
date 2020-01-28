@@ -99,7 +99,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
     int extremaAtDepth = 0;
 
     pixelsLower = this->blurs[0]->pixels;
-    getGrid(pixelsLower->numElements,grid2D,findExtrema);
+    getGrid(pixelsLower->numElements,grid2D);
     int* temp = new int[pixelsLower->numElements];
     for(int i = 0; i < pixelsLower->numElements; ++i){
         temp[i] = -1;
@@ -671,10 +671,10 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_3x3>>* ssrlcv::FeatureFactory::gene
         image->pixels->setMemoryState(gpu);
     }
     dim3 grid = {1,1,1};
-    dim3 block = {3,3,1};
+    dim3 block = {3,3,1};//most devices should be capable of this
     unsigned int numWindows = (image->size.x-2)*(image->size.y-2);
-    void (*fp)(uint2, int, unsigned char*, Feature<Window_3x3>*) = &fillWindows;
-    getGrid(numWindows,grid,fp);
+    getGrid(numWindows,grid);
+    checkDims(grid,block);
     Unity<Feature<Window_3x3>>* windows = new Unity<Feature<Window_3x3>>(nullptr,numWindows,gpu);
     fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
     cudaDeviceSynchronize();
@@ -691,10 +691,10 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_9x9>>* ssrlcv::FeatureFactory::gene
         image->pixels->setMemoryState(gpu);
     }
     dim3 grid = {1,1,1};
-    dim3 block = {9,9,1};
+    dim3 block = {9,9,1};//some devices may not be capable of this
     unsigned int numWindows = (image->size.x-8)*(image->size.y-8);
-    void (*fp)(uint2, int, unsigned char*, Feature<Window_9x9>*) = &fillWindows;
-    getGrid(numWindows,grid,fp);
+    getGrid(numWindows,grid);
+    checkDims(grid,block);
     Unity<Feature<Window_9x9>>* windows = new Unity<Feature<Window_9x9>>(nullptr,numWindows,gpu);
     fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
     cudaDeviceSynchronize();
@@ -711,10 +711,10 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_15x15>>* ssrlcv::FeatureFactory::ge
         image->pixels->setMemoryState(gpu);
     }
     dim3 grid = {1,1,1};
-    dim3 block = {15,15,1};
+    dim3 block = {15,15,1};//some devices may not be capable of this
     unsigned int numWindows = (image->size.x-14)*(image->size.y-14);
-    void (*fp)(uint2, int, unsigned char*, Feature<Window_15x15>*) = &fillWindows;
-    getGrid(numWindows,grid,fp);
+    getGrid(numWindows,grid);
+    checkDims(grid,block);
     Unity<Feature<Window_15x15>>* windows = new Unity<Feature<Window_15x15>>(nullptr,numWindows,gpu);
     fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
     cudaDeviceSynchronize();
@@ -731,10 +731,10 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_25x25>>* ssrlcv::FeatureFactory::ge
         image->pixels->setMemoryState(gpu);
     }
     dim3 grid = {1,1,1};
-    dim3 block = {25,25,1};
+    dim3 block = {25,25,1};//some devices may not be capable of this
     unsigned int numWindows = (image->size.x-24)*(image->size.y-24);
-    void (*fp)(uint2, int, unsigned char*, Feature<Window_25x25>*) = &fillWindows;
-    getGrid(numWindows,grid,fp);
+    getGrid(numWindows,grid);
+    checkDims(grid,block);
     Unity<Feature<Window_25x25>>* windows = new Unity<Feature<Window_25x25>>(nullptr,numWindows,gpu);
     fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
     cudaDeviceSynchronize();
@@ -751,10 +751,10 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_31x31>>* ssrlcv::FeatureFactory::ge
         image->pixels->setMemoryState(gpu);
     }
     dim3 grid = {1,1,1};
-    dim3 block = {31,31,1};
+    dim3 block = {31,31,1};//some devices will not be capable of this
     unsigned int numWindows = (image->size.x-30)*(image->size.y-30);
-    void (*fp)(uint2, int, unsigned char*, Feature<Window_31x31>*) = &fillWindows;
-    getGrid(numWindows,grid,fp);
+    getGrid(numWindows,grid);
+    checkDims(grid,block);
     Unity<Feature<Window_31x31>>* windows = new Unity<Feature<Window_31x31>>(nullptr,numWindows,gpu);
     fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
     cudaDeviceSynchronize();

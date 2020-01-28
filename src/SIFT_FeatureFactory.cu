@@ -143,10 +143,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
           currentBlur->gradients->setMemoryState(gpu);
         }
         grid = {1,1,1};
-        void (*fp)(const unsigned long, const unsigned int, Feature<SIFT_Descriptor>*,
-          const float, const float, const float, const float*,
-          const int*, const float2*, const float2*) = &fillDescriptors;
-        getGrid(numKeyPointsInBlur,grid,fp);
+        getGrid(numKeyPointsInBlur,grid);
         fillDescriptors<<<grid,block>>>(numKeyPointsInBlur,currentBlur->size, 
           features->device + numFeaturesProduced, currentOctave->pixelWidth, this->descriptorContribWidth,
           currentOctave->extrema->device + currentOctave->extremaBlurIndices[b], currentBlur->gradients->device);
@@ -213,10 +210,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
 
   grid = {1,1,1};
   block = {4,4,8};
-  void (*fp2)(const unsigned long, const unsigned int, Feature<SIFT_Descriptor>*,
-    const float, const float, const float, const float*,
-    const int*, const float2*, const float2*) = &fillDescriptors;
-  getGrid(numFeatures,grid,fp2);
+  getGrid(numFeatures,grid);
 
   Feature<SIFT_Descriptor>* features_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&features_device,numFeatures*sizeof(Feature<SIFT_Descriptor>)));
