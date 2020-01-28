@@ -239,7 +239,7 @@ namespace ssrlcv{
     switch(this->state){
       case null:
         std::cerr<<"WARNING: Attempt to clear null (empty) Unity...action prevented"<<std::endl;
-        break;
+        return;
       case cpu:
         if(this->host != nullptr){
           delete[] this->host;
@@ -247,7 +247,7 @@ namespace ssrlcv{
           this->state = null;
           this->fore = null;
         }
-        break;
+        return;
       case gpu:
         if(this->device != nullptr){
           CudaSafeCall(cudaFree(this->device));
@@ -255,7 +255,7 @@ namespace ssrlcv{
           this->state = null;
           this->fore = null;
         }
-        break;
+        return;
       case both:
         if(state != both){
           if(state == cpu && this->host != nullptr){
@@ -273,22 +273,22 @@ namespace ssrlcv{
           return;
         }
         else{
-          if(host != nullptr){
+          if(this->host != nullptr){
             delete[] this->host;
             this->host = nullptr;
           }
-          if(device != nullptr){
+          if(this->device != nullptr){
             CudaSafeCall(cudaFree(this->device));
             this->device = nullptr;
           }
+          this->numElements = 0;
           this->state = null;
           this->fore = null;
         }
-        break;
+        return;
       default:
         throw IllegalUnityTransition("unknown memory state");
     }
-    this->numElements = 0;
   }
 
   template<typename T>
@@ -346,6 +346,7 @@ namespace ssrlcv{
   void Unity<T>::setMemoryState(MemoryState state){
     if(state == this->state){
       std::cerr<<"WARNING: hard setting of memory state to same memory state does nothing: "<<memoryStateToString(this->state)<<std::endl;
+      return;
     }
     else if(this->state == null){
       throw NullUnityException("Cannot setMemoryState of a null Unity");
@@ -358,7 +359,8 @@ namespace ssrlcv{
       else if(gpu == this->fore){
         this->transferMemoryTo(cpu);
       }
-      this->fore = both;
+      this->fore = both;//just for insurance
+      this->state = both;//just for insurance
     }
     else{
       this->transferMemoryTo(state);
@@ -370,20 +372,22 @@ namespace ssrlcv{
         this->clear(cpu);
         this->fore = gpu;
       }
+      this->state = state;
     }
   }
   template<typename T>
   void Unity<T>::setData(T* data, unsigned long numElements, MemoryState state){
     if(this->state != null) this->clear();
-    this->state = state;
-    this->fore = state;
     this->numElements = numElements;
-    if(data == nullptr && numElements != 0){
+    if(numElements == 0){
+      throw IllegalUnityTransition("cannot fill Unity with T* data, numElements = 0");
+    }
+    else if(data == nullptr){
       if(state == cpu || state == gpu){
         this->host = new T[numElements]();
+        this->state = cpu;
+        this->fore = cpu;
         if(state == gpu){
-          this->state = cpu;
-          this->fore = cpu;
           this->setMemoryState(gpu);//filled with default instantiated values from host 
         }
       }
@@ -401,6 +405,8 @@ namespace ssrlcv{
         throw IllegalUnityTransition("caught in Unity<T>::setData");
       }
     }
+    this->state = state;//for insurance
+    this->fore = state;//for insurance
   }
 }
 
