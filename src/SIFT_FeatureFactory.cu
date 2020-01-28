@@ -6,8 +6,8 @@ ssrlcv::SIFT_FeatureFactory::SIFT_FeatureFactory(float orientationContribWidth, 
 }
 
 ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFactory::generateFeatures(ssrlcv::Image* image, bool dense, unsigned int maxOrientations, float orientationThreshold){
+  std::cout<<"Generating SIFT features  for image "<<image->id<<std::endl;
   Unity<Feature<SIFT_Descriptor>>* features = nullptr;
-
   if(image->pixels->fore == cpu){
     image->pixels->transferMemoryTo(gpu);
   }
@@ -15,7 +15,6 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     convertToBW(image->pixels,image->colorDepth);
     image->colorDepth = 1;
   }
-
   if(dense){
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
@@ -90,7 +89,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
         currentBlur = currentOctave->blurs[b];
         grid = {1,1,1};
         block = {1,1,1};
-        getFlatGridBlock(numKeyPointsInBlur,grid,block);
+        getFlatGridBlock(numKeyPointsInBlur,grid,block,checkKeyPoints);
 
         checkKeyPoints<<<grid,block>>>(numKeyPointsInBlur,currentOctave->extremaBlurIndices[b],currentBlur->size, currentOctave->pixelWidth,
           this->descriptorContribWidth,currentOctave->extrema->device);
@@ -182,7 +181,12 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
 
-  getFlatGridBlock(keyPoints->numElements,grid,block);
+  void (*fp)(const unsigned long, const unsigned int,
+    const float, const float, const float, const float2*,
+    const float2*, int*, const unsigned int, const float,
+    float*) = &computeThetas;
+
+  getFlatGridBlock(keyPoints->numElements,grid,block,fp);
 
   computeThetas<<<grid,block>>>(keyPoints->numElements,imageSize.x,pixelWidth,
     this->orientationContribWidth,ceil(3.0f*this->orientationContribWidth/pixelWidth),

@@ -9,6 +9,7 @@
 #include <cuda.h>
 #include <cusolverDn.h>
 #include <stdio.h>
+#include <cuda_occupancy.h>
 #include <iostream>
 #include <map>
 #include <string>
@@ -184,12 +185,66 @@ __device__ __forceinline__ unsigned long getGlobalIdx_3D_3D(){
 }
 */
 
-//NOTE these only consider max number of threads for a given device
-void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, int device = 0);
+template<typename... Types>
+void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0){
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, device);
+  
+  int blockSize;
+  int minGridSize;
+  cudaOccupancyMaxPotentialBlockSize(
+    &minGridSize,
+    &blockSize,
+    kernel,
+    dynamicSharedMem,
+    numElements
+  );
+  block = {blockSize,1,1}; 
+  unsigned long gridSize = (numElements + (unsigned long)blockSize - 1) / (unsigned long)blockSize;
+  if(gridSize > prop.maxGridSize[0]){
+    if(gridSize >= 65535L*65535L*65535L){
+      grid = {65535,65535,65535};
+    }
+    else{
+      gridSize = (gridSize/65535L) + 1;
+      grid.x = 65535;
+      if(gridSize > 65535){
+        grid.z = (grid.y/65535) + 1;
+        grid.y = 65535; 
+      }
+      else{
+        grid.y = 65535;
+        grid.z = 1;
+      }
+    }
+  }
+  else{
+    grid = {gridSize,1,1};
+  }
+}
+template<typename... Types>
+void get2DGridBlock(uint2 size, dim3 &grid, dim3 &block,  void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0){
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, device);
+  
+  int blockSize;
+  int minGridSize;
+  cudaOccupancyMaxPotentialBlockSize(
+    &minGridSize,
+    &blockSize,
+    kernel,
+    dynamicSharedMem,
+    size.x*size.y
+  );
+  block = {sqrt(blockSize),1,1}; 
+  block.y = block.x;
+  grid = {(size.x + (unsigned long)block.x - 1) / (unsigned long)block.x,
+    (size.y + (unsigned long)block.y - 1) / (unsigned long)block.y,
+    1};
+  
+}
 void getGrid(unsigned long numElements, dim3 &grid, int device = 0);
 void checkDims(dim3 grid, dim3 block, int device = 0);  
-//max occupancy needs to be completed
-void convertToMaxOccupancy(unsigned long numElements, dim3 &grid, dim3 &block, int device = 0);
 
 
 __host__ void cusolverCheckError(cusolverStatus_t cusolver_status);

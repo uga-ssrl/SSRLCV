@@ -23,7 +23,7 @@ def main(argv):
         if opt in ('-m','--matches'):
             match_data_src = arg
             print(match_data_src)
-        elif opt in ('-1','--image2'):
+        elif opt in ('-1','--image1'):
             image1 = arg
             print(image1)
         elif opt in ('-2','--image2'):
