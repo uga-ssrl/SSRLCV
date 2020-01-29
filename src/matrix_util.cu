@@ -220,101 +220,36 @@ __device__ float3 ssrlcv::getVectorAngles(float3 v){
 }
 
 __device__ float3 ssrlcv::rotatePoint(float3 point, float3 angle) {
-  // this is just a 3D rotation matrix
-  // contains all R3 rotations multiplied together
   float rotationMatrix[3][3];
-  rotationMatrix[0][0] = cosf(angle.y) * cosf(angle.z);
-  rotationMatrix[0][1] = -1 * cosf(angle.y) * sinf(angle.z);
-  rotationMatrix[0][2] = sinf(angle.y);
-  rotationMatrix[1][0] = sinf(angle.x) * sinf(angle.y) * cosf(angle.z) + cosf(angle.x) * sinf(angle.z);
-  rotationMatrix[1][1] = cosf(angle.x) * cosf(angle.z) - sinf(angle.x) * sinf(angle.y) * sinf(angle.z);
-  rotationMatrix[1][2] = -1 * sinf(angle.x) * cosf(angle.y);
-  rotationMatrix[2][0] = sinf(angle.x) * sinf(angle.z) - cosf(angle.x) * sinf(angle.y) * cosf(angle.z);
-  rotationMatrix[2][1] = cosf(angle.x) * sinf(angle.y) * sinf(angle.z) + sinf(angle.x) * cosf(angle.z);
-  rotationMatrix[2][2] = cosf(angle.x) * cosf(angle.y);
+  rotationMatrix[0][0] = cosf(angle.z) * cosf(angle.y);
+  rotationMatrix[0][1] = cosf(angle.z) * sinf(angle.y) * sinf(angle.x) - sinf(angle.z) * cosf(angle.x);
+  rotationMatrix[0][2] = cosf(angle.z) * sinf(angle.y) * cosf(angle.x) + sinf(angle.z) * sinf(angle.x);
+  rotationMatrix[1][0] = sinf(angle.z) * cosf(angle.y);
+  rotationMatrix[1][1] = sinf(angle.z) * sinf(angle.y) * sinf(angle.x) + cosf(angle.z) * cosf(angle.x); 
+  rotationMatrix[1][2] = sinf(angle.z) * sinf(angle.y) * cosf(angle.x) - cosf(angle.z) * sinf(angle.x);
+  rotationMatrix[2][0] = -1 * sinf(angle.y);	
+  rotationMatrix[2][1] = cosf(angle.y) * sinf(angle.x);
+  rotationMatrix[2][2] = cosf(angle.y) * cosf(angle.x);
   point = matrixMulVector(point, rotationMatrix);
   return point;
 }
 
-// this assumes we are ALWAYS starting with a rotation
-// this should only be used for reprojection
-// TODO this could be combined into one matrix, and thus one matrix multiplication
-// we should move to that. I (caleb) only did it this way at first because it was much much easier to test
-__device__ float3 ssrlcv::rotatePointKP(float3 point, float3 goal, float axangle) {
-
-    // old
-  // // we rotate in the z axis around <0 0 1> first, so we make a z rotation matrix
-  // float zRotationMatrix[3][3];
-  // zRotationMatrix[0][0] = cosf(axangle);
-  // zRotationMatrix[0][1] = -1 * sinf(axangle);
-  // zRotationMatrix[0][2] = 0;
-  // zRotationMatrix[1][0] = sinf(axangle);
-  // zRotationMatrix[1][1] = cosf(axangle);
-  // zRotationMatrix[1][2] = 0;
-  // zRotationMatrix[2][0] = 0;
-  // zRotationMatrix[2][1] = 0;
-  // zRotationMatrix[2][2] = 1;
-  // point = matrixMulVector(point, zRotationMatrix);
-
-
-
-  // now calculate the needed rotation in the x axis
-  // this isn't explicitly given, so we have to calculate it
-  // from our current heading <0 0 1>
-  float3 tempgoal = {0.0, goal.y, goal.z};
-  normalize(tempgoal);
-  float xrot = acosf( dotProduct({1.0, 0.0, 0.0}, tempgoal));
-  printf("xRotation Estimate: %f \n", xrot);
-  float xRotationMatrix[3][3];
-  xRotationMatrix[0][0] = 1;
-  xRotationMatrix[0][1] = 0;
-  xRotationMatrix[0][2] = 0;
-  xRotationMatrix[1][0] = 0;
-  xRotationMatrix[1][1] = cosf(xrot);
-  xRotationMatrix[1][2] = -1 * sinf(xrot);
-  xRotationMatrix[2][0] = 0;
-  xRotationMatrix[2][1] = sinf(xrot);
-  xRotationMatrix[2][2] = cosf(xrot);
-  point = matrixMulVector(point, xRotationMatrix);
-  // tempgoal =
-  // Last step is to calculate the rotation in the y axis
-  // using the same method and assumtion as above.
-  float3 tempgoal2 = {goal.x, 0.0, goal.z};
-  normalize(tempgoal2);
-  float yrot = acosf( dotProduct({0.0, 1.0, 0.0}, tempgoal2));
-  printf("yRotation Estimate: %f \n", yrot);
-  float yRotationMatrix[3][3];
-  yRotationMatrix[0][0] = cosf(yrot);
-  yRotationMatrix[0][1] = 0;
-  yRotationMatrix[0][2] = sinf(yrot);
-  yRotationMatrix[1][0] = 0;
-  yRotationMatrix[1][1] = 1;
-  yRotationMatrix[1][2] = 0;
-  yRotationMatrix[2][0] = -1 * sinf(yrot);
-  yRotationMatrix[2][1] = 0;
-  yRotationMatrix[2][2] = cosf(yrot);
-  point = matrixMulVector(point, yRotationMatrix);
-  // now calc the change in the z axis that is needed
-  float3 tempgoal3 = {goal.x, goal.y, 0.0};
-  normalize(tempgoal3);
-  float zrot = acosf( dotProduct({0.0, 0.0, 1.0}, tempgoal3));
-  printf("zRotation Estimate: %f \n", zrot);
-  float zRotationMatrix[3][3];
-  zRotationMatrix[0][0] = cosf(zrot);
-  zRotationMatrix[0][1] = -1 * sinf(zrot);
-  zRotationMatrix[0][2] = 0;
-  zRotationMatrix[1][0] = sinf(zrot);
-  zRotationMatrix[1][1] = cosf(zrot);
-  zRotationMatrix[1][2] = 0;
-  zRotationMatrix[2][0] = 0;
-  zRotationMatrix[2][1] = 0;
-  zRotationMatrix[2][2] = 1;
-  point = matrixMulVector(point, zRotationMatrix);
-  // then we're done!
-  // then we're done!
+__device__ float3 ssrlcv::rotatePointArbitrary(float3 point, float3 axis, float angle) {
+  float rotationMatrix[3][3];
+  float k = (1- cosf(angle));
+  normalize(axis);
+  rotationMatrix[0][0] = axis.x * axis.x * k + cosf(angle);
+  rotationMatrix[0][1] = axis.x * axis.y * k - axis.z * sinf(angle);
+  rotationMatrix[0][2] = axis.x * axis.z * k + axis.y * sinf(angle);
+  rotationMatrix[1][0] = axis.x * axis.y * k + axis.z * sinf(angle);
+  rotationMatrix[1][1] = axis.y * axis.y * k + cosf(angle);
+  rotationMatrix[1][2] = axis.y * axis.z * k - axis.x * sinf(angle);
+  rotationMatrix[2][0] = axis.x * axis.z * k - axis.y * sinf(angle);	
+  rotationMatrix[2][1] = axis.y * axis.z * k + axis.x * sinf(angle);
+  rotationMatrix[2][2] = axis.z * axis.z * k + cosf(angle);
+  point = matrixMulVector(point, rotationMatrix);
   return point;
 }
-
 
 
 

@@ -46,14 +46,14 @@ int main(int argc, char *argv[]){
     images_vec[0]->id = 0;
     images_vec[0]->camera.size = {2,2};
     images_vec[0]->camera.cam_pos = {0.0,0.0,0.0};
-    images_vec[0]->camera.cam_vec = {1.0,1.0,1.0};
+    images_vec[0]->camera.cam_vec = {2.0,0.707,1.33};
     images_vec[0]->camera.axangle = 0.0;
     images_vec[0]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
     images_vec[0]->camera.foc = 0.25;
     images_vec[1]->id = 1;
     images_vec[1]->camera.size = {2,2};
     images_vec[1]->camera.cam_pos = {0.0,0.0,0.0};
-    images_vec[1]->camera.cam_vec = {-1.0, -1.0, -1.0};
+    images_vec[1]->camera.cam_vec = {-1.0, 1.6, -1.3};
     images_vec[1]->camera.axangle = M_PI/2.0;
     images_vec[1]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
     images_vec[1]->camera.foc = 0.25;
@@ -65,8 +65,8 @@ int main(int argc, char *argv[]){
     ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 1, ssrlcv::cpu);
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[1].parentId = 1;
-    matches->host[0].keyPoints[0].loc = {1.0,1.0}; // at the center!
-    matches->host[0].keyPoints[1].loc = {1.0,1.0}; // in the corner
+    matches->host[0].keyPoints[0].loc = {1.5,1.5}; // at the center!
+    matches->host[0].keyPoints[1].loc = {1.0,0.3}; // in the corner
 
     // test the line gen method
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
