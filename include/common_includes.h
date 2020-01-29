@@ -33,6 +33,8 @@
 #include <type_traits>
 
 #include <png.h>
+#include "tiffio.h"
+#include <jpeglib.h>
 
 #include <cstring>
 #include <cmath>

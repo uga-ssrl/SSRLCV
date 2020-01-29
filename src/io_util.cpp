@@ -183,6 +183,80 @@ void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned
 }
 
 
+unsigned char* ssrlcv::readTIFF(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth){
+  TIFF *tif = TIFFOpen(filePath, "r");
+  if(tif) {
+    TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width);
+    TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
+    int scanLineSize = TIFFScanlineSize(tif);
+    colorDepth = scanLineSize/width;
+    
+    unsigned char* pixels = new unsigned char[height*width*colorDepth];
+    tdata_t buf;
+    buf = _TIFFmalloc(scanLineSize);
+
+    for (unsigned char row = 0; row < height; row++) {
+      if (TIFFReadScanline(tif, buf, row, 0) != -1) {
+        memcpy(&pixels[row * width], buf, scanLineSize);
+      } else {
+        std::cout << "ERROR READING SCANLINE" << std::endl;
+        exit(-1);
+      }
+    }
+    _TIFFfree(buf);
+    TIFFClose(tif);
+    return pixels;
+  }
+  else{
+    std::cout<<"READING IN TIFF FAILED: "<<filePath<<std::endl;
+    exit(-1);
+  }
+}
+void ssrlcv::writeTIFF(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height){
+  TIFF *tif = TIFFOpen(filePath, "w");
+  if (tif) {
+    TIFFSetField(tif, TIFFTAG_IMAGEWIDTH, width);
+    TIFFSetField(tif, TIFFTAG_IMAGELENGTH, height);
+    TIFFSetField(tif, TIFFTAG_SAMPLESPERPIXEL, colorDepth);
+    TIFFSetField(tif, TIFFTAG_BITSPERSAMPLE, 8);
+    switch(colorDepth){
+      case 1:
+        TIFFSetField(tif, TIFFTAG_PHOTOMETRIC, 0);
+        break;
+      case 2:
+        TIFFSetField(tif, TIFFTAG_PHOTOMETRIC, 0);
+        break;
+      case 3:
+        TIFFSetField(tif, TIFFTAG_PHOTOMETRIC, 2);
+        break;
+      case 4:
+        TIFFSetField(tif, TIFFTAG_PHOTOMETRIC, 2);
+        break;
+      default:
+        std::cerr<<"ERROR unsupported photometric in writeTIFF()"<<std::endl;
+        exit(-1);
+    }
+    for(uint32 row = 0; row < height; ++row){
+      if (TIFFWriteScanline(tif, image + (row*width), row, 0) != 1) {
+        std::cerr<<"ERROR: could not write tiff: "<<filePath<<std::endl;
+        exit(-1);
+      }
+    }
+    std::cout<<filePath<<" has been created"<<std::endl;
+    TIFFClose(tif);
+  }
+  else{
+    std::cerr<<"ERROR: could not write tiff: "<<filePath<<std::endl;
+    exit(-1);
+  }
+}
+unsigned char* ssrlcv::readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth){
+
+}
+void ssrlcv::writeJPEG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height){
+
+}
+
 
 //
 // Binary files - Gitlab #58
