@@ -188,16 +188,9 @@ namespace ssrlcv{
 
   /* CUDA variable, method and kernel defintions */
 
-  extern __constant__ float matchTreshold;
-  extern __constant__ int splineHelper[4][4];
-  extern __constant__ int splineHelperInv[4][4];
-
   __host__ __device__ __forceinline__ float sum(const float3 &a);
   __host__ __device__ __forceinline__ float square(const float &a);
   __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
-  __host__ __device__ __forceinline__ float findSubPixelContributer(const float2 &loc, const int &width);
-
-
 
   template<typename T>
   __global__ void getSeedMatchDistances(unsigned long numFeaturesQuery, Feature<T>* featuresQuery, unsigned long numSeedFeatures,

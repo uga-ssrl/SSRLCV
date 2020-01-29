@@ -782,19 +782,6 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::readMatchFile(std::string pathToFile){
 CUDA implementations
 */
 
-__constant__ int ssrlcv::splineHelper[4][4] = {
-  {1,0,0,0},
-  {0,0,1,0},
-  {-3,3,-2,-1},
-  {2,-2,1,1}
-};
-__constant__ int ssrlcv::splineHelperInv[4][4] = {
-  {1,0,-3,2},
-  {0,0,3,-2},
-  {0,1,-2,1},
-  {0,0,-1,1}
-};
-
 __host__ __device__ __forceinline__ float ssrlcv::sum(const float3 &a){
   return a.x + a.y + a.z;
 }
@@ -806,9 +793,6 @@ __device__ __forceinline__ float ssrlcv::atomicMinFloat (float * addr, float val
   old = (value >= 0) ? __int_as_float(atomicMin((int *)addr, __float_as_int(value))) :
     __uint_as_float(atomicMax((unsigned int *)addr, __float_as_uint(value)));
   return old;
-}
-__host__ __device__ __forceinline__ float ssrlcv::findSubPixelContributer(const float2 &loc, const int &width){
-  return ((loc.y - 12)*(width - 24)) + (loc.x - 12);
 }
 
 //TODO change currentDist to type D

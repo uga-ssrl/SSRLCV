@@ -74,7 +74,7 @@ SD_OBJS = $(patsubst %, $(OBJDIR)/%, $(_SD_OBJS))
 TD_OBJS = $(patsubst %, $(OBJDIR)/%, $(_TD_OBJS))
 T_OBJS = $(patsubst %, $(OBJDIR)/%, $(_T_OBJS))
 
-TEST_OBJS = $(patsubst %, $(OBJDIR)/%, $(BASE_OBJS))
+TEST_OBJS = $(patsubst %, $(OBJDIR)/%, $(_BASE_OBJS))
 
 TARGET_SFM = SFM
 TARGET_SD = StereoDisparity
@@ -97,9 +97,9 @@ LINKLINE_T = $(LINK) $(GENCODEFLAGS) $(BASE_OBJS) $(T_OBJS) $(LIB) -o $(BINDIR)/
 .SUFFIXES: .cpp .cu .o
 .PHONY: all clean test
 
-base: $(BASE_OBJS)
-
 all: base $(BINDIR)/$(TARGET_SFM) $(BINDIR)/$(TARGET_SD) $(BINDIR)/$(TARGET_TD) $(BINDIR)/$(TARGET_T) $(TESTS)
+
+base: $(BASE_OBJS)
 
 sfm: base $(BINDIR)/$(TARGET_SFM)
 
