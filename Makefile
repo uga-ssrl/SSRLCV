@@ -39,7 +39,7 @@ endif
 endif
 
 #
-# Files 
+# Files
 #
 
 SRCDIR 		= ./src
@@ -162,6 +162,12 @@ $(TESTDIR)/bin/cpp/%: $(TESTDIR)/obj/%.cpp.o $(TEST_OBJS)
 
 $(TESTDIR)/bin/cu/%: $(TESTDIR)/obj/%.cu.o $(TEST_OBJS)
 	$(LINK) $(GENCODEFLAGS) $(LIB) $(TEST_OBJS) $< -o $@
+
+#
+# Docs
+#
+docs:
+	doxygen doc/doxygen/Doxyfile
 
 #
 # Clean
