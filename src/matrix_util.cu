@@ -2,7 +2,7 @@
 
 __device__ __host__ float ssrlcv::sum(const float3 &a){
   return a.x + a.y + a.z;
-} 
+}
 __device__ __host__ void ssrlcv::multiply(const float (&A)[9], const float (&B)[3][3], float (&C)[3][3]){
   for(int r = 0; r < 3; ++r){
     for(int c = 0; c < 3; ++c){
@@ -76,7 +76,6 @@ __device__ __host__ void ssrlcv::multiply(const float (&A)[2][2], const float (&
     }
   }
 }
-
 
 __device__ __host__ float ssrlcv::dotProduct(const float (&A)[3], const float (&B)[3]){
   return (A[0]*B[0]) + (A[1]*B[1]) + (A[2]*B[2]);
@@ -221,18 +220,83 @@ __device__ float3 ssrlcv::getVectorAngles(float3 v){
 }
 
 __device__ float3 ssrlcv::rotatePoint(float3 point, float3 angle) {
-  // this is just a 3D rotation matrix
-  // contains all R3 rotations multiplied together
   float rotationMatrix[3][3];
-  rotationMatrix[0][0] = cosf(angle.y) * cosf(angle.z);
-  rotationMatrix[0][1] = -1 * cosf(angle.y) * sinf(angle.z);
-  rotationMatrix[0][2] = sinf(angle.y);
-  rotationMatrix[1][0] = sinf(angle.x) * sinf(angle.y) * cosf(angle.z) + cosf(angle.x) * sinf(angle.z);
-  rotationMatrix[1][1] = cosf(angle.x) * cosf(angle.z) - sinf(angle.x) * sinf(angle.y) * sinf(angle.z);
-  rotationMatrix[1][2] = -1 * sinf(angle.x) * cosf(angle.y);
-  rotationMatrix[2][0] = sinf(angle.x) * sinf(angle.z) - cosf(angle.x) * sinf(angle.y) * cosf(angle.z);
-  rotationMatrix[2][1] = cosf(angle.x) * sinf(angle.y) * sinf(angle.z) + sinf(angle.x) * cosf(angle.z);
-  rotationMatrix[2][2] = cosf(angle.x) * cosf(angle.y);
+  rotationMatrix[0][0] = cosf(angle.z) * cosf(angle.y);
+  rotationMatrix[0][1] = cosf(angle.z) * sinf(angle.y) * sinf(angle.x) - sinf(angle.z) * cosf(angle.x);
+  rotationMatrix[0][2] = cosf(angle.z) * sinf(angle.y) * cosf(angle.x) + sinf(angle.z) * sinf(angle.x);
+  rotationMatrix[1][0] = sinf(angle.z) * cosf(angle.y);
+  rotationMatrix[1][1] = sinf(angle.z) * sinf(angle.y) * sinf(angle.x) + cosf(angle.z) * cosf(angle.x); 
+  rotationMatrix[1][2] = sinf(angle.z) * sinf(angle.y) * cosf(angle.x) - cosf(angle.z) * sinf(angle.x);
+  rotationMatrix[2][0] = -1 * sinf(angle.y);	
+  rotationMatrix[2][1] = cosf(angle.y) * sinf(angle.x);
+  rotationMatrix[2][2] = cosf(angle.y) * cosf(angle.x);
   point = matrixMulVector(point, rotationMatrix);
   return point;
 }
+
+__device__ float3 ssrlcv::rotatePointArbitrary(float3 point, float3 axis, float angle) {
+  float rotationMatrix[3][3];
+  float k = (1- cosf(angle));
+  normalize(axis);
+  rotationMatrix[0][0] = axis.x * axis.x * k + cosf(angle);
+  rotationMatrix[0][1] = axis.x * axis.y * k - axis.z * sinf(angle);
+  rotationMatrix[0][2] = axis.x * axis.z * k + axis.y * sinf(angle);
+  rotationMatrix[1][0] = axis.x * axis.y * k + axis.z * sinf(angle);
+  rotationMatrix[1][1] = axis.y * axis.y * k + cosf(angle);
+  rotationMatrix[1][2] = axis.y * axis.z * k - axis.x * sinf(angle);
+  rotationMatrix[2][0] = axis.x * axis.z * k - axis.y * sinf(angle);	
+  rotationMatrix[2][1] = axis.y * axis.z * k + axis.x * sinf(angle);
+  rotationMatrix[2][2] = axis.z * axis.z * k + cosf(angle);
+  point = matrixMulVector(point, rotationMatrix);
+  return point;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// yeet
