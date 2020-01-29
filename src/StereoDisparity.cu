@@ -99,6 +99,7 @@ int main(int argc, char *argv[]){
     for(int i = 0; i < numImages; ++i){
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
       ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
+      features->transferMemoryTo(ssrlcv::cpu);
       images.push_back(image);
       allFeatures.push_back(features);
     }

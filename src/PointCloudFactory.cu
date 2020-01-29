@@ -29,7 +29,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(bundles->numElements,grid,block);
+  getFlatGridBlock(bundles->numElements,grid,block,generateBundle);
 
   //in this kernel fill lines and bundles from keyPoints and matches
   std::cout << "calling kernel ..." << std::endl;
@@ -84,7 +84,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   //
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(matches->numElements,grid,block);
+  void (*fp)(unsigned int, Match*, float3*, float) = &computeStereo;
+  getFlatGridBlock(matches->numElements,grid,block,fp);
   //
   computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, 8.0);
   // focal lenth / baseline
@@ -119,7 +120,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   //
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(matches->numElements,grid,block);
+  void (*fp)(unsigned int, Match*, float3*, float) = &computeStereo;
+  getFlatGridBlock(matches->numElements,grid,block,fp);
   //
   computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, scale);
 
@@ -139,7 +141,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   //
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(matches->numElements,grid,block);
+  void (*fp)(unsigned int, Match*, float3*, float, float, float) = &computeStereo;
+  getFlatGridBlock(matches->numElements,grid,block,fp);
   //
   computeStereo<<<grid, block>>>(matches->numElements, matches->device, points->device, foc, baseline, doffset);
 
@@ -223,7 +226,7 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolati
     CudaSafeCall(cudaMalloc((void**)&interpolated,imageDim.x*imageDim.y*sizeof(float)));
     dim3 block = {1,1,1};
     dim3 grid = {1,1,1};
-    getFlatGridBlock(imageDim.x*imageDim.y,grid,block);
+    getFlatGridBlock(imageDim.x*imageDim.y,grid,block,interpolateDepth);
     interpolateDepth<<<grid,block>>>(imageDim,interpolationRadius,colors->device,interpolated);
     cudaDeviceSynchronize();
     CudaCheckError();
@@ -313,7 +316,7 @@ __global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, f
   if (globalID < numMatches) {
     Match match = matches[globalID];
     float3 point = {match.keyPoints[0].loc.x,match.keyPoints[0].loc.y,0.0f};
-    point.z = scale / sqrtf( dotProduct(match.keyPoints[0].loc-match.keyPoints[1].loc,match.keyPoints[0].loc-match.keyPoints[1].loc)) ;
+    point.z = scale*sqrtf( dotProduct(match.keyPoints[0].loc-match.keyPoints[1].loc,match.keyPoints[0].loc-match.keyPoints[1].loc)) ;
     points[globalID] = point;
   }
 }

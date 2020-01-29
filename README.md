@@ -28,7 +28,7 @@ make -j# SM=##
 | ------------- |:-------------:|
 | TX2i          | `make -j3 SM=52` | 
 | Jetson Nano      | `make -j3 SM=53`   
-|  Ubuntu 16.04 with GTX 1070     | `make -j9 SM=61` |
+|  Ubuntu 16.04 with GTX 1060||1070     | `make -j9 SM=61` |
 
 You can also clean out the repo, to just have the standard files again, with
 
@@ -74,3 +74,8 @@ Camera location and pointing data is stored in a in a `.txt` file. The file incl
 > image number (int), camera x (float), camera y (float), camera z (float), camera unit x (float), camera unit y (float), camera unit z (float)
 
 ### PLY File
+
+
+
+# TODO 
+* ensure that thrust functions are using GPU

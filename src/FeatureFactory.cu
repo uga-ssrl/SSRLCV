@@ -132,7 +132,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
         if(extremaAtDepth != 0){
             CudaSafeCall(cudaMalloc((void**)&extrema2D[b-1],extremaAtDepth*sizeof(ScaleSpace::SSKeyPoint)));
             grid = {1,1,1}; block = {1,1,1};
-            getFlatGridBlock(extremaAtDepth,grid,block);
+            getFlatGridBlock(extremaAtDepth,grid,block,fillExtrema);
             fillExtrema<<<grid,block>>>(extremaAtDepth,this->blurs[b]->size,this->pixelWidth,{this->id,b},this->blurs[b]->sigma,extremaAddresses,pixelsMiddle->device,extrema2D[b-1]);
             CudaCheckError();
         }
@@ -244,7 +244,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(){
 
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
-    getFlatGridBlock(this->extrema->numElements,grid,block);
+    getFlatGridBlock(this->extrema->numElements,grid,block,refineLocation);
     refineLocation<<<grid,block>>>(this->extrema->numElements, this->blurs[0]->size, this->blurs[0]->sigma, this->blurs[1]->sigma/this->blurs[0]->sigma, this->numBlurs, allPixels_device, this->extrema->device);
     cudaDeviceSynchronize();
     CudaCheckError();
@@ -279,7 +279,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeNoise(float noiseThreshol
     if(origin == cpu || this->extrema->fore == cpu) this->extrema->transferMemoryTo(gpu);
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
-    getFlatGridBlock(this->extrema->numElements,grid,block);
+    getFlatGridBlock(this->extrema->numElements,grid,block,flagNoise);
     flagNoise<<<grid,block>>>(this->extrema->numElements,this->extrema->device,noiseThreshold);
     cudaDeviceSynchronize();
     CudaCheckError();
@@ -307,7 +307,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeEdges(float edgeThreshold
         if(numExtremaAtBlur == 0) continue;
         pixelOrigin = this->blurs[i+1]->pixels->state;
         if(pixelOrigin == cpu || this->blurs[i+1]->pixels->fore == cpu) this->blurs[i]->pixels->transferMemoryTo(gpu);
-        getFlatGridBlock(numExtremaAtBlur,grid,block);
+        getFlatGridBlock(numExtremaAtBlur,grid,block,flagEdges);
         flagEdges<<<grid,block>>>(numExtremaAtBlur, this->extremaBlurIndices[i], this->blurs[0]->size,this->extrema->device,this->blurs[i]->pixels->device,edgeThreshold);
         cudaDeviceSynchronize();
         CudaCheckError();
@@ -326,7 +326,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeBorder(float2 border){
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     int numExtremaAtBlur = 0;
-    getFlatGridBlock(numExtremaAtBlur,grid,block);
+    getFlatGridBlock(numExtremaAtBlur,grid,block,flagBorder);
     flagBorder<<<grid,block>>>(numExtremaAtBlur, this->blurs[0]->size,this->extrema->device,border);
     cudaDeviceSynchronize();
     CudaCheckError();
@@ -358,25 +358,23 @@ depth(depth){
 
     printf("creating scalespace with depth {%d,%d}\n",this->depth.x,this->depth.y);
     Unity<float>* pixels = nullptr;
-    
+    MemoryState origin = image->pixels->state;
+    if(origin != gpu) image->pixels->setMemoryState(gpu);
     if(image->colorDepth != 1){
         Unity<unsigned char>* charPixels = new Unity<unsigned char>(nullptr,image->pixels->numElements,gpu);
-        MemoryState origin = image->pixels->state;
-        if(origin == cpu || image->pixels->fore == cpu) image->pixels->transferMemoryTo(gpu);
         CudaSafeCall(cudaMemcpy(charPixels->device, image->pixels->device, pixels->numElements*sizeof(unsigned char),cudaMemcpyDeviceToDevice));
         convertToBW(charPixels,image->colorDepth);
         pixels = convertImageToFlt(charPixels);
-        if(origin == cpu) image->pixels->setMemoryState(cpu);
         delete charPixels;
     }
     else{
         pixels = convertImageToFlt(image->pixels);
     }
+
+    if(origin != gpu) image->pixels->setMemoryState(origin);
     uint2 imageSize = image->size;
     uint2 scalar = {2,2};
-
     if(imageSize.x%numResize != 0 || imageSize.y%numResize != 0){
-        if(pixels->state != gpu) pixels->setMemoryState(gpu);
         int2 border = {(numResize-(imageSize.x%numResize))/2,(numResize-(imageSize.y%numResize))/2};
         uint2 newSize = {border.x*2 + imageSize.x, border.y*2 + imageSize.y};
         pixels->setData(addBufferBorder(imageSize,pixels,border)->device,newSize.x*newSize.y,gpu);
@@ -384,7 +382,6 @@ depth(depth){
     }
 
     float pixelWidth = 1.0f;
-
     for(int i = startingOctave; i < 0; ++i){
         pixels->setData(upsample(imageSize,1,pixels)->device,pixels->numElements*4,gpu);   
         imageSize = imageSize*scalar;
@@ -401,6 +398,7 @@ depth(depth){
         sigmas[i] = sigmas[i-1]*sigmaMultiplier.y;
     }
     this->octaves = new Octave*[this->depth.x]();
+    std::cout<<"filling other octaves"<<std::endl;
     for(int i = 0; i < this->depth.x; ++i){
         this->octaves[i] = new Octave(i,this->depth.y,kernelSize,sigmas,pixels,imageSize,pixelWidth,this->depth.y - 2);
         if(i + 1 < this->depth.x){
@@ -431,7 +429,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::convertToDOG(){
         dogOctaves[o]->numBlurs = dogDepth.y;
         dogOctaves[o]->pixelWidth = this->octaves[o]->pixelWidth;
         pixelsLower = this->octaves[o]->blurs[0]->pixels;
-        getFlatGridBlock(pixelsLower->numElements,grid,block);
+        getFlatGridBlock(pixelsLower->numElements,grid,block,subtractImages);
         for(int b = 0; b < dogDepth.y; ++b){
             dogOctaves[o]->blurs[b] = new Octave::Blur();
             dogOctaves[o]->id = o;
@@ -596,7 +594,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
             keyPointIndex = currentOctave->extremaBlurIndices[b];
             grid = {1,1,1};
             block = {1,1,1}; 
-            getFlatGridBlock(numKeyPointsAtBlur, grid, block);
+            getFlatGridBlock(numKeyPointsAtBlur, grid, block,computeThetas);
             
             //determine how to best record num orientations for a keypoint
             
@@ -629,7 +627,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
             if(numOrientedKeyPoints != 0){
                 grid = {1,1,1};
                 block = {1,1,1};
-                getFlatGridBlock(numOrientedKeyPoints,grid,block);
+                getFlatGridBlock(numOrientedKeyPoints,grid,block,expandKeyPoints);
                 CudaSafeCall(cudaMalloc((void**)&orientedKeyPoints2D[b],numOrientedKeyPoints*sizeof(ScaleSpace::SSKeyPoint)));
                 expandKeyPoints<<<grid,block>>>(numOrientedKeyPoints, currentOctave->extrema->device, orientedKeyPoints2D[b], thetaAddresses_device, thetas_device);
                 cudaDeviceSynchronize();
@@ -673,9 +671,10 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_3x3>>* ssrlcv::FeatureFactory::gene
         image->pixels->setMemoryState(gpu);
     }
     dim3 grid = {1,1,1};
-    dim3 block = {3,3,1};
+    dim3 block = {3,3,1};//most devices should be capable of this
     unsigned int numWindows = (image->size.x-2)*(image->size.y-2);
     getGrid(numWindows,grid);
+    checkDims(grid,block);
     Unity<Feature<Window_3x3>>* windows = new Unity<Feature<Window_3x3>>(nullptr,numWindows,gpu);
     fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
     cudaDeviceSynchronize();
@@ -692,9 +691,10 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_9x9>>* ssrlcv::FeatureFactory::gene
         image->pixels->setMemoryState(gpu);
     }
     dim3 grid = {1,1,1};
-    dim3 block = {9,9,1};
+    dim3 block = {9,9,1};//some devices may not be capable of this
     unsigned int numWindows = (image->size.x-8)*(image->size.y-8);
     getGrid(numWindows,grid);
+    checkDims(grid,block);
     Unity<Feature<Window_9x9>>* windows = new Unity<Feature<Window_9x9>>(nullptr,numWindows,gpu);
     fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
     cudaDeviceSynchronize();
@@ -711,9 +711,10 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_15x15>>* ssrlcv::FeatureFactory::ge
         image->pixels->setMemoryState(gpu);
     }
     dim3 grid = {1,1,1};
-    dim3 block = {15,15,1};
+    dim3 block = {15,15,1};//some devices may not be capable of this
     unsigned int numWindows = (image->size.x-14)*(image->size.y-14);
     getGrid(numWindows,grid);
+    checkDims(grid,block);
     Unity<Feature<Window_15x15>>* windows = new Unity<Feature<Window_15x15>>(nullptr,numWindows,gpu);
     fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
     cudaDeviceSynchronize();
@@ -730,9 +731,10 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_25x25>>* ssrlcv::FeatureFactory::ge
         image->pixels->setMemoryState(gpu);
     }
     dim3 grid = {1,1,1};
-    dim3 block = {25,25,1};
+    dim3 block = {25,25,1};//some devices may not be capable of this
     unsigned int numWindows = (image->size.x-24)*(image->size.y-24);
     getGrid(numWindows,grid);
+    checkDims(grid,block);
     Unity<Feature<Window_25x25>>* windows = new Unity<Feature<Window_25x25>>(nullptr,numWindows,gpu);
     fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
     cudaDeviceSynchronize();
@@ -749,9 +751,10 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_31x31>>* ssrlcv::FeatureFactory::ge
         image->pixels->setMemoryState(gpu);
     }
     dim3 grid = {1,1,1};
-    dim3 block = {31,31,1};
+    dim3 block = {31,31,1};//some devices will not be capable of this
     unsigned int numWindows = (image->size.x-30)*(image->size.y-30);
     getGrid(numWindows,grid);
+    checkDims(grid,block);
     Unity<Feature<Window_31x31>>* windows = new Unity<Feature<Window_31x31>>(nullptr,numWindows,gpu);
     fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
     cudaDeviceSynchronize();

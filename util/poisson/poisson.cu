@@ -1,4 +1,4 @@
-#include "surface.cuh"
+#include "poisson.cuh"
 
 // Define this to turn on error checking
 #define CUDA_ERROR_CHECK
@@ -39,6 +39,24 @@ inline void __cudaCheckError(const char *file, const int line) {
   return;
 }
 
+/*
+my edges - everyone elses
+0-0
+1-8
+2-9
+3-4
+4-3
+5-1
+6-7
+7-5
+8-2
+9-11
+10-10
+11-6
+
+
+*/
+
 struct is_not_neg_int{
   __host__ __device__
   bool operator()(const int x)
@@ -46,56 +64,13 @@ struct is_not_neg_int{
     return (x >= 0);
   }
 };
-struct is_positive_float{
+struct is_not_zero_float{
   __host__ __device__
   bool operator()(const float x)
   {
-    return (x > 0.0f);
+    return (x != 0.0f);
   }
 };
-
-__device__ __host__ float3 operator+(const float3 &a, const float3 &b) {
-  return {a.x+b.x, a.y+b.y, a.z+b.z};
-}
-__device__ __host__ float3 operator-(const float3 &a, const float3 &b) {
-  return {a.x-b.x, a.y-b.y, a.z-b.z};
-}
-__device__ __host__ float3 operator/(const float3 &a, const float3 &b) {
-  return {a.x/b.x, a.y/b.y, a.z/b.z};
-}
-__device__ __host__ float3 operator*(const float3 &a, const float3 &b) {
-  return {a.x*b.x, a.y*b.y, a.z*b.z};
-}
-__device__ __host__ float dotProduct(const float3 &a, const float3 &b){
-  return (a.x*b.x) + (a.y*b.y) + (a.z*b.z);
-}
-__device__ __host__ float3 operator+(const float3 &a, const float &b){
-  return {a.x+b, a.y+b, a.z+b};
-}
-__device__ __host__ float3 operator-(const float3 &a, const float &b){
-  return {a.x-b, a.y-b, a.z-b};
-}
-__device__ __host__ float3 operator/(const float3 &a, const float &b){
-  return {a.x/b, a.y/b, a.z/b};
-}
-__device__ __host__ float3 operator*(const float3 &a, const float &b){
-  return {a.x*b, a.y*b, a.z*b};
-}
-__device__ __host__ float3 operator+(const float &a, const float3 &b) {
-  return {a+b.x, a+b.y, a+b.z};
-}
-__device__ __host__ float3 operator-(const float &a, const float3 &b) {
-  return {a-b.x, a-b.y, a-b.z};
-}
-__device__ __host__ float3 operator/(const float &a, const float3 &b) {
-  return {a/b.x, a/b.y, a/b.z};
-}
-__device__ __host__ float3 operator*(const float &a, const float3 &b) {
-  return {a*b.x, a*b.y, a*b.z};
-}
-__device__ __host__ bool operator==(const float3 &a, const float3 &b){
-  return (a.x==b.x)&&(a.y==b.y)&&(a.z==b.z);
-}
 
 //TODO maybe get the third convolution to get closer to gausian filter
 __device__ __host__ float3 blender(const float3 &a, const float3 &b, const float &bw){
@@ -103,13 +78,13 @@ __device__ __host__ float3 blender(const float3 &a, const float3 &b, const float
   float result[3] = {0.0f};
   for(int i = 0; i < 3; ++i){
     if(t[i] > 0.5 && t[i] <= 1.5){
-      result[i] = (t[i]-1.5)*(t[i]-1.5)/(bw*bw*bw);
+      result[i] = (t[i]-1.5)*(t[i]-1.5)/(2.0f);//*bw*bw*bw);
     }
     else if(t[i] < -0.5 && t[i] >= -1.5){
-      result[i] = (t[i]+1.5)*(t[i]+1.5)/(bw*bw*bw);
+      result[i] = (t[i]+1.5)*(t[i]+1.5)/(2.0f);//*bw*bw*bw);
     }
     else if(t[i] <= 0.5 && t[i] >= -0.5){
-      result[i] = (1.5-(t[i]*t[i]))/(2.0f*bw*bw*bw);
+      result[i] = (1.5-(t[i]*t[i]))/(2.0f);//*bw*bw*bw);
     }
     else return {0.0f,0.0f,0.0f};
   }
@@ -120,13 +95,13 @@ __device__ __host__ float3 blenderPrime(const float3 &a, const float3 &b, const 
   float result[3] = {0.0f};
   for(int i = 0; i < 3; ++i){
     if(t[i] > 0.5 && t[i] <= 1.5){
-      result[i] = (2.0f*t[i] + 3.0f)/(bw*bw*bw);
+      result[i] = (2.0f*t[i] + 3.0f)/(2.0f);//*bw*bw*bw);
     }
     else if(t[i] < -0.5 && t[i] >= -1.5){
-      result[i] = (2.0f*t[i] - 3.0f)/(bw*bw*bw);
+      result[i] = (2.0f*t[i] - 3.0f)/(2.0f);//*bw*bw*bw);
     }
     else if(t[i] <= 0.5 && t[i] >= -0.5){
-      result[i] = (-2.0f*t[i])/(2.0f*bw*bw*bw);
+      result[i] = (-1.0f*t[i]);//(bw*bw*bw);
     }
     else return {0.0f,0.0f,0.0f};
   }
@@ -136,14 +111,11 @@ __device__ __host__ float3 blenderPrimePrime(const float3 &a, const float3 &b, c
   float t[3] = {(a.x-b.x)/bw,(a.y-b.y)/bw,(a.z-b.z)/bw};
   float result[3] = {0.0f};
   for(int i = 0; i < 3; ++i){
-    if(t[i] > 0.5 && t[i] <= 1.5){
-      result[i] = 2.0f/(bw*bw*bw);
-    }
-    else if(t[i] < -0.5 && t[i] >= -1.5){
-      result[i] = 2.0f/(bw*bw*bw);
+    if((t[i] > 0.5 && t[i] <= 1.5)||(t[i] < -0.5 && t[i] >= -1.5)){
+      result[i] = 1.0f;//(bw*bw*bw);
     }
     else if(t[i] <= 0.5 && t[i] >= -0.5){
-      result[i] = -1.0f/(bw*bw*bw);
+      result[i] = -1.0f;//(bw*bw*bw);
     }
     else return {0.0f,0.0f,0.0f};
   }
@@ -239,6 +211,7 @@ __global__ void findRelatedChildren(Node* nodeArray, int numNodes, int depthInde
     relativityIndicators[blockID].y = numRelativeChildren;
   }
 }
+//TODO optimize with warp aggregated atomics
 __global__ void computeDivergenceCoarse(int depthOfOctree, Node* nodeArray, int2* relativityIndicators, int currentNode, int depthIndex, float3* vectorField, float* divCoeff, float* fPrimeLUT){
   int globalID = blockIdx.x *blockDim.x + threadIdx.x;
   if(globalID < relativityIndicators[currentNode].y){
@@ -319,17 +292,34 @@ __global__ void computeLdCSR(int depthOfOctree, Node* nodeArray, int numNodes, i
 __global__ void updateDivergence(int depthOfOctree, Node* nodeArray, int numNodes, int depthIndex, float* divCoeff, float* fLUT, float* fPrimePrimeLUT, float* nodeImplicit){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
+    __shared__ float update;
+    update = 0.0f;
+    __syncthreads();
     int parent = nodeArray[blockID + depthIndex].parent;
-    int parentNeighbor = nodeArray[parent].neighbors[threadIdx.x];
-    if(parentNeighbor != -1){
-      float nodeImplicitValue = nodeImplicit[parentNeighbor];
-      int3 xyz1;
-      int3 xyz2;
-      xyz1 = splitCrunchBits3(depthOfOctree*3, nodeArray[blockID + depthIndex].key);
-      xyz2 = splitCrunchBits3(depthOfOctree*3, nodeArray[parentNeighbor].key);
-      int mult = pow(2,depthOfOctree + 1) - 1;
-      float laplacianValue = (fPrimePrimeLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+(fLUT[xyz1.x*mult + xyz2.x]*fPrimePrimeLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+(fLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fPrimePrimeLUT[xyz1.z*mult + xyz2.z]);
-      atomicAdd(&divCoeff[blockID + depthIndex], -1.0f*laplacianValue*nodeImplicitValue);
+    float laplacianValue = 0.0f;
+    int mult = pow(2,depthOfOctree + 1) - 1;
+    float nodeImplicitValue = 0.0f;
+    int3 xyz1 = splitCrunchBits3(depthOfOctree*3, nodeArray[blockID + depthIndex].key);
+    int3 xyz2 = {0,0,0};
+    while(parent != -1){
+      int parentNeighbor = nodeArray[parent].neighbors[threadIdx.x];
+      if(parentNeighbor != -1){
+        nodeImplicitValue = nodeImplicit[parentNeighbor];
+        laplacianValue = 0.0f;
+        xyz2 = splitCrunchBits3(depthOfOctree*3, nodeArray[parentNeighbor].key);
+        laplacianValue = (fPrimePrimeLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+
+        (fLUT[xyz1.x*mult + xyz2.x]*fPrimePrimeLUT[xyz1.y*mult + xyz2.y]*fLUT[xyz1.z*mult + xyz2.z])+
+        (fLUT[xyz1.x*mult + xyz2.x]*fLUT[xyz1.y*mult + xyz2.y]*fPrimePrimeLUT[xyz1.z*mult + xyz2.z]);
+        if(laplacianValue != 0.0f) atomicAdd(&update, laplacianValue*nodeImplicitValue);
+      }
+      parent = nodeArray[parent].parent;
+    }
+    __syncthreads();
+    if(threadIdx.x == 0){
+      divCoeff[blockID + depthIndex] -= update;
+      if(!isfinite(divCoeff[blockID + depthIndex])){
+        printf("BROKEN %d,%f\n",blockID + depthIndex, update);
+      }
     }
   }
 }
@@ -414,25 +404,66 @@ __global__ void updateP(int numNodesAtDepth, float* rNew, float beta, float* p){
   }
 }
 
+__global__ void pointSumImplicitTraversal(int numPoints, float3* points, Node* nodeArray, int root, float* nodeImplicit, float* sumImplicit){
+  int globalID = blockIdx.x *blockDim.x + threadIdx.x;
+  __shared__ float blockSumImplicit;
+  blockSumImplicit = 0.0f;
+  __syncthreads();
+  if(globalID < numPoints){
+    int nodeIndex = root;
+    bool noChildren = false;
+    int childIndex = -1;
+    int currentNodePointIndex = -1;
+    float regPointImplicit = 0.0f;
+    float currentImplicit = 0.0f;
+    while(!noChildren){
+      currentImplicit = nodeImplicit[nodeIndex];
 
-Surface::Surface(Octree* octree){
-  this->octree = octree;
-  float* divergenceVector = new float[this->octree->totalNodes];
-  for(int i = 0; i < this->octree->totalNodes; ++i){
-    divergenceVector[i] = 0.0f;
+      //LOOOKKKKKK
+      regPointImplicit += currentImplicit;
+      //printf("%d,%f\n",nodeIndex,nodeImplicit[nodeIndex]);
+
+      for(int i = 0; i < 8; ++i){
+        childIndex = nodeArray[nodeIndex].children[i];
+        if(childIndex == -1) continue;
+        currentNodePointIndex = nodeArray[childIndex].pointIndex;
+        if(globalID >= currentNodePointIndex && globalID < currentNodePointIndex + nodeArray[childIndex].numPoints){
+          nodeIndex = childIndex;
+        }
+      }
+      if(childIndex == -1){
+        //printf("%d = %f\n",globalID,regPointImplicit);
+        atomicAdd(&blockSumImplicit, regPointImplicit);
+        break;
+      }
+    }
+    __syncthreads();
+    if(threadIdx.x == 0){
+      atomicAdd(sumImplicit, blockSumImplicit);
+    }
   }
-  CudaSafeCall(cudaMalloc((void**)&this->divergenceVectorDevice, this->octree->totalNodes*sizeof(float)));
-  CudaSafeCall(cudaMemcpy(this->divergenceVectorDevice, divergenceVector, this->octree->totalNodes*sizeof(float), cudaMemcpyHostToDevice));
-  this->octree->copyPointsToDevice();
-  this->octree->copyNormalsToDevice();
+}
+__global__ void vertexSumImplicitTraversal(int numVertices, Vertex* vertexArray, float* nodeImplicit, float* vertexImplicit, float* sumImplicit, int numPoints){
+  int blockID = blockIdx.y * gridDim.x + blockIdx.x;
+  if(blockID < numVertices){
+    __shared__ float blockImplicit;
+    blockImplicit = 0.0f;
+    __syncthreads();
+    int associatedNode = vertexArray[blockID].nodes[threadIdx.x];
+    if(associatedNode != -1){
+      atomicAdd(&blockImplicit, nodeImplicit[associatedNode]);
+    }
+    __syncthreads();
+    if(threadIdx.x == 0){
+      float regAVGImp = (*sumImplicit)/numPoints;
+      vertexImplicit[blockID] = blockImplicit - regAVGImp;
+    }
+  }
 }
 
-Surface::~Surface(){
-
-}
 
 //TODO OPTMIZE THIS YOU FUCK TARD
-void Surface::computeLUTs(){
+void Poisson::computeLUTs(){
   clock_t timer;
   timer = clock();
 
@@ -467,7 +498,6 @@ void Surface::computeLUTs(){
     fff[i] = new float[size];
   }
 
-  float totalWidth = this->octree->width;
   int pow2i = 1;
   int offseti = 0;
   int pow2j = 1;
@@ -482,8 +512,13 @@ void Surface::computeLUTs(){
           f[k][l] = dotProduct(blender(centers[l],centers[k],this->octree->width/pow2i),blender(centers[k],centers[l],this->octree->width/pow2j));
           ff[k][l] = dotProduct(blender(centers[l],centers[k],this->octree->width/pow2i),blenderPrime(centers[k],centers[l],this->octree->width/pow2j));
           fff[k][l] = dotProduct(blender(centers[l],centers[k],this->octree->width/pow2i),blenderPrimePrime(centers[k],centers[l],this->octree->width/pow2j));
-          //if(f[k][l] != 0.0f || ff[k][l] != 0.0f || fff[k][l] != 0.0f)
-          //printf("{%f,%f,%f}%f,{%f,%f,%f}%f -> %f,%f,%f\n",centers[l].x,centers[l].y,centers[l].z,this->octree->width/pow2i,centers[k].x,centers[k].y,centers[k].z,this->octree->width/pow2j,f[k][l],ff[k][l],fff[k][l]);
+          // if(f[k][l] == 0.0f && !(f[k][l] == 0.0f && ff[k][l] == 0.0f && fff[k][l] == 0.0f)){
+          //   printf("%d,%d -> %.9f,%.9f,%.9f\n",k,l,f[k][l],ff[k][l],fff[k][l]);
+          // }
+          if(isfinite(f[k][l]) == 0|| isfinite(ff[k][l]) == 0|| isfinite(fff[k][l]) == 0){
+            printf("FAILURE @ %d,%d -> %.9f,%.9f,%.9f\n",k,l,f[k][l],ff[k][l],fff[k][l]);
+            exit(-1);
+          }
         }
       }
       pow2j *= 2;
@@ -503,10 +538,9 @@ void Surface::computeLUTs(){
   timer = clock() - timer;
   printf("blending LUT generation took %f seconds fully on the CPU.\n",((float) timer)/CLOCKS_PER_SEC);
 }
-
 //TODO should optimize computeDivergenceCoarse
 //TODO THERE ARE MEMORY ACCESS PROBLEMS ORIGINATING PROBABLY FROM LUT STUFF!!!!!!!!!!!!!! FIXXXXXXXXx
-void Surface::computeDivergenceVector(){
+void Poisson::computeDivergenceVector(){
   clock_t cudatimer;
   cudatimer = clock();
   /*
@@ -628,13 +662,21 @@ void Surface::computeDivergenceVector(){
   }
   CudaSafeCall(cudaFree(vectorFieldDevice));
   CudaSafeCall(cudaFree(this->fPrimeLUTDevice));
+
+  CudaSafeCall(cudaFree(this->octree->normalsDevice));
+  this->octree->normalsDeviceReady = false;
+
+
   delete[] this->fPrimeLUT;
 
   cudatimer = clock() - cudatimer;
   printf("Divergence vector generation kernel took %f seconds.\n",((float) cudatimer)/CLOCKS_PER_SEC);
 }
 
-void Surface::computeImplicitFunction(){
+void Poisson::computeImplicitFunction(){
+  this->computeLUTs();
+  this->computeDivergenceVector();
+
   clock_t timer;
   timer = clock();
   clock_t cudatimer;
@@ -674,7 +716,6 @@ void Surface::computeImplicitFunction(){
   CudaSafeCall(cudaMemcpy(this->fPrimePrimeLUTDevice, this->fPrimePrimeLUT, size*size*sizeof(float), cudaMemcpyHostToDevice));
   CudaSafeCall(cudaMemcpy(this->nodeImplicitDevice, nodeImplicit, this->octree->totalNodes*sizeof(float), cudaMemcpyHostToDevice));
 
-
   for(int d = this->octree->depth; d >= 0; --d){
     //update divergence coefficients based on solutions at coarser depths
     grid = {1,1,1};
@@ -694,11 +735,12 @@ void Surface::computeImplicitFunction(){
           ++grid.x;
         }
       }
-      for(int dcoarse = d + 1; dcoarse <= this->octree->depth; ++dcoarse){
+      for(int dcoarse = this->octree->depth; dcoarse >= d + 1; --dcoarse){
         updateDivergence<<<grid, block>>>(this->octree->depth, this->octree->finalNodeArrayDevice, numNodesAtDepth,
           this->octree->depthIndex[d], this->divergenceVectorDevice,
           this->fLUTDevice, this->fPrimePrimeLUTDevice, this->nodeImplicitDevice);
         CudaCheckError();
+        exit(0);
       }
     }
     else{
@@ -812,8 +854,10 @@ void Surface::computeImplicitFunction(){
   timer = clock() - timer;
   printf("Node Implicit compuation took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
 }
+void Poisson::computeImplicitMagma(){
+  this->computeLUTs();
+  this->computeDivergenceVector();
 
-void Surface::computeImplicitMagma(){
   clock_t timer;
   timer = clock();
   clock_t cudatimer;
@@ -845,7 +889,6 @@ void Surface::computeImplicitMagma(){
   CudaSafeCall(cudaMemcpy(this->fLUTDevice, this->fLUT, size*size*sizeof(float), cudaMemcpyHostToDevice));
   CudaSafeCall(cudaMemcpy(this->fPrimePrimeLUTDevice, this->fPrimePrimeLUT, size*size*sizeof(float), cudaMemcpyHostToDevice));
 
-
   for(int d = this->octree->depth; d >= 0; --d){
     //update divergence coefficients based on solutions at coarser depths
     grid = {1,1,1};
@@ -865,15 +908,13 @@ void Surface::computeImplicitMagma(){
           ++grid.x;
         }
       }
-      for(int dcoarse = d + 1; dcoarse <= this->octree->depth; ++dcoarse){
-        updateDivergence<<<grid, block>>>(this->octree->depth, this->octree->finalNodeArrayDevice, numNodesAtDepth,
-          this->octree->depthIndex[d], this->divergenceVectorDevice,
-          this->fLUTDevice, this->fPrimePrimeLUTDevice, this->nodeImplicitDevice);
-        CudaCheckError();
-      }
+      updateDivergence<<<grid, block>>>(this->octree->depth, this->octree->finalNodeArrayDevice, numNodesAtDepth,
+        this->octree->depthIndex[d], this->divergenceVectorDevice,
+        this->fLUTDevice, this->fPrimePrimeLUTDevice, this->nodeImplicitDevice);
+      cudaDeviceSynchronize();
+      CudaCheckError();
     }
     else{
-
       numNodesAtDepth = 1;
     }
 
@@ -897,8 +938,8 @@ void Surface::computeImplicitMagma(){
 
     computeLdCSR<<<grid, block>>>(this->octree->depth, this->octree->finalNodeArrayDevice, numNodesAtDepth, this->octree->depthIndex[d],
       laplacianValuesDevice, laplacianIndicesDevice, numNonZeroDevice, this->fLUTDevice, this->fPrimePrimeLUTDevice);
-    CudaCheckError();
     cudaDeviceSynchronize();
+    CudaCheckError();
 
     thrust::device_ptr<int> nN(numNonZeroDevice);
     thrust::inclusive_scan(nN, nN + numNodesAtDepth + 1, nN);
@@ -924,7 +965,7 @@ void Surface::computeImplicitMagma(){
     thrust::device_ptr<int> placementToCompact(laplacianIndicesDevice);
     thrust::device_ptr<int> placementOut(csrIndicesDevice);
 
-    thrust::copy_if(arrayToCompact, arrayToCompact + (numNodesAtDepth*27), arrayOut, is_positive_float());
+    thrust::copy_if(arrayToCompact, arrayToCompact + (numNodesAtDepth*27), arrayOut, is_not_zero_float());
     CudaCheckError();
     thrust::copy_if(placementToCompact, placementToCompact + (numNodesAtDepth*27), placementOut, is_not_neg_int());
     CudaCheckError();
@@ -933,7 +974,6 @@ void Surface::computeImplicitMagma(){
     CudaSafeCall(cudaFree(laplacianIndicesDevice));
     CudaSafeCall(cudaMemcpy(csrValues, csrValuesDevice, totalNonZero*sizeof(float),cudaMemcpyDeviceToHost));
     CudaSafeCall(cudaMemcpy(csrIndices, csrIndicesDevice, totalNonZero*sizeof(int),cudaMemcpyDeviceToHost));
-
 
     partialDivergence = new float[numNodesAtDepth];
     CudaSafeCall(cudaMemcpy(partialDivergence, this->divergenceVectorDevice + this->octree->depthIndex[d], numNodesAtDepth*sizeof(float), cudaMemcpyDeviceToHost));
@@ -967,7 +1007,7 @@ void Surface::computeImplicitMagma(){
 
       //magma_scg_res(dA,db,&dx,&opts.solver_par,queue);//preconditioned cojugate gradient solver
       //magma_scg_merge(dA,db,&dx,&opts.solver_par,queue);//cojugate gradient in variant solver merge
-      //magma_scg(dA,db,&dx,&opts.solver_par,queue);//cojugate gradient solver
+      magma_scg(dA,db,&dx,&opts.solver_par,queue);//cojugate gradient solver
       //magma_s_solver(dA,db,&dx,&opts,queue);//cojugate gradient solver
 
       magma_smfree( &x, queue );
@@ -999,7 +1039,7 @@ void Surface::computeImplicitMagma(){
     CudaSafeCall(cudaFree(numNonZeroDevice));
 
     cudatimer = clock() - cudatimer;
-    printf("Node Implicit computation for depth %d took %f seconds w/%d nodes.\n", d,((float) cudatimer)/CLOCKS_PER_SEC, numNodesAtDepth);
+    printf("Node Implicit computation for depth %d took %f seconds w/%d nodes.\n", this->octree->depth - d,((float) cudatimer)/CLOCKS_PER_SEC, numNodesAtDepth);
     cudatimer = clock();
   }
   CudaSafeCall(cudaFree(this->fLUTDevice));
@@ -1011,8 +1051,11 @@ void Surface::computeImplicitMagma(){
   printf("Node Implicit compuation took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
 
 }
+//TODO precondition with cusparseScsric0
+void Poisson::computeImplicitCuSPSolver(){
+  this->computeLUTs();
+  this->computeDivergenceVector();
 
-void Surface::computeImplicitCuSPSolver(){
   clock_t timer;
   timer = clock();
   clock_t cudatimer;
@@ -1036,7 +1079,7 @@ void Surface::computeImplicitCuSPSolver(){
   dim3 grid;
   dim3 block;
   const float tol = 1e-5f;
-  int max_iter = 10000;
+  int max_iter = size;
   float a, b, na, r0, r1;
   float dot, m;
   float *d_p, *d_Ax;
@@ -1073,7 +1116,9 @@ void Surface::computeImplicitCuSPSolver(){
         updateDivergence<<<grid, block>>>(this->octree->depth, this->octree->finalNodeArrayDevice, numNodesAtDepth,
           this->octree->depthIndex[d], this->divergenceVectorDevice,
           this->fLUTDevice, this->fPrimePrimeLUTDevice, this->nodeImplicitDevice);
+        cudaDeviceSynchronize();
         CudaCheckError();
+        //if(d == this->octree->depth - 8) exit(0);
       }
     }
     else{
@@ -1101,8 +1146,8 @@ void Surface::computeImplicitCuSPSolver(){
 
     computeLdCSR<<<grid, block>>>(this->octree->depth, this->octree->finalNodeArrayDevice, numNodesAtDepth, this->octree->depthIndex[d],
       laplacianValuesDevice, laplacianIndicesDevice, numNonZeroDevice, this->fLUTDevice, this->fPrimePrimeLUTDevice);
-    CudaCheckError();
     cudaDeviceSynchronize();
+    CudaCheckError();
 
     thrust::device_ptr<int> nN(numNonZeroDevice);
     thrust::inclusive_scan(nN, nN + numNodesAtDepth + 1, nN);
@@ -1127,7 +1172,7 @@ void Surface::computeImplicitCuSPSolver(){
     thrust::device_ptr<int> placementToCompact(laplacianIndicesDevice);
     thrust::device_ptr<int> placementOut(csrIndicesDevice);
 
-    thrust::copy_if(arrayToCompact, arrayToCompact + (numNodesAtDepth*27), arrayOut, is_positive_float());
+    thrust::copy_if(arrayToCompact, arrayToCompact + (numNodesAtDepth*27), arrayOut, is_not_zero_float());
     CudaCheckError();
     thrust::copy_if(placementToCompact, placementToCompact + (numNodesAtDepth*27), placementOut, is_not_neg_int());
     CudaCheckError();
@@ -1178,20 +1223,16 @@ void Surface::computeImplicitCuSPSolver(){
 
     cublasSaxpy(cublasHandle, m, &alpham1, d_Ax, 1, partialDivergence, 1);
     cublasStatus = cublasSdot(cublasHandle, m, partialDivergence, 1, partialDivergence, 1, &r1);
-    std::cout<<r1<<std::endl;
 
     k = 1;
 
-    while (r1 > tol*tol && k <= max_iter)
-    {
-        if (k > 1)
-        {
+    while (r1 > tol*tol && k <= max_iter){
+        if (k > 1){
             b = r1 / r0;
             cublasStatus = cublasSscal(cublasHandle, m, &b, d_p, 1);
             cublasStatus = cublasSaxpy(cublasHandle, m, &alpha, partialDivergence, 1, d_p, 1);
         }
-        else
-        {
+        else{
             cublasStatus = cublasScopy(cublasHandle, m, partialDivergence, 1, d_p, 1);
         }
 
@@ -1260,6 +1301,100 @@ void Surface::computeImplicitCuSPSolver(){
   delete[] this->fLUT;
   delete[] this->fPrimePrimeLUT;
   timer = clock() - timer;
-  printf("Node Implicit compuation took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
+  printf("Node Implicit computation took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
+
+}
+void Poisson::computeImplicitEasy(int focusDepth){
+  clock_t timer;
+  timer = clock();
+
+  float* easyVertexImplicit = new float[this->octree->totalNodes];
+  int currentNeighbor = 0;
+  float currentImp = 0.0f;
+  int currentDepth = 0;
+  int numConsideredVertices = this->octree->vertexIndex[this->octree->depth - focusDepth + 1];
+  if(!this->octree->vertexArrayDeviceReady) this->octree->copyVerticesToDevice();
+  if(!this->octree->normalsDeviceReady) this->octree->copyNormalsToDevice();
+  if(!this->octree->pointsDeviceReady) this->octree->copyPointsToDevice();
+  CudaSafeCall(cudaMalloc((void**)&this->vertexImplicitDevice, numConsideredVertices*sizeof(float)));
+
+  dim3 grid = {1,1,1};
+  dim3 block = {8,1,1};
+  if(numConsideredVertices < 65535) grid.x = (unsigned int) numConsideredVertices;
+  else{
+    grid.x = 65535;
+    while(grid.x*grid.y < numConsideredVertices){
+      ++grid.y;
+    }
+    while(grid.x*grid.y > numConsideredVertices){
+      --grid.x;
+    }
+    if(grid.x*grid.y < numConsideredVertices){
+      ++grid.x;
+    }
+  }
+  vertexImplicitFromNormals<<<grid,block>>>(numConsideredVertices, this->octree->vertexArrayDevice, this->octree->finalNodeArrayDevice, this->octree->normalsDevice, this->octree->pointsDevice, this->vertexImplicitDevice);
+  cudaDeviceSynchronize();//may not be necessary
+  CudaCheckError();
+  CudaSafeCall(cudaFree(this->octree->pointsDevice));
+  CudaSafeCall(cudaFree(this->octree->normalsDevice));
+  CudaSafeCall(cudaFree(this->octree->vertexArrayDevice));
+  this->octree->pointsDeviceReady = false;
+  this->octree->normalsDeviceReady = false;
+  this->octree->vertexArrayDeviceReady = false;
+  timer = clock() - timer;
+  printf("Computing Vertex Implicit Values with normals took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
+}
+void Poisson::computeVertexImplicit(){
+  clock_t timer;
+  timer = clock();
+
+  /*Vertices*/
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  if(this->octree->numPoints < 65535) grid.x = (unsigned int) this->octree->numPoints;
+  else{
+    grid.x = 65535;
+    while(grid.x*block.x < this->octree->numPoints){
+      ++block.x;
+    }
+    while(grid.x*block.x > this->octree->numPoints){
+      --grid.x;
+    }
+    if(grid.x*block.x < this->octree->numPoints){
+      ++grid.x;
+    }
+  }
+  float* sumImplicitDevice;
+  CudaSafeCall(cudaMalloc((void**)&sumImplicitDevice, sizeof(float)));
+  pointSumImplicitTraversal<<<grid,block>>>(this->octree->numPoints, this->octree->pointsDevice, this->octree->finalNodeArrayDevice, this->octree->depthIndex[this->octree->depth], this->nodeImplicitDevice, sumImplicitDevice);
+  cudaDeviceSynchronize();//may not be necessary
+  CudaCheckError();
+  CudaSafeCall(cudaFree(this->octree->pointsDevice));
+  this->octree->pointsDeviceReady = false;
+  if(!this->octree->vertexArrayDeviceReady) this->octree->copyVerticesToDevice();
+  int numFinestVertices = this->octree->vertexIndex[1];
+  CudaSafeCall(cudaMalloc((void**)&this->vertexImplicitDevice, numFinestVertices*sizeof(float)));
+  block = {1,1,1};
+  if(numFinestVertices < 65535) grid.x = (unsigned int) numFinestVertices;
+  else{
+    grid.x = 65535;
+    while(grid.x*grid.y < numFinestVertices){
+      ++grid.y;
+    }
+    while(grid.x*grid.y > numFinestVertices){
+      --grid.x;
+    }
+    if(grid.x*grid.y < numFinestVertices){
+      ++grid.x;
+    }
+  }
+  vertexSumImplicitTraversal<<<grid,block>>>(numFinestVertices, this->octree->vertexArrayDevice, this->nodeImplicitDevice, this->vertexImplicitDevice, sumImplicitDevice, this->octree->numPoints);
+  CudaCheckError();
+  CudaSafeCall(cudaFree(sumImplicitDevice));
+  CudaSafeCall(cudaFree(this->nodeImplicitDevice));
+  timer = clock() - timer;
+  printf("Computing Vertex Implicit Values took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
 
 }
