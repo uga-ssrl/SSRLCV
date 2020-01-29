@@ -8,7 +8,7 @@ NVCC  := nvcc
 # Includes
 INCLUDES = -I. -I./include -I/usr/local/cuda/include
 LIB :=  -L/usr/local/cuda/lib64 -lcublas -lcuda -lcudart -lcusparse -lcusolver\
-        -lpng -Xcompiler -fopenmp
+        -lpng -Xcompiler -fopenmp -ltiff -ljpeg
 
 # Common flags
 COMMONFLAGS += $(INCLUDES)

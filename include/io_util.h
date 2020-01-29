@@ -30,7 +30,7 @@ namespace ssrlcv{
   * \brief get pixel values from an image file
   * \returns pixel array flattened row-wise
   */
-  unsigned char* readPNG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int& colorDepth);
+  unsigned char* readPNG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
 
   /**
   * \brief will write png from pixel array
@@ -38,6 +38,15 @@ namespace ssrlcv{
   void writePNG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
 
 
+  unsigned char* readTIFF(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
+  void writeTIFF(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
+
+  unsigned char* readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
+  void writeJPEG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
+
+
+
+  //TODO make readPLY
   /**
   * \brief will write ply from point array
   */

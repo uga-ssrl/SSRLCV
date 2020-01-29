@@ -700,7 +700,10 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<unsigned char>* pi
 
   CudaSafeCall(cudaFree(kernel_device));
 
-  if(origin != gpu) pixels->setMemoryState(origin);
+  if(origin != gpu){
+    convolvedImage->setMemoryState(origin);
+    pixels->setMemoryState(origin);
+  } 
   return convolvedImage;
 }
 ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<float>* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, bool symmetric){
@@ -733,7 +736,10 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<float>* pixels, un
 
   CudaSafeCall(cudaFree(kernel_device));
 
-  if(origin != gpu) pixels->setMemoryState(origin);
+  if(origin != gpu){
+    convolvedImage->setMemoryState(origin);
+    pixels->setMemoryState(origin);
+  }
   return convolvedImage;
 }
 
