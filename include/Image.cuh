@@ -112,29 +112,33 @@ namespace ssrlcv{
   * this symmetrization is based on finite difference and gradient approx
   */
   Unity<float2>* generatePixelGradients(uint2 imageSize, Unity<float>* pixels);
+
+  void makeBinnable(uint2 &size, Unity<unsigned char>* pixels, int plannedDepth);
+  void makeBinnable(uint2 &size, Unity<float>* pixels, int plannedDepth);
+  
   /**
   *\brief bins an image by a factor of 2 in the x and y direction
   */
-  Unity<unsigned char>* bin(uint2 imageSize, unsigned int colorDepth, Unity<unsigned char>* pixels);
-  Unity<float>* bin(uint2 imageSize, unsigned int colorDepth, Unity<float>* pixels);
+  Unity<unsigned char>* bin(uint2 imageSize, Unity<unsigned char>* pixels);
+  Unity<float>* bin(uint2 imageSize, Unity<float>* pixels);
 
   /**
   *\brief upsamples and image by a factor of 2 in the x and y directions
   */
-  Unity<unsigned char>* upsample(uint2 imageSize, unsigned int colorDepth, Unity<unsigned char>* pixels);
-  Unity<float>* upsample(uint2 imageSize, unsigned int colorDepth, Unity<float>* pixels);
+  Unity<unsigned char>* upsample(uint2 imageSize, Unity<unsigned char>* pixels);
+  Unity<float>* upsample(uint2 imageSize, Unity<float>* pixels);
 
   /**
   *\brief same as bin and upsample without constraining scaling to factor of two
   *\todo think about adding referenced imageSize for new image size
   */
-  Unity<unsigned char>* scaleImage(uint2 imageSize, unsigned int colorDepth, Unity<unsigned char>* pixels, float outputPixelWidth);
-  Unity<float>* scaleImage(uint2 imageSize, unsigned int colorDepth, Unity<float>* pixels, float outputPixelWidth);
+  Unity<unsigned char>* scaleImage(uint2 imageSize, Unity<unsigned char>* pixels, float outputPixelWidth);
+  Unity<float>* scaleImage(uint2 imageSize, Unity<float>* pixels, float outputPixelWidth);
 
 
 
-  Unity<float>* convolve(uint2 imageSize, Unity<unsigned char>* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, bool symmetric = true);
-  Unity<float>* convolve(uint2 imageSize, Unity<float>* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, bool symmetric = true);
+  Unity<float>* convolve(uint2 imageSize, Unity<unsigned char>* pixels, int2 kernelSize, float* kernel, bool symmetric = true);
+  Unity<float>* convolve(uint2 imageSize, Unity<float>* pixels, int2 kernelSize, float* kernel, bool symmetric = true);
 
 
   /* CUDA variable, method and kernel defintions */

@@ -10,8 +10,9 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <cuda.h>
-
+#include <stdio.h>
 #include <string>
+#include <cstring>
 #include <iostream> 
 
 #define CUDA_ERROR_CHECK
@@ -202,6 +203,9 @@ namespace ssrlcv{
     * \param MemoryState - location of new data
     */
     void setData(T* data, unsigned long numElements, MemoryState state);//hard set
+
+    //TODO implement these
+    Unity<T>* copy(MemoryState destination);
   };
 
   template<typename T>
@@ -353,26 +357,13 @@ namespace ssrlcv{
     }
     else if(state == null) this->clear();
     else if(state == both){
-      if(cpu == this->fore){
-        this->transferMemoryTo(gpu);
-      }
-      else if(gpu == this->fore){
-        this->transferMemoryTo(cpu);
-      }
-      this->fore = both;//just for insurance
-      this->state = both;//just for insurance
+      if(cpu == this->fore) this->transferMemoryTo(gpu);
+      else if(gpu == this->fore) this->transferMemoryTo(cpu);
     }
     else{
-      this->transferMemoryTo(state);
-      if(state == cpu){
-        this->clear(gpu);
-        this->fore = cpu;
-      }
-      else{
-        this->clear(cpu);
-        this->fore = gpu;
-      }
-      this->state = state;
+      if(this->fore != state) this->transferMemoryTo(state);
+      if(state == cpu) this->clear(gpu);
+      else if(state == gpu) this->clear(cpu);
     }
   }
   template<typename T>
@@ -407,6 +398,59 @@ namespace ssrlcv{
     }
     this->state = state;//for insurance
     this->fore = state;//for insurance
+  }
+  template<typename T> 
+  Unity<T>* Unity<T>::copy(MemoryState destination){
+    if(destination == null){
+      throw NullUnityException("cannot use null as destination for Unity<T>::copy()");
+    }
+    else if(destination != gpu && destination != cpu && destination != both){
+      throw IllegalUnityTransition("unsupported memory destination in Unity<T>::copy");
+    }
+    Unity<T>* copied = nullptr;
+    if(destination != both){
+      copied = new Unity<T>(nullptr,this->numElements,destination);
+    }
+    if(this->state == destination){
+      if(destination == both && this->fore != both){
+        this->transferMemoryTo(both);
+        copied = new Unity<T>(nullptr,this->numElements,cpu);
+      }
+      if(destination == cpu || destination == both){
+        std::memcpy(copied->host,this->host,this->numElements*sizeof(T));
+      }
+      if(destination == both) copied->transferMemoryTo(gpu);
+      else{//then gpu
+        CudaSafeCall(cudaMemcpy(copied->device,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
+      }
+    }
+    else{
+      if(this->state == both){
+        if(this->fore != both) this->transferMemoryTo(both);
+        if(destination == cpu){
+          std::memcpy(copied->host,this->host,this->numElements*sizeof(T));
+        }
+        else{
+          CudaSafeCall(cudaMemcpy(copied->device,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
+        }
+      }
+      else if(destination == both){
+        if(this->state == cpu){//then cpu to cpu
+          std::memcpy(copied->host,this->host,this->numElements*sizeof(T));
+          copied->transferMemoryTo(gpu);
+        }
+        else{//then gpu to gpu
+          CudaSafeCall(cudaMemcpy(copied->device,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
+          copied->transferMemoryTo(cpu);
+        }
+      }
+      else if(destination == cpu){//gpu to cpu
+        CudaSafeCall(cudaMemcpy(copied->host,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToHost));
+      }
+      else{//then cpu to gpu
+        CudaSafeCall(cudaMemcpy(copied->device,this->host,this->numElements*sizeof(T),cudaMemcpyHostToDevice));
+      }
+    }    
   }
 }
 
