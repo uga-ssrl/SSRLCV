@@ -10,6 +10,7 @@ All other files can be .cpp and .h
 
 ## Dependencies
 * libpng
+* libtiff-dev
 * g++
 * gcc
 * nvcc
