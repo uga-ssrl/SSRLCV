@@ -6,11 +6,11 @@ ssrlcv::SIFT_FeatureFactory::SIFT_FeatureFactory(float orientationContribWidth, 
 }
 
 ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFactory::generateFeatures(ssrlcv::Image* image, bool dense, unsigned int maxOrientations, float orientationThreshold){
-  std::cout<<"Generating SIFT features  for image "<<image->id<<std::endl;
+  std::cout<<"Generating SIFT features for image "<<image->id<<std::endl<<"\t";
   Unity<Feature<SIFT_Descriptor>>* features = nullptr;
-  if(image->pixels->fore == cpu){
-    image->pixels->transferMemoryTo(gpu);
-  }
+  MemoryState origin = image->pixels->state;
+  if(origin != gpu) image->pixels->setMemoryState(gpu);
+
   if(image->colorDepth != 1){
     convertToBW(image->pixels,image->colorDepth);
     image->colorDepth = 1;
@@ -21,25 +21,22 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
 
     clock_t timer = clock();
     Unity<float>* pixelsFLT = convertImageToFlt(image->pixels);
+    if(origin != gpu) image->pixels->setMemoryState(origin);//no longer need to force pixels on gpu
     normalizeImage(pixelsFLT);
     Unity<float2>* gradients = generatePixelGradients(image->size, pixelsFLT);
     delete pixelsFLT;
     //12x12 border
     Unity<float2>* keyPoints = new Unity<float2>(nullptr,(image->size.x-24)*(image->size.y-24),cpu);
-
     for(int y = 0; y < image->size.y-24; ++y){
       for(int x = 0; x < image->size.x-24; ++x){
         keyPoints->host[y*(image->size.x-24) + x] = {(float)x + 12.0f, (float)y + 12.0f};
       }
     }
-    keyPoints->fore = cpu;
 
     //will free cpu memory and instantiate gpu memory
     keyPoints->setMemoryState(gpu);
 
     printf("\nDense SIFT prep done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
-
-    image->pixels->clear(gpu);//may want to nullify pixels for space
 
     features = this->createFeatures(image->size,orientationThreshold,maxOrientations,1.0f,gradients,keyPoints);
     delete gradients;
@@ -50,10 +47,9 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     //int nspo = scaleSpaceDim.y - 3;//num scale space/octave in dog made from a {4,6} ScaleSpace
     float noiseThreshold = 0.015f;//*(powf(2,1.0f/nspo)-1)/(powf(2,1.0f/3.0f)-1);
     float edgeThreshold = 12.1f;//12.1 = (10.0f + 1)^2 / 10.0f //formula = (r+1)^2/r from lowes paper where r = 10
-    
-    DOG* dog = new DOG(image,-1,scaleSpaceDim,sqrtf(2.0f)/2.0f,{2,sqrtf(2.0f)},{8,8});
-    std::cout<<"converting to dog..."<<std::endl;
-    dog->convertToDOG();
+    DOG* dog = new DOG(image,-1,scaleSpaceDim,sqrtf(2.0f)/2.0f,{2,sqrtf(2.0f)},{8,8},true);//last true specifies dog conversion
+    std::cout<<"\tdog created"<<std::endl;
+    if(origin != gpu) image->pixels->setMemoryState(origin);//no longer need to force pixels on gpu
     // std::string dump = "out/dog";
     // dog->dumpData(dump);
     std::cout<<"looking for keypoints..."<<std::endl;
@@ -62,21 +58,17 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     ScaleSpace::Octave* currentOctave = nullptr;
     ScaleSpace::Octave::Blur* currentBlur = nullptr;
     int numFeaturesProduced = 0;
-    MemoryState origin[2];
+    MemoryState* extremaOrigin = new MemoryState[dog->depth.x];
     unsigned int numKeyPointsInBlur = 0;
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
 
-    std::cout<<"removing border keyPoints for SIFT_Descriptor Generation..."<<std::endl;
-
-    //maybe replace with remove border
     for(int o = 0; o < dog->depth.x; ++o){
       currentOctave = dog->octaves[o];
       if(currentOctave->extrema == nullptr) continue;
-      origin[0] = currentOctave->extrema->state;
-      if(origin[0] == cpu || currentOctave->extrema->fore == cpu){
-        currentOctave->extrema->setMemoryState(gpu);
-      }
+      extremaOrigin[o] = currentOctave->extrema->state; 
+      if(extremaOrigin[o] != gpu) currentOctave->extrema->setMemoryState(gpu);
+      
       for(int b = 0; b < dog->depth.y; ++b){
         if(b + 1 == dog->depth.y){
           numKeyPointsInBlur = currentOctave->extrema->numElements - currentOctave->extremaBlurIndices[b];
@@ -96,18 +88,11 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
         cudaDeviceSynchronize();
         CudaCheckError();
       }
-      currentOctave->extrema->fore = gpu;//just to make sure
       currentOctave->discardExtrema();
-      if(currentOctave->extrema != nullptr){
-        if(origin[0] == cpu) currentOctave->extrema->setMemoryState(cpu);
-      }
     }
+    //have not transfered any extrema back to extremaOrigin
 
-    std::cout<<"computing keypoint orientations..."<<std::endl;
-
-    //problem is here
     dog->computeKeyPointOrientations(orientationThreshold,maxOrientations,this->orientationContribWidth,true);
-
 
     //then create features from each of the keyPoints
     unsigned int numKeyPoints = 0;
@@ -119,16 +104,13 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     //fill descriptors based on SSKeyPoint information
     block = {4,4,8};
 
-    
+    MemoryState gradientsOrigin;
 
     std::cout<<"creating features from keypoints..."<<std::endl;
     for(int o = 0; o < dog->depth.x; ++o){
       currentOctave = dog->octaves[o];
       if(currentOctave->extrema == nullptr) continue;
-      origin[0] = currentOctave->extrema->state;
-      if(origin[0] == cpu || currentOctave->extrema->fore == cpu){
-        currentOctave->extrema->setMemoryState(gpu);
-      }
+      //extrema should already be on gpu from last loop
       for(int b = 0; b < dog->depth.y; ++b){
         if(b + 1 == dog->depth.y){
           numKeyPointsInBlur = currentOctave->extrema->numElements - currentOctave->extremaBlurIndices[b];
@@ -137,11 +119,11 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
           numKeyPointsInBlur = currentOctave->extremaBlurIndices[b+1] - currentOctave->extremaBlurIndices[b];
         }
         if(numKeyPointsInBlur == 0) continue;
+  
         currentBlur = currentOctave->blurs[b];
-        origin[1] = currentBlur->gradients->state;
-        if(origin[1] == cpu || currentBlur->gradients->fore == cpu){
-          currentBlur->gradients->setMemoryState(gpu);
-        }
+        gradientsOrigin = currentBlur->gradients->state;
+        if(gradientsOrigin != gpu) currentBlur->gradients->setMemoryState(gpu);
+  
         grid = {1,1,1};
         getGrid(numKeyPointsInBlur,grid);
         fillDescriptors<<<grid,block>>>(numKeyPointsInBlur,currentBlur->size, 
@@ -151,19 +133,18 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
         CudaCheckError();
 
         numFeaturesProduced += numKeyPointsInBlur;
-        if(origin[1] == cpu) currentBlur->gradients->setMemoryState(cpu);
+        if(gradientsOrigin != gpu) currentBlur->gradients->setMemoryState(gradientsOrigin);
       }
-      if(origin[0] == cpu) currentOctave->extrema->setMemoryState(cpu);
-      std::cout<<"features created from octave "<<o<<std::endl;
+      if(extremaOrigin[o] != gpu) currentOctave->extrema->setMemoryState(extremaOrigin[o]);
+      std::cout<<"\tfeatures created from octave "<<o<<std::endl;
     }
+    delete[] extremaOrigin;
     delete dog;
   }
-
-
+  std::cout<<"\n\n";
   return features;
 }
 
-//dense sift
 ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFactory::createFeatures(uint2 imageSize,float orientationThreshold, unsigned int maxOrientations, float pixelWidth, Unity<float2>* gradients, Unity<float2>* keyPoints){
 
   clock_t timer = clock();
