@@ -47,7 +47,17 @@ ssrlcv::Image::Image(std::string filePath, int id){
   this->filePath = filePath;
   this->id = id;
   this->colorDepth = 1;
-  unsigned char* pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  unsigned char* pixels_host = nullptr;
+  std::string fileType = filePath.substr(filePath.find_last_of(".") + 1);
+  if(fileType == "png"){
+    readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  }
+  else if(fileType == "tiff" || fileType == "tif"){
+    readTIFF(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  }
+  else if(fileType == "jpeg" || fileType == "jpg"){
+    readJPEG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  }
   this->camera.size = this->size;
   this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
@@ -56,7 +66,17 @@ ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int
   this->filePath = filePath;
   this->id = id;
   this->colorDepth = 1;
-  unsigned char* pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  unsigned char* pixels_host = nullptr;
+  std::string fileType = filePath.substr(filePath.find_last_of(".") + 1);
+  if(fileType == "png"){
+    readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  }
+  else if(fileType == "tiff" || fileType == "tif"){
+    readTIFF(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  }
+  else if(fileType == "jpeg" || fileType == "jpg"){
+    readJPEG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  }
   this->camera.size = this->size;
   this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);

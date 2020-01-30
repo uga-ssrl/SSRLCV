@@ -251,10 +251,84 @@ void ssrlcv::writeTIFF(const char* filePath, unsigned char* image, const unsigne
   }
 }
 unsigned char* ssrlcv::readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth){
+  struct jpeg_decompress_struct cinfo;   
+  struct jpeg_error_mgr jerr;
+  std::cout<<"attempting to read "<<filePath<<std::endl;
+  FILE *infile = fopen(filePath, "rb");
+  if (!infile){
+    fprintf(stderr, "can't open %s\n", filePath);
+    exit(-1);
+  }
+  cinfo.err = jpeg_std_error(&jerr);
+  jpeg_create_decompress(&cinfo);
+  jpeg_stdio_src(&cinfo, infile);
+  (void) jpeg_read_header(&cinfo, true);
+  (void) jpeg_start_decompress(&cinfo);
 
+  width = cinfo.output_width;
+  height = cinfo.output_height;
+  colorDepth = cinfo.output_components;
+  int row_stride = width * colorDepth;
+
+  int scanlineSize = width * colorDepth;
+  unsigned char *pixels = new unsigned char[height * scanlineSize];
+  unsigned char **buffer = new unsigned char*[1];
+  buffer[0] = new unsigned char[scanlineSize];
+
+  for(int row = 0; row < height; ++row){
+    (void)jpeg_read_scanlines(&cinfo, buffer, 1);
+    std::memcpy(pixels + (row * scanlineSize), buffer[0], scanlineSize * sizeof(unsigned char));
+  }
+
+  (void)jpeg_finish_decompress(&cinfo);
+  jpeg_destroy_decompress(&cinfo);
+
+  fclose(infile);
+
+  return pixels;
 }
 void ssrlcv::writeJPEG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height){
+  struct jpeg_compress_struct cinfo;
+  struct jpeg_error_mgr jerr;
+  FILE *outfile = fopen(filePath, "wb");
+  if (!outfile)
+  {
+    fprintf(stderr, "can't open %s\n", filePath);
+    exit(-1);
+  }
+  cinfo.err = jpeg_std_error(&jerr);
+  jpeg_create_compress(&cinfo);
+  jpeg_stdio_dest(&cinfo, outfile);
 
+  cinfo.image_width = width;
+  cinfo.image_height = height;
+  cinfo.input_components = colorDepth;
+  if(colorDepth == 1){
+    cinfo.in_color_space = JCS_GRAYSCALE;
+  }
+  else{
+    cinfo.in_color_space = JCS_RGB;
+  }
+  jpeg_set_defaults(&cinfo);
+  jpeg_set_quality(&cinfo,75,true);
+  (void) jpeg_start_compress(&cinfo,true);
+
+  int row_stride = width * colorDepth;
+
+  int scanlineSize = width * colorDepth;
+  unsigned char** buffer = new unsigned char*[1];
+  buffer[0] = new unsigned char[scanlineSize];
+
+  for (int row = 0; row < height; ++row){
+    buffer[0] = &image[row*width*colorDepth];
+    (void)jpeg_write_scanlines(&cinfo, buffer, 1);
+  }
+
+  (void)jpeg_finish_compress(&cinfo);
+  jpeg_destroy_compress(&cinfo);
+
+  fclose(outfile);
+  std::cout<<filePath<<" has been written"<<std::endl;
 }
 
 

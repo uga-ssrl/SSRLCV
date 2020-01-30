@@ -34,6 +34,7 @@
 #include <png.h>
 #include "tiffio.h"
 #include <jpeglib.h>
+#include <jerror.h>
 
 #include <cstring>
 #include <cmath>
