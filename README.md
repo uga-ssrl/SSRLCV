@@ -22,14 +22,14 @@ When making you should use the SM of your arch, you do this by setting the `SM` 
 
 
 ```
-make -j# SM=## 
+make sfm -j# SM=## 
 ```
 
 | Device        | Reccomended           | 
 | ------------- |:-------------:|
-| TX2i          | `make -j3 SM=52` | 
-| Jetson Nano      | `make -j3 SM=53`   
-|  Ubuntu 16.04 with GTX 1060/1070     | `make -j9 SM=61` |
+| TX2i          | `make sfm -j3 SM=52` | 
+| Jetson Nano      | `make sfm -j3 SM=53`   
+|  Ubuntu 16.04 with GTX 1060/1070     | `make sfm -j9 SM=61` |
 
 You can also clean out the repo, to just have the standard files again, with
 
