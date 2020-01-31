@@ -61,7 +61,8 @@ int main(int argc, char *argv[]){
     images[0]->id = 0;
     images[0]->camera.size = {1024,1024};
     images[0]->camera.cam_pos = {781.417,0.0,4436.30};//{7.81417,0.0,44.3630};
-    images[0]->camera.cam_vec = {-0.173648,0.0,-0.984808};
+    // images[0]->camera.cam_vec = {-0.173648,0.0,-0.984808}; WAS {-0.173648,0.0,-0.984808}
+    images[0]->camera.cam_vec = {0.0,170.0 * (M_PI/180.0),0.0}; // rotation in the y direction
     images[0]->camera.axangle = 0.0f;
     images[0]->camera.fov = (11.4212 * (M_PI/180.0)); // 11.4212 degrees
     images[0]->camera.foc = 0.16; // 160mm, 0.16m
@@ -75,8 +76,9 @@ int main(int argc, char *argv[]){
     images[1]->id = 1;
     images[1]->camera.size = {1024,1024};
     images[1]->camera.cam_pos = {0.0,0.0,4500.0};//{0.0,0.0,45.0};
-    images[1]->camera.cam_vec = {0.0, 0.0,-1.0};
-    images[0]->camera.axangle = 0.0f;
+    // images[1]->camera.cam_vec = {0.0, 0.0,-1.0}; // WAS {0.0,0.0,-1.0}
+    images[1]->camera.cam_vec = {0.0,10.0 * (M_PI/180.0),0.0}; // There was no rotation!
+    images[1]->camera.axangle = 0.0f;
     images[1]->camera.fov = (11.4212 * (M_PI/180.0));// 11.4212 degress
     images[1]->camera.foc = 0.16; //160mm, 1.6cm, 0.16m
     // this can also be a passthru (and really should be)
@@ -122,7 +124,7 @@ int main(int argc, char *argv[]){
       matchSet.keyPoints->host[i*2 + 1] = matches->host[i].keyPoints[1];
       matchSet.matches->host[i] = {2,i*2};
     }
-    std::cout << "Generated MatchSet" << std::endl << std::endl;
+    std::cout << "Generated MatchSet ..." << std::endl << std::endl;
 
     /*
     2 View Reprojection

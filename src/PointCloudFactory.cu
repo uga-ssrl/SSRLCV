@@ -38,13 +38,12 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   getFlatGridBlock(bundles->numElements,grid,block,generateBundle);
 
   //in this kernel fill lines and bundles from keyPoints and matches
-  std::cout << "calling bundle generation kernel ..." << std::endl;
+  std::cout << "Calling bundle generation kernel ..." << std::endl;
   generateBundle<<<grid, block>>>(bundles->numElements,bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
-  std::cout << "returned from bnudle generation kernel ..." << std::endl;
+  std::cout << "Returned from bundle generation kernel ... \n" << std::endl;
 
   cudaDeviceSynchronize();
   CudaCheckError();
-
 
   // call the boi
   bundles->transferMemoryTo(cpu);
@@ -62,13 +61,31 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
 
 /**
 * The CPU method that sets up the GPU enabled two view tringulation.
-* @param bundleSet a set of lines and bundles
+* @param bundleSet a set of lines and bundles that should be triangulated
 */
 ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet bundleSet){
-  std::cout << " >> YEET!! " << std::endl;
 
+  bundleSet.lines->transferMemoryTo(gpu);
+  bundleSet.bundles->transferMemoryTo(gpu);
 
-  return nullptr;
+  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->numElements,gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(bundleSet.bundles->numElements,grid,block,generateBundle);
+
+  std::cout << "Starting 2-view triangulation ..." << std::endl;
+  computeTwoViewTriangulate<<<grid,block>>>(bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  std::cout << "2-view Triangulation done ... \n" << std::endl;
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  //transfer the poitns back to the CPU
+  pointcloud->transferMemoryTo(cpu);
+  pointcloud->clear(gpu);
+
+  return pointcloud;
 }
 
 /**
@@ -279,53 +296,43 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolati
 
 __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > numBundles) return;
   MultiMatch match = matches[globalID];
   float3* kp = new float3[match.numKeyPoints]();
-  int end =  (int)match.numKeyPoints + match.index;
+  int end =  (int) match.numKeyPoints + match.index;
   KeyPoint currentKP = {-1,{0.0f,0.0f}};
   bundles[globalID] = {match.numKeyPoints,match.index};
   for (int i = match.index, k= 0; i < end; i++,k++){
+    // the current keypoint to transform
     currentKP = keyPoints[i];
-    //printf("[%lu][%d] camera vec: <%f,%f,%f>\n", globalID,k, cameras[currentKP.parentId].cam_vec.x,cameras[currentKP.parentId].cam_vec.y,cameras[currentKP.parentId].cam_vec.z);
-    // set dpix values
-    //printf("[%lu][%d] dpix calc dump: (foc: %f) (fov: %f) (tanf: %f) (size: %d) \n", globalID,k, cameras[currentKP.parentId].foc, cameras[currentKP.parentId].fov, tanf(cameras[currentKP.parentId].fov / 2.0f), cameras[currentKP.parentId].size.x);
+    // set the dpix
     cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
     cameras[currentKP.parentId].dpix.y = cameras[currentKP.parentId].dpix.x; // assume square pixel for now
-    // temp
-    //printf("[%lu][%d] dpix calculated as: %f \n", globalID,k, cameras[currentKP.parentId].dpix.x);
-
     // here we imagine the image plane is in the X Y plane AT a particular Z value, which is the focal length
-    // We need to slowly transform this later so that it has the correct orientation
+    // begin movement to R3
     kp[k] = {
-      // NOTE: This is when dpix was supposed to be used, but does dpix just end up adding more
-      // floating point errors? instead it might still be best to live within the image space
-      // cameras[currentKP.parentId].dpix.x * ((currentKP.loc.x) - (cameras[currentKP.parentId].size.x / 2.0f)),
-      // cameras[currentKP.parentId].dpix.y * ((currentKP.loc.y) - (cameras[currentKP.parentId].size.y / 2.0f)),
-      ((currentKP.loc.x) - (cameras[currentKP.parentId].size.x / 2.0f)),
-      ((currentKP.loc.y) - (cameras[currentKP.parentId].size.y / 2.0f)),
+      cameras[currentKP.parentId].dpix.x * ((currentKP.loc.x) - (cameras[currentKP.parentId].size.x / 2.0f)),
+      cameras[currentKP.parentId].dpix.y * ((currentKP.loc.y) - (cameras[currentKP.parentId].size.y / 2.0f)),
       cameras[currentKP.parentId].foc // this is the focal length
     }; // set the key point
-
-    //printf("[%lu][%d] kp, pre-rotation: (%f,%f,%f) \n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
-
-    // attempting new thing
-    // kp[k] = rotatePointKP(kp[k], cameras[currentKP.parentId].cam_vec, cameras[currentKP.parentId].axangle);
+    // rotate to correct orientation
     kp[k] = rotatePoint(kp[k], cameras[currentKP.parentId].cam_vec);
-    //printf("[%lu][%d] kp, post-rotation: (%f,%f,%f) \n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
-
+    // move to correct world coordinate
     kp[k].x = cameras[currentKP.parentId].cam_pos.x - (kp[k].x);
     kp[k].y = cameras[currentKP.parentId].cam_pos.y - (kp[k].y);
     kp[k].z = cameras[currentKP.parentId].cam_pos.z - (kp[k].z);
-    //printf("[%lu][%d] kp in R3: (%f,%f,%f)\n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
+    // calculate the vector component of the line
     lines[i].vec = {
       cameras[currentKP.parentId].cam_pos.x - kp[k].x,
       cameras[currentKP.parentId].cam_pos.y - kp[k].y,
       cameras[currentKP.parentId].cam_pos.z - kp[k].z
     };
+    // fill in the line values
     normalize(lines[i].vec);
-    //printf("[%lu][%d] %f,%f,%f\n",globalID,k,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z);
     lines[i].pnt = cameras[currentKP.parentId].cam_pos;
+    //printf("[%lu / %u] [i: %d] < %f , %f, %f > at ( %f, %f, %f ) \n", globalID,numBundles,i,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z,lines[i].pnt.x,lines[i].pnt.y,lines[i].pnt.z);
   }
+  delete[] kp;
 }
 
 __global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, float3* points, float scale){
@@ -368,8 +375,35 @@ __global__ void ssrlcv::interpolateDepth(uint2 disparityMapSize, int influenceRa
 /**
 * Does a trigulation with skew lines to find their closest intercetion.
 */
-__global__ void ssrlcv::computeTwoViewTriangulate(){
+__global__ void ssrlcv::computeTwoViewTriangulate(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
+  // this method is from wikipedia, last seen janurary 2020
+  // https://en.wikipedia.org/wiki/Skew_lines#Nearest_Points
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (pointnum-1)) return;
+  // we can assume that each line, so we don't need to get the numlines
+  // ne guys are made just for easy of writing
+  ssrlcv::Bundle::Line L1 = lines[bundles[globalID].index];
+  ssrlcv::Bundle::Line L2 = lines[bundles[globalID].index+1];
 
+  // calculate the normals
+  float3 n1 = crossProduct(L2.vec,crossProduct(L1.vec,L2.vec));
+  float3 n2 = crossProduct(L1.vec,crossProduct(L1.vec,L2.vec));
+
+  // calculate some numerators
+  float numer1 = dotProduct((L2.pnt - L1.pnt),n1);
+  float numer2 = dotProduct((L1.pnt - L2.pnt),n2);
+
+  // calculate some denominators
+  float denom1 = dotProduct(L1.vec,n1);
+  float denom2 = dotProduct(L2.vec,n2);
+
+  // get the S points
+  float3 s1 = L1.pnt + (numer1/denom1)*L1.vec; //dotProduct((numer1/denom1),L1.vec);
+  float3 s2 = L2.pnt + (numer2/denom2)*L2.vec; //dotProduct((numer1/denom1),L2.vec);
+  float3 point = (s1 + s2)/2.0;
+
+  // fill in the value for the point cloud
+  pointcloud[globalID] = s1;
 }
 
 // cannot be used with current stuff

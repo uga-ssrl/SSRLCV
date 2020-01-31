@@ -18,6 +18,7 @@ namespace ssrlcv{
   __device__ __host__ void multiply(const float (&A)[3], const float (&B)[3][3], float (&C)[3]);
   __device__ __host__ void multiply(const float (&A)[2][2], const float (&B)[2][2], float (&C)[2][2]);
   __device__ __host__ float dotProduct(const float (&A)[3], const float (&B)[3]);
+  __device__ __host__ float3 crossProduct(const float3 A, const float3 B);
   __device__ __host__ bool inverse(const float (&M)[3][3], float (&M_out)[3][3]);
   __device__ __host__ bool inverse(const float3 (&M)[3], float3 (&M_out)[3]);
   __device__ __host__ void transpose(const float3 (&M)[3], float3 (&M_out)[3]);
@@ -35,6 +36,7 @@ namespace ssrlcv{
 
   __device__ float3 matrixMulVector(float3 x, float A[3][3]);
   __device__ float3 getVectorAngles(float3 v);
+
   /**
    * Rotates a point around the x, y, and z axis by the given angles.
    * @param point point to rotate
@@ -42,6 +44,7 @@ namespace ssrlcv{
    * @return point after rotation
    */
   __device__ float3 rotatePoint(float3 point, float3 angles);
+
   /**
    * Rotates a point around a given axis given by a unit vector through the origin
    * by a given angle. The resulting point can be found by first rotating the axis
