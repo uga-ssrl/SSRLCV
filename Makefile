@@ -65,20 +65,17 @@ _BASE_OBJS += Octree.cu.o
 _BASE_OBJS += MeshFactory.cu.o
 _SFM_OBJS = SFM.cu.o
 _SD_OBJS = StereoDisparity.cu.o
-_TD_OBJS = TrueDisparity.cu.o
 _T_OBJS = Tester.cu.o
 
 BASE_OBJS = $(patsubst %, $(OBJDIR)/%, $(_BASE_OBJS))
 SFM_OBJS = $(patsubst %, $(OBJDIR)/%, $(_SFM_OBJS))
 SD_OBJS = $(patsubst %, $(OBJDIR)/%, $(_SD_OBJS))
-TD_OBJS = $(patsubst %, $(OBJDIR)/%, $(_TD_OBJS))
 T_OBJS = $(patsubst %, $(OBJDIR)/%, $(_T_OBJS))
 
 TEST_OBJS = $(patsubst %, $(OBJDIR)/%, $(_BASE_OBJS))
 
 TARGET_SFM = SFM
 TARGET_SD = StereoDisparity
-TARGET_TD = TrueDisparity
 TARGET_T = Tester
 
 ## Test sensing
@@ -91,21 +88,18 @@ TESTS 			= $(TESTS_CU) $(TESTS_CPP)
 NVCCFLAGS += $(GENCODEFLAGS)
 LINKLINE_SFM = $(LINK) $(GENCODEFLAGS) $(BASE_OBJS) $(SFM_OBJS) $(LIB) -o $(BINDIR)/$(TARGET_SFM)
 LINKLINE_SD = $(LINK) $(GENCODEFLAGS) $(BASE_OBJS) $(SD_OBJS) $(LIB) -o $(BINDIR)/$(TARGET_SD)
-LINKLINE_TD = $(LINK) $(GENCODEFLAGS) $(BASE_OBJS) $(TD_OBJS) $(LIB) -o $(BINDIR)/$(TARGET_TD)
 LINKLINE_T = $(LINK) $(GENCODEFLAGS) $(BASE_OBJS) $(T_OBJS) $(LIB) -o $(BINDIR)/$(TARGET_T)
 
 .SUFFIXES: .cpp .cu .o
 .PHONY: all clean test
 
-all: base $(BINDIR)/$(TARGET_SFM) $(BINDIR)/$(TARGET_SD) $(BINDIR)/$(TARGET_TD) $(BINDIR)/$(TARGET_T) $(TESTS)
+all: base $(BINDIR)/$(TARGET_SFM) $(BINDIR)/$(TARGET_SD) $(BINDIR)/$(TARGET_T) $(TESTS)
 
 base: $(BASE_OBJS)
 
 sfm: base $(BINDIR)/$(TARGET_SFM)
 
 stereo: base $(BINDIR)/$(TARGET_SD)
-
-disp: base $(BINDIR)/$(TARGET_TD)
 
 misc: base $(BINDIR)/$(TARGET_T)
 
@@ -140,9 +134,6 @@ $(BINDIR)/$(TARGET_SFM): $(BASE_OBJS) $(SFM_OBJS) Makefile
 
 $(BINDIR)/$(TARGET_SD): $(BASE_OBJS) $(SD_OBJS) Makefile
 	$(LINKLINE_SD)
-
-$(BINDIR)/$(TARGET_TD): $(BASE_OBJS) $(TD_OBJS) Makefile
-	$(LINKLINE_TD)
 
 $(BINDIR)/$(TARGET_T): $(BASE_OBJS) $(T_OBJS) Makefile
 	$(LINKLINE_T)

@@ -47,7 +47,17 @@ ssrlcv::Image::Image(std::string filePath, int id){
   this->filePath = filePath;
   this->id = id;
   this->colorDepth = 1;
-  unsigned char* pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  unsigned char* pixels_host = nullptr;
+  std::string extension = getFileExtension(filePath);
+  if(extension == "png"){
+    pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  }
+  else if(extension == "tiff" || extension == "tif"){
+    pixels_host = readTIFF(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  }
+  else if(extension == "jpeg" || extension == "jpg"){
+    pixels_host = readJPEG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  }
   this->camera.size = this->size;
   this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
@@ -56,10 +66,23 @@ ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int
   this->filePath = filePath;
   this->id = id;
   this->colorDepth = 1;
-  unsigned char* pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  unsigned char* pixels_host = nullptr;
+  std::string extension = getFileExtension(filePath);
+  if(extension == "png"){
+    pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  }
+  else if(extension == "tiff" || extension == "tif"){
+    pixels_host = readTIFF(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  }
+  else if(extension == "jpeg" || extension == "jpg"){
+    pixels_host = readJPEG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  }
   this->camera.size = this->size;
   this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
+  for(int i = 0; i < this->pixels->numElements; ++i){
+    std::cout<<this->pixels->host[i]<<std::endl;
+  }
   if(convertColorDepthTo == 1){
     convertToBW(this->pixels, this->colorDepth);
     this->colorDepth = 1;

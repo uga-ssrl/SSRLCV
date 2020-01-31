@@ -490,6 +490,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::dumpData(std::string filePath){
     }
 }
 void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, float edgeThreshold, bool subpixel){
+    std::cout<<"looking for keypoints..."<<std::endl;
     if(this->depth.y < 4){
         std::cerr<<"findKeyPoints should be done on a dog scale space - this is either not a dog or the number of blurs is insufficient"<<std::endl;
         exit(-1);
