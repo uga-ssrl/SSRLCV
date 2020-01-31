@@ -268,7 +268,7 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
   KeyPoint currentKP = {-1,{0.0f,0.0f}};
   bundles[globalID] = {match.numKeyPoints,match.index};
   for (int i = match.index, k= 0; i < end; i++,k++){
-    currentKP = keyPoints[i]; 
+    currentKP = keyPoints[i];
     printf("[%lu][%d] camera vec: <%f,%f,%f>\n", globalID,k, cameras[currentKP.parentId].cam_vec.x,cameras[currentKP.parentId].cam_vec.y,cameras[currentKP.parentId].cam_vec.z);
     // set dpix values
     printf("[%lu][%d] dpix calc dump: (foc: %f) (fov: %f) (tanf: %f) (size: %d) \n", globalID,k, cameras[currentKP.parentId].foc, cameras[currentKP.parentId].fov, tanf(cameras[currentKP.parentId].fov / 2.0f), cameras[currentKP.parentId].size.x);
@@ -347,7 +347,8 @@ __global__ void ssrlcv::interpolateDepth(uint2 disparityMapSize, int influenceRa
   }
 }
 
-
+// cannot be used with current stuff
+// this is the old two view reprojection
 __global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, float cam1C[3], float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9], float rotationTranspose1[9], float rotationTranspose2[9], float3* points){
    unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
 

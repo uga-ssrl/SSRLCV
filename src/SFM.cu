@@ -79,15 +79,25 @@ int main(int argc, char *argv[]){
     ssrlcv::writeMatchFile(matches, matchFile);
 
     /*
-    STEREODISPARITY
+    2 View Reprojection
     */
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
-    ssrlcv::Unity<float3>* points = demPoints.stereo_disparity(matches,8.0);
+    srlcv::Unity<float3>* points = demPoints.stereo_disparity(matches,8.0);
+
+
+    // optional stereo disparity here
+    // /*
+    // STEREODISPARITY
+    // */
+    // ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
+    // ssrlcv::Unity<float3>* points = demPoints.stereo_disparity(matches,8.0);
+    //
 
     delete matches;
     ssrlcv::writePLY("out/test.ply",points);
     delete points;
 
+    // clean up the images
     for(int i = 0; i < imagePaths.size(); ++i){
       delete images[i];
       delete allFeatures[i];

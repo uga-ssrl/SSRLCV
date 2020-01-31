@@ -63,10 +63,10 @@ namespace ssrlcv{
 
     // setero with scalar pass thru
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float scale);
-    
+
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float foc, float baseline, float doffset);
 
-  };  
+  };
 
   uchar3 heatMap(float value);
 
@@ -90,3 +90,55 @@ namespace ssrlcv{
 
 
 #endif /* POINTCLOUDFACTORY_CUH */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// yeet
