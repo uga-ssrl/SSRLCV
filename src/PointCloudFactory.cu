@@ -4,6 +4,12 @@ ssrlcv::PointCloudFactory::PointCloudFactory(){
 
 }
 
+/**
+* The CPU method that sets up the GPU enabled line generation, which stores lines
+* and sets of lines as bundles
+* @param matchSet a group of maches
+* @param a group of images, used only for their stored camera parameters
+*/
 ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
 
 
@@ -32,9 +38,9 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   getFlatGridBlock(bundles->numElements,grid,block,generateBundle);
 
   //in this kernel fill lines and bundles from keyPoints and matches
-  std::cout << "calling kernel ..." << std::endl;
+  std::cout << "calling bundle generation kernel ..." << std::endl;
   generateBundle<<<grid, block>>>(bundles->numElements,bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
-  std::cout << "returned from kernel ..." << std::endl;
+  std::cout << "returned from bnudle generation kernel ..." << std::endl;
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -52,6 +58,17 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   if(origin[1] == cpu) matchSet->keyPoints->setMemoryState(cpu);
 
   return bundleSet;
+}
+
+/**
+* The CPU method that sets up the GPU enabled two view tringulation.
+* @param bundleSet a set of lines and bundles
+*/
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet bundleSet){
+  std::cout << " >> YEET!! " << std::endl;
+
+
+  return nullptr;
 }
 
 /**
@@ -269,13 +286,13 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
   bundles[globalID] = {match.numKeyPoints,match.index};
   for (int i = match.index, k= 0; i < end; i++,k++){
     currentKP = keyPoints[i];
-    printf("[%lu][%d] camera vec: <%f,%f,%f>\n", globalID,k, cameras[currentKP.parentId].cam_vec.x,cameras[currentKP.parentId].cam_vec.y,cameras[currentKP.parentId].cam_vec.z);
+    //printf("[%lu][%d] camera vec: <%f,%f,%f>\n", globalID,k, cameras[currentKP.parentId].cam_vec.x,cameras[currentKP.parentId].cam_vec.y,cameras[currentKP.parentId].cam_vec.z);
     // set dpix values
-    printf("[%lu][%d] dpix calc dump: (foc: %f) (fov: %f) (tanf: %f) (size: %d) \n", globalID,k, cameras[currentKP.parentId].foc, cameras[currentKP.parentId].fov, tanf(cameras[currentKP.parentId].fov / 2.0f), cameras[currentKP.parentId].size.x);
+    //printf("[%lu][%d] dpix calc dump: (foc: %f) (fov: %f) (tanf: %f) (size: %d) \n", globalID,k, cameras[currentKP.parentId].foc, cameras[currentKP.parentId].fov, tanf(cameras[currentKP.parentId].fov / 2.0f), cameras[currentKP.parentId].size.x);
     cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
     cameras[currentKP.parentId].dpix.y = cameras[currentKP.parentId].dpix.x; // assume square pixel for now
     // temp
-    printf("[%lu][%d] dpix calculated as: %f \n", globalID,k, cameras[currentKP.parentId].dpix.x);
+    //printf("[%lu][%d] dpix calculated as: %f \n", globalID,k, cameras[currentKP.parentId].dpix.x);
 
     // here we imagine the image plane is in the X Y plane AT a particular Z value, which is the focal length
     // We need to slowly transform this later so that it has the correct orientation
@@ -289,24 +306,24 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
       cameras[currentKP.parentId].foc // this is the focal length
     }; // set the key point
 
-    printf("[%lu][%d] kp, pre-rotation: (%f,%f,%f) \n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
+    //printf("[%lu][%d] kp, pre-rotation: (%f,%f,%f) \n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
 
     // attempting new thing
     // kp[k] = rotatePointKP(kp[k], cameras[currentKP.parentId].cam_vec, cameras[currentKP.parentId].axangle);
     kp[k] = rotatePoint(kp[k], cameras[currentKP.parentId].cam_vec);
-    printf("[%lu][%d] kp, post-rotation: (%f,%f,%f) \n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
+    //printf("[%lu][%d] kp, post-rotation: (%f,%f,%f) \n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
 
     kp[k].x = cameras[currentKP.parentId].cam_pos.x - (kp[k].x);
     kp[k].y = cameras[currentKP.parentId].cam_pos.y - (kp[k].y);
     kp[k].z = cameras[currentKP.parentId].cam_pos.z - (kp[k].z);
-    printf("[%lu][%d] kp in R3: (%f,%f,%f)\n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
+    //printf("[%lu][%d] kp in R3: (%f,%f,%f)\n", globalID,k, kp[k].x, kp[k].y, kp[k].z);
     lines[i].vec = {
       cameras[currentKP.parentId].cam_pos.x - kp[k].x,
       cameras[currentKP.parentId].cam_pos.y - kp[k].y,
       cameras[currentKP.parentId].cam_pos.z - kp[k].z
     };
     normalize(lines[i].vec);
-    printf("[%lu][%d] %f,%f,%f\n",globalID,k,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z);
+    //printf("[%lu][%d] %f,%f,%f\n",globalID,k,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z);
     lines[i].pnt = cameras[currentKP.parentId].cam_pos;
   }
 }
@@ -345,6 +362,14 @@ __global__ void ssrlcv::interpolateDepth(uint2 disparityMapSize, int influenceRa
     }
     interpolated[globalID] = disparity;
   }
+}
+
+
+/**
+* Does a trigulation with skew lines to find their closest intercetion.
+*/
+__global__ void ssrlcv::computeTwoViewTriangulate(){
+
 }
 
 // cannot be used with current stuff
