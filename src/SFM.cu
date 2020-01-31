@@ -18,31 +18,27 @@ int main(int argc, char *argv[]){
     clock_t partialTimer = clock();
 
     //ARG PARSING
-    if(argc < 2 || argc > 4){
-      std::cout<<"USAGE ./bin/SFM </path/to/image/directory/> </path/to/optional/seedimage.png>"<<std::endl;
+    
+    std::map<std::string,ssrlcv::arg*> args = ssrlcv::parseArgs(argc,argv);
+    if(args.find("dir") == args.end()){
+      std::cerr<<"ERROR: SFM executable requires a directory of images"<<std::endl;
       exit(-1);
     }
-    std::string path = argv[1];
-    std::vector<std::string> imagePaths = ssrlcv::findFiles(path);
-
-    int numImages = (int) imagePaths.size();
-
     ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1.5f,6.0f);
     ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,250.0f*250.0f);
-
-    /*
-    FEATURE EXTRACTION
-    */
-    //seed features extraction
-
+    bool seedProvided = false;
     ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* seedFeatures = nullptr;
-    if(argc == 3){
-      std::string seedPath = argv[2];
+    if(args.find("seed") != args.end()){
+      seedProvided = true;
+      std::string seedPath = ((ssrlcv::img_arg*)&args["seed"])->path;
       ssrlcv::Image* seed = new ssrlcv::Image(seedPath,-1);
       seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8);
       matchFactory.setSeedFeatures(seedFeatures);
       delete seed;
     }
+    std::vector<std::string> imagePaths = ((ssrlcv::img_dir_arg*)args["dir"])->paths;
+    int numImages = (int) imagePaths.size();
+    std::cout<<"found "<<numImages<<" in directory given"<<std::endl;
 
     std::vector<ssrlcv::Image*> images;
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
@@ -61,7 +57,7 @@ int main(int argc, char *argv[]){
     //seeding with false photo
 
     std::cout << "Starting matching..." << std::endl;
-    ssrlcv::Unity<float>* seedDistances = (argc == 3) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
+    ssrlcv::Unity<float>* seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
     ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
     if(seedDistances != nullptr) delete seedDistances;
 
@@ -88,7 +84,7 @@ int main(int argc, char *argv[]){
     ssrlcv::writePLY("out/test.ply",points);
     delete points;
 
-    for(int i = 0; i < imagePaths.size(); ++i){
+    for(int i = 0; i < numImages; ++i){
       delete images[i];
       delete allFeatures[i];
     }
