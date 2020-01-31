@@ -10,6 +10,7 @@ All other files can be .cpp and .h
 
 ## Dependencies
 * libpng
+* libtiff-dev
 * g++
 * gcc
 * nvcc
@@ -21,14 +22,14 @@ When making you should use the SM of your arch, you do this by setting the `SM` 
 
 
 ```
-make -j# SM=## 
+make sfm -j# SM=## 
 ```
 
 | Device        | Reccomended           | 
 | ------------- |:-------------:|
-| TX2i          | `make -j3 SM=52` | 
-| Jetson Nano      | `make -j3 SM=53`   
-|  Ubuntu 16.04 with GTX 1070     | `make -j9 SM=61` |
+| TX2i          | `make sfm -j3 SM=52` | 
+| Jetson Nano      | `make sfm -j3 SM=53`   
+|  Ubuntu 16.04 with GTX 1060/1070     | `make sfm -j9 SM=61` |
 
 You can also clean out the repo, to just have the standard files again, with
 
@@ -74,3 +75,8 @@ Camera location and pointing data is stored in a in a `.txt` file. The file incl
 > image number (int), camera x (float), camera y (float), camera z (float), camera unit x (float), camera unit y (float), camera unit z (float)
 
 ### PLY File
+
+
+
+# TODO 
+* ensure that thrust functions are using GPU

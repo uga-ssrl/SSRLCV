@@ -12,14 +12,40 @@
 
 namespace ssrlcv{
 
-  /**
-  * \brief get vector of imagePaths from a directory location
+  /*
+  ARG PARSING
   */
+  extern std::map<std::string, std::string> cl_args;//filled out in io_util.cpp
+  bool fileExists(std::string fileName);
+  bool directoryExists(std::string dirPath);
+  std::string getFileExtension(std::string path);
   void getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths);
-  /**
-  * \brief find pngs in a location
+  struct arg{};
+  struct img_arg : public arg{
+    std::string path;
+    img_arg(char* path);
+  };
+  struct img_dir_arg : public arg{
+    std::vector<std::string> paths;
+    img_dir_arg(char* path);
+  };
+  struct flt_arg : public arg{
+    float val;
+    flt_arg(char* val);
+  }; 
+  struct int_arg : public arg{
+    int val;
+    int_arg(char* val);
+  };
+  typedef std::pair<std::string, arg*> arg_pair;
+  std::vector<std::string> findFiles(std::string path);//going to be deprecated
+
+  std::map<std::string, arg*> parseArgs(int numArgs, char* args[]);
+
+
+  /*
+  IMAGE IO
   */
-  std::vector<std::string> findFiles(std::string path);
 
   /**
   * \brief get pixel array from a row of pointers generated from ssrlcv::readPNG utilizing png.h
@@ -30,7 +56,7 @@ namespace ssrlcv{
   * \brief get pixel values from an image file
   * \returns pixel array flattened row-wise
   */
-  unsigned char* readPNG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int& colorDepth);
+  unsigned char* readPNG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
 
   /**
   * \brief will write png from pixel array
@@ -38,6 +64,22 @@ namespace ssrlcv{
   void writePNG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
 
 
+  unsigned char* readTIFF(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
+  void writeTIFF(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
+
+  unsigned char* readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
+  void writeJPEG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
+
+  /*
+  FEATURE AND MATCH IO
+  */
+  //add match writes here
+
+  /*
+  PLY IO
+  */
+
+  //TODO make readPLY
   /**
   * \brief will write ply from point array
   */
@@ -64,7 +106,9 @@ namespace ssrlcv{
 
   bool readImageMeta(std::string imgpath, bcpFormat & out);
 
-}
 
+  
+
+}
 
 #endif /* IO_UTIL_H */

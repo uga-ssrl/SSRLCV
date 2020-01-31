@@ -19,6 +19,20 @@ __device__ __host__ ssrlcv::SIFT_Descriptor::SIFT_Descriptor(float theta, unsign
     this->values[i] = values[i];
   }
 }
+__device__ __host__ void ssrlcv::SIFT_Descriptor::print(){
+  printf("%f,%f\n",this->sigma,this->theta);
+  for(int x = 0,d = 0; x < 4; ++x){
+    printf("\n");
+    for(int y = 0; y < 4; ++y){
+      printf("  ");
+      for(int a = 0; a < 8; ++a){
+          printf("%d",(int) this->values[d++]);
+          if(a < 8) printf(",");
+      }
+    }
+  }
+  printf("\n\n");
+}
 __device__ float ssrlcv::SIFT_Descriptor::distProtocol(const SIFT_Descriptor& b, const float &bestMatch){
   float dist = 0.0f;
   for(int i = 0; i < 128 && dist < bestMatch; ++i){

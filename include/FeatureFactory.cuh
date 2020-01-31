@@ -42,6 +42,15 @@ namespace ssrlcv{
     * \todo implement
     */
     struct ScaleSpace{
+    private:
+      bool isDOG;
+      /**
+      * \brief will convert scalespace to a difference of gaussians
+      * numBlurs-- will occur
+      */
+      void convertToDOG();  
+    public:
+
       struct SSKeyPoint{
         int octave;
         int blur;
@@ -104,13 +113,10 @@ namespace ssrlcv{
       Octave** octaves;
 
       ScaleSpace();
-      ScaleSpace(Image* image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize);
+      ScaleSpace(Image* image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize, bool makeDOG = false);
       
-      /**
-      * \brief will convert scalespace to a difference of gaussians
-      * numBlurs-- will occur
-      */
-      void convertToDOG();      
+      bool checkIfDOG();
+    
       void dumpData(std::string filePath);
       
       /**

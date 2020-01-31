@@ -27,10 +27,8 @@ void ssrlcv::MatchFactory<T>::setSeedFeatures(Unity<Feature<T>>* seedFeatures){
 template<typename T>
 void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::Match>* matches){
   MemoryState origin = matches->state;
-  if(origin == cpu || matches->fore == cpu){
-    matches->transferMemoryTo(gpu);
-  }
-
+  if(origin != gpu) matches->setMemoryState(gpu);
+  
   thrust::device_ptr<Match> needsValidating(matches->device);
   thrust::device_ptr<Match> new_end = thrust::remove_if(needsValidating,needsValidating+matches->numElements,validate());
   cudaDeviceSynchronize();
@@ -52,14 +50,13 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::Match>* matc
 
   matches->setData(validatedMatches_device,numMatchesLeft,gpu);
 
-  if(origin == cpu) matches->setMemoryState(cpu);
+  if(origin != gpu) matches->setMemoryState(origin);
 }
 template<typename T>
 void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::DMatch>* matches){
   MemoryState origin = matches->state;
-  if(origin == cpu || matches->fore == cpu){
-    matches->transferMemoryTo(gpu);
-  }
+  if(origin != gpu) matches->setMemoryState(gpu);
+  
 
   thrust::device_ptr<DMatch> needsValidating(matches->device);
   thrust::device_ptr<DMatch> new_end = thrust::remove_if(needsValidating,needsValidating+matches->numElements,validate());
@@ -82,14 +79,13 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::DMatch>* mat
 
   matches->setData(validatedMatches_device,numMatchesLeft,gpu);
 
-  if(origin == cpu) matches->setMemoryState(cpu);
+  if(origin != gpu) matches->setMemoryState(origin);
 }
 template<typename T>
 void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T>>* matches){
   MemoryState origin = matches->state;
-  if(origin == cpu || matches->fore == cpu){
-    matches->transferMemoryTo(gpu);
-  }
+  if(origin != gpu) matches->setMemoryState(gpu);
+
 
   thrust::device_ptr<FeatureMatch<T>> needsValidating(matches->device);
   thrust::device_ptr<FeatureMatch<T>> new_end = thrust::remove_if(needsValidating,needsValidating+matches->numElements,validate());
@@ -112,7 +108,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::FeatureMatch
 
   matches->setData(validatedMatches_device,numMatchesLeft,gpu);
 
-  if(origin == cpu) matches->setMemoryState(cpu);
+  if(origin != gpu) matches->setMemoryState(origin);
 
 }
 template<typename T>
@@ -122,9 +118,8 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::DMatch>* match
     exit(-1);
   }
   MemoryState origin = matches->state;
-  if(origin == cpu || matches->fore == cpu){
-    matches->transferMemoryTo(gpu);
-  }
+  if(origin != gpu) matches->setMemoryState(gpu);
+
 
   thrust::device_ptr<DMatch> needsCompacting(matches->device);
   thrust::device_ptr<DMatch> end = thrust::remove_if(needsCompacting, needsCompacting + matches->numElements, match_dist_thresholder(threshold));
@@ -143,7 +138,7 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::DMatch>* match
 
   matches->setData(compactedMatches_device,numElementsBelowThreshold,gpu);
 
-  if(origin == cpu) matches->setMemoryState(cpu);
+  if(origin != gpu) matches->setMemoryState(origin);
 }
 template<typename T>
 void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T>>* matches, float threshold){
@@ -152,11 +147,7 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T
     exit(-1);
   }
   MemoryState origin = matches->state;
-  if(origin == cpu || matches->fore == cpu){
-    matches->transferMemoryTo(gpu);
-  }
-
-  if(origin == gpu) matches->clear(cpu);
+  if(origin != gpu) matches->setMemoryState(gpu);
 
   thrust::device_ptr<FeatureMatch<T>> needsCompacting(matches->device);
   thrust::device_ptr<FeatureMatch<T>> end = thrust::remove_if(needsCompacting, needsCompacting + matches->numElements, match_dist_thresholder(threshold));
@@ -175,17 +166,17 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T
 
   matches->setData(compactedMatches_device,numElementsBelowThreshold,gpu);
 
-  if(origin == cpu) matches->setMemoryState(cpu);
+  if(origin != gpu) matches->setMemoryState(origin);
 }
 template<typename T>
 void ssrlcv::MatchFactory<T>::sortMatches(Unity<DMatch>* matches){
-  if(matches->state == gpu || matches->fore == gpu){
+  if(matches->fore == gpu || matches->fore == both){
     thrust::device_ptr<DMatch> toSort(matches->device);
     thrust::sort(toSort, toSort + matches->numElements,match_dist_comparator());
     matches->fore = gpu;
     if(matches->state == both) matches->transferMemoryTo(cpu);
   }
-  else{
+  else if(matches->fore == cpu){
     unsigned long len = matches->numElements;
     // insertion sort
     // each match element is accessed with allMatches->host[]
@@ -202,19 +193,22 @@ void ssrlcv::MatchFactory<T>::sortMatches(Unity<DMatch>* matches){
       }
       i++;
     }
-    matches->fore = cpu;
     if(matches->state == both) matches->transferMemoryTo(gpu);
+  }
+  else{
+    std::cerr<<"ERROR cannot perform sortMatches with matches->state = "<<matches->state<<std::endl;
+    exit(-1);
   }
 }
 template<typename T>
 void ssrlcv::MatchFactory<T>::sortMatches(Unity<FeatureMatch<T>>* matches){
-  if(matches->state == gpu || matches->fore == gpu){
+  if(matches->fore == gpu || matches->fore == both){
     thrust::device_ptr<FeatureMatch<T>> toSort(matches->device);
     thrust::sort(toSort, toSort + matches->numElements,match_dist_comparator());
     matches->fore = gpu;
     if(matches->state == both) matches->transferMemoryTo(cpu);
   }
-  else{
+  else if(matches->fore == cpu){
     unsigned long len = matches->numElements;
     // insertion sort
     // each match element is accessed with allMatches->host[]
@@ -231,8 +225,11 @@ void ssrlcv::MatchFactory<T>::sortMatches(Unity<FeatureMatch<T>>* matches){
       }
       i++;
     }
-    matches->fore = cpu;
     if(matches->state == both) matches->transferMemoryTo(gpu);
+  }
+  else{
+    std::cerr<<"ERROR cannot perform sortMatches with matches->state = "<<matches->state<<std::endl;
+    exit(-1);
   }
 }
 
@@ -243,7 +240,8 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::getRawMatches(Unity<DMatc
     CudaSafeCall(cudaMalloc((void**)&rawMatches_device, matches->numElements*sizeof(Match)));
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
-    getFlatGridBlock(matches->numElements,grid,block);
+    void (*fp)(unsigned long, Match*, DMatch*) = &convertMatchToRaw;
+    getFlatGridBlock(matches->numElements,grid,block,fp);
     convertMatchToRaw<<<grid,block>>>(matches->numElements,rawMatches_device,matches->device);
     cudaDeviceSynchronize();
     CudaCheckError();
@@ -266,8 +264,9 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::getRawMatches(Unity<Featu
     CudaSafeCall(cudaMalloc((void**)&rawMatches_device, matches->numElements*sizeof(Match)));
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
-    getFlatGridBlock(matches->numElements,grid,block);
-    convertMatchToRaw<<<grid,block>>>(matches->numElements,rawMatches_device,matches->device);
+    void (*fp)(unsigned long, Match*, FeatureMatch<T>*) = &convertMatchToRaw;
+    getFlatGridBlock(matches->numElements,grid,block,fp);
+    convertMatchToRaw<T><<<grid,block>>>(matches->numElements,rawMatches_device,matches->device);
     cudaDeviceSynchronize();
     CudaCheckError();
     return new Unity<Match>(rawMatches_device,matches->numElements,gpu);
@@ -287,20 +286,20 @@ template<typename T>
 ssrlcv::Unity<float>* ssrlcv::MatchFactory<T>::getSeedDistances(Unity<Feature<T>>* features){
   MemoryState origin = features->state;
 
-  if(this->seedFeatures->fore == cpu) this->seedFeatures->setMemoryState(gpu);
-  if(features->fore == cpu) features->setMemoryState(gpu);
+  if(this->seedFeatures->state != gpu) this->seedFeatures->setMemoryState(gpu);
+  if(origin != gpu) features->setMemoryState(gpu);
 
   unsigned int numPossibleMatches = features->numElements;
 
   Unity<float>* matchDistances = new Unity<float>(nullptr, numPossibleMatches,gpu);
 
   dim3 grid = {1,1,1};
-  dim3 block = {192,1,1};
+  dim3 block = {32,1,1};//IMPROVE
   getGrid(matchDistances->numElements,grid);
 
   clock_t timer = clock();
 
-  getSeedMatchDistances<<<grid, block>>>(features->numElements,features->device,this->seedFeatures->numElements,
+  getSeedMatchDistances<T><<<grid, block>>>(features->numElements,features->device,this->seedFeatures->numElements,
     this->seedFeatures->device,matchDistances->device);
 
   cudaDeviceSynchronize();
@@ -308,7 +307,7 @@ ssrlcv::Unity<float>* ssrlcv::MatchFactory<T>::getSeedDistances(Unity<Feature<T>
 
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
-  if(origin != features->state) features->setMemoryState(origin);
+  if(origin != gpu) features->setMemoryState(origin);
   
   return matchDistances;
 }
@@ -317,24 +316,23 @@ template<typename T>
 ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances){
   MemoryState origin[2] = {queryFeatures->state, targetFeatures->state};
 
-  if(queryFeatures->fore == cpu) queryFeatures->setMemoryState(gpu);
-  if(targetFeatures->fore == cpu) targetFeatures->setMemoryState(gpu);
+  if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
+  if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
 
   unsigned int numPossibleMatches = queryFeatures->numElements;
 
   Match* matches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(Match)));
-
   Unity<Match>* matches = new Unity<Match>(matches_device, numPossibleMatches, gpu);
 
   dim3 grid = {1,1,1};
-  dim3 block = {192,1,1};
+  dim3 block = {32,1,1};//IMPROVE
   getGrid(matches->numElements,grid);
 
   clock_t timer = clock();
 
   if(seedDistances == nullptr){
-    matchFeaturesBruteForce<<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
+    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
     target->id, targetFeatures->numElements, targetFeatures->device, matches->device,this->absoluteThreshold);
   }
   else if(seedDistances->numElements != queryFeatures->numElements){
@@ -342,10 +340,12 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatches(Image* qu
     exit(-1);
   }
   else{
-    if(seedDistances->fore != gpu) seedDistances->setMemoryState(gpu);
+    MemoryState seedOrigin = seedDistances->state;
+    if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
     matchFeaturesBruteForce<<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
     target->id, targetFeatures->numElements, targetFeatures->device, matches->device,seedDistances->device,
     this->relativeThreshold,this->absoluteThreshold);
+    if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin);
   }
   
   cudaDeviceSynchronize();
@@ -355,8 +355,8 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatches(Image* qu
 
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
-  if(origin[0] != queryFeatures->state) queryFeatures->setMemoryState(origin[0]);
-  if(origin[1] != targetFeatures->state) targetFeatures->setMemoryState(origin[1]);
+  if(origin[0] != gpu) queryFeatures->setMemoryState(origin[0]);
+  if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
 
   return matches;
 }
@@ -364,8 +364,8 @@ template<typename T>
 ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances){
   MemoryState origin[2] = {queryFeatures->state, targetFeatures->state};
 
-  if(queryFeatures->fore == cpu) queryFeatures->setMemoryState(gpu);
-  if(targetFeatures->fore == cpu) targetFeatures->setMemoryState(gpu);
+  if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
+  if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
 
   unsigned int numPossibleMatches = queryFeatures->numElements;
 
@@ -375,7 +375,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatchesConstraine
   Unity<Match>* matches = new Unity<Match>(matches_device, numPossibleMatches, gpu);
 
   dim3 grid = {1,1,1};
-  dim3 block = {192,1,1};
+  dim3 block = {32,1,1};//IMPROVE
   getGrid(matches->numElements,grid);
 
   float* fundamental_device = nullptr;
@@ -393,10 +393,12 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatchesConstraine
     exit(-1);
   }
   else{
-    if(seedDistances->fore != gpu) seedDistances->setMemoryState(gpu);
-    matchFeaturesConstrained<<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
+    MemoryState seedOrigin = seedDistances->state;
+    if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
+    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
     target->id, targetFeatures->numElements, targetFeatures->device, matches->device,epsilon,fundamental_device,seedDistances->device,
     this->relativeThreshold,this->absoluteThreshold);
+    if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin);
   }
 
   cudaDeviceSynchronize();
@@ -408,8 +410,8 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatchesConstraine
 
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
-  if(origin[0] != queryFeatures->state) queryFeatures->setMemoryState(origin[0]);
-  if(origin[1] != targetFeatures->state) targetFeatures->setMemoryState(origin[1]);
+  if(origin[0] != gpu) queryFeatures->setMemoryState(origin[0]);
+  if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
 
   return matches;
 }
@@ -419,21 +421,21 @@ template<typename T>
 ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances){
   MemoryState origin[2] = {queryFeatures->state, targetFeatures->state};
 
-  if(queryFeatures->fore == cpu) queryFeatures->setMemoryState(gpu);
-  if(targetFeatures->fore == cpu) targetFeatures->setMemoryState(gpu);
+  if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
+  if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
 
   unsigned int numPossibleMatches = queryFeatures->numElements;
 
   Unity<DMatch>* matches = new Unity<DMatch>(nullptr, numPossibleMatches, gpu);
 
   dim3 grid = {1,1,1};
-  dim3 block = {192,1,1};
+  dim3 block = {32,1,1};//IMPROVE
   getGrid(matches->numElements,grid);
 
   clock_t timer = clock();
 
   if(seedDistances == nullptr){
-    matchFeaturesBruteForce<<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
+    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
     target->id, targetFeatures->numElements, targetFeatures->device, matches->device,this->absoluteThreshold);
   }
   else if(seedDistances->numElements != queryFeatures->numElements){
@@ -441,10 +443,12 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatches(
     exit(-1);
   }
   else{
-    if(seedDistances->fore != gpu) seedDistances->setMemoryState(gpu);
-    matchFeaturesBruteForce<<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
+    MemoryState seedOrigin = seedDistances->state;
+    if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
+    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
     target->id, targetFeatures->numElements, targetFeatures->device, matches->device,seedDistances->device,
     this->relativeThreshold,this->absoluteThreshold);
+    if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin);
   }
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -453,8 +457,8 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatches(
 
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
-  if(origin[0] != queryFeatures->state) queryFeatures->setMemoryState(origin[0]);
-  if(origin[1] != targetFeatures->state) targetFeatures->setMemoryState(origin[1]);
+  if(origin[0] != gpu) queryFeatures->setMemoryState(origin[0]);
+  if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
 
   return matches;
 }
@@ -462,8 +466,8 @@ template<typename T>
 ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances){
   MemoryState origin[2] = {queryFeatures->state, targetFeatures->state};
 
-  if(queryFeatures->fore == cpu) queryFeatures->setMemoryState(gpu);
-  if(targetFeatures->fore == cpu) targetFeatures->setMemoryState(gpu);
+  if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
+  if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
 
   unsigned int numPossibleMatches = queryFeatures->numElements;
 
@@ -473,7 +477,7 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatchesC
   Unity<DMatch>* matches = new Unity<DMatch>(matches_device, numPossibleMatches, gpu);
 
   dim3 grid = {1,1,1};
-  dim3 block = {192,1,1};
+  dim3 block = {32,1,1};//IMPROVE
   getGrid(matches->numElements,grid);
 
   float* fundamental_device = nullptr;
@@ -483,7 +487,7 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatchesC
   clock_t timer = clock();
 
   if(seedDistances == nullptr){
-    matchFeaturesConstrained<<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
+    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
     target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device,this->absoluteThreshold);
   }
   else if(seedDistances->numElements != queryFeatures->numElements){
@@ -491,10 +495,12 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatchesC
     exit(-1);
   }
   else{
-    if(seedDistances->fore != gpu) seedDistances->setMemoryState(gpu);
-    matchFeaturesConstrained<<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
+    MemoryState seedOrigin = seedDistances->state;
+    if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
+    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
     target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device,seedDistances->device,
     this->relativeThreshold,this->absoluteThreshold);
+    if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin);
   }
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -505,8 +511,8 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatchesC
 
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
-  if(origin[0] != queryFeatures->state) queryFeatures->setMemoryState(origin[0]);
-  if(origin[1] != targetFeatures->state) targetFeatures->setMemoryState(origin[1]);
+  if(origin[0] != gpu) queryFeatures->setMemoryState(origin[0]);
+  if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
 
   return matches;
 }
@@ -517,9 +523,9 @@ ssrlcv::Unity<ssrlcv::FeatureMatch<T>>* ssrlcv::MatchFactory<T>::generateFeature
 ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, Unity<float>* seedDistances){
 
   MemoryState origin[2] = {queryFeatures->state, targetFeatures->state};
-
-  if(queryFeatures->fore == cpu) queryFeatures->setMemoryState(gpu);
-  if(targetFeatures->fore == cpu) targetFeatures->setMemoryState(gpu);
+  
+  if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
+  if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
 
   unsigned int numPossibleMatches = queryFeatures->numElements;
 
@@ -529,13 +535,13 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, Unity<
   Unity<FeatureMatch<T>>* matches = new Unity<FeatureMatch<T>>(matches_device, numPossibleMatches, gpu);
 
   dim3 grid = {1,1,1};
-  dim3 block = {192,1,1};
+  dim3 block = {32,1,1};//IMPROVE
   getGrid(matches->numElements,grid);
 
   clock_t timer = clock();
 
   if(seedDistances == nullptr){
-    matchFeaturesBruteForce<<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
+    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
     target->id, targetFeatures->numElements, targetFeatures->device, matches->device,this->absoluteThreshold);
   }
   else if(seedDistances->numElements != queryFeatures->numElements){
@@ -543,20 +549,18 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, Unity<
     exit(-1);
   }
   else{
-    if(seedDistances->fore != gpu) seedDistances->setMemoryState(gpu);
-    matchFeaturesBruteForce<<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device,seedDistances->device,this->relativeThreshold,this->absoluteThreshold);
+    MemoryState seedOrigin = seedDistances->state;
+    if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
+    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
+    target->id, targetFeatures->numElements, targetFeatures->device, matches->device,seedDistances->device,
+    this->relativeThreshold,this->absoluteThreshold);
+    if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin);
   }
-
-  cudaDeviceSynchronize();
-  CudaCheckError();
-
-  this->validateMatches(matches);
-
+    
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
-  if(origin[0] != queryFeatures->state) queryFeatures->setMemoryState(origin[0]);
-  if(origin[1] != targetFeatures->state) targetFeatures->setMemoryState(origin[1]);
+  if(origin[0] != gpu) queryFeatures->setMemoryState(origin[0]);
+  if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
 
   return matches;
 }
@@ -565,9 +569,9 @@ ssrlcv::Unity<ssrlcv::FeatureMatch<T>>* ssrlcv::MatchFactory<T>::generateFeature
 ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances){
 
   MemoryState origin[2] = {queryFeatures->state, targetFeatures->state};
-
-  if(queryFeatures->fore == cpu) queryFeatures->setMemoryState(gpu);
-  if(targetFeatures->fore == cpu) targetFeatures->setMemoryState(gpu);
+  
+  if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
+  if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
 
   unsigned int numPossibleMatches = queryFeatures->numElements;
 
@@ -577,7 +581,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
   Unity<FeatureMatch<T>>* matches = new Unity<FeatureMatch<T>>(matches_device, numPossibleMatches, gpu);
 
   dim3 grid = {1,1,1};
-  dim3 block = {192,1,1};
+  dim3 block = {32,1,1};//IMPROVE
   getGrid(matches->numElements,grid);
 
   float* fundamental_device = nullptr;
@@ -587,7 +591,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
   clock_t timer = clock();
 
   if(seedDistances == nullptr){
-    matchFeaturesConstrained<<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
+    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
     target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device,this->absoluteThreshold);
   }
   else if(seedDistances->numElements != queryFeatures->numElements){
@@ -595,10 +599,12 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
     exit(-1);
   }
   else{
-    if(seedDistances->fore != gpu) seedDistances->setMemoryState(gpu);
+    MemoryState seedOrigin = seedDistances->state;
+    if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
     matchFeaturesConstrained<<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
     target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device,seedDistances->device,
     this->relativeThreshold,this->absoluteThreshold);
+    if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin);
   }
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -609,8 +615,8 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
 
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
-  if(origin[0] != queryFeatures->state) queryFeatures->setMemoryState(origin[0]);
-  if(origin[1] != targetFeatures->state) targetFeatures->setMemoryState(origin[1]);
+  if(origin[0] != gpu) queryFeatures->setMemoryState(origin[0]);
+  if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
 
   return matches;
 
@@ -695,8 +701,8 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, U
 
   MemoryState origin[2] = {queryPixels->state, targetPixels->state};
 
-  if(queryPixels->fore == cpu) queryPixels->setMemoryState(gpu);
-  if(targetPixels->fore == cpu) targetPixels->setMemoryState(gpu);
+  if(origin[0] != gpu) queryPixels->setMemoryState(gpu);
+  if(origin[1] != gpu) targetPixels->setMemoryState(gpu);
   
   uint2 minimizedSize = {querySize.x-windowSize-1,querySize.y-windowSize-1};
 
@@ -708,7 +714,8 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, U
   Unity<Match>* matches = new Unity<Match>(matches_device, numPossibleMatches, gpu);
 
   dim3 grid = {1,1,1};
-  dim3 block = {windowSize,windowSize,1};
+  dim3 block = {windowSize,windowSize,1};//NOTE some devices will not be able to handle large numbers here
+  checkDims(grid,block);
   getGrid(numPossibleMatches,grid);
 
   bool parallel = true;
@@ -739,8 +746,8 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, U
   CudaCheckError();  
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
-  if(origin[0] != queryPixels->state) queryPixels->setMemoryState(origin[0]);
-  if(origin[1] != targetPixels->state) targetPixels->setMemoryState(origin[1]);
+  if(origin[0] != gpu) queryPixels->setMemoryState(origin[0]);
+  if(origin[1] != gpu) targetPixels->setMemoryState(origin[1]);
 
   thrust::device_ptr<Match> needsValidating(matches->device);
   thrust::device_ptr<Match> new_end = thrust::remove_if(needsValidating,needsValidating+matches->numElements,validate());
@@ -759,14 +766,15 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, U
     CudaSafeCall(cudaMemcpy(validatedMatches_device,matches->device,numMatchesLeft*sizeof(Match),cudaMemcpyDeviceToDevice));
     matches->setData(validatedMatches_device,numMatchesLeft,gpu);
   }
-
+  //returning based on origin of query pixels
+  if(origin[0] != gpu) matches->setMemoryState(origin[0]);
   return matches;
 }
 
 
 void ssrlcv::writeMatchFile(Unity<Match>* matches, std::string pathToFile, bool binary){
   MemoryState origin = matches->state;
-  if(origin == gpu) matches->transferMemoryTo(cpu);
+  if(matches->fore == gpu) matches->transferMemoryTo(cpu);
   if(binary){
     std::ofstream matchstream(pathToFile,std::ios_base::binary);
     if(matchstream.is_open()){
@@ -792,15 +800,14 @@ void ssrlcv::writeMatchFile(Unity<Match>* matches, std::string pathToFile, bool 
         matchstream << line;
       }
       matchstream.close();
+    }
+    else{
+      std::cerr<<"ERROR: cannot write match files"<<std::endl;
+      exit(-1);
+    }
   }
-  else{
-    std::cerr<<"ERROR: cannot write match files"<<std::endl;
-    exit(-1);
-  }
-  }
-  
   std::cout<<pathToFile<<" has been written"<<std::endl;
-  if(origin == gpu) matches->setMemoryState(gpu);
+  if(origin != matches->state) matches->setMemoryState(origin);
 }
 //NOTE currently only capable of reading in pairwise match files
 ssrlcv::Unity<ssrlcv::Match>* ssrlcv::readMatchFile(std::string pathToFile){
@@ -837,19 +844,6 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::readMatchFile(std::string pathToFile){
 CUDA implementations
 */
 
-__constant__ int ssrlcv::splineHelper[4][4] = {
-  {1,0,0,0},
-  {0,0,1,0},
-  {-3,3,-2,-1},
-  {2,-2,1,1}
-};
-__constant__ int ssrlcv::splineHelperInv[4][4] = {
-  {1,0,-3,2},
-  {0,0,3,-2},
-  {0,1,-2,1},
-  {0,0,-1,1}
-};
-
 __host__ __device__ __forceinline__ float ssrlcv::sum(const float3 &a){
   return a.x + a.y + a.z;
 }
@@ -861,9 +855,6 @@ __device__ __forceinline__ float ssrlcv::atomicMinFloat (float * addr, float val
   old = (value >= 0) ? __int_as_float(atomicMin((int *)addr, __float_as_int(value))) :
     __uint_as_float(atomicMax((unsigned int *)addr, __float_as_uint(value)));
   return old;
-}
-__host__ __device__ __forceinline__ float ssrlcv::findSubPixelContributer(const float2 &loc, const int &width){
-  return ((loc.y - 12)*(width - 24)) + (loc.x - 12);
 }
 
 //TODO change currentDist to type D
@@ -1015,12 +1006,12 @@ Feature<T>* seedFeatures, float* matchDistances){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
-    __shared__ float localDist[192];
+    __shared__ float localDist[32];
     localDist[threadIdx.x] = FLT_MAX;
     __syncthreads();
     float currentDist = 0.0f;
     unsigned long numSeedFeatures_reg = numSeedFeatures;
-    for(int f = threadIdx.x; f < numSeedFeatures_reg; f += 192){
+    for(int f = threadIdx.x; f < numSeedFeatures_reg; f += 32){
       currentDist = feature.descriptor.distProtocol(seedFeatures[f].descriptor,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
@@ -1029,7 +1020,7 @@ Feature<T>* seedFeatures, float* matchDistances){
     __syncthreads();
     if(threadIdx.x != 0) return;
     currentDist = FLT_MAX;
-    for(int i = 0; i < 192; ++i){
+    for(int i = 0; i < 32; ++i){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
       }
@@ -1045,14 +1036,14 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float absoluteThreshold){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
-    __shared__ int localMatch[192];
-    __shared__ float localDist[192];
+    __shared__ int localMatch[32];
+    __shared__ float localDist[32];
     localMatch[threadIdx.x] = -1;
     localDist[threadIdx.x] = absoluteThreshold;
     __syncthreads();
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
-    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 192){
+    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
       currentDist = feature.descriptor.distProtocol(featuresTarget[f].descriptor,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
@@ -1063,7 +1054,7 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float absoluteThreshold){
     if(threadIdx.x != 0) return;
     currentDist = absoluteThreshold;
     int matchIndex = -1;
-    for(int i = 0; i < 192; ++i){
+    for(int i = 0; i < 32; ++i){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
         matchIndex = localMatch[i];
@@ -1090,8 +1081,8 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float epsilon, float* fundam
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
-    __shared__ int localMatch[192];
-    __shared__ float localDist[192];
+    __shared__ int localMatch[32];
+    __shared__ float localDist[32];
     localMatch[threadIdx.x] = -1;
     localDist[threadIdx.x] = absoluteThreshold;
     __syncthreads();
@@ -1107,7 +1098,7 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float epsilon, float* fundam
     Feature<T> currentFeature;
     float regEpsilon = epsilon;
 
-    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 192){
+    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
 
       currentFeature = featuresTarget[f];
       //ax + by + c = 0
@@ -1123,7 +1114,7 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float epsilon, float* fundam
     if(threadIdx.x != 0) return;
     currentDist = absoluteThreshold;
     int matchIndex = -1;
-    for(int i = 0; i < 192; ++i){
+    for(int i = 0; i < 32; ++i){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
         matchIndex = localMatch[i];
@@ -1150,15 +1141,15 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float* seedDistances, float 
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
-    __shared__ int localMatch[192];
-    __shared__ float localDist[192];
+    __shared__ int localMatch[32];
+    __shared__ float localDist[32];
     localMatch[threadIdx.x] = -1;
     float nearestSeed = seedDistances[blockId];
     localDist[threadIdx.x] = absoluteThreshold;
     __syncthreads();
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
-    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 192){
+    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
       currentDist = feature.descriptor.distProtocol(featuresTarget[f].descriptor,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
@@ -1169,7 +1160,7 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float* seedDistances, float 
     if(threadIdx.x != 0) return;
     currentDist = absoluteThreshold;
     int matchIndex = -1;
-    for(int i = 0; i < 192; ++i){
+    for(int i = 0; i < 32; ++i){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
         matchIndex = localMatch[i];
@@ -1202,8 +1193,8 @@ float relativeThreshold, float absoluteThreshold){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
-    __shared__ int localMatch[192];
-    __shared__ float localDist[192];
+    __shared__ int localMatch[32];
+    __shared__ float localDist[32];
     localMatch[threadIdx.x] = -1;
     float nearestSeed = seedDistances[blockId];
     localDist[threadIdx.x] = absoluteThreshold;
@@ -1220,7 +1211,7 @@ float relativeThreshold, float absoluteThreshold){
     Feature<T> currentFeature;
     float regEpsilon = epsilon;
 
-    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 192){
+    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
 
       currentFeature = featuresTarget[f];
       //ax + by + c = 0
@@ -1236,7 +1227,7 @@ float relativeThreshold, float absoluteThreshold){
     if(threadIdx.x != 0) return;
     currentDist = absoluteThreshold;
     int matchIndex = -1;
-    for(int i = 0; i < 192; ++i){
+    for(int i = 0; i < 32; ++i){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
         matchIndex = localMatch[i];
@@ -1270,14 +1261,14 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float absoluteThreshold){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
-    __shared__ int localMatch[192];
-    __shared__ float localDist[192];
+    __shared__ int localMatch[32];
+    __shared__ float localDist[32];
     localMatch[threadIdx.x] = -1;
     localDist[threadIdx.x] = absoluteThreshold;
     __syncthreads();
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
-    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 192){
+    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
       currentDist = feature.descriptor.distProtocol(featuresTarget[f].descriptor,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
@@ -1288,7 +1279,7 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float absoluteThreshold){
     if(threadIdx.x != 0) return;
     currentDist = absoluteThreshold;
     int matchIndex = -1;
-    for(int i = 0; i < 192; ++i){
+    for(int i = 0; i < 32; ++i){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
         matchIndex = localMatch[i];
@@ -1316,8 +1307,8 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, float* funda
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
-    __shared__ int localMatch[192];
-    __shared__ float localDist[192];
+    __shared__ int localMatch[32];
+    __shared__ float localDist[32];
     localMatch[threadIdx.x] = -1;
     localDist[threadIdx.x] = absoluteThreshold;
     __syncthreads();
@@ -1333,7 +1324,7 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, float* funda
     Feature<T> currentFeature;
     float regEpsilon = epsilon;
 
-    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 192){
+    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
 
       currentFeature = featuresTarget[f];
       //ax + by + c = 0
@@ -1349,7 +1340,7 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, float* funda
     if(threadIdx.x != 0) return;
     currentDist = absoluteThreshold;
     int matchIndex = -1;
-    for(int i = 0; i < 192; ++i){
+    for(int i = 0; i < 32; ++i){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
         matchIndex = localMatch[i];
@@ -1378,15 +1369,15 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
-    __shared__ int localMatch[192];
-    __shared__ float localDist[192];
+    __shared__ int localMatch[32];
+    __shared__ float localDist[32];
     localMatch[threadIdx.x] = -1;
     float nearestSeed = seedDistances[blockId];
     localDist[threadIdx.x] = absoluteThreshold;
     __syncthreads();
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
-    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 192){
+    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
       currentDist = feature.descriptor.distProtocol(featuresTarget[f].descriptor,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
@@ -1397,7 +1388,7 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
     if(threadIdx.x != 0) return;
     currentDist = absoluteThreshold;
     int matchIndex = -1;
-    for(int i = 0; i < 192; ++i){
+    for(int i = 0; i < 32; ++i){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
         matchIndex = localMatch[i];
@@ -1431,8 +1422,8 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
-    __shared__ int localMatch[192];
-    __shared__ float localDist[192];
+    __shared__ int localMatch[32];
+    __shared__ float localDist[32];
     localMatch[threadIdx.x] = -1;
     float nearestSeed = seedDistances[blockId];
     localDist[threadIdx.x] = absoluteThreshold;
@@ -1449,7 +1440,7 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
     Feature<T> currentFeature;
     float regEpsilon = epsilon;
 
-    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 192){
+    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
 
       currentFeature = featuresTarget[f];
       //ax + by + c = 0
@@ -1465,7 +1456,7 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
     if(threadIdx.x != 0) return;
     currentDist = absoluteThreshold;
     int matchIndex = -1;
-    for(int i = 0; i < 192; ++i){
+    for(int i = 0; i < 32; ++i){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
         matchIndex = localMatch[i];
@@ -1499,14 +1490,14 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float abso
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
-    __shared__ int localMatch[192];
-    __shared__ float localDist[192];
+    __shared__ int localMatch[32];
+    __shared__ float localDist[32];
     localMatch[threadIdx.x] = -1;
     localDist[threadIdx.x] = absoluteThreshold;
     __syncthreads();
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
-    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 192){
+    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
       currentDist = feature.descriptor.distProtocol(featuresTarget[f].descriptor,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
@@ -1517,7 +1508,7 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float abso
     if(threadIdx.x != 0) return;
     currentDist = absoluteThreshold;
     int matchIndex = -1;
-    for(int i = 0; i < 192; ++i){
+    for(int i = 0; i < 32; ++i){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
         matchIndex = localMatch[i];
@@ -1547,8 +1538,8 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float epsi
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
-    __shared__ int localMatch[192];
-    __shared__ float localDist[192];
+    __shared__ int localMatch[32];
+    __shared__ float localDist[32];
     localMatch[threadIdx.x] = -1;
     localDist[threadIdx.x] = absoluteThreshold;
     __syncthreads();
@@ -1564,7 +1555,7 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float epsi
     Feature<T> currentFeature;
     float regEpsilon = epsilon;
 
-    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 192){
+    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
 
       currentFeature = featuresTarget[f];
       //ax + by + c = 0
@@ -1580,7 +1571,7 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float epsi
     if(threadIdx.x != 0) return;
     currentDist = absoluteThreshold;
     int matchIndex = -1;
-    for(int i = 0; i < 192; ++i){
+    for(int i = 0; i < 32; ++i){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
         matchIndex = localMatch[i];
@@ -1611,15 +1602,15 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
-    __shared__ int localMatch[192];
-    __shared__ float localDist[192];
+    __shared__ int localMatch[32];
+    __shared__ float localDist[32];
     localMatch[threadIdx.x] = -1;
     float nearestSeed = seedDistances[blockId];
     localDist[threadIdx.x] = absoluteThreshold;
     __syncthreads();
     float currentDist = 0.0f;
     unsigned long numFeaturesTarget_register = numFeaturesTarget;
-    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 192){
+    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
       currentDist = feature.descriptor.distProtocol(featuresTarget[f].descriptor,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
@@ -1630,7 +1621,7 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
     if(threadIdx.x != 0) return;
     currentDist = absoluteThreshold;
     int matchIndex = -1;
-    for(int i = 0; i < 192; ++i){
+    for(int i = 0; i < 32; ++i){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
         matchIndex = localMatch[i];
@@ -1666,8 +1657,8 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
   unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
-    __shared__ int localMatch[192];
-    __shared__ float localDist[192];
+    __shared__ int localMatch[32];
+    __shared__ float localDist[32];
     localMatch[threadIdx.x] = -1;
     float nearestSeed = seedDistances[blockId];
     localDist[threadIdx.x] = absoluteThreshold;
@@ -1684,7 +1675,7 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
     Feature<T> currentFeature;
     float regEpsilon = epsilon;
 
-    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 192){
+    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
 
       currentFeature = featuresTarget[f];
       //ax + by + c = 0
@@ -1700,7 +1691,7 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
     if(threadIdx.x != 0) return;
     currentDist = absoluteThreshold;
     int matchIndex = -1;
-    for(int i = 0; i < 192; ++i){
+    for(int i = 0; i < 32; ++i){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
         matchIndex = localMatch[i];

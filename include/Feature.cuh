@@ -45,7 +45,9 @@ namespace ssrlcv{
     __device__ __host__ SIFT_Descriptor(float theta, unsigned char values[128]);
     //dist here is euclidian distance squared
     __device__ __host__ float distProtocol(const SIFT_Descriptor& b, const float &bestMatch);
+    __device__ __host__ void print();//not recommended to execute on the gpu with more than one feature
   };
+  void printSIFTFeature(ssrlcv::Feature<ssrlcv::SIFT_Descriptor> feature);
 
   struct Window_3x3{
     unsigned char values[3][3];
