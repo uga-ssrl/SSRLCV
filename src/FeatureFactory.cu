@@ -379,7 +379,7 @@ depth(depth), isDOG(makeDOG){
     if(origin != gpu) image->pixels->setMemoryState(origin);
     uint2 imageSize = image->size;
     uint2 scalar = {2,2};
-
+    
     bool canBinEarly = imageSize.x%2 == 0 && imageSize.x%2 == 0;
     if(canBinEarly) makeBinnable(imageSize,pixels,startingOctave+depth.x);
 

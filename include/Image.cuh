@@ -28,14 +28,22 @@ namespace ssrlcv{
     * \brief this struct is meant to house image and camera parameters.
     */
     struct Camera{
-      float3 cam_pos;/**\brief position of camera*/
-      float3 cam_vec;/**\brief pointing vector of camera*/
-      float axangle; /**\brief the axis angle or rotation aroud the camera vector */
-      float fov;/**\brief feild of fiew of camera*/
-      float foc;/**\brief focal length of camera*/
-      float2 dpix;/**\brief real world size of each pixel*/
-      long long int timeStamp;/**\brief seconds since Jan 01, 1070*/
-      uint2 size; /**identical to the image size param, but used in GPU camera modification methods */
+      /**\brief position of camera*/
+      float3 cam_pos;
+      /**\brief pointing vector of camera*/
+      float3 cam_vec;
+      /**\brief the axis angle or rotation aroud the camera vector */
+      float axangle;
+      /**\brief feild of fiew of camera*/
+      float fov;
+      /**\brief focal length of camera*/
+      float foc;
+      /**\brief real world size of each pixel*/
+      float2 dpix;
+      /**\brief seconds since Jan 01, 1070*/
+      long long int timeStamp;
+      /**identical to the image size param, but used in GPU camera modification methods */
+      uint2 size;
       __device__ __host__ Camera();
       __device__ __host__ Camera(uint2 size);
       __device__ __host__ Camera(uint2 size, float3 cam_pos, float3 camp_dir);
@@ -98,7 +106,7 @@ namespace ssrlcv{
 
   //TODO implement
   void calcFundamentalMatrix_2View(float cam0[3][3], float cam1[3][3], float (&F)[3][3]);
-  
+
   void calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F)[3]);
   void get_cam_params2view(Image* cam1, Image* cam2, std::string infile);
 
@@ -115,7 +123,7 @@ namespace ssrlcv{
 
   void makeBinnable(uint2 &size, Unity<unsigned char>* pixels, int plannedDepth);
   void makeBinnable(uint2 &size, Unity<float>* pixels, int plannedDepth);
-  
+
   /**
   *\brief bins an image by a factor of 2 in the x and y direction
   */

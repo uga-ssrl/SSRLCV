@@ -59,7 +59,6 @@ ssrlcv::Image::Image(std::string filePath, int id){
     pixels_host = readJPEG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
   }
   this->camera.size = this->size;
-  this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
 }
 ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int id){
@@ -78,11 +77,7 @@ ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int
     pixels_host = readJPEG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
   }
   this->camera.size = this->size;
-  this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
-  for(int i = 0; i < this->pixels->numElements; ++i){
-    std::cout<<this->pixels->host[i]<<std::endl;
-  }
   if(convertColorDepthTo == 1){
     convertToBW(this->pixels, this->colorDepth);
     this->colorDepth = 1;
@@ -222,8 +217,7 @@ ssrlcv::Unity<float>* ssrlcv::convertImageToFlt(Unity<unsigned char>* pixels){
   MemoryState origin = pixels->state;
   if(origin != gpu) pixels->setMemoryState(gpu);
   dim3 grid = {1,1,1};
-  dim3 block = {1,1,1};
-  std::cout<<pixels->numElements<<std::endl;
+  dim3 block = {1,1,1};  
   getFlatGridBlock(pixels->numElements,grid,block,convertToFltImage);
   Unity<float>* castPixels = new Unity<float>(nullptr,pixels->numElements,gpu);
   convertToFltImage<<<grid,block>>>(pixels->numElements,pixels->device,castPixels->device);
