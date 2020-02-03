@@ -403,7 +403,7 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long pointnum, Bundle
   float3 point = (s1 + s2)/2.0;
 
   // fill in the value for the point cloud
-  pointcloud[globalID] = s1;
+  pointcloud[globalID] = point;
 }
 
 // cannot be used with current stuff
