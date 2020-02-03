@@ -92,9 +92,24 @@ ev02.png,0.0,0.0,4500.0,0.0,0.0,0.0,0.19933754453,0.19933754453,0.16,0.4,1580766
 
 This is the binary version of the ascii format.
 
+### Image File Formats - `.png` , `.tiff` , `.jpg`
+
+TODO information about image support limitations here
+
+### Point Clouds - `.ply` stanford PLY format
+
+TODO information about ply support and limitations here
+
+### Match Files - unknown
+
+TODO Match file support here
+
+
+
+
 # TODO
 * ensure that thrust functions are using GPU
-
+* more documentations
 
 
 
