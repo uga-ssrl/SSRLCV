@@ -2,7 +2,7 @@
 *.exe
 src/*.txt
 out/*
-data/*
+
 bin/*
 .csv
 *.ply

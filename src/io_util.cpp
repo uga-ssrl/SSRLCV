@@ -31,6 +31,7 @@ std::string ssrlcv::getFileExtension(std::string path){
 
 void ssrlcv::getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths){
   DIR* dir;
+  if(dirPath.back() != '/') dirPath += "/";
   if (nullptr == (dir = opendir(dirPath.c_str()))){
     printf("Error : Failed to open input directory %s\n",dirPath.c_str());
     exit(-1);
@@ -146,14 +147,14 @@ unsigned char* ssrlcv::readPNG(const char* filePath, unsigned int &height, unsig
   unsigned char header[8];
 
   if (!fp){
-    std::cout<<"[read_png_file] File %s could not be opened for reading "<< filePath<<std::endl;
+    std::cout<<"[read_png_file] File could not be opened for reading: "<< filePath<<std::endl;
     exit(-1);
   }
 
   fread(header, 1, 8, fp);
 
   if (png_sig_cmp(header, 0, 8)){
-    std::cout<<"[read_png_file] File %s is not recognized as a PNG file "<< filePath<<std::endl;
+    std::cout << "[read_png_file] File is not recognized as a PNG file: " << filePath << std::endl;
     exit(-1);
   }
 
