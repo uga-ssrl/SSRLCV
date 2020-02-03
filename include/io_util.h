@@ -32,7 +32,7 @@ namespace ssrlcv{
   struct flt_arg : public arg{
     float val;
     flt_arg(char* val);
-  }; 
+  };
   struct int_arg : public arg{
     int val;
     int_arg(char* val);
@@ -100,14 +100,15 @@ namespace ssrlcv{
   struct bcpFormat {
   	float pos[3];
   	float vec[3];
-  	float fov, foc;
-    float dpix[2]; 
+  	float fov[2];
+    float foc;
+    float dpix[2];
   };
 
   bool readImageMeta(std::string imgpath, bcpFormat & out);
 
 
-  
+
 
 }
 

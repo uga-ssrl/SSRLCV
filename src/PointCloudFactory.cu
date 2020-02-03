@@ -318,7 +318,7 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
     // the current keypoint to transform
     currentKP = keyPoints[i];
     // set the dpix
-    cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
+    cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov.x / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
     cameras[currentKP.parentId].dpix.y = cameras[currentKP.parentId].dpix.x; // assume square pixel for now
     // here we imagine the image plane is in the X Y plane AT a particular Z value, which is the focal length
     // begin movement to R3
@@ -328,7 +328,7 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
       cameras[currentKP.parentId].foc // this is the focal length
     }; // set the key point
     // rotate to correct orientation
-    kp[k] = rotatePoint(kp[k], cameras[currentKP.parentId].cam_vec);
+    kp[k] = rotatePoint(kp[k], cameras[currentKP.parentId].cam_rot);
     // move to correct world coordinate
     kp[k].x = cameras[currentKP.parentId].cam_pos.x - (kp[k].x);
     kp[k].y = cameras[currentKP.parentId].cam_pos.y - (kp[k].y);
@@ -424,8 +424,6 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linear
 
   // fill in the value for the point cloud
   pointcloud[globalID] = point;
-  // pointcloud[globalID] = s1;
-  // pointcloud[globalID] = s2;
 
   // add the linaer errors locally within the block before
   int error = sqrtf(dotProduct(s1,s2));

@@ -3,7 +3,6 @@
 __device__ __host__ ssrlcv::Image::Camera::Camera(){
   this->cam_rot = {0.0f,0.0f,0.0f};
   this->cam_pos = {0.0f,0.0f,0.0f};
-  this->axangle = 0.0f;
   this->fov = {0.0f,0.0f};
   this->foc = 0;
   this->dpix = {0.0f,0.0f};
@@ -12,7 +11,6 @@ __device__ __host__ ssrlcv::Image::Camera::Camera(){
 __device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size){
   this->cam_rot = {0.0f,0.0f,0.0f};
   this->cam_pos = {0.0f,0.0f,0.0f};
-  this->axangle = 0.0f;
   this->fov = {0.0f,0.0f};
   this->foc = 0;
   this->dpix = {0.0f,0.0f};
@@ -21,7 +19,6 @@ __device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size){
 __device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size, float3 cam_pos, float3 camp_dir){
   this->cam_pos = cam_pos;
   this->cam_rot = cam_rot;
-  this->axangle = 0.0f;
   this->fov = {0.0f,0.0f};
   this->foc = 0;
   this->dpix = {0.0f,0.0f};
@@ -473,8 +470,8 @@ void ssrlcv::get_cam_params2view(Image* cam1, Image* cam2, std::string infile){
       cam2->camera.foc = arg1;
     }
     else if(param.compare("fov") == 0) {
-      cam1->camera.fov = arg1;
-      cam2->camera.fov = arg1;
+      //cam1->camera.fov = arg1;
+      //cam2->camera.fov = arg1;
     }
     else if(param.compare("res") == 0) {
       res = arg1;
