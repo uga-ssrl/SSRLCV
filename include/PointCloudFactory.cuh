@@ -16,24 +16,17 @@ namespace ssrlcv{
    /**
     * \brief A structure to define a line my a vector and a point in R3
     */
-  // struct Line {
-  //   float3 vec; // vector in R3
-  //   float3 pnt; // point in R3
-  // };
-  // /*
-  //  * \brief A structure that contains lines, the collection of lines are considered a bindle and are generated from the same match set
-  //  */
-  // struct Bundle {
-  //   Line* line;
-  //   short n;
-  // };
-
   struct Bundle{
+    /**
+     * \brief A line in R3 point vector format
+     */
     struct Line{
       float3 vec;
       float3 pnt;
     };
+    // The number of lines
     unsigned int numLines;
+    // the index of a single line
     int index;
   };
 
@@ -63,10 +56,13 @@ namespace ssrlcv{
 
     // setero with scalar pass thru
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float scale);
-    
+
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float foc, float baseline, float doffset);
 
-  };  
+
+    ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bunlesSet, unsigned long long int* linearError);
+
+  };
 
   uchar3 heatMap(float value);
 
@@ -80,6 +76,8 @@ namespace ssrlcv{
 
   __global__ void interpolateDepth(uint2 disparityMapSize, int influenceRadius, float* disparities, float* interpolated);
 
+  __global__ void computeTwoViewTriangulate(unsigned long long int* linearError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
+
   __global__ void two_view_reproject(int numMatches, float4* matches, float cam1C[3],
   	float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9],
   	float rotationTranspose1[9], float rotationTranspose2[9], float3* points);
@@ -90,3 +88,55 @@ namespace ssrlcv{
 
 
 #endif /* POINTCLOUDFACTORY_CUH */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// yeet

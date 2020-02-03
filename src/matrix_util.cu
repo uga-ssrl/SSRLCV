@@ -81,6 +81,10 @@ __device__ __host__ float ssrlcv::dotProduct(const float (&A)[3], const float (&
   return (A[0]*B[0]) + (A[1]*B[1]) + (A[2]*B[2]);
 }
 
+__device__ __host__ float3 ssrlcv::crossProduct(const float3 A, const float3 B){
+  return {(A.y * B.z - A.z * B.y),(A.x * B.z - A.z * B.x),(A.x * B.y - A.y * B.x)};
+}
+
 __device__ __host__ bool ssrlcv::inverse(const float (&M)[3][3], float (&M_out)[3][3]){
   float d1 = M[1][1] * M[2][2] - M[2][1] * M[1][2];
   float d2 = M[1][0] * M[2][2] - M[1][2] * M[2][0];
@@ -225,9 +229,9 @@ __device__ float3 ssrlcv::rotatePoint(float3 point, float3 angle) {
   rotationMatrix[0][1] = cosf(angle.z) * sinf(angle.y) * sinf(angle.x) - sinf(angle.z) * cosf(angle.x);
   rotationMatrix[0][2] = cosf(angle.z) * sinf(angle.y) * cosf(angle.x) + sinf(angle.z) * sinf(angle.x);
   rotationMatrix[1][0] = sinf(angle.z) * cosf(angle.y);
-  rotationMatrix[1][1] = sinf(angle.z) * sinf(angle.y) * sinf(angle.x) + cosf(angle.z) * cosf(angle.x); 
+  rotationMatrix[1][1] = sinf(angle.z) * sinf(angle.y) * sinf(angle.x) + cosf(angle.z) * cosf(angle.x);
   rotationMatrix[1][2] = sinf(angle.z) * sinf(angle.y) * cosf(angle.x) - cosf(angle.z) * sinf(angle.x);
-  rotationMatrix[2][0] = -1 * sinf(angle.y);	
+  rotationMatrix[2][0] = -1 * sinf(angle.y);
   rotationMatrix[2][1] = cosf(angle.y) * sinf(angle.x);
   rotationMatrix[2][2] = cosf(angle.y) * cosf(angle.x);
   point = matrixMulVector(point, rotationMatrix);
@@ -244,7 +248,7 @@ __device__ float3 ssrlcv::rotatePointArbitrary(float3 point, float3 axis, float 
   rotationMatrix[1][0] = axis.x * axis.y * k + axis.z * sinf(angle);
   rotationMatrix[1][1] = axis.y * axis.y * k + cosf(angle);
   rotationMatrix[1][2] = axis.y * axis.z * k - axis.x * sinf(angle);
-  rotationMatrix[2][0] = axis.x * axis.z * k - axis.y * sinf(angle);	
+  rotationMatrix[2][0] = axis.x * axis.z * k - axis.y * sinf(angle);
   rotationMatrix[2][1] = axis.y * axis.z * k + axis.x * sinf(angle);
   rotationMatrix[2][2] = axis.z * axis.z * k + cosf(angle);
   point = matrixMulVector(point, rotationMatrix);
