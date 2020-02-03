@@ -58,8 +58,8 @@ int main(int argc, char *argv[]){
 
     std::cout << "Starting matching..." << std::endl;
 
-    if(images.size() > 2){
-       ssrlcv::Unity<float>* seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
+    if(numImages <= 2){
+      ssrlcv::Unity<float>* seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
       ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
       if(seedDistances != nullptr) delete seedDistances;
 
