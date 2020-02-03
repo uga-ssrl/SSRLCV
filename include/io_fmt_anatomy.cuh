@@ -1,4 +1,5 @@
-#pragma once 
+#ifndef IO_FMT_ANATOMY_CUH
+#define IO_FMT_ANATOMY_CUH
 
 #include "Unity.cuh" 
 #include "Feature.cuh"
@@ -29,3 +30,4 @@ namespace ssrlcv {
   }
  }
 }
+#endif /* IO_FMT_ANATOMY_CUH */

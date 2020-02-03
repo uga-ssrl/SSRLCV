@@ -1,5 +1,34 @@
 #include "io_util.h"
 
+
+std::map<std::string, std::string> ssrlcv::cl_args = {
+  {"-i","img"},
+  {"--image","img"},
+  {"-d","dir"},
+  {"--directory","dir"},
+  {"-s","seed"},
+  {"--seed","seed"}
+};
+
+bool ssrlcv::fileExists(std::string fileName){
+    std::ifstream infile(fileName);
+    return infile.good();
+}
+bool ssrlcv::directoryExists(std::string dirPath){
+    if(dirPath.c_str() == NULL) return false;
+    DIR *dir;
+    bool bExists = false;
+    dir = opendir(dirPath.c_str());
+    if(dir != NULL){
+      bExists = true;
+      (void) closedir(dir);
+    }
+    return bExists;
+}
+std::string ssrlcv::getFileExtension(std::string path){
+  return path.substr(path.find_last_of(".") + 1);
+}
+
 void ssrlcv::getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths){
   DIR* dir;
   if (nullptr == (dir = opendir(dirPath.c_str()))){
@@ -7,18 +36,20 @@ void ssrlcv::getImagePaths(std::string dirPath, std::vector<std::string> &imageP
     exit(-1);
   }
   struct dirent* in_file;
+  std::string extension;
   while((in_file = readdir(dir)) != nullptr){
     std::string currentFileName = in_file->d_name;
-
-    if (currentFileName == "." || currentFileName == ".." ||
-      currentFileName.substr(currentFileName.length() - 3) != "png") continue;
-
-    currentFileName = dirPath + currentFileName;
-    imagePaths.push_back(currentFileName);
+    extension = getFileExtension(currentFileName);
+    if(extension == "png" || 
+    extension == "jpg" || extension == "jpeg" || 
+    extension == "tif" || extension == "tiff"){ 
+      currentFileName = dirPath + currentFileName;
+      imagePaths.push_back(currentFileName);
+    }
   }
   closedir(dir);
-  std::cout<<"found "<<imagePaths.size()<<std::endl;
 }
+//will be removed soon
 std::vector<std::string> ssrlcv::findFiles(std::string path){
   std::vector<std::string> imagePaths;
   if(path.find(".png") != std::string::npos){
@@ -30,6 +61,63 @@ std::vector<std::string> ssrlcv::findFiles(std::string path){
   }
   return imagePaths;
 }
+
+ssrlcv::img_arg::img_arg(char* path){
+  this->path = path;
+  if(!fileExists(this->path)){
+    std::cerr<<"ERROR: "<<this->path<<" does not exist"<<std::endl;
+    exit(-1);
+  }
+}
+ssrlcv::img_dir_arg::img_dir_arg(char* path){
+  if(directoryExists(path)){
+    getImagePaths(path,this->paths);
+    if(this->paths.size() == 0){
+      std::cerr<<"ERROR: no images found in "<<path<<std::endl;
+      exit(-1);
+    }
+  }
+  else{
+    std::cerr<<"ERROR: "<<path<<" does not exist"<<std::endl;
+    exit(-1);
+  }
+}
+ssrlcv::flt_arg::flt_arg(char* val){
+  this->val = std::stof(val);
+}
+ssrlcv::int_arg::int_arg(char* val){
+  this->val = std::stoi(val);
+}
+std::map<std::string, ssrlcv::arg*> ssrlcv::parseArgs(int numArgs, char* args[]){
+  if(numArgs < 3){
+    std::cout<<"USAGE ./bin/<executable> -d </path/to/image/directory/> -i </path/to/image> -s </path/to/seed/image>"<<std::endl;
+    exit(0);
+  }
+  std::map<std::string, arg*> arg_map;
+  for(int a = 1; a < numArgs - 1; ++a){
+    std::string temp = cl_args[args[a]];
+    std::cout<<"found "<<temp<<" in arguments"<<std::endl;
+    if(temp == "image" || temp == "seed"){
+      arg_map.insert(arg_pair(temp,new img_arg(args[++a])));
+    }
+    else if(temp == "dir"){
+      if(arg_map.find("dir") != arg_map.end()){
+        getImagePaths(args[++a],((img_dir_arg*)arg_map["dir"])->paths);
+      }
+      else{
+        arg_map.insert(arg_pair(temp, new img_dir_arg(args[++a])));
+      }
+    }
+  }
+  if(arg_map.find("img") == arg_map.end() && arg_map.find("dir") == arg_map.end()){
+    std::cerr<<"ERROR must include atleast one image other than seed for processing"<<std::endl;
+    std::cout<<"USAGE ./bin/<executable> -d </path/to/image/directory/> -i </path/to/image> -s </path/to/seed/image>"<<std::endl;
+    exit(0);
+  }
+  return arg_map;
+}
+
+
 
 unsigned char* ssrlcv::getPixelArray(unsigned char** &row_pointers, const unsigned int &width, const unsigned int &height, const int numValues){
   if(numValues == 0){
@@ -251,10 +339,84 @@ void ssrlcv::writeTIFF(const char* filePath, unsigned char* image, const unsigne
   }
 }
 unsigned char* ssrlcv::readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth){
+  struct jpeg_decompress_struct cinfo;   
+  struct jpeg_error_mgr jerr;
+  std::cout<<"attempting to read "<<filePath<<std::endl;
+  FILE *infile = fopen(filePath, "rb");
+  if (!infile){
+    fprintf(stderr, "can't open %s\n", filePath);
+    exit(-1);
+  }
+  cinfo.err = jpeg_std_error(&jerr);
+  jpeg_create_decompress(&cinfo);
+  jpeg_stdio_src(&cinfo, infile);
+  (void) jpeg_read_header(&cinfo, true);
+  (void) jpeg_start_decompress(&cinfo);
 
+  width = cinfo.output_width;
+  height = cinfo.output_height;
+  colorDepth = cinfo.output_components;
+  int row_stride = width * colorDepth;
+
+  int scanlineSize = width * colorDepth;
+  unsigned char *pixels = new unsigned char[height * scanlineSize];
+  unsigned char **buffer = new unsigned char*[1];
+  buffer[0] = new unsigned char[scanlineSize];
+
+  for(int row = 0; row < height; ++row){
+    (void)jpeg_read_scanlines(&cinfo, buffer, 1);
+    std::memcpy(pixels + (row * scanlineSize), buffer[0], scanlineSize * sizeof(unsigned char));
+  }
+
+  (void)jpeg_finish_decompress(&cinfo);
+  jpeg_destroy_decompress(&cinfo);
+
+  fclose(infile);
+
+  return pixels;
 }
 void ssrlcv::writeJPEG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height){
+  struct jpeg_compress_struct cinfo;
+  struct jpeg_error_mgr jerr;
+  FILE *outfile = fopen(filePath, "wb");
+  if (!outfile)
+  {
+    fprintf(stderr, "can't open %s\n", filePath);
+    exit(-1);
+  }
+  cinfo.err = jpeg_std_error(&jerr);
+  jpeg_create_compress(&cinfo);
+  jpeg_stdio_dest(&cinfo, outfile);
 
+  cinfo.image_width = width;
+  cinfo.image_height = height;
+  cinfo.input_components = colorDepth;
+  if(colorDepth == 1){
+    cinfo.in_color_space = JCS_GRAYSCALE;
+  }
+  else{
+    cinfo.in_color_space = JCS_RGB;
+  }
+  jpeg_set_defaults(&cinfo);
+  jpeg_set_quality(&cinfo,75,true);
+  (void) jpeg_start_compress(&cinfo,true);
+
+  int row_stride = width * colorDepth;
+
+  int scanlineSize = width * colorDepth;
+  unsigned char** buffer = new unsigned char*[1];
+  buffer[0] = new unsigned char[scanlineSize];
+
+  for (int row = 0; row < height; ++row){
+    buffer[0] = &image[row*width*colorDepth];
+    (void)jpeg_write_scanlines(&cinfo, buffer, 1);
+  }
+
+  (void)jpeg_finish_compress(&cinfo);
+  jpeg_destroy_compress(&cinfo);
+
+  fclose(outfile);
+  std::cout<<filePath<<" has been written"<<std::endl;
 }
 
 

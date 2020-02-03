@@ -52,7 +52,6 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     if(origin != gpu) image->pixels->setMemoryState(origin);//no longer need to force pixels on gpu
     // std::string dump = "out/dog";
     // dog->dumpData(dump);
-    std::cout<<"looking for keypoints..."<<std::endl;
     dog->findKeyPoints(noiseThreshold,edgeThreshold,true); 
 
     ScaleSpace::Octave* currentOctave = nullptr;
@@ -100,13 +99,18 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
       if(dog->octaves[o]->extrema == nullptr) continue;
       numKeyPoints += dog->octaves[o]->extrema->numElements;
     }
+    if(numKeyPoints == 0){
+      std::cerr<<"ERROR: something went wrong and there are 0 keypoints"<<std::endl;
+      exit(0);
+    }
+    std::cout<<"total keypoints found = "<<numKeyPoints<<std::endl;
+    std::cout<<"creating features from keypoints..."<<std::endl;
     features = new Unity<Feature<SIFT_Descriptor>>(nullptr,numKeyPoints,gpu);
     //fill descriptors based on SSKeyPoint information
     block = {4,4,8};
 
     MemoryState gradientsOrigin;
 
-    std::cout<<"creating features from keypoints..."<<std::endl;
     for(int o = 0; o < dog->depth.x; ++o){
       currentOctave = dog->octaves[o];
       if(currentOctave->extrema == nullptr) continue;
