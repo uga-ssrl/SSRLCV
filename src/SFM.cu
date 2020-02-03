@@ -30,7 +30,7 @@ int main(int argc, char *argv[]){
     ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* seedFeatures = nullptr;
     if(args.find("seed") != args.end()){
       seedProvided = true;
-      std::string seedPath = ((ssrlcv::img_arg*)&args["seed"])->path;
+      std::string seedPath = ((ssrlcv::img_arg*)args["seed"])->path;
       ssrlcv::Image* seed = new ssrlcv::Image(seedPath,-1);
       seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8);
       matchFactory.setSeedFeatures(seedFeatures);
