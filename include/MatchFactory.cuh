@@ -14,6 +14,11 @@
 
 namespace ssrlcv{
 
+  struct int2_pair{
+    int2 a;
+    int2 b;
+  };
+
   //TODO differentiate distance methods and pass function pointers to matching kernels
 
   /**
@@ -51,8 +56,8 @@ namespace ssrlcv{
     __host__ __device__ bool operator()(const Match &m){
       return m.invalid;
     }
-    __host__ __device__ bool operator()(const int2 &m){
-      return m.x == -1 || m.y == -1;
+    __host__ __device__ bool operator()(const int2_pair &m){
+      return m.a.x == -1 || m.a.y == -1|| m.b.x == 1 || m.b.y == 1;
     }
   };
   /**
@@ -119,7 +124,7 @@ namespace ssrlcv{
     void validateMatches(Unity<Match>* matches);
     void validateMatches(Unity<DMatch>* matches);
     void validateMatches(Unity<FeatureMatch<T>>* matches);
-    void validateMatches(Unity<int2>* matches);
+    void validateMatches(Unity<int2_pair>* matches);
 
     void refineMatches(Unity<DMatch>* matches, float threshold);
     void refineMatches(Unity<FeatureMatch<T>>* matches, float threshold);
@@ -166,13 +171,13 @@ namespace ssrlcv{
     Unity<FeatureMatch<T>>* generateFeatureMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
 
     //todo also add int3 to include distance
-    Unity<int2>* generateMatchesIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances = nullptr);
-    Unity<int2>* generateMatchesConstrainedIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
+    Unity<int2_pair>* generateMatchesIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances = nullptr);
+    Unity<int2_pair>* generateMatchesConstrainedIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
 
     //estimated overlap is a fraction
-    MatchSet* generateFeatureMatchesExaustive(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
-    MatchSet* generateFeatureMatchesBBF(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
-    MatchSet* generateFeatureMatchesKDTree(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
+    MatchSet* generateMatchesExaustive(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
+    MatchSet* generateMatchesBBF(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
+    MatchSet* generateMatchesKDTree(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
 
     
 
@@ -255,22 +260,25 @@ namespace ssrlcv{
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, int2* matches, float absoluteThreshold);
+    Feature<T>* featuresTarget, int2_pair* matches, float absoluteThreshold);
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, int2* matches, float epsilon, float* fundamental, float absoluteThreshold);
+    Feature<T>* featuresTarget, int2_pair* matches, float epsilon, float* fundamental, float absoluteThreshold);
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, int2* matches, float* seedDistances, float relativeThreshold, float absoluteThreshold);
+    Feature<T>* featuresTarget, int2_pair* matches, float* seedDistances, float relativeThreshold, float absoluteThreshold);
   template<typename T>
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-    Feature<T>* featuresTarget, int2* matches, float epsilon, float* fundamental, float* seedDistances, 
+    Feature<T>* featuresTarget, int2_pair* matches, float epsilon, float* fundamental, float* seedDistances, 
     float relativeThreshold, float absoluteThreshold);
 
   //utility kernels
+
+  __global__ void checkOverlap();
+
   __global__ void convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::DMatch* matches);
   template<typename T>
   __global__ void convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::FeatureMatch<T>* matches);

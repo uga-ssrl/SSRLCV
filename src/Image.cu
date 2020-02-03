@@ -223,6 +223,7 @@ ssrlcv::Unity<float>* ssrlcv::convertImageToFlt(Unity<unsigned char>* pixels){
   if(origin != gpu) pixels->setMemoryState(gpu);
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
+  std::cout<<pixels->numElements<<std::endl;
   getFlatGridBlock(pixels->numElements,grid,block,convertToFltImage);
   Unity<float>* castPixels = new Unity<float>(nullptr,pixels->numElements,gpu);
   convertToFltImage<<<grid,block>>>(pixels->numElements,pixels->device,castPixels->device);

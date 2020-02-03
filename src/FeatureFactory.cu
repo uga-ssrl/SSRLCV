@@ -375,6 +375,7 @@ depth(depth), isDOG(makeDOG){
         pixels = convertImageToFlt(image->pixels);
     }
 
+
     if(origin != gpu) image->pixels->setMemoryState(origin);
     uint2 imageSize = image->size;
     uint2 scalar = {2,2};
