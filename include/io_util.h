@@ -15,7 +15,9 @@ namespace ssrlcv{
   /*
   ARG PARSING
   */
-  extern std::map<std::string, std::string> cl_args;//filled out in io_util.cpp
+  // \brief filled out in io_util.cpp
+  extern std::map<std::string, std::string> cl_args;
+  // \brief returns true if the fully qualified path exists
   bool fileExists(std::string fileName);
   bool directoryExists(std::string dirPath);
   std::string getFileExtension(std::string path);

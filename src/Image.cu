@@ -39,7 +39,10 @@ ssrlcv::Image::Image(uint2 size, unsigned int colorDepth, Unity<unsigned char>* 
   this->size = size;
 }
 
-
+/**
+* Creates and Image with Camera Parameters
+* @param 
+*/
 ssrlcv::Image::Image(std::string filePath, int id){
   this->filePath = filePath;
   this->id = id;
@@ -59,6 +62,8 @@ ssrlcv::Image::Image(std::string filePath, int id){
   this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
 }
+
+
 ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int id){
   this->filePath = filePath;
   this->id = id;

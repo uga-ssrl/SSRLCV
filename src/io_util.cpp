@@ -1,6 +1,7 @@
 #include "io_util.h"
 
-
+// args for the main program
+// "flag" "identifier"
 std::map<std::string, std::string> ssrlcv::cl_args = {
   {"-i","img"},
   {"--image","img"},
@@ -41,9 +42,9 @@ void ssrlcv::getImagePaths(std::string dirPath, std::vector<std::string> &imageP
   while((in_file = readdir(dir)) != nullptr){
     std::string currentFileName = in_file->d_name;
     extension = getFileExtension(currentFileName);
-    if(extension == "png" || 
-    extension == "jpg" || extension == "jpeg" || 
-    extension == "tif" || extension == "tiff"){ 
+    if(extension == "png" ||
+    extension == "jpg" || extension == "jpeg" ||
+    extension == "tif" || extension == "tiff"){
       currentFileName = dirPath + currentFileName;
       imagePaths.push_back(currentFileName);
     }
@@ -83,12 +84,17 @@ ssrlcv::img_dir_arg::img_dir_arg(char* path){
     exit(-1);
   }
 }
+
 ssrlcv::flt_arg::flt_arg(char* val){
   this->val = std::stof(val);
 }
+
 ssrlcv::int_arg::int_arg(char* val){
   this->val = std::stoi(val);
 }
+
+// args are parsed here from the guy on top
+// use flags to branch 
 std::map<std::string, ssrlcv::arg*> ssrlcv::parseArgs(int numArgs, char* args[]){
   if(numArgs < 3){
     std::cout<<"USAGE ./bin/<executable> -d </path/to/image/directory/> -i </path/to/image> -s </path/to/seed/image>"<<std::endl;
@@ -223,7 +229,7 @@ void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned
   if (setjmp(png_jmpbuf(png_ptr))){
     std::cout<<"[write_png_file] Error during init_io "<<std::endl;
   }
-  
+
   png_init_io(png_ptr, fp);
 
   /* write header */
@@ -279,7 +285,7 @@ unsigned char* ssrlcv::readTIFF(const char* filePath, unsigned int &height, unsi
     TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
     int scanLineSize = TIFFScanlineSize(tif);
     colorDepth = scanLineSize/width;
-    
+
     unsigned char* pixels = new unsigned char[height*width*colorDepth];
     tdata_t buf;
     buf = _TIFFmalloc(scanLineSize);
@@ -340,7 +346,7 @@ void ssrlcv::writeTIFF(const char* filePath, unsigned char* image, const unsigne
   }
 }
 unsigned char* ssrlcv::readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth){
-  struct jpeg_decompress_struct cinfo;   
+  struct jpeg_decompress_struct cinfo;
   struct jpeg_error_mgr jerr;
   std::cout<<"attempting to read "<<filePath<<std::endl;
   FILE *infile = fopen(filePath, "rb");
@@ -543,5 +549,3 @@ void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
 
   if(origin == gpu) points->setMemoryState(gpu);
 }
-
-
