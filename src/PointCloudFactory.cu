@@ -62,12 +62,21 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
 /**
 * The CPU method that sets up the GPU enabled two view tringulation.
 * @param bundleSet a set of lines and bundles that should be triangulated
+* @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
 */
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet bundleSet){
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet bundleSet, unsigned long long int* linearError){
+
+  // to total error cacluation is stored in this guy
+  *linearError = 0;
+  unsigned long long int* d_linearError;
+  size_t eSize = sizeof(unsigned long long int);
+  CudaSafeCall(cudaMalloc((void**) &d_linearError,eSize));
+  CudaSafeCall(cudaMemcpy(d_linearError,linearError,eSize,cudaMemcpyHostToDevice));
 
   bundleSet.lines->transferMemoryTo(gpu);
   bundleSet.bundles->transferMemoryTo(gpu);
 
+  // Unity<float3>* pointcloud = new Unity<float3>(nullptr,2*bundleSet.bundles->numElements,gpu);
   Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->numElements,gpu);
 
   dim3 grid = {1,1,1};
@@ -75,7 +84,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   getFlatGridBlock(bundleSet.bundles->numElements,grid,block,generateBundle);
 
   std::cout << "Starting 2-view triangulation ..." << std::endl;
-  computeTwoViewTriangulate<<<grid,block>>>(bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  computeTwoViewTriangulate<<<grid,block>>>(d_linearError,bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
   std::cout << "2-view Triangulation done ... \n" << std::endl;
 
   cudaDeviceSynchronize();
@@ -84,6 +93,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   //transfer the poitns back to the CPU
   pointcloud->transferMemoryTo(cpu);
   pointcloud->clear(gpu);
+  // copy back the total error that occured
+  CudaSafeCall(cudaMemcpy(linearError,d_linearError,eSize,cudaMemcpyDeviceToHost));
+  cudaFree(d_linearError);
 
   return pointcloud;
 }
@@ -374,11 +386,19 @@ __global__ void ssrlcv::interpolateDepth(uint2 disparityMapSize, int influenceRa
 
 /**
 * Does a trigulation with skew lines to find their closest intercetion.
+* Generates a total LinearError, which is an analog for reprojection error
 */
-__global__ void ssrlcv::computeTwoViewTriangulate(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
+__global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linearError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
+  // get ready to do the stuff local memory space
+  // this will later be added back to a global memory space
+  __shared__ unsigned long long int localSum;
+  if (threadIdx.x == 0) localSum = 0;
+  __syncthreads();
+
   // this method is from wikipedia, last seen janurary 2020
   // https://en.wikipedia.org/wiki/Skew_lines#Nearest_Points
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  // if (globalID > (1)) return;
   if (globalID > (pointnum-1)) return;
   // we can assume that each line, so we don't need to get the numlines
   // ne guys are made just for easy of writing
@@ -386,28 +406,37 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long pointnum, Bundle
   ssrlcv::Bundle::Line L2 = lines[bundles[globalID].index+1];
 
   // calculate the normals
-  float3 n1 = crossProduct(L2.vec,crossProduct(L1.vec,L2.vec));
-  float3 n2 = crossProduct(L1.vec,crossProduct(L1.vec,L2.vec));
+  float3 n2 = crossProduct(L2.vec,crossProduct(L1.vec,L2.vec));
+  float3 n1 = crossProduct(L1.vec,crossProduct(L1.vec,L2.vec));
 
-  // calculate some numerators
-  float numer1 = dotProduct((L2.pnt - L1.pnt),n1);
-  float numer2 = dotProduct((L1.pnt - L2.pnt),n2);
+  // calculate the numerators
+  float numer1 = dotProduct((L2.pnt - L1.pnt),n2);
+  float numer2 = dotProduct((L1.pnt - L2.pnt),n1);
 
-  // calculate some denominators
-  float denom1 = dotProduct(L1.vec,n1);
-  float denom2 = dotProduct(L2.vec,n2);
+  // calculate the denominators
+  float denom1 = dotProduct(L1.vec,n2);
+  float denom2 = dotProduct(L2.vec,n1);
 
   // get the S points
-  float3 s1 = L1.pnt + (numer1/denom1)*L1.vec; //dotProduct((numer1/denom1),L1.vec);
-  float3 s2 = L2.pnt + (numer2/denom2)*L2.vec; //dotProduct((numer1/denom1),L2.vec);
+  float3 s1 = L1.pnt + (numer1/denom1) * L1.vec;
+  float3 s2 = L2.pnt + (numer2/denom2) * L2.vec;
   float3 point = (s1 + s2)/2.0;
 
   // fill in the value for the point cloud
   pointcloud[globalID] = point;
+  // pointcloud[globalID] = s1;
+  // pointcloud[globalID] = s2;
+
+  // add the linaer errors locally within the block before
+  int error = sqrtf(dotProduct(s1,s2));
+  atomicAdd(&localSum,error);
+  __syncthreads();
+  if (!threadIdx.x) atomicAdd(linearError,localSum);
 }
 
-// cannot be used with current stuff
-// this is the old two view reprojection
+
+// DEPRICATED
+// SHOULD REMOVE
 __global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, float cam1C[3], float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9], float rotationTranspose1[9], float rotationTranspose2[9], float3* points){
    unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
 

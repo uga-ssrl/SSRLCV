@@ -60,7 +60,7 @@ namespace ssrlcv{
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float foc, float baseline, float doffset);
 
 
-    ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bunlesSet);
+    ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bunlesSet, unsigned long long int* linearError);
 
   };
 
@@ -76,7 +76,7 @@ namespace ssrlcv{
 
   __global__ void interpolateDepth(uint2 disparityMapSize, int influenceRadius, float* disparities, float* interpolated);
 
-  __global__ void computeTwoViewTriangulate(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
+  __global__ void computeTwoViewTriangulate(unsigned long long int* linearError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 
   __global__ void two_view_reproject(int numMatches, float4* matches, float cam1C[3],
   	float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9],
