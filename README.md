@@ -22,12 +22,12 @@ When making you should use the SM of your arch, you do this by setting the `SM` 
 
 
 ```
-make sfm -j# SM=## 
+make sfm -j# SM=##
 ```
 
-| Device        | Reccomended           | 
+| Device        | Reccomended           |
 | ------------- |:-------------:|
-| TX2i          | `make sfm -j3 SM=52` | 
+| TX2i          | `make sfm -j3 SM=52` |
 | Jetson Nano      | `make sfm -j3 SM=53`   
 |  Ubuntu 16.04 with GTX 1060/1070     | `make sfm -j9 SM=61` |
 
@@ -44,39 +44,23 @@ make clean
 ## Running
 ### Full Pipeline
 
-There is no full pipeline main setup so far. There are separate pipelines compiled in the `/bin` directory. To learn about the popeline, 
-you can find information on SIFT can be learned here: [Anatomy of SIFT](http://gitlab.smallsat.uga.edu/Caleb/anatomy-of-sift/blob/master/Anatomy%20of%20SIFT.pdf), this 
-sn't Lowe's original thing but it explains it pretty well. You should also see the latex doc that has been made, [located here](https://gitlab.smallsat.uga.edu/payload_software/Tegra-SFM/blob/master/doc/paper/main.pdf) - this is 
+There is no full pipeline main setup so far. There are separate pipelines compiled in the `/bin` directory. To learn about the popeline,
+you can find information on SIFT can be learned here: [Anatomy of SIFT](http://gitlab.smallsat.uga.edu/Caleb/anatomy-of-sift/blob/master/Anatomy%20of%20SIFT.pdf), this
+sn't Lowe's original thing but it explains it pretty well. You should also see the latex doc that has been made, [located here](https://gitlab.smallsat.uga.edu/payload_software/Tegra-SFM/blob/master/doc/paper/main.pdf) - this is
 known as the [Algorithm Theoretical Basis Document](https://gitlab.smallsat.uga.edu/payload_software/Tegra-SFM/blob/master/doc/paper/main.pdf).
 
 ## Source
 
-Source files for the nominal program are located in the `src` folder. Some additional programs are located in the `util` folder. 
-Dependinces for the source file are list here, but dependencies for the util files may vary. 
+Source files for the nominal program are located in the `src` folder. Some additional programs are located in the `util` folder.
+Dependinces for the source file are list here, but dependencies for the util files may vary.
 
 ## File Formats
 
-### Binary Cameras
+### ASCII Camera Params - .csv ASCII encoded file
 
-### Binary Matches
+The ASCII encoded files that contain camera parameters should be included in the same directory as the images you wish to run a reconstruction on. It is required that the file be named `params.txt`. The file consists of the `Image.camera` struct parameters
 
-### ASCII Matches
-Feature matches, for sift, are stored in a `.txt` file. The first line of the file is the number of matches.
+### Binary Camara Params - bcp file type
 
-> matches (int)
-
-The file type is basically a `.csv` of the following format:
-
-> image 1 (string),image 2 (string),image 1 x value (float),image 1 y value (float),image 2 x value (float),image 2 y value (float),r (0-255),g (0-255),b (0-255)
-
-### ASCII Cameras
-Camera location and pointing data is stored in a in a `.txt` file. The file includes a location in `(x,y,z)` as well as a unit vector `(u_x,u_y,u_z)` to represent the orientation of the camera. The file type is basically a `.csv` of the following format:
-
-> image number (int), camera x (float), camera y (float), camera z (float), camera unit x (float), camera unit y (float), camera unit z (float)
-
-### PLY File
-
-
-
-# TODO 
+# TODO
 * ensure that thrust functions are using GPU
