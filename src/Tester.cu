@@ -6,174 +6,157 @@
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
 
+//TODO fix gaussian operators - currently creating very low values
+
+
 int main(int argc, char *argv[]){
   try{
+
     //CUDA INITIALIZATION
     cuInit(0);
     clock_t totalTimer = clock();
     clock_t partialTimer = clock();
 
     //ARG PARSING
-    if(argc < 2 || argc > 4){
-      std::cout<<"USAGE ./bin/Tester </path/to/image/directory/>"<<std::endl;
+
+    std::map<std::string,ssrlcv::arg*> args = ssrlcv::parseArgs(argc,argv);
+    if(args.find("dir") == args.end()){
+      std::cerr<<"ERROR: SFM executable requires a directory of images"<<std::endl;
       exit(-1);
     }
-    std::string path = argv[1];
-    std::vector<std::string> imagePaths = ssrlcv::findFiles(path);
-
+    ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1.5f,6.0f);
+    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,250.0f*250.0f);
+    bool seedProvided = false;
+    ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* seedFeatures = nullptr;
+    if(args.find("seed") != args.end()){
+      seedProvided = true;
+      std::string seedPath = ((ssrlcv::img_arg*)args["seed"])->path;
+      ssrlcv::Image* seed = new ssrlcv::Image(seedPath,-1);
+      seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8);
+      matchFactory.setSeedFeatures(seedFeatures);
+      delete seed;
+    }
+    std::vector<std::string> imagePaths = ((ssrlcv::img_dir_arg*)args["dir"])->paths;
     int numImages = (int) imagePaths.size();
+    std::cout<<"found "<<numImages<<" in directory given"<<std::endl;
 
-    std::cout << "test code running... " << std::endl;
-    // ===================================================================
-    // test code goes below here
-    // Code within these comment blocks can always be deteled and
-    // should only be used when you're testing your new stuff
-    // ===================================================================
+    std::vector<ssrlcv::Image*> images;
+    std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
+    for(int i = 0; i < numImages; ++i){
+      ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
+      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
+      features->transferMemoryTo(ssrlcv::cpu);
+      images.push_back(image);
+      allFeatures.push_back(features);
+    }
 
-    // fake cameras
-    // doesn't matter what the images are
-    std::cout << "=========================== TEST 01 ===========================" << std::endl;
-    std::cout << "Making fake image guys ..." << std::endl;
-    std::vector<ssrlcv::Image*> images_vec;
+    // NEEDS TO BE REPLACED TO AUTO READ IN CAMERA PARAMS
+    //=======================================================================================================================================
+    // TODO this needs tp be handled by setting stuff with the binary camera
+    // param reader and done at about the same time as image loading
+    images[0]->id = 0;
+    images[0]->camera.size = {1024,1024};
+    images[0]->camera.cam_pos = {781.417,0.0,4436.30};//{7.81417,0.0,44.3630};
+    // images[0]->camera.cam_vec = {-0.173648,0.0,-0.984808}; WAS {-0.173648,0.0,-0.984808}
+    images[0]->camera.cam_vec = {0.0,10.0 * (M_PI/180.0),0.0}; // rotation in the y direction
+    images[0]->camera.axangle = 0.0f;
+    images[0]->camera.fov = (11.4212 * (M_PI/180.0)); // 11.4212 degrees
+    images[0]->camera.foc = 0.16; // 160mm, 0.16m
+    // this can also be a passthru (and really should be)
+    images[0]->camera.dpix.x = (images[0]->camera.foc * tanf(images[0]->camera.fov / 2.0f)) / (images[0]->camera.size.x / 2.0f );
+    images[0]->camera.dpix.y = images[0]->camera.dpix.y;
+    std::cout << "Estimated pixel size: " << images[0]->camera.dpix.y << std::endl;
+    // images[0]->camera.dpix.x = 0.014; // 14nm
+    // images[0]->camera.dpix.y = 0.014; // 14nm
 
-    ssrlcv::Image* image0 = new ssrlcv::Image();
-    ssrlcv::Image* image1 = new ssrlcv::Image();
-    images_vec.push_back(image0);
-    images_vec.push_back(image1);
+    images[1]->id = 1;
+    images[1]->camera.size = {1024,1024};
+    images[1]->camera.cam_pos = {0.0,0.0,4500.0};//{0.0,0.0,45.0};
+    // images[1]->camera.cam_vec = {0.0, 0.0,-1.0}; // WAS {0.0,0.0,-1.0}
+    images[1]->camera.cam_vec = {0.0,0.0,0.0}; // There was no rotation!
+    images[1]->camera.axangle = 0.0f;
+    images[1]->camera.fov = (11.4212 * (M_PI/180.0));// 11.4212 degress
+    images[1]->camera.foc = 0.16; //160mm, 1.6cm, 0.16m
+    // this can also be a passthru (and really should be)
+    images[1]->camera.dpix.x = (images[1]->camera.foc * tanf(images[1]->camera.fov / 2.0f)) / (images[1]->camera.size.x / 2.0f );
+    images[1]->camera.dpix.y = images[1]->camera.dpix.y;
+    // images[1]->camera.dpix.x = 0.000014; // 14um
+    // images[1]->camera.dpix.y = 0.000014; // 14um
+    // NEEDS TO BE REPLACED TO AUTO READ IN CAMERA PARAMS
+    //=======================================================================================================================================
 
-    // fill the test camera params
-    std::cout << "Filling in Test Camera Params ..." << std::endl;
-    images_vec[0]->id = 0;
-    images_vec[0]->camera.size = {2,2};
-    images_vec[0]->camera.cam_pos = {0.0,0.0,0.0};
-    images_vec[0]->camera.cam_vec = {2.0,0.707,1.33};
-    images_vec[0]->camera.axangle = 0.0;
-    images_vec[0]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
-    images_vec[0]->camera.foc = 0.25;
-    images_vec[1]->id = 1;
-    images_vec[1]->camera.size = {2,2};
-    images_vec[1]->camera.cam_pos = {0.0,0.0,0.0};
-    images_vec[1]->camera.cam_vec = {-1.0, 1.6, -1.3};
-    images_vec[1]->camera.axangle = M_PI/2.0;
-    images_vec[1]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
-    images_vec[1]->camera.foc = 0.25;
-    // ssrlcv::Unity<ssrlcv::Image>* images = new ssrlcv::Unity<ssrlcv::Image>(images_vec, 2, ssrlcv::cpu);
+    /*
+    MATCHING
+    */
+    //seeding with false photo
 
-    // fill the test match points
-    std::cout << "Filling in Matches ..." << std::endl;
-    ssrlcv::Match* matches_host = new ssrlcv::Match[1];
-    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 1, ssrlcv::cpu);
-    matches->host[0].keyPoints[0].parentId = 0;
-    matches->host[0].keyPoints[1].parentId = 1;
-    matches->host[0].keyPoints[0].loc = {1.5,1.5}; // at the center!
-    matches->host[0].keyPoints[1].loc = {1.0,0.3}; // in the corner
+    std::cout << "Starting matching..." << std::endl;
+    ssrlcv::Unity<float>* seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
+    ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
+    if(seedDistances != nullptr) delete seedDistances;
 
-    // test the line gen method
-    ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
+    distanceMatches->transferMemoryTo(ssrlcv::cpu);
+    float maxDist = 0.0f;
+    for(int i = 0; i < distanceMatches->numElements; ++i){
+      if(maxDist < distanceMatches->host[i].distance) maxDist = distanceMatches->host[i].distance;
+    }
+    printf("max euclidean distance between features = %f\n",maxDist);
+    if(distanceMatches->state != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
+    ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
+    delete distanceMatches;
+    std::string delimiter = "/";
+    std::string matchFile = imagePaths[0].substr(0,imagePaths[0].rfind(delimiter)) + "/matches.txt";
+    ssrlcv::writeMatchFile(matches, matchFile);
 
-    //match interpolation method will take the place of this here.
+    // HARD CODED FOR 2 VIEW
+    // Need to fill into to MatchSet boi
+    std::cout << "Generating MatchSet ..." << std::endl;
     ssrlcv::MatchSet matchSet;
     matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->numElements*2,ssrlcv::cpu);
     matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->numElements,ssrlcv::cpu);
-    for(int i = 0; i < matches->numElements; ++i){
+    matches->setMemoryState(ssrlcv::cpu);
+    for(int i = 0; i < matchSet.matches->numElements; i++){
       matchSet.keyPoints->host[i*2] = matches->host[i].keyPoints[0];
       matchSet.keyPoints->host[i*2 + 1] = matches->host[i].keyPoints[1];
       matchSet.matches->host[i] = {2,i*2};
     }
+    std::cout << "Generated MatchSet ..." << std::endl << "Total Matches: " << matches->numElements << std::endl << std::endl;
 
-    std::cout << "WOW!! look at these bundles: " << std::endl;
-    ssrlcv::BundleSet bundleSet = demPoints.generateBundles(&matchSet,images_vec);
-    std::cout << "<lines start>" << std::endl;
-    for(int i = 0; i < bundleSet.bundles->numElements; i ++){
-      for (int j = bundleSet.bundles->host[i].index; j < bundleSet.bundles->host[i].index + bundleSet.bundles->host[i].numLines; j++){
-        std::cout << "(" << bundleSet.lines->host[j].pnt.x << "," << bundleSet.lines->host[j].pnt.y << "," << bundleSet.lines->host[j].pnt.z << ")\t\t";
-        std::cout << "<" << bundleSet.lines->host[j].vec.x << "," << bundleSet.lines->host[j].vec.y << "," << bundleSet.lines->host[j].vec.z << ">" << std::endl;
-      }
-      std::cout << std::endl;
+
+    /*
+    2 View Reprojection
+    */
+    ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
+
+    // bunlde adjustment loop would be here. images_vec woudl be modified to minimize the boi
+    unsigned long long int* linearError = (unsigned long long int*)malloc(sizeof(unsigned long long int));
+    ssrlcv::BundleSet bundleSet = demPoints.generateBundles(&matchSet,images);
+
+    // the version that will be used normally
+    ssrlcv::Unity<float3>* points = demPoints.twoViewTriangulate(bundleSet, linearError);
+
+
+
+    std::cout << "Total Linear Error: " << *linearError << std::endl;
+
+
+    // optional stereo disparity here
+    // /*
+    // STEREODISPARITY
+    // */
+    // ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
+    // ssrlcv::Unity<float3>* points = demPoints.stereo_disparity(matches,8.0);
+    //
+
+    delete matches;
+    ssrlcv::writePLY("out/test.ply",points);
+    delete points;
+
+    // clean up the images
+    for(int i = 0; i < imagePaths.size(); ++i){
+      delete images[i];
+      delete allFeatures[i];
     }
-    std::cout << "</lines end>" << std::endl;
-
-    std::cout << "=========================== TEST 02 ===========================" << std::endl;
-    std::cout << "Making fake image guys ..." << std::endl;
-    std::vector<ssrlcv::Image*> images_vec_2;
-
-    ssrlcv::Image* image0_2 = new ssrlcv::Image();
-    ssrlcv::Image* image1_2 = new ssrlcv::Image();
-    ssrlcv::Image* image2_2 = new ssrlcv::Image();
-    images_vec_2.push_back(image0_2);
-    images_vec_2.push_back(image1_2);
-    images_vec_2.push_back(image2_2);
-
-    // fill the test camera params
-    std::cout << "Filling in Test Camera Params ..." << std::endl;
-    images_vec_2[0]->id = 0;
-    images_vec_2[0]->camera.size = {2,2};
-    images_vec_2[0]->camera.cam_pos = {0.0,0.0,0.0};
-    images_vec_2[0]->camera.cam_vec = {M_PI/4.0,0.0,0.0};
-    // images_vec_2[0]->camera.axangle = 0.0;
-    images_vec_2[0]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
-    images_vec_2[0]->camera.foc = 1.0; // for easy testing
-    images_vec_2[1]->id = 1;
-    images_vec_2[1]->camera.size = {2,2};
-    images_vec_2[1]->camera.cam_pos = {1.0,0.0,0.0};
-    images_vec_2[1]->camera.cam_vec = {0.0,M_PI/4.0,0.0};
-    // images_vec_2[1]->camera.axangle = M_PI/2.0;
-    images_vec_2[1]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
-    images_vec_2[1]->camera.foc = 1.0;
-    images_vec_2[2]->id = 2;
-    images_vec_2[2]->camera.size = {2,2};
-    images_vec_2[2]->camera.cam_pos = {2.0,0.0,0.0};
-    images_vec_2[2]->camera.cam_vec = {0.0, 0.0, M_PI/4.0};
-    // images_vec_2[2]->camera.axangle = M_PI;
-    images_vec_2[2]->camera.fov = (10.0 * (M_PI/180.0));//30.0;
-    images_vec_2[2]->camera.foc = 1.0;
-    // ssrlcv::Unity<ssrlcv::Image>* images = new ssrlcv::Unity<ssrlcv::Image>(images_vec, 2, ssrlcv::cpu);
-
-    // fill the test match points
-    std::cout << "Filling in Matches ..." << std::endl;
-
-    //match interpolation method will take the place of this here.
-    ssrlcv::MatchSet matchSet_2;
-    // 2 sets of keyPoints total
-    // 1 set of 3 keyPoints
-    // 1 set of 2 keypoints
-    matchSet_2.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,2,ssrlcv::cpu);
-    matchSet_2.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,(3+2),ssrlcv::cpu);
-
-    // define the guys
-    matchSet_2.matches->host[0] = {3,0};
-    // that set of matches
-    matchSet_2.keyPoints->host[0] = {{0},{1.0,1.0}};
-    matchSet_2.keyPoints->host[1] = {{1},{1.0,1.0}};
-    matchSet_2.keyPoints->host[2] = {{2},{1.0,1.0}};
-    // define the guys
-    matchSet_2.matches->host[1] = {2,3};
-    // that set of matches
-    matchSet_2.keyPoints->host[3] = {{0},{1.0,1.0}};
-    matchSet_2.keyPoints->host[4] = {{1},{1.0,1.0}};
-
-    // test the line gen method
-    ssrlcv::PointCloudFactory demPoints_2 = ssrlcv::PointCloudFactory();
-
-    std::cout << "WOW!! look at these bundles: " << std::endl;
-    ssrlcv::BundleSet bundleSet_2 = demPoints_2.generateBundles(&matchSet_2,images_vec_2);
-    std::cout << "<lines start>" << std::endl;
-    for(int i = 0; i < bundleSet_2.bundles->numElements; i ++){
-      for (int j = bundleSet_2.bundles->host[i].index; j < bundleSet_2.bundles->host[i].index + bundleSet_2.bundles->host[i].numLines; j++){
-        std::cout << "(" << bundleSet_2.lines->host[j].pnt.x << "," << bundleSet_2.lines->host[j].pnt.y << "," << bundleSet_2.lines->host[j].pnt.z << ")    ";
-        std::cout << "<" << bundleSet_2.lines->host[j].vec.x << "," << bundleSet_2.lines->host[j].vec.y << "," << bundleSet_2.lines->host[j].vec.z << ">" << std::endl;
-      }
-      std::cout << std::endl;
-    }
-    std::cout << "</lines end>" << std::endl;
-
-
-
-
-    // ===================================================================
-    // test code goes ends above here
-    // ===================================================================
-    std::cout << "done running test code ... " << std::endl;
 
     return 0;
   }
@@ -187,3 +170,61 @@ int main(int argc, char *argv[]){
   }
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// yeet
