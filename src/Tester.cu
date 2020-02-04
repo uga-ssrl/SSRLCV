@@ -86,10 +86,18 @@ int main(int argc, char *argv[]){
       delete points;
     }
     else{
-      ssrlcv::MatchSet* multiviewMatches = matchFactory.generateMatchesExaustive(images,allFeatures);
-
-      delete multiviewMatches->keyPoints;
-      delete multiviewMatches->matches;
+      ssrlcv::MatchSet multiviewMatches = matchFactory.generateMatchesExaustive(images,allFeatures);
+      if(multiviewMatches.matches->state != ssrlcv::cpu) multiviewMatches.matches->setMemoryState(ssrlcv::cpu);
+      if(multiviewMatches.keyPoints->state != ssrlcv::cpu) multiviewMatches.keyPoints->setMemoryState(ssrlcv::cpu);
+      // for(int i = 0; i < multiviewMatches.matches->numElements; ++i){
+      //   for(int j = multiviewMatches.matches->host[i].index; j < multiviewMatches.matches->host[i].numKeyPoints + multiviewMatches.matches->host[i].index; ++j){
+      //     printf("{%u,{%f,%f}} ",multiviewMatches.keyPoints->host[j].parentId,multiviewMatches.keyPoints->host[j].loc.x,multiviewMatches.keyPoints->host[j].loc.y);
+      //   }
+      //   std::cout<<std::endl;
+      // }
+      ssrlcv::writeMatchFile(multiviewMatches, "data/img/multiview_test/matches.txt");
+      if(multiviewMatches.keyPoints != nullptr) delete multiviewMatches.keyPoints;
+      if(multiviewMatches.matches != nullptr) delete multiviewMatches.matches;
     }
     
     if(seedFeatures != nullptr) delete seedFeatures;

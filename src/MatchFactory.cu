@@ -25,12 +25,12 @@ void ssrlcv::MatchFactory<T>::setSeedFeatures(Unity<Feature<T>>* seedFeatures){
   this->seedFeatures = seedFeatures;
 }
 template<typename T>
-void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<int2_pair>* matches){
+void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<uint2_pair>* matches){
   MemoryState origin = matches->state;
   if(origin != gpu) matches->setMemoryState(gpu);
   
-  thrust::device_ptr<int2_pair> needsValidating(matches->device);
-  thrust::device_ptr<int2_pair> new_end = thrust::remove_if(needsValidating,needsValidating+matches->numElements,validate());
+  thrust::device_ptr<uint2_pair> needsValidating(matches->device);
+  thrust::device_ptr<uint2_pair> new_end = thrust::remove_if(needsValidating,needsValidating+matches->numElements,validate());
   cudaDeviceSynchronize();
   CudaCheckError();
   int numMatchesLeft = new_end - needsValidating;
@@ -42,11 +42,11 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<int2_pair>* matches)
   }
   
 
-  printf("%d valid matches found out of %d original matches\n",numMatchesLeft,matches->numElements);
+  printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->numElements);
 
-  int2_pair* validatedMatches_device = nullptr;
-  CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(int2_pair)));
-  CudaSafeCall(cudaMemcpy(validatedMatches_device,matches->device,numMatchesLeft*sizeof(int2_pair),cudaMemcpyDeviceToDevice));
+  uint2_pair* validatedMatches_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(uint2_pair)));
+  CudaSafeCall(cudaMemcpy(validatedMatches_device,matches->device,numMatchesLeft*sizeof(uint2_pair),cudaMemcpyDeviceToDevice));
 
   matches->setData(validatedMatches_device,numMatchesLeft,gpu);
 
@@ -70,7 +70,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::Match>* matc
   }
   
 
-  printf("%d valid matches found out of %d original matches\n",numMatchesLeft,matches->numElements);
+  printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->numElements);
 
   Match* validatedMatches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(Match)));
@@ -99,7 +99,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::DMatch>* mat
   }
   
 
-  printf("%d valid matches found out of %d original matches\n",numMatchesLeft,matches->numElements);
+  printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->numElements);
 
   DMatch* validatedMatches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(DMatch)));
@@ -128,7 +128,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::FeatureMatch
   }
   
 
-  printf("%d valid matches found out of %d original matches\n",numMatchesLeft,matches->numElements);
+  printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->numElements);
 
   FeatureMatch<T>* validatedMatches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(FeatureMatch<T>)));
@@ -158,7 +158,7 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::DMatch>* match
     return;
   }
 
-  printf("%d matches have been refined to %d matches using a cutoff of %f\n",matches->numElements,numElementsBelowThreshold,threshold);
+  printf("%lu matches have been refined to %u matches using a cutoff of %f\n",matches->numElements,numElementsBelowThreshold,threshold);
 
   DMatch* compactedMatches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&compactedMatches_device,numElementsBelowThreshold*sizeof(DMatch)));
@@ -186,7 +186,7 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T
     return;
   }
 
-  printf("%d matches have been refined to %d matches using a cutoff of %f\n",matches->numElements,numElementsBelowThreshold,threshold);
+  printf("%lu matches have been refined to %u matches using a cutoff of %f\n",matches->numElements,numElementsBelowThreshold,threshold);
 
   FeatureMatch<T>* compactedMatches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&compactedMatches_device,numElementsBelowThreshold*sizeof(FeatureMatch<T>)));
@@ -653,7 +653,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
 
 
 template<typename T>
-ssrlcv::Unity<ssrlcv::int2_pair>* ssrlcv::MatchFactory<T>::generateMatchesIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances){
+ssrlcv::Unity<ssrlcv::uint2_pair>* ssrlcv::MatchFactory<T>::generateMatchesIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances){
   MemoryState origin[2] = {queryFeatures->state, targetFeatures->state};
 
   if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
@@ -661,9 +661,9 @@ ssrlcv::Unity<ssrlcv::int2_pair>* ssrlcv::MatchFactory<T>::generateMatchesIndexO
 
   unsigned int numPossibleMatches = queryFeatures->numElements;
 
-  int2_pair* matches_device = nullptr;
-  CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(int2_pair)));
-  Unity<int2_pair>* matches = new Unity<int2_pair>(matches_device, numPossibleMatches, gpu);
+  uint2_pair* matches_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(uint2_pair)));
+  Unity<uint2_pair>* matches = new Unity<uint2_pair>(matches_device, numPossibleMatches, gpu);
 
   dim3 grid = {1,1,1};
   dim3 block = {32,1,1};//IMPROVE
@@ -701,7 +701,7 @@ ssrlcv::Unity<ssrlcv::int2_pair>* ssrlcv::MatchFactory<T>::generateMatchesIndexO
   return matches;
 }
 template<typename T>
-ssrlcv::Unity<ssrlcv::int2_pair>* ssrlcv::MatchFactory<T>::generateMatchesConstrainedIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances){
+ssrlcv::Unity<ssrlcv::uint2_pair>* ssrlcv::MatchFactory<T>::generateMatchesConstrainedIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances){
   MemoryState origin[2] = {queryFeatures->state, targetFeatures->state};
 
   if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
@@ -709,10 +709,10 @@ ssrlcv::Unity<ssrlcv::int2_pair>* ssrlcv::MatchFactory<T>::generateMatchesConstr
 
   unsigned int numPossibleMatches = queryFeatures->numElements;
 
-  int2_pair* matches_device = nullptr;
-  CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(int2_pair)));
+  uint2_pair* matches_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(uint2_pair)));
 
-  Unity<int2_pair>* matches = new Unity<int2_pair>(matches_device, numPossibleMatches, gpu);
+  Unity<uint2_pair>* matches = new Unity<uint2_pair>(matches_device, numPossibleMatches, gpu);
 
   dim3 grid = {1,1,1};
   dim3 block = {32,1,1};//IMPROVE
@@ -758,10 +758,10 @@ ssrlcv::Unity<ssrlcv::int2_pair>* ssrlcv::MatchFactory<T>::generateMatchesConstr
 
 
 template<typename T>
-ssrlcv::MatchSet* ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<ssrlcv::Image*> images, std::vector<ssrlcv::Unity<ssrlcv::Feature<T>>*> features, bool ordered, float estimatedOverlap){
-  MatchSet* matchSet = nullptr;
-  matchSet->keyPoints = nullptr;
-  matchSet->matches = nullptr;
+ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<ssrlcv::Image*> images, std::vector<ssrlcv::Unity<ssrlcv::Feature<T>>*> features, bool ordered, float estimatedOverlap){
+  MatchSet matchSet;
+  matchSet.keyPoints = nullptr;
+  matchSet.matches = nullptr;
   if(estimatedOverlap == 0){
     std::cerr<<"WARNING: estimated overlap fraction of 0.0f requires unordered match interpolation"<<std::endl;
   }
@@ -769,22 +769,98 @@ ssrlcv::MatchSet* ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<
   std::vector<Image*>::iterator target = query + 1;
   typename std::vector<Unity<Feature<T>>*>::iterator features_query = features.begin();
   typename std::vector<Unity<Feature<T>>*>::iterator features_target = features_query + 1;
-  std::vector<Unity<int2_pair>*> matchIndices;
+  std::vector<Unity<uint2_pair>*> matchIndices;
   Unity<float>* seedDistances = nullptr;
-  unsigned long long totalFeatures = features.back()->numElements;
+  unsigned long long totalMatches = 0;
+  int i = 0;
+  std::cout<<"matching images"<<std::endl;
   for(int i = 0; query != images.end() - 1; ++query, ++features_query){
-    totalFeatures += (*features_query)->numElements;
     if(this->seedFeatures != nullptr) seedDistances = this->getSeedDistances(*features_query);
     for(target = query + 1,features_target = features_query + 1; target != images.end(); ++target, ++features_target){
       if(ordered && estimatedOverlap > 0.0f && ++i*(1-estimatedOverlap) > 1.0f) continue; //based off linear images
       //now match
       matchIndices.push_back(this->generateMatchesIndexOnly(*query,*features_query,*target,*features_target,seedDistances));
+      totalMatches += matchIndices[i++]->numElements;
     }
   }
   if(seedDistances != nullptr) delete seedDistances;
+  std::cout<<"prepping match interpolation on cpu"<<std::endl;
   //required connections to make a match?
-  //
+  std::vector<uint2>** adjacencyList = new std::vector<uint2>*[images.size() - 1];
 
+  i = 0;
+  adjacencyList[0] = new std::vector<uint2>[features[0]->numElements];
+  std::cout<<"building adjacency list"<<std::endl;
+  for(auto m = matchIndices.begin(); m != matchIndices.end(); ++m){
+    Unity<uint2_pair>* currentMatches = *m;
+    if(currentMatches->state != cpu) currentMatches->setMemoryState(cpu);
+    if(currentMatches->host[0].a.x != i){
+      i++;
+      adjacencyList[i] = new std::vector<uint2>[features[i]->numElements];
+    }
+    std::cout<<"\t{"<<i<<","<<currentMatches->host[0].b.x<<"}"<<std::endl;
+    for(int p = 0; p < currentMatches->numElements; ++p){
+      uint2_pair* currentPair = &currentMatches->host[p];
+      adjacencyList[currentPair->a.x][currentPair->a.y].push_back(currentPair->b); 
+    }
+    delete currentMatches;
+  }
+  MemoryState* origin = new MemoryState[images.size()];
+  std::vector<std::vector<uint2>> multiMatch_vec;
+  bool badMatch = false;
+  for(i = 0; i < images.size() - 1; ++i){
+    std::cout<<"building MultiMatches with features starting at image "<<i<<std::endl;
+    origin[i] = features[i]->state;
+    if(origin[i] != cpu) features[i]->setMemoryState(cpu);
+    for(int f = 0; f < features[i]->numElements; ++f){
+      std::vector<uint2>* adj = &adjacencyList[i][f];
+      if(!adj->size()) continue;
+      badMatch = false;
+      if(adj->size() != images.size() - 1) badMatch = true;
+      // std::vector<uint2>* prev_adj = adj;
+      // std::vector<uint2>* next_adj;
+      // for(auto m = adj->begin(); m != adj->end() - 1; ++m){
+      //   next_adj = &adjacencyList[m->x][m->y];
+      //   if(!next_adj->size() || next_adj->size() >= prev_adj->size()){
+      //     badMatch = true;
+      //     break;
+      //   }
+      //   else if(adj->size() == 1) break;
+      //   if(std::find(next_adj->begin(),next_adj->end(),*(m+1)) != next_adj->end()){
+      //     prev_adj = next_adj;
+      //   }
+      // }
+      if(badMatch) adj->clear();
+      else{
+        std::vector<uint2> match;
+        match.push_back({i,f});
+        match.insert(match.end(),adjacencyList[i][f].begin(),adjacencyList[i][f].end());
+        multiMatch_vec.push_back(match);
+      } 
+    }
+    delete[] adjacencyList[i];
+  }
+
+  origin[images.size() - 1] = features[images.size() - 1]->state;
+  if(origin[images.size() - 1] != cpu) features[images.size() - 1]->setMemoryState(cpu);
+  std::cout<<multiMatch_vec.size()<<std::endl;
+  matchSet.matches = new Unity<MultiMatch>(nullptr,multiMatch_vec.size(),cpu);
+  std::vector<KeyPoint> kp_vec;
+  i = 0;
+  int index = 0;
+  for(auto m = multiMatch_vec.begin(); m != multiMatch_vec.end(); ++m){
+    matchSet.matches->host[i++] = {m->size(),index};
+    index += m->size();
+    for(auto kp = m->begin(); kp != m->end(); ++kp){
+      kp_vec.push_back({kp->x,features[kp->x]->host[kp->y].loc});
+    }
+  }
+  matchSet.keyPoints = new Unity<KeyPoint>(nullptr,kp_vec.size(),gpu);
+  CudaSafeCall(cudaMemcpy(matchSet.keyPoints->device,&kp_vec[0],kp_vec.size()*sizeof(KeyPoint),cudaMemcpyHostToDevice));
+  for(int i = 0; i < images.size(); ++i){
+    if(origin[i] != cpu) features[i]->setMemoryState(origin[i]);
+  }
+  delete[] origin;
   //1:2,1:3,1:4,1:5,2:3,2:4,2:5,3:4,3:5,4:5
   return matchSet;
 
@@ -802,7 +878,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, U
     exit(-1);
   }
   printf(
-    "running disparity matching on parallel images \n\timage[0] = %lux%lu\n\timage[1] = %lux%lu\n\tmaxDisparity = %d\n\twindow size = %lux%lu\n",
+    "running disparity matching on parallel images \n\timage[0] = %lux%lu\n\timage[1] = %ux%u\n\tmaxDisparity = %d\n\twindow size = %ux%u\n",
     querySize.x,querySize.y,targetSize.x,targetSize.y,maxDisparity,windowSize,windowSize
   );
 
@@ -921,6 +997,38 @@ void ssrlcv::writeMatchFile(Unity<Match>* matches, std::string pathToFile, bool 
   std::cout<<pathToFile<<" has been written"<<std::endl;
   if(origin != matches->state) matches->setMemoryState(origin);
 }
+void ssrlcv::writeMatchFile(MatchSet multiview_matches, std::string pathToFile, bool binary){
+  Unity<MultiMatch>* matches = multiview_matches.matches;
+  Unity<KeyPoint>* keyPoints = multiview_matches.keyPoints;
+  MemoryState origin[2] = {matches->state,keyPoints->state};
+  if(origin[0] != cpu) matches->setMemoryState(cpu);
+  if(origin[1] != cpu) keyPoints->setMemoryState(cpu);
+
+  std::ofstream matchstream(pathToFile);
+  if(matchstream.is_open()){
+    std::string line;
+    for(int i = 0; i < matches->numElements; ++i){
+      line = std::to_string(matches->host[i].numKeyPoints) + ",";
+      for(int kp = matches->host[i].index; kp < matches->host[i].index + matches->host[i].numKeyPoints; ++kp){
+        line += std::to_string(keyPoints->host[kp].parentId) + ",";
+        line += std::to_string(keyPoints->host[kp].loc.x) + ",";
+        line += std::to_string(keyPoints->host[kp].loc.y) + ",";
+      }
+      line += "\n";
+      matchstream << line;
+    }
+    matchstream.close();
+  }
+  else{
+    std::cerr<<"ERROR: cannot write match files"<<std::endl;
+    exit(-1);
+  }
+  
+  std::cout<<pathToFile<<" has been written"<<std::endl;
+  if(origin[0] != cpu) matches->setMemoryState(origin[0]);
+  if(origin[1] != cpu) keyPoints->setMemoryState(origin[1]);
+}
+
 //NOTE currently only capable of reading in pairwise match files
 ssrlcv::Unity<ssrlcv::Match>* ssrlcv::readMatchFile(std::string pathToFile){
   std::ifstream matchstream(pathToFile);
@@ -979,11 +1087,11 @@ matching
 //base matching kernels
 //TODO block this out
 __global__ void ssrlcv::disparityMatching(uint2 querySize, unsigned char* pixelsQuery, uint2 targetSize, unsigned char* pixelsTarget, float* fundamental, Match* matches, unsigned int maxDisparity, Direction direction){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   uint2 minimizedSize = {querySize.x-blockDim.x-1,querySize.y-blockDim.x-1};
   if(blockId < minimizedSize.x*minimizedSize.y){
-    int2 loc = {blockId%minimizedSize.x + (blockDim.x/2),blockId/minimizedSize.x + (blockDim.y/2)};
-    int2 threadLoc = {threadIdx.x - (blockDim.x/2),threadIdx.y - (blockDim.y/2)};
+    uint2 loc = {blockId%minimizedSize.x + (blockDim.x/2),blockId/minimizedSize.x + (blockDim.y/2)};
+    uint2 threadLoc = {threadIdx.x - (blockDim.x/2),threadIdx.y - (blockDim.y/2)};
     __shared__ int3 matchInfo;
     __shared__ int currentDist;
     __shared__ float3 epipolar;
@@ -999,7 +1107,7 @@ __global__ void ssrlcv::disparityMatching(uint2 querySize, unsigned char* pixels
       epipolar.z = (fundamental[6]*loc.x) + (fundamental[7]*loc.y) + fundamental[8];
       if(direction == right){
         searchLoc.x = loc.x;
-        stop -= querySize.x - ((int)maxDisparity + loc.x);
+        stop -= querySize.x - ((int)maxDisparity + (int)loc.x);
       }
       else if(direction == left){
         stride = -1;
@@ -1046,11 +1154,11 @@ __global__ void ssrlcv::disparityMatching(uint2 querySize, unsigned char* pixels
   }
 }
 __global__ void ssrlcv::disparityScanMatching(uint2 querySize, unsigned char* pixelsQuery, uint2 targetSize, unsigned char* pixelsTarget, Match* matches, unsigned int maxDisparity, Direction direction){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   uint2 minimizedSize = {querySize.x-blockDim.x-1,querySize.y-blockDim.x-1};
   if(blockId < minimizedSize.x*minimizedSize.y){
-    int2 loc = {blockId%minimizedSize.x + (blockDim.x/2), blockId/minimizedSize.x + (blockDim.y/2)};
-    int2 threadLoc = {threadIdx.x - (blockDim.x/2),threadIdx.y - (blockDim.y/2)};
+    uint2 loc = {blockId%minimizedSize.x + (blockDim.x/2), blockId/minimizedSize.x + (blockDim.y/2)};
+    uint2 threadLoc = {threadIdx.x - (blockDim.x/2),threadIdx.y - (blockDim.y/2)};
     __shared__ int2 matchInfo;
     __shared__ int currentDist;
     __shared__ int searchX;
@@ -1069,7 +1177,7 @@ __global__ void ssrlcv::disparityScanMatching(uint2 querySize, unsigned char* pi
       else if(direction == left){
         stride = -1;
         searchX = loc.x;
-        if(loc.x - stop < 0){
+        if((int)loc.x - stop < 0){
           stop = loc.x;
         }
       }
@@ -1115,7 +1223,7 @@ __global__ void ssrlcv::disparityScanMatching(uint2 querySize, unsigned char* pi
 template<typename T>
 __global__ void ssrlcv::getSeedMatchDistances(unsigned long numFeaturesQuery, Feature<T>* featuresQuery, unsigned long numSeedFeatures,
 Feature<T>* seedFeatures, float* matchDistances){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ float localDist[32];
@@ -1145,7 +1253,7 @@ template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
 ssrlcv::Feature<T>* featuresTarget, Match* matches, float absoluteThreshold){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[32];
@@ -1190,7 +1298,7 @@ template<typename T>
 __global__ void ssrlcv::matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
 ssrlcv::Feature<T>* featuresTarget, Match* matches, float epsilon, float* fundamental, float absoluteThreshold){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[32];
@@ -1250,7 +1358,7 @@ template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
 ssrlcv::Feature<T>* featuresTarget, Match* matches, float* seedDistances, float relativeThreshold, float absoluteThreshold){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[32];
@@ -1302,7 +1410,7 @@ __global__ void ssrlcv::matchFeaturesConstrained(unsigned int queryImageID, unsi
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
 ssrlcv::Feature<T>* featuresTarget, Match* matches, float epsilon, float* fundamental, float* seedDistances, 
 float relativeThreshold, float absoluteThreshold){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[32];
@@ -1370,7 +1478,7 @@ template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
 ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float absoluteThreshold){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[32];
@@ -1416,7 +1524,7 @@ template<typename T>
 __global__ void ssrlcv::matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
 ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, float* fundamental, float absoluteThreshold){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[32];
@@ -1478,7 +1586,7 @@ __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsig
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
 ssrlcv::Feature<T>* featuresTarget, DMatch* matches, 
 float* seedDistances, float relativeThreshold, float absoluteThreshold){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[32];
@@ -1531,7 +1639,7 @@ __global__ void ssrlcv::matchFeaturesConstrained(unsigned int queryImageID, unsi
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
 ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, float* fundamental, 
 float* seedDistances, float relativeThreshold, float absoluteThreshold){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[32];
@@ -1599,7 +1707,7 @@ template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
 ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float absoluteThreshold){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[32];
@@ -1647,7 +1755,7 @@ template<typename T>
 __global__ void ssrlcv::matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
 ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float epsilon, float* fundamental, float absoluteThreshold){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[32];
@@ -1711,7 +1819,7 @@ __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsig
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
 ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches,
 float* seedDistances, float relativeThreshold, float absoluteThreshold){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[32];
@@ -1766,7 +1874,7 @@ __global__ void ssrlcv::matchFeaturesConstrained(unsigned int queryImageID, unsi
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
 ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float epsilon, float* fundamental,
 float* seedDistances, float relativeThreshold, float absoluteThreshold){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[32];
@@ -1837,8 +1945,8 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
 template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-ssrlcv::Feature<T>* featuresTarget, int2_pair* matches, float absoluteThreshold){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+ssrlcv::Feature<T>* featuresTarget, uint2_pair* matches, float absoluteThreshold){
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[32];
@@ -1865,12 +1973,12 @@ ssrlcv::Feature<T>* featuresTarget, int2_pair* matches, float absoluteThreshold)
         matchIndex = localMatch[i];
       }
     }
-    int2_pair match;
+    uint2_pair match;
     if(currentDist > absoluteThreshold){
-      match = {{-1,-1},{-1,-1}};
+      match = {{queryImageID,blockId},{queryImageID,blockId}};
     }
     else{
-      match = {{queryImageID,blockId},{targetImageID,matchIndex}};
+      match = {{queryImageID,blockId},{targetImageID,(unsigned int)matchIndex}};
     }
     matches[blockId] = match;
   }
@@ -1878,8 +1986,8 @@ ssrlcv::Feature<T>* featuresTarget, int2_pair* matches, float absoluteThreshold)
 template<typename T>
 __global__ void ssrlcv::matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-ssrlcv::Feature<T>* featuresTarget, int2_pair* matches, float epsilon, float* fundamental, float absoluteThreshold){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+ssrlcv::Feature<T>* featuresTarget, uint2_pair* matches, float epsilon, float* fundamental, float absoluteThreshold){
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[32];
@@ -1921,12 +2029,12 @@ ssrlcv::Feature<T>* featuresTarget, int2_pair* matches, float epsilon, float* fu
         matchIndex = localMatch[i];
       }
     }
-    int2_pair match;
+    uint2_pair match;
     if(currentDist > absoluteThreshold){
-      match = {{-1,-1},{-1,-1}};
+      match = {{queryImageID,blockId},{queryImageID,blockId}};
     }
     else{
-      match = {{queryImageID,blockId},{targetImageID,matchIndex}};
+      match = {{queryImageID,blockId},{targetImageID,(unsigned int)matchIndex}};
     }
     matches[blockId] = match;
   }
@@ -1934,8 +2042,8 @@ ssrlcv::Feature<T>* featuresTarget, int2_pair* matches, float epsilon, float* fu
 template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-ssrlcv::Feature<T>* featuresTarget, int2_pair* matches, float* seedDistances, float relativeThreshold, float absoluteThreshold){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+ssrlcv::Feature<T>* featuresTarget, uint2_pair* matches, float* seedDistances, float relativeThreshold, float absoluteThreshold){
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[32];
@@ -1963,16 +2071,16 @@ ssrlcv::Feature<T>* featuresTarget, int2_pair* matches, float* seedDistances, fl
         matchIndex = localMatch[i];
       }
     }
-    int2_pair match;
+    uint2_pair match;
     if(currentDist > absoluteThreshold || matchIndex == -1){
-      match = {{-1,-1},{-1,-1}};
+      match = {{queryImageID,blockId},{queryImageID,blockId}};
     }
     else{
       if(currentDist/nearestSeed > relativeThreshold){
-        match = {{-1,-1},{-1,-1}};
+        match = {{queryImageID,blockId},{queryImageID,blockId}};
       }
       else{
-      match = {{queryImageID,blockId},{targetImageID,matchIndex}};
+      match = {{queryImageID,blockId},{targetImageID,(unsigned int)matchIndex}};
       }
     }
     matches[blockId] = match;
@@ -1981,9 +2089,9 @@ ssrlcv::Feature<T>* featuresTarget, int2_pair* matches, float* seedDistances, fl
 template<typename T>
 __global__ void ssrlcv::matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
-ssrlcv::Feature<T>* featuresTarget, int2_pair* matches, float epsilon, float* fundamental, float* seedDistances, 
+ssrlcv::Feature<T>* featuresTarget, uint2_pair* matches, float epsilon, float* fundamental, float* seedDistances, 
 float relativeThreshold, float absoluteThreshold){
-  unsigned long blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
     __shared__ int localMatch[32];
@@ -2026,16 +2134,16 @@ float relativeThreshold, float absoluteThreshold){
         matchIndex = localMatch[i];
       }
     }
-    int2_pair match;
+    uint2_pair match;
     if(currentDist > absoluteThreshold || matchIndex == -1){
-      match = {{-1,-1},{-1,-1}};
+      match = {{queryImageID,blockId},{queryImageID,blockId}};
     }
     else{
       if(currentDist/nearestSeed > relativeThreshold){
-        match = {{-1,-1},{-1,-1}};
+        match = {{queryImageID,blockId},{queryImageID,blockId}};
       }
       else{
-      match = {{queryImageID,blockId},{targetImageID,matchIndex}};
+        match = {{queryImageID,blockId},{targetImageID,(unsigned int)matchIndex}};
       }
     }
     matches[blockId] = match;
