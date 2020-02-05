@@ -55,7 +55,7 @@ int main(int argc, char *argv[]){
     // TODO this needs tp be handled by setting stuff with the binary camera
     // param reader and done at about the same time as image loading
 
-    std::count << "-----------------------------------------------" << std::endl;
+    std::cout << "-----------------------------------------------" << std::endl;
 
     std::cout << images[0]->id;
     std::cout << std::endl;
@@ -93,7 +93,7 @@ int main(int argc, char *argv[]){
     std::cout << images[1]->camera.dpix.y;
     std::cout << std::endl;
 
-    std::count << "-----------------------------------------------" << std::endl;
+    std::cout << "-----------------------------------------------" << std::endl;
 
     // NEEDS TO B std::cout << std::endl;E REPLACED TO AUTO READ IN CAMERA PARAMS
     //=======================================================================================================================================
