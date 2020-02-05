@@ -99,11 +99,12 @@ int main(int argc, char *argv[]){
 
     // the version that will be used normally
     ssrlcv::Unity<float3>* points = demPoints.twoViewTriangulate(bundleSet, linearError);
-
-
-
     std::cout << "Total Linear Error: " << *linearError << std::endl;
 
+    // here is a version that will give me individual linear errors
+    ssrlcv::Unity<float>* errors = new ssrlcv::Unity<float>(nullptr,matches->numElements,ssrlcv::cpu);
+    ssrlcv::Unity<float3>* points2 = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
+    // then I write them to a csv to see what to heck is goin on 
 
     // optional stereo disparity here
     // /*

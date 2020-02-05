@@ -59,8 +59,20 @@ namespace ssrlcv{
 
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float foc, float baseline, float doffset);
 
-
+    /**
+    * The CPU method that sets up the GPU enabled two view tringulation.
+    * @param bundleSet a set of lines and bundles that should be triangulated
+    * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
+    */
     ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bunlesSet, unsigned long long int* linearError);
+
+    /**
+    * The CPU method that sets up the GPU enabled two view tringulation.
+    * @param bundleSet a set of lines and bundles that should be triangulated
+    * @param the individual linear errors (for use in debugging and histogram)
+    * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
+    */
+    ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bunlesSet, Unity<float>* errors, unsigned long long int* linearError);
 
   };
 

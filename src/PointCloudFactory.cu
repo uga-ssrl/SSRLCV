@@ -101,6 +101,49 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
 }
 
 /**
+* The CPU method that sets up the GPU enabled two view tringulation.
+* @param bundleSet a set of lines and bundles that should be triangulated
+* @param the individual linear errors (for use in debugging and histogram)
+* @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
+*/
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet bundleSet, Unity<float>* errors, unsigned long long int* linearError){
+
+  // to total error cacluation is stored in this guy
+  *linearError = 0;
+  unsigned long long int* d_linearError;
+  size_t eSize = sizeof(unsigned long long int);
+  CudaSafeCall(cudaMalloc((void**) &d_linearError,eSize));
+  CudaSafeCall(cudaMemcpy(d_linearError,linearError,eSize,cudaMemcpyHostToDevice));
+
+  bundleSet.lines->transferMemoryTo(gpu);
+  bundleSet.bundles->transferMemoryTo(gpu);
+  errors->transferMemoryTo(gpu);
+
+  // Unity<float3>* pointcloud = new Unity<float3>(nullptr,2*bundleSet.bundles->numElements,gpu);
+  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->numElements,gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(bundleSet.bundles->numElements,grid,block,generateBundle);
+
+  std::cout << "Starting 2-view triangulation ..." << std::endl;
+  computeTwoViewTriangulate<<<grid,block>>>(d_linearError,errors->device,bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  std::cout << "2-view Triangulation done ... \n" << std::endl;
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  //transfer the poitns back to the CPU
+  pointcloud->transferMemoryTo(cpu);
+  pointcloud->clear(gpu);
+  // copy back the total error that occured
+  CudaSafeCall(cudaMemcpy(linearError,d_linearError,eSize,cudaMemcpyDeviceToHost));
+  cudaFree(d_linearError);
+
+  return pointcloud;
+}
+
+/**
 * Preforms a Stereo Disparity with the correct scalar, calcualated form camera
 * parameters
 * @param matches0
@@ -433,123 +476,6 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linear
 }
 
 
-// DEPRICATED
-// SHOULD REMOVE
-__global__ void ssrlcv::two_view_reproject(int numMatches, float4* matches, float cam1C[3], float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9], float rotationTranspose1[9], float rotationTranspose2[9], float3* points){
-   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
-
-  if(!(globalID<numMatches))return;
-	//check out globalID cheat sheet jackson gave you for this
-	int matchIndex = globalID; //need to define once I calculate grid/block size
-	float4 match = matches[globalID];
-
-
-	float pix1[3] =
-	{
-		match.x, match.y, 1
-	};
-	float pix2[3] =
-	{
-		match.z, match.w, 1
-  };
-  float K_inv_reg[3][3];
-  for(int r = 0; r < 3; ++r){
-    for(int c = 0; c < 3; ++c){
-      K_inv_reg[r][c] = K_inv[r*3 + c];
-    }
-  }
-  float rotationTranspose1_reg[3][3];
-   for(int r = 0; r < 3; ++r){
-    for(int c = 0; c < 3; ++c){
-      rotationTranspose1_reg[r][c] = rotationTranspose1[r*3 + c];
-    }
-  }
-  float rotationTranspose2_reg[3][3];
-   for(int r = 0; r < 3; ++r){
-    for(int c = 0; c < 3; ++c){
-      rotationTranspose2_reg[r][c] = rotationTranspose2[r*3 + c];
-    }
-  }
-
-	float inter1[3];
-	float inter2[3];
-
-	float temp[3];
-	multiply(K_inv_reg, pix1, temp);
-	multiply(rotationTranspose1_reg, temp, inter1);
-	multiply(K_inv_reg, pix2, temp);
-	multiply(rotationTranspose2_reg, temp, inter2);
-
-	float worldP1[3] =
-	{
-		inter1[0]+cam1C[0], inter1[1]+cam1C[1], inter1[2]+cam1C[2]
-	};
-
-	float worldP2[3] =
-	{
-		inter2[0]+cam2C[0], inter2[1]+cam2C[1], inter2[2]+cam2C[2]
-	};
-
-	float v1[3] =
-	{
-		worldP1[0] - cam1C[0], worldP1[1] - cam1C[1], worldP1[2] - cam1C[2]
-	};
-
-	float v2[3] =
-	{
-		worldP2[0] - cam2C[0], worldP2[1] - cam2C[1], worldP2[2] - cam2C[2]
-	};
-
-	normalize(v1);
-	normalize(v2);
-
-
-
-	//match1 and match2?
-	float M1[3][3] =
-	{
-		{ 1-(v1[0]*v1[0]), 0-(v1[0]*v1[1]), 0-(v1[0]*v1[2]) },
-		{ 0-(v1[0]*v1[1]), 1-(v1[1]*v1[1]), 0-(v1[1]*v1[2]) },
-		{ 0-(v1[0]*v1[2]), 0-(v1[1]*v1[2]), 1-(v1[2]*v1[2]) }
-	};
-
-	float M2[3][3] =
-	{
-		{ 1-(v2[0]*v2[0]), 0-(v2[0]*v2[1]), 0-(v2[0]*v2[2]) },
-		{ 0-(v2[0]*v2[1]), 1-(v2[1]*v2[1]), 0-(v2[1]*v2[2]) },
-		{ 0-(v2[0]*v2[2]), 0-(v2[1]*v2[2]), 1-(v2[2]*v2[2]) }
-	};
-
-	float q1[3];
-	float q2[3];
-	float Q[3];
-
-	multiply( M1, worldP1, q1);
-	multiply( M2, worldP2, q2);
-
-	float M[3][3];
-	float M_inv[3][3];
-
-	for(int r = 0; r < 3; ++r)
-	{
-		for(int c = 0; c < 3; ++c)
-		{
-			M[r][c] = M1[r][c] + M2[r][c];
-		}
-		Q[r] = q1[r] + q2[r];
-	}
-
-	float solution[3];
-	inverse(M, M_inv);
-	multiply(M_inv, Q, solution);
-
-
-
-  	points[matchIndex].x = solution[0];
-  	points[matchIndex].y = solution[1];
-  	points[matchIndex].z = solution[2];
-
-}
 
 
 

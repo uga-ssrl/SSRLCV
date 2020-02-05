@@ -454,6 +454,22 @@ void ssrlcv::writeJPEG(const char* filePath, unsigned char* image, const unsigne
   std::cout<<filePath<<" has been written"<<std::endl;
 }
 
+//
+// CSV and Misc Debug IO
+//
+
+/*
+ * Takes in an array of floats and writes them to a CSV
+ * @param values a set of float elements as a float array that are written in csv format on one line
+ * @param num the number of elements in the float array
+ * @param filename a string representing the desired filename of the csv output
+ */
+void ssrlcv::writeCSV(float* values, int num, std::string filename){
+  std::ofstream outfile;
+  outfile.open("out/" + filename + ".csv");
+
+  outfile.close();
+}
 
 //
 // Binary files - Gitlab #58
