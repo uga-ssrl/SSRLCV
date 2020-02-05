@@ -17,29 +17,54 @@ namespace ssrlcv{
   */
   // \brief filled out in io_util.cpp
   extern std::map<std::string, std::string> cl_args;
+
   // \brief returns true if the fully qualified path exists
   bool fileExists(std::string fileName);
+
   bool directoryExists(std::string dirPath);
+
   std::string getFileExtension(std::string path);
+
+  /*
+   * Returns the folder of a file give a fully qualified filepath
+   * @param path a string representing a fully qualified filepath
+   * @return string which is the fully qualified folder path
+   */
+  std::string getFolderFromFilePath(std::string path);
+
+  /*
+   * Returns the filename from a fully qualified filepath
+   * @param path a string representing a fully qualified filepath
+   * @return string which is the filename only
+   */
+  std::string getFileFromFilePath(std::string path);
+
   void getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths);
+
   struct arg{};
+
   struct img_arg : public arg{
     std::string path;
     img_arg(char* path);
   };
+
   struct img_dir_arg : public arg{
     std::vector<std::string> paths;
     img_dir_arg(char* path);
   };
+
   struct flt_arg : public arg{
     float val;
     flt_arg(char* val);
   };
+
   struct int_arg : public arg{
     int val;
     int_arg(char* val);
   };
+
   typedef std::pair<std::string, arg*> arg_pair;
+
   std::vector<std::string> findFiles(std::string path);//going to be deprecated
 
   std::map<std::string, arg*> parseArgs(int numArgs, char* args[]);

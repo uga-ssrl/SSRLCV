@@ -1,14 +1,16 @@
 #include "io_util.h"
 
-// args for the main program
+// \brief these are the args for the main program
 // "flag" "identifier"
 std::map<std::string, std::string> ssrlcv::cl_args = {
-  {"-i","img"},
-  {"--image","img"},
-  {"-d","dir"},
-  {"--directory","dir"},
-  {"-s","seed"},
-  {"--seed","seed"}
+  {"-i","img"}, // for single images
+  {"--image","img"}, // for single images
+  {"-d","dir"}, // for directories
+  {"--directory","dir"}, // for directories
+  {"-s","seed"}, // for seed images
+  {"--seed","seed"}, // for seed images
+  {"-np","noparams"}, // to disable the requirement of a params.csv or params.bcp file
+  {"--noparams","noparams"}  // to disable the requirement of a params.csv or params.bcp file
 };
 
 bool ssrlcv::fileExists(std::string fileName){
@@ -26,8 +28,32 @@ bool ssrlcv::directoryExists(std::string dirPath){
     }
     return bExists;
 }
+
+/*
+ * retunrs the file extension of a give file
+ * @param path a string of a filepath
+ * @return string a string of the end of the file
+ */
 std::string ssrlcv::getFileExtension(std::string path){
   return path.substr(path.find_last_of(".") + 1);
+}
+
+/*
+ * Returns the folder of a file give a fully qualified filepath
+ * @param path a string representing a fully qualified filepath
+ * @return string
+ */
+std::string ssrlcv::getFolderFromFilePath(std::string path){
+  return path.substr(0, path.find_last_of("\\/"));
+}
+
+/*
+ * Returns the filename from a fully qualified filepath
+ * @param path a string representing a fully qualified filepath
+ * @return string which is the filename only
+ */
+std::string ssrlcv::getFileFromFilePath(std::string path){
+  return path.substr(path.find_last_of("\\/") + 1);
 }
 
 void ssrlcv::getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths){
@@ -93,8 +119,10 @@ ssrlcv::int_arg::int_arg(char* val){
   this->val = std::stoi(val);
 }
 
-// args are parsed here from the guy on top
-// use flags to branch 
+/*
+ * Arguments from the main executable are parsed here. These are set above in the cl_args map
+ * @param
+ */
 std::map<std::string, ssrlcv::arg*> ssrlcv::parseArgs(int numArgs, char* args[]){
   if(numArgs < 3){
     std::cout<<"USAGE ./bin/<executable> -d </path/to/image/directory/> -i </path/to/image> -s </path/to/seed/image>"<<std::endl;

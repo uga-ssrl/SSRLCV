@@ -41,26 +41,89 @@ ssrlcv::Image::Image(uint2 size, unsigned int colorDepth, Unity<unsigned char>* 
 
 /**
 * Creates and Image with Camera Parameters
-* @param 
+* @param filePath is a string of a fully qualified path to an image file
+* @param id the number representing the image, id is 0-maxint if a real image or -1 if a seed image
 */
-ssrlcv::Image::Image(std::string filePath, int id){
+ssrlcv::Image::Image(std::string filePath, int id) {
+  std::string filename = getFileFromFilePath(filePath);
   this->filePath = filePath;
   this->id = id;
   this->colorDepth = 1;
   unsigned char* pixels_host = nullptr;
+  // find the image extension
   std::string extension = getFileExtension(filePath);
-  if(extension == "png"){
+  if(extension == "png"){ // load if PNG
     pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
   }
-  else if(extension == "tiff" || extension == "tif"){
+  else if(extension == "tiff" || extension == "tif"){ // load if TIFF
     pixels_host = readTIFF(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
   }
-  else if(extension == "jpeg" || extension == "jpg"){
+  else if(extension == "jpeg" || extension == "jpg"){ // load if JPG
     pixels_host = readJPEG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
   }
+  // set some initial params
   this->camera.size = this->size;
   this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
+  // read additional params, and if the param requirement is removed then don't do any of this
+  // checks that the image is not a seed image. extra params are not needed for seed images
+  if (id > -1){
+    std::string params_path = getFolderFromFilePath(filePath);
+    bool shouldExit = 0;
+    // defaults to reading ascii params if both exist
+    if (fileExists(params_path + "/params.csv")){// read in the file as an ASCII enoding
+      std::cout << "Reading ASCII encoded camera parameters ..." << std::endl;
+      // you know, this could be cleaner and generalized but idk if we wil ever want a csv reader other than here
+      std::ifstream file(params_path + "/params.csv"); // declare file stream: http://www.cplusplus.com/reference/iostream/ifstream/
+      std::string value;
+      while (file.good()){
+          // wait until we find the filename, or maybe we don't and it was empty. in that case nothing happens
+          getline(file,value,','); // read a string until next comma: http://www.cplusplus.com/reference/string/getline/
+          if (filename == value){ // if we have a match, read in the parameters one by one
+            getline(file,value,',');
+            this->camera.cam_pos.x = std::atof(value.c_str());
+            getline(file,value,',');
+            this->camera.cam_pos.y = std::atof(value.c_str());
+            getline(file,value,',');
+            this->camera.cam_pos.z = std::atof(value.c_str());
+            getline(file,value,',');
+            this->camera.cam_rot.x = std::atof(value.c_str());
+            getline(file,value,',');
+            this->camera.cam_rot.y = std::atof(value.c_str());
+            getline(file,value,',');
+            this->camera.cam_rot.z = std::atof(value.c_str());
+            getline(file,value,',');
+            this->camera.fov.x     = std::atof(value.c_str());
+            getline(file,value,',');
+            this->camera.fov.y     = std::atof(value.c_str());
+            getline(file,value,',');
+            this->camera.foc       = std::atof(value.c_str());
+            getline(file,value,',');
+            // this->camera.dpix.x    = std::atof(value.c_str());
+            // uses pinhole camera assumption
+            this->camera.dpix.x = (this->camera.foc * tanf(this->camera.fov.x / 2.0f)) / (this->camera.size.x / 2.0f );
+            getline(file,value,',');
+            // this->camera.dpix.y    = std::atof(value.c_str());
+            // uses pinhole camera assumption
+            this->camera.dpix.y = this->camera.dpix.x;
+            getline(file,value,',');
+            this->camera.timeStamp = std::strtoll (value.c_str(), NULL, 0);
+            getline(file,value,',');
+            // camera.size.x was already set
+            getline(file,value,',');
+            // camera.side.y was already set
+            break;
+          }
+      }
+    } else if (fileExists(params_path + "/params.bcp")) {
+      std::cout << "Reading BCP encoded camera parameters ..." << std::endl;
+      // TODO read in binary incoded guys here
+    } else { // if no config file was found!
+      std::cerr << "NO CAMERA PARAM FILE FOUND, at least an empty params.csv or params.bcp is required. To disable this requirement use the flag -np or -noparams"  << std::endl;
+      // std::throw -1; // TODO make this throw an exception
+    }
+  }
+  std::cout << "filePath: " << filePath << std::endl;
 }
 
 
