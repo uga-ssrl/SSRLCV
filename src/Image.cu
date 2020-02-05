@@ -67,18 +67,21 @@ ssrlcv::Image::Image(std::string filePath, int id) {
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
   // read additional params, and if the param requirement is removed then don't do any of this
   // checks that the image is not a seed image. extra params are not needed for seed images
-  if (id > -1){
+  if (id != -1){
     std::string params_path = getFolderFromFilePath(filePath);
-    bool shouldExit = 0;
     // defaults to reading ascii params if both exist
     if (fileExists(params_path + "/params.csv")){// read in the file as an ASCII enoding
       std::cout << "Reading ASCII encoded camera parameters ..." << std::endl;
+      std::cout << "Looking for matching file " << filename << std::endl;
       // you know, this could be cleaner and generalized but idk if we wil ever want a csv reader other than here
       std::ifstream file(params_path + "/params.csv"); // declare file stream: http://www.cplusplus.com/reference/iostream/ifstream/
       std::string value;
       while (file.good()){
           // wait until we find the filename, or maybe we don't and it was empty. in that case nothing happens
           getline(file,value,','); // read a string until next comma: http://www.cplusplus.com/reference/string/getline/
+          // sanitize the input
+          value.erase(std::remove(value.begin(), value.end(), '\n'), value.end());
+          std::cout << "READ: " << value << std::endl;
           if (filename == value){ // if we have a match, read in the parameters one by one
             getline(file,value,',');
             std::cout << "\t ___________________________________________________" << std::endl;
@@ -155,9 +158,11 @@ ssrlcv::Image::Image(std::string filePath, int id) {
             // camera.side.y was already set
             std::cout << "\t | " << this->camera.size.y << std::endl;
             std::cout << "BREAK!!" << std::endl;
+            file.close();
             break;
           }
       }
+      file.close();
     } else if (fileExists(params_path + "/params.bcp")) {
       std::cout << "Reading BCP encoded camera parameters ..." << std::endl;
       // TODO read in binary incoded guys here

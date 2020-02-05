@@ -74,7 +74,7 @@ int main(int argc, char *argv[]){
     std::cout << images[0]->camera.dpix.y;
     std::cout << std::endl;
 
-    std::count << "-----------------------------------------------" << std::endl;
+    std::cout << "-----------------------------------------------" << std::endl;
 
     std::cout << images[1]->id;
     std::cout << std::endl;
