@@ -1,28 +1,25 @@
 #include "Image.cuh"
 
 __device__ __host__ ssrlcv::Image::Camera::Camera(){
-  this->cam_vec = {0.0f,0.0f,0.0f};
+  this->cam_rot = {0.0f,0.0f,0.0f};
   this->cam_pos = {0.0f,0.0f,0.0f};
-  this->axangle = 0.0f;
-  this->fov = 0;
+  this->fov = {0.0f,0.0f};
   this->foc = 0;
   this->dpix = {0.0f,0.0f};
   this->size = {0,0};
 }
 __device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size){
-  this->cam_vec = {0.0f,0.0f,0.0f};
+  this->cam_rot = {0.0f,0.0f,0.0f};
   this->cam_pos = {0.0f,0.0f,0.0f};
-  this->axangle = 0.0f;
-  this->fov = 0;
+  this->fov = {0.0f,0.0f};
   this->foc = 0;
   this->dpix = {0.0f,0.0f};
   this->size = {0,0};
 }
 __device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size, float3 cam_pos, float3 camp_dir){
   this->cam_pos = cam_pos;
-  this->cam_vec = cam_vec;
-  this->axangle = 0.0f;
-  this->fov = 0;
+  this->cam_rot = cam_rot;
+  this->fov = {0.0f,0.0f};
   this->foc = 0;
   this->dpix = {0.0f,0.0f};
   this->size = size;
@@ -42,25 +39,98 @@ ssrlcv::Image::Image(uint2 size, unsigned int colorDepth, Unity<unsigned char>* 
   this->size = size;
 }
 
-
-ssrlcv::Image::Image(std::string filePath, int id){
+/**
+* Creates and Image with Camera Parameters
+* @param filePath is a string of a fully qualified path to an image file
+* @param id the number representing the image, id is 0-maxint if a real image or -1 if a seed image
+*/
+ssrlcv::Image::Image(std::string filePath, int id) {
+  std::string filename = getFileFromFilePath(filePath);
   this->filePath = filePath;
   this->id = id;
   this->colorDepth = 1;
   unsigned char* pixels_host = nullptr;
+  // find the image extension
   std::string extension = getFileExtension(filePath);
-  if(extension == "png"){
+  if(extension == "png"){ // load if PNG
     pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
   }
-  else if(extension == "tiff" || extension == "tif"){
+  else if(extension == "tiff" || extension == "tif"){ // load if TIFF
     pixels_host = readTIFF(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
   }
-  else if(extension == "jpeg" || extension == "jpg"){
+  else if(extension == "jpeg" || extension == "jpg"){ // load if JPG
     pixels_host = readJPEG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
   }
+  // set some initial params
   this->camera.size = this->size;
+  this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
+  // read additional params, and if the param requirement is removed then don't do any of this
+  // checks that the image is not a seed image. extra params are not needed for seed images
+  if (id != -1){
+    std::string params_path = getFolderFromFilePath(filePath);
+    // defaults to reading ascii params if both exist
+    if (fileExists(params_path + "/params.csv")){// read in the file as an ASCII enoding
+      std::cout << "Reading ASCII encoded camera parameters ..." << std::endl;
+      std::cout << "Looking for matching file " << filename << std::endl;
+      // you know, this could be cleaner and generalized but idk if we wil ever want a csv reader other than here
+      std::ifstream file(params_path + "/params.csv"); // declare file stream: http://www.cplusplus.com/reference/iostream/ifstream/
+      std::string value;
+      while (file.good()){
+          // wait until we find the filename, or maybe we don't and it was empty. in that case nothing happens
+          getline(file,value,','); // read a string until next comma: http://www.cplusplus.com/reference/string/getline/
+          // sanitize the input
+          value.erase(std::remove(value.begin(), value.end(), '\n'), value.end());
+          if (filename == value){ // if we have a match, read in the parameters one by one
+            getline(file,value,',');
+            this->camera.cam_pos.x = std::atof(value.c_str());
+            getline(file,value,',');
+            this->camera.cam_pos.y = std::atof(value.c_str());
+            getline(file,value,',');
+            this->camera.cam_pos.z = std::atof(value.c_str());
+            getline(file,value,',');
+            this->camera.cam_rot.x = std::atof(value.c_str());
+            getline(file,value,',');
+            this->camera.cam_rot.y = std::atof(value.c_str());
+            getline(file,value,',');
+            this->camera.cam_rot.z = std::atof(value.c_str());
+            getline(file,value,',');
+            this->camera.fov.x     = std::atof(value.c_str());
+            getline(file,value,',');
+            this->camera.fov.y     = std::atof(value.c_str());
+            getline(file,value,',');
+            this->camera.foc       = std::atof(value.c_str());
+            getline(file,value,',');
+            // this->camera.dpix.x    = std::atof(value.c_str());
+            // uses pinhole camera assumption
+            this->camera.dpix.x = (this->camera.foc * tanf(this->camera.fov.x / 2.0f)) / (this->camera.size.x / 2.0f );
+            getline(file,value,',');
+            // this->camera.dpix.y    = std::atof(value.c_str());
+            // uses pinhole camera assumption
+            this->camera.dpix.y = this->camera.dpix.x;
+            getline(file,value,',');
+            this->camera.timeStamp = std::strtoll(value.c_str(), NULL, 0);
+            getline(file,value,',');
+            // camera.size.x was already set
+            getline(file,value,',');
+            // camera.side.y was already set
+            file.close();
+            break;
+          }
+      }
+      file.close();
+    } else if (fileExists(params_path + "/params.bcp")) {
+      std::cout << "Reading BCP encoded camera parameters ..." << std::endl;
+      // TODO read in binary incoded guys here
+    } else { // if no config file was found!
+      std::cerr << "NO CAMERA PARAM FILE FOUND, at least an empty params.csv or params.bcp is required. To disable this requirement use the flag -np or -noparams"  << std::endl;
+      // std::throw -1; // TODO make this throw an exception
+    }
+  }
+  std::cout << "filePath: " << filePath << std::endl;
 }
+
+
 ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int id){
   this->filePath = filePath;
   this->id = id;
@@ -77,7 +147,11 @@ ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int
     pixels_host = readJPEG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
   }
   this->camera.size = this->size;
+  this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
+  for(int i = 0; i < this->pixels->numElements; ++i){
+    std::cout<<this->pixels->host[i]<<std::endl;
+  }
   if(convertColorDepthTo == 1){
     convertToBW(this->pixels, this->colorDepth);
     this->colorDepth = 1;
@@ -181,7 +255,7 @@ ssrlcv::Unity<float>* ssrlcv::addBufferBorder(uint2 size, ssrlcv::Unity<float>* 
   }
   MemoryState origin = pixels->state;
   if(origin != gpu) pixels->setMemoryState(gpu);
-  
+
   uint2 newSize = {size.x + (border.x*2),size.y + (border.y*2)};
   int colorDepth = pixels->numElements/((int)size.x*size.y);
   Unity<float>* bufferedPixels = new Unity<float>(nullptr,newSize.x*newSize.y*colorDepth,gpu);
@@ -217,7 +291,7 @@ ssrlcv::Unity<float>* ssrlcv::convertImageToFlt(Unity<unsigned char>* pixels){
   MemoryState origin = pixels->state;
   if(origin != gpu) pixels->setMemoryState(gpu);
   dim3 grid = {1,1,1};
-  dim3 block = {1,1,1};  
+  dim3 block = {1,1,1};
   getFlatGridBlock(pixels->numElements,grid,block,convertToFltImage);
   Unity<float>* castPixels = new Unity<float>(nullptr,pixels->numElements,gpu);
   convertToFltImage<<<grid,block>>>(pixels->numElements,pixels->device,castPixels->device);
@@ -323,16 +397,16 @@ void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F
     exit(-1);
   }
   float angle1;
-  if(abs(query->camera.cam_vec.z) < .00001) {
-    if(query->camera.cam_vec.y > 0)  angle1 = PI/2;
+  if(abs(query->camera.cam_rot.z) < .00001) {
+    if(query->camera.cam_rot.y > 0)  angle1 = PI/2;
     else       angle1 = -1*PI/2;
   }
   else {
-    angle1 = atan(query->camera.cam_vec.y / query->camera.cam_vec.z);
-    if(query->camera.cam_vec.z<0 && query->camera.cam_vec.y>=0) {
+    angle1 = atan(query->camera.cam_rot.y / query->camera.cam_rot.z);
+    if(query->camera.cam_rot.z<0 && query->camera.cam_rot.y>=0) {
       angle1 += PI;
     }
-    if(query->camera.cam_vec.z<0 && query->camera.cam_vec.y<0) {
+    if(query->camera.cam_rot.z<0 && query->camera.cam_rot.y<0) {
       angle1 -= PI;
     }
   }
@@ -343,7 +417,7 @@ void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F
   };
 
   float3 temp = {0.0f,0.0f,0.0f};
-  multiply(A1, query->camera.cam_vec,temp);
+  multiply(A1, query->camera.cam_rot,temp);
 
   float angle2 = 0.0f;
   if(abs(temp.z) < .00001) {
@@ -374,16 +448,16 @@ void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F
   multiply(rot1Transpose, temp2, temp);
 
   angle1 = 0.0f;
-  if(abs(target->camera.cam_vec.z) < .00001) {
-    if(target->camera.cam_vec.y > 0)  angle1 = PI/2;
+  if(abs(target->camera.cam_rot.z) < .00001) {
+    if(target->camera.cam_rot.y > 0)  angle1 = PI/2;
     else       angle1 = -1*PI/2;
   }
   else {
-    angle1 = atan(target->camera.cam_vec.y / target->camera.cam_vec.z);
-    if(target->camera.cam_vec.z<0 && target->camera.cam_vec.y>=0) {
+    angle1 = atan(target->camera.cam_rot.y / target->camera.cam_rot.z);
+    if(target->camera.cam_rot.z<0 && target->camera.cam_rot.y>=0) {
       angle1 += PI;
     }
-    if(target->camera.cam_vec.z<0 && target->camera.cam_vec.y<0) {
+    if(target->camera.cam_rot.z<0 && target->camera.cam_rot.y<0) {
       angle1 -= PI;
     }
   }
@@ -392,7 +466,7 @@ void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F
     {0, cos(angle1), -sin(angle1)},
     {0, sin(angle1), cos(angle1)}
   };
-  multiply(A2, target->camera.cam_vec,temp2);
+  multiply(A2, target->camera.cam_rot,temp2);
 
   angle2 = 0.0f;
   if(abs(temp2.z) < .00001) {
@@ -468,8 +542,8 @@ void ssrlcv::get_cam_params2view(Image* cam1, Image* cam2, std::string infile){
       cam2->camera.foc = arg1;
     }
     else if(param.compare("fov") == 0) {
-      cam1->camera.fov = arg1;
-      cam2->camera.fov = arg1;
+      //cam1->camera.fov = arg1;
+      //cam2->camera.fov = arg1;
     }
     else if(param.compare("res") == 0) {
       res = arg1;
@@ -482,9 +556,9 @@ void ssrlcv::get_cam_params2view(Image* cam1, Image* cam2, std::string infile){
     }
     else if(param.compare("cam1V") == 0) {
       iss >> arg2 >> arg3;
-      cam1->camera.cam_vec.x = arg1;
-      cam1->camera.cam_vec.y = arg2;
-      cam1->camera.cam_vec.z = arg3;
+      cam1->camera.cam_rot.x = arg1;
+      cam1->camera.cam_rot.y = arg2;
+      cam1->camera.cam_rot.z = arg3;
     }
     else if(param.compare("cam2C") == 0) {
       iss >> arg2 >> arg3;
@@ -494,22 +568,22 @@ void ssrlcv::get_cam_params2view(Image* cam1, Image* cam2, std::string infile){
     }
     else if(param.compare("cam2V") == 0) {
       iss >> arg2 >> arg3;
-      cam2->camera.cam_vec.x = arg1;
-      cam2->camera.cam_vec.y = arg2;
-      cam2->camera.cam_vec.z = arg3;
+      cam2->camera.cam_rot.x = arg1;
+      cam2->camera.cam_rot.y = arg2;
+      cam2->camera.cam_rot.z = arg3;
     }
   }
 
-  cam1->camera.dpix = {cam1->camera.foc*tan(cam1->camera.fov/2)/(cam1->size.x/2),
-    cam1->camera.foc*tan(cam1->camera.fov/2)/(cam1->size.y/2)};
-  cam2->camera.dpix = {cam2->camera.foc*tan(cam2->camera.fov/2)/(cam2->size.x/2),
-    cam2->camera.foc*tan(cam2->camera.fov/2)/(cam2->size.y/2)};
+  cam1->camera.dpix = {cam1->camera.foc*tan(cam1->camera.fov.x/2)/(cam1->size.x/2),
+    cam1->camera.foc*tan(cam1->camera.fov.y/2)/(cam1->size.y/2)};
+  cam2->camera.dpix = {cam2->camera.foc*tan(cam2->camera.fov.x/2)/(cam2->size.x/2),
+    cam2->camera.foc*tan(cam2->camera.fov.y/2)/(cam2->size.y/2)};
 }
 
 ssrlcv::Unity<int2>* ssrlcv::generatePixelGradients(uint2 imageSize, Unity<unsigned char>* pixels){
   MemoryState origin = pixels->state;
   if(origin != gpu) pixels->setMemoryState(gpu);
-  
+
   int2* gradients_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&gradients_device,pixels->numElements*sizeof(int2)));
   dim3 grid = {1,1,1};
@@ -526,7 +600,7 @@ ssrlcv::Unity<int2>* ssrlcv::generatePixelGradients(uint2 imageSize, Unity<unsig
 ssrlcv::Unity<float2>* ssrlcv::generatePixelGradients(uint2 imageSize, Unity<float>* pixels){
   MemoryState origin = pixels->state;
   if(origin != gpu) pixels->setMemoryState(gpu);
-  
+
   float2* gradients_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&gradients_device,pixels->numElements*sizeof(float2)));
   dim3 grid = {1,1,1};
@@ -553,7 +627,7 @@ void ssrlcv::makeBinnable(uint2 &size, Unity<unsigned char>* pixels, int planned
       size.x*=2;size.y*=2;numResize *= 2;
       dimOffset[0] = size.x%numResize;
       dimOffset[1] = size.y%numResize;
-    } 
+    }
     int2 border = {
         dimOffset[0] ? (numResize-(size.x%numResize))/2 : 0,
         dimOffset[1] ? (numResize-(size.y%numResize))/2 : 0
@@ -581,7 +655,7 @@ void ssrlcv::makeBinnable(uint2 &size, Unity<float>* pixels, int plannedDepth){
       size.x*=2;size.y*=2;numResize *= 2;
       dimOffset[0] = size.x%numResize;
       dimOffset[1] = size.y%numResize;
-    } 
+    }
     int2 border = {
         dimOffset[0] ? (numResize-(size.x%numResize))/2 : 0,
         dimOffset[1] ? (numResize-(size.y%numResize))/2 : 0
@@ -616,7 +690,7 @@ ssrlcv::Unity<unsigned char>* ssrlcv::bin(uint2 imageSize, Unity<unsigned char>*
   if(origin != gpu){
     pixels->setMemoryState(origin);
     binnedImage->setMemoryState(origin);
-  } 
+  }
   return binnedImage;
 }
 ssrlcv::Unity<float>* ssrlcv::bin(uint2 imageSize, Unity<float>* pixels){
@@ -656,14 +730,14 @@ ssrlcv::Unity<unsigned char>* ssrlcv::upsample(uint2 imageSize, Unity<unsigned c
   if(origin != gpu){
     pixels->setMemoryState(origin);
     upsampledImage->setMemoryState(origin);
-  } 
+  }
   return upsampledImage;
 
 }
 ssrlcv::Unity<float>* ssrlcv::upsample(uint2 imageSize, Unity<float>* pixels){
   MemoryState origin = pixels->state;
   if(origin != gpu) pixels->setMemoryState(gpu);
-  
+
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2, unsigned int, float*, float*) = &upsampleImage;
@@ -677,14 +751,14 @@ ssrlcv::Unity<float>* ssrlcv::upsample(uint2 imageSize, Unity<float>* pixels){
   if(origin != gpu){
     pixels->setMemoryState(origin);
     upsampledImage->setMemoryState(origin);
-  } 
+  }
   return upsampledImage;
 }
 ssrlcv::Unity<unsigned char>* ssrlcv::scaleImage(uint2 imageSize, Unity<unsigned char>* pixels, float outputPixelWidth){
   MemoryState origin = pixels->state;
 
   if(origin != gpu) pixels->setMemoryState(gpu);
-  
+
   unsigned char* sampledImage_device = nullptr;
 
   dim3 grid = {1,1,1};
@@ -696,7 +770,7 @@ ssrlcv::Unity<unsigned char>* ssrlcv::scaleImage(uint2 imageSize, Unity<unsigned
   bilinearInterpolation<<<grid,block>>>(imageSize,colorDepth,pixels->device,sampledImage_device,outputPixelWidth);
   cudaDeviceSynchronize();
   CudaCheckError();
-  
+
   Unity<unsigned char>* sampledImage = new Unity<unsigned char>(sampledImage_device, pixels->numElements/(outputPixelWidth*outputPixelWidth), gpu);
 
   if(origin != gpu){
@@ -709,7 +783,7 @@ ssrlcv::Unity<unsigned char>* ssrlcv::scaleImage(uint2 imageSize, Unity<unsigned
 ssrlcv::Unity<float>* ssrlcv::scaleImage(uint2 imageSize, Unity<float>* pixels, float outputPixelWidth){
   MemoryState origin = pixels->state;
   if(origin != gpu) pixels->setMemoryState(gpu);
-  
+
   float* sampledImage_device = nullptr;
 
   dim3 grid = {1,1,1};
@@ -745,10 +819,10 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<unsigned char>* pi
   float* kernel_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&kernel_device,kernelSize.x*kernelSize.y*sizeof(float)));
   CudaSafeCall(cudaMemcpy(kernel_device,kernel,kernelSize.x*kernelSize.y*sizeof(float),cudaMemcpyHostToDevice));
-  
+
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  
+
   float2 minMax = {FLT_MAX,-FLT_MAX};
   float* min = nullptr;
 
@@ -770,7 +844,7 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<unsigned char>* pi
   if(origin != gpu){
     convolvedImage->setMemoryState(origin);
     pixels->setMemoryState(origin);
-  } 
+  }
   return convolvedImage;
 }
 ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<float>* pixels, int2 kernelSize, float* kernel, bool symmetric){
@@ -785,7 +859,7 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<float>* pixels, in
   float* kernel_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&kernel_device,kernelSize.x*kernelSize.y*sizeof(float)));
   CudaSafeCall(cudaMemcpy(kernel_device,kernel,kernelSize.x*kernelSize.y*sizeof(float),cudaMemcpyHostToDevice));
-  
+
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
 

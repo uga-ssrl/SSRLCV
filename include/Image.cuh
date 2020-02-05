@@ -30,12 +30,10 @@ namespace ssrlcv{
     struct Camera{
       /**\brief position of camera*/
       float3 cam_pos;
-      /**\brief pointing vector of camera*/
-      float3 cam_vec;
-      /**\brief the axis angle or rotation aroud the camera vector */
-      float axangle;
+      /**\brief the x, y, z rotations of the camera*/
+      float3 cam_rot;
       /**\brief feild of fiew of camera*/
-      float fov;
+      float2 fov;
       /**\brief focal length of camera*/
       float foc;
       /**\brief real world size of each pixel*/
@@ -76,14 +74,12 @@ namespace ssrlcv{
       this->camera.cam_pos.y  = data.pos[1];
       this->camera.cam_pos.z  = data.pos[2];
 
-      this->camera.cam_vec.x  = data.vec[0];
-      this->camera.cam_vec.y  = data.vec[1];
-      this->camera.cam_vec.z  = data.vec[2];
+      this->camera.cam_rot.x  = data.vec[0];
+      this->camera.cam_rot.y  = data.vec[1];
+      this->camera.cam_rot.z  = data.vec[2];
 
-      // TODO: Need to pass through an axis angle
-      //this->camera.axangle  = data.axangle;
-
-      this->camera.fov        = data.fov;
+      this->camera.fov.x      = data.fov[0];
+      this->camera.fov.y      = data.fov[1];
       this->camera.foc        = data.foc;
 
       this->camera.dpix.x     = data.dpix[0];
