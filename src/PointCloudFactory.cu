@@ -475,7 +475,54 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linear
   if (!threadIdx.x) atomicAdd(linearError,localSum);
 }
 
+/**
+* Does a trigulation with skew lines to find their closest intercetion.
+* Generates a set of individual linear errors of debugging and analysis
+* Generates a total LinearError, which is an analog for reprojection error
+*/
+__global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linearError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
+  // get ready to do the stuff local memory space
+  // this will later be added back to a global memory space
+  __shared__ unsigned long long int localSum;
+  if (threadIdx.x == 0) localSum = 0;
+  __syncthreads();
 
+  // this method is from wikipedia, last seen janurary 2020
+  // https://en.wikipedia.org/wiki/Skew_lines#Nearest_Points
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  // if (globalID > (1)) return;
+  if (globalID > (pointnum-1)) return;
+  // we can assume that each line, so we don't need to get the numlines
+  // ne guys are made just for easy of writing
+  ssrlcv::Bundle::Line L1 = lines[bundles[globalID].index];
+  ssrlcv::Bundle::Line L2 = lines[bundles[globalID].index+1];
+
+  // calculate the normals
+  float3 n2 = crossProduct(L2.vec,crossProduct(L1.vec,L2.vec));
+  float3 n1 = crossProduct(L1.vec,crossProduct(L1.vec,L2.vec));
+
+  // calculate the numerators
+  float numer1 = dotProduct((L2.pnt - L1.pnt),n2);
+  float numer2 = dotProduct((L1.pnt - L2.pnt),n1);
+
+  // calculate the denominators
+  float denom1 = dotProduct(L1.vec,n2);
+  float denom2 = dotProduct(L2.vec,n1);
+
+  // get the S points
+  float3 s1 = L1.pnt + (numer1/denom1) * L1.vec;
+  float3 s2 = L2.pnt + (numer2/denom2) * L2.vec;
+  float3 point = (s1 + s2)/2.0;
+
+  // fill in the value for the point cloud
+  pointcloud[globalID] = point;
+
+  // add the linaer errors locally within the block before
+  int error = sqrtf(dotProduct(s1,s2));
+  atomicAdd(&localSum,error);
+  __syncthreads();
+  if (!threadIdx.x) atomicAdd(linearError,localSum);
+}
 
 
 
