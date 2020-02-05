@@ -81,83 +81,39 @@ ssrlcv::Image::Image(std::string filePath, int id) {
           getline(file,value,','); // read a string until next comma: http://www.cplusplus.com/reference/string/getline/
           // sanitize the input
           value.erase(std::remove(value.begin(), value.end(), '\n'), value.end());
-          std::cout << "READ: " << value << std::endl;
           if (filename == value){ // if we have a match, read in the parameters one by one
             getline(file,value,',');
-            std::cout << "\t ___________________________________________________" << std::endl;
-            std::cout << "\t | " << value << std::endl;
             this->camera.cam_pos.x = std::atof(value.c_str());
-            std::cout << "\t | " << this->camera.cam_pos.x << std::endl;
             getline(file,value,',');
-            std::cout << "\t ___________________________________________________" << std::endl;
-            std::cout << "\t | " << value << std::endl;
             this->camera.cam_pos.y = std::atof(value.c_str());
-            std::cout << "\t | " << this->camera.cam_pos.y << std::endl;
             getline(file,value,',');
-            std::cout << "\t ___________________________________________________" << std::endl;
-            std::cout << "\t | " << value << std::endl;
             this->camera.cam_pos.z = std::atof(value.c_str());
-            std::cout << "\t | " << this->camera.cam_pos.z << std::endl;
             getline(file,value,',');
-            std::cout << "\t ___________________________________________________" << std::endl;
-            std::cout << "\t | " << value << std::endl;
             this->camera.cam_rot.x = std::atof(value.c_str());
-            std::cout << "\t | " << this->camera.cam_rot.x << std::endl;
             getline(file,value,',');
-            std::cout << "\t ___________________________________________________" << std::endl;
-            std::cout << "\t | " << value << std::endl;
             this->camera.cam_rot.y = std::atof(value.c_str());
-            std::cout << "\t | " << this->camera.cam_rot.y << std::endl;
             getline(file,value,',');
-            std::cout << "\t ___________________________________________________" << std::endl;
-            std::cout << "\t | " << value << std::endl;
             this->camera.cam_rot.z = std::atof(value.c_str());
-            std::cout << "\t | " << this->camera.cam_rot.y << std::endl;
             getline(file,value,',');
-            std::cout << "\t ___________________________________________________" << std::endl;
-            std::cout << "\t | " << value << std::endl;
             this->camera.fov.x     = std::atof(value.c_str());
-            std::cout << "\t | " << this->camera.fov.x << std::endl;
             getline(file,value,',');
-            std::cout << "\t ___________________________________________________" << std::endl;
-            std::cout << "\t | " << value << std::endl;
             this->camera.fov.y     = std::atof(value.c_str());
-            std::cout << "\t | " << this->camera.fov.y << std::endl;
             getline(file,value,',');
-            std::cout << "\t ___________________________________________________" << std::endl;
-            std::cout << "\t | " << value << std::endl;
             this->camera.foc       = std::atof(value.c_str());
-            std::cout << "\t | " << this->camera.foc << std::endl;
             getline(file,value,',');
-            std::cout << "\t ___________________________________________________" << std::endl;
-            std::cout << "\t | " << value << std::endl;
             // this->camera.dpix.x    = std::atof(value.c_str());
             // uses pinhole camera assumption
             this->camera.dpix.x = (this->camera.foc * tanf(this->camera.fov.x / 2.0f)) / (this->camera.size.x / 2.0f );
-            std::cout << "\t | " << this->camera.dpix.x << std::endl;
             getline(file,value,',');
-            std::cout << "\t ___________________________________________________" << std::endl;
-            std::cout << "\t | " << value << std::endl;
             // this->camera.dpix.y    = std::atof(value.c_str());
             // uses pinhole camera assumption
             this->camera.dpix.y = this->camera.dpix.x;
-            std::cout << "\t | " << this->camera.dpix.y << std::endl;
             getline(file,value,',');
-            std::cout << "\t ___________________________________________________" << std::endl;
-            std::cout << "\t | " << value << std::endl;
             this->camera.timeStamp = std::strtoll(value.c_str(), NULL, 0);
-            std::cout << "\t | " << this->camera.timeStamp << std::endl;
             getline(file,value,',');
-            std::cout << "\t ___________________________________________________" << std::endl;
-            std::cout << "\t | " << value << std::endl;
             // camera.size.x was already set
-            std::cout << "\t | " << this->camera.size.x << std::endl;
             getline(file,value,',');
-            std::cout << "\t ___________________________________________________" << std::endl;
-            std::cout << "\t | " << value << std::endl;
             // camera.side.y was already set
-            std::cout << "\t | " << this->camera.size.y << std::endl;
-            std::cout << "BREAK!!" << std::endl;
             file.close();
             break;
           }

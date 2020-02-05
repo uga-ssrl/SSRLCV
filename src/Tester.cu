@@ -50,54 +50,6 @@ int main(int argc, char *argv[]){
       allFeatures.push_back(features);
     }
 
-    // NEEDS TO BE REPLACED TO AUTO READ IN CAMERA PARAMS
-    //=======================================================================================================================================
-    // TODO this needs tp be handled by setting stuff with the binary camera
-    // param reader and done at about the same time as image loading
-
-    std::cout << "-----------------------------------------------" << std::endl;
-
-    std::cout << images[0]->id;
-    std::cout << std::endl;
-    std::cout << images[0]->camera.size.x;
-    std::cout << std::endl;
-    std::cout << images[0]->camera.cam_pos.x;
-    std::cout << std::endl;
-    std::cout << images[0]->camera.cam_rot.x;
-    std::cout << std::endl;
-    std::cout << images[0]->camera.fov.x;
-    std::cout << std::endl;
-    std::cout << images[0]->camera.foc;
-    std::cout << std::endl;
-    std::cout << images[0]->camera.dpix.x;
-    std::cout << std::endl;
-    std::cout << images[0]->camera.dpix.y;
-    std::cout << std::endl;
-
-    std::cout << "-----------------------------------------------" << std::endl;
-
-    std::cout << images[1]->id;
-    std::cout << std::endl;
-    std::cout << images[1]->camera.size.x;
-    std::cout << std::endl;
-    std::cout << images[1]->camera.cam_pos.x;
-    std::cout << std::endl;
-    std::cout << images[1]->camera.cam_rot.x;
-    std::cout << std::endl;
-    std::cout << images[1]->camera.fov.x;
-    std::cout << std::endl;
-    std::cout << images[1]->camera.foc;
-    std::cout << std::endl;
-    std::cout << images[1]->camera.dpix.x;
-    std::cout << std::endl;
-    std::cout << images[1]->camera.dpix.y;
-    std::cout << std::endl;
-
-    std::cout << "-----------------------------------------------" << std::endl;
-
-    // NEEDS TO B std::cout << std::endl;E REPLACED TO AUTO READ IN CAMERA PARAMS
-    //=======================================================================================================================================
-
     /*
     MATCHING
     */
