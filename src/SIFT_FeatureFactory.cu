@@ -396,7 +396,6 @@ __global__ void ssrlcv::fillDescriptors(const unsigned long numFeatures, const u
                 angle = abs(descriptorGridPoint.y-((float)k*rad45));
                 if(angle < rad45){
                   angle /= rad45;
-                  //rounding to nearest int would help with rounding errors in atomicAdd
                   temp = (1.0f-histLoc.x)*(1.0f-histLoc.y)*(1.0f-angle)*descriptorGridPoint.x;
                   atomicAdd(&bin_descriptors[(int)nx][(int)ny][k],temp);
                 }

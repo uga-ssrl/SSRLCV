@@ -48,6 +48,7 @@ void ssrlcv::getImagePaths(std::string dirPath, std::vector<std::string> &imageP
       imagePaths.push_back(currentFileName);
     }
   }
+  std::sort(imagePaths.begin(),imagePaths.end());
   closedir(dir);
 }
 //will be removed soon

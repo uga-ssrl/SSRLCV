@@ -610,9 +610,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
             grid = {1,1,1};
             block = {1,1,1}; 
             getFlatGridBlock(numKeyPointsAtBlur, grid, block,computeThetas);
-            
-            //determine how to best record num orientations for a keypoint
-            
+                        
             CudaSafeCall(cudaMalloc((void**)&thetas_device, numKeyPointsAtBlur*maxOrientations*sizeof(float)));
             CudaSafeCall(cudaMalloc((void**)&thetaAddresses_device, numKeyPointsAtBlur*maxOrientations*sizeof(int)));
 
