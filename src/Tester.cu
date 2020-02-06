@@ -105,8 +105,8 @@ int main(int argc, char *argv[]){
     ssrlcv::Unity<float>* errors = new ssrlcv::Unity<float>(nullptr,matches->numElements,ssrlcv::cpu);
     ssrlcv::Unity<float3>* points2 = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
     // then I write them to a csv to see what to heck is goin on
-    ssrlcv::writeCSV(errors, (int) error->numElements, "individualLinearErrors.csv");
-    
+    ssrlcv::writeCSV(errors, (int) errors->numElements, "individualLinearErrors.csv");
+
     // optional stereo disparity here
     // /*
     // STEREODISPARITY

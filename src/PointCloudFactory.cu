@@ -480,7 +480,7 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linear
 * Generates a set of individual linear errors of debugging and analysis
 * Generates a total LinearError, which is an analog for reprojection error
 */
-__global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linearError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
+__global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linearError, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
   // get ready to do the stuff local memory space
   // this will later be added back to a global memory space
   __shared__ unsigned long long int localSum;
