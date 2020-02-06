@@ -93,6 +93,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   //transfer the poitns back to the CPU
   pointcloud->transferMemoryTo(cpu);
   pointcloud->clear(gpu);
+  // clear the other boiz
+  bundleSet.lines->clear(gpu);
+  bundleSet.bundles->clear(gpu);
   // copy back the total error that occured
   CudaSafeCall(cudaMemcpy(linearError,d_linearError,eSize,cudaMemcpyDeviceToHost));
   cudaFree(d_linearError);
@@ -133,9 +136,15 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  //transfer the poitns back to the CPU
+  // transfer the poitns back to the CPU
   pointcloud->transferMemoryTo(cpu);
   pointcloud->clear(gpu);
+  // transfer the individual linear errors back to the CPU
+  errors->transferMemoryTo(cpu);
+  errors->clear(gpu);
+  // clear the other boiz
+  bundleSet.lines->clear(gpu);
+  bundleSet.bundles->clear(gpu);
   // copy back the total error that occured
   CudaSafeCall(cudaMemcpy(linearError,d_linearError,eSize,cudaMemcpyDeviceToHost));
   cudaFree(d_linearError);
@@ -518,8 +527,10 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linear
   pointcloud[globalID] = point;
 
   // add the linaer errors locally within the block before
-  int error = sqrtf(dotProduct(s1,s2));
-  atomicAdd(&localSum,error);
+  float error = sqrtf(dotProduct(s1,s2));
+  errors[globalID] = error;
+  int i_error = (int) error;
+  atomicAdd(&localSum,i_error);
   __syncthreads();
   if (!threadIdx.x) atomicAdd(linearError,localSum);
 }
