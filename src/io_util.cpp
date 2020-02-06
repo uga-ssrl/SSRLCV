@@ -595,3 +595,32 @@ void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
 
   if(origin == gpu) points->setMemoryState(gpu);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// yee 
