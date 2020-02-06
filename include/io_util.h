@@ -112,6 +112,18 @@ namespace ssrlcv{
   */
   void writePLY(const char* filePath, Unity<float3>* points, bool binary = false);
 
+  /*
+  CSV and Misc Debug IO
+  */
+
+  /*
+   * Takes in an array of floats and writes them to a CSV
+   * @param values a set of float elements as a float array that are written in csv format on one line
+   * @param num the number of elements in the float array
+   * @param filename a string representing the desired filename of the csv output
+   */
+  void writeCSV(float* values, int num, std::string filename);
+
   //
   // Binary files - Gitlab #58
   //
