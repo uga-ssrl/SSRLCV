@@ -17,7 +17,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   Unity<Bundle::Line>* lines = new Unity<Bundle::Line>(nullptr,matchSet->keyPoints->numElements,gpu);
 
   std::cout << "starting bundle generation ..." << std::endl;
-  MemoryState origin[2] = {matchSet->matches->state,matchSet->keyPoints->state};
+  MemoryState origin[2] = {matchSet->matches->getMemoryState(),matchSet->keyPoints->getMemoryState()};
   if(origin[0] == cpu) matchSet->matches->transferMemoryTo(gpu);
   if(origin[1] == cpu) matchSet->keyPoints->transferMemoryTo(gpu);
   // the cameras
@@ -229,7 +229,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
 
   std::cout << "Stereo Baseline: " << baseline << ", Stereo Scale Factor: " << scale <<  ", Inverted Stereo Scale Factor: " << (1.0/scale) << std::endl;
 
-  MemoryState origin = matches->state;
+  MemoryState origin = matches->getMemoryState();
   if(origin == cpu) matches->transferMemoryTo(gpu);
 
   // depth points
@@ -265,7 +265,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
 */
 ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>* matches, float scale){
 
-  MemoryState origin = matches->state;
+  MemoryState origin = matches->getMemoryState();
   if(origin == cpu) matches->transferMemoryTo(gpu);
 
   // depth points
@@ -289,7 +289,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
 
 ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>* matches, float foc, float baseline, float doffset){
 
-  MemoryState origin = matches->state;
+  MemoryState origin = matches->getMemoryState();
   if(origin == cpu) matches->transferMemoryTo(gpu);
 
 
@@ -342,7 +342,7 @@ uchar3 ssrlcv::heatMap(float value){
 }
 
 void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolationRadius, std::string pathToFile){
-  MemoryState origin = points->state;
+  MemoryState origin = points->getMemoryState();
   if(origin == gpu) points->transferMemoryTo(cpu);
   float3 min = {FLT_MAX,FLT_MAX,FLT_MAX};
   float3 max = {-FLT_MAX,-FLT_MAX,-FLT_MAX};

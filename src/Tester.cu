@@ -66,7 +66,7 @@ int main(int argc, char *argv[]){
       if(maxDist < distanceMatches->host[i].distance) maxDist = distanceMatches->host[i].distance;
     }
     printf("max euclidean distance between features = %f\n",maxDist);
-    if(distanceMatches->state != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
+    if(distanceMatches->getMemoryState() != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
     ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
     delete distanceMatches;
     std::string delimiter = "/";

@@ -17,16 +17,16 @@ ssrlcv::Octree::Octree(){
   this->faceDepthIndex = nullptr;
 }
 ssrlcv::Octree::~Octree(){
-  if(this->normals != nullptr && this->normals->state != null) delete this->normals;
-  if(this->nodes != nullptr && this->nodes->state  != null) delete this->nodes;
-  if(this->vertices != nullptr && this->vertices->state  != null) delete this->vertices;
-  if(this->edges != nullptr && this->edges->state  != null) delete this->edges;
-  if(this->faces != nullptr && this->faces->state  != null) delete this->faces;
-  if(this->pointNodeIndex != nullptr && this->pointNodeIndex->state  != null) delete this->pointNodeIndex;
-  if(this->nodeDepthIndex != nullptr && this->nodeDepthIndex->state  != null) delete this->nodeDepthIndex;
-  if(this->vertexDepthIndex != nullptr && this->vertexDepthIndex->state  != null) delete this->vertexDepthIndex;
-  if(this->edgeDepthIndex != nullptr && this->edgeDepthIndex->state  != null) delete this->edgeDepthIndex;
-  if(this->faceDepthIndex != nullptr && this->faceDepthIndex->state  != null) delete this->faceDepthIndex;
+  if(this->normals != nullptr && this->normals->getMemoryState() != null) delete this->normals;
+  if(this->nodes != nullptr && this->nodes->getMemoryState()  != null) delete this->nodes;
+  if(this->vertices != nullptr && this->vertices->getMemoryState()  != null) delete this->vertices;
+  if(this->edges != nullptr && this->edges->getMemoryState()  != null) delete this->edges;
+  if(this->faces != nullptr && this->faces->getMemoryState()  != null) delete this->faces;
+  if(this->pointNodeIndex != nullptr && this->pointNodeIndex->getMemoryState()  != null) delete this->pointNodeIndex;
+  if(this->nodeDepthIndex != nullptr && this->nodeDepthIndex->getMemoryState()  != null) delete this->nodeDepthIndex;
+  if(this->vertexDepthIndex != nullptr && this->vertexDepthIndex->getMemoryState()  != null) delete this->vertexDepthIndex;
+  if(this->edgeDepthIndex != nullptr && this->edgeDepthIndex->getMemoryState()  != null) delete this->edgeDepthIndex;
+  if(this->faceDepthIndex != nullptr && this->faceDepthIndex->getMemoryState()  != null) delete this->faceDepthIndex;
 }
 
 ssrlcv::Octree::Octree(int numPoints, float3* points, int depth, bool createVEF){
@@ -164,7 +164,7 @@ ssrlcv::Octree::Octree(Unity<float3>* points, int depth, bool createVEF){
   this->faceDepthIndex = nullptr;
 
   this->points = points;
-  if(this->points->state == gpu || this->points->fore != cpu){
+  if(this->points->getMemoryState() == gpu || this->points->getFore() != cpu){
     this->points->transferMemoryTo(cpu);
   }
   float3* points_host = this->points->host;
@@ -227,7 +227,7 @@ ssrlcv::Octree::Octree(Unity<float3>* points, float deepestWidth, bool createVEF
   this->faceDepthIndex = nullptr;
 
   this->points = points;
-  if(this->points->state == gpu) this->points->transferMemoryTo(cpu);
+  if(this->points->getMemoryState() == gpu) this->points->transferMemoryTo(cpu);
   float3* points_host = this->points->host;
 
   for(int i = 0; i < points->numElements; ++i){
@@ -399,7 +399,7 @@ void ssrlcv::Octree::createFinestNodes(){
   CudaSafeCall(cudaMemcpy(finestNodeCenters, thrust::raw_pointer_cast(sortedCnts.data()), this->points->numElements*sizeof(float3),cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaFree(finestNodeCenters_device));
 
-  if(this->normals != nullptr && this->normals->state != null && this->normals->numElements != 0){
+  if(this->normals != nullptr && this->normals->getMemoryState() != null && this->normals->numElements != 0){
     this->normals->transferMemoryTo(both);
     thrust::device_ptr<float3> nmls(this->normals->device);
     thrust::device_vector<float3> sortedNmls(this->points->numElements);
@@ -449,13 +449,13 @@ void ssrlcv::Octree::createFinestNodes(){
   delete[] nodePointIndex;
 }
 void ssrlcv::Octree::fillInCoarserDepths(){
-  if(this->nodes == nullptr || this->nodes->state == null){
+  if(this->nodes == nullptr || this->nodes->getMemoryState() == null){
     std::cout<<"ERROR cannot create coarse depths before finest nodes have been built"<<std::endl;
     exit(-1);
   }
 
   Node* uniqueNodes_device;
-  if(this->nodes->state == cpu){
+  if(this->nodes->getMemoryState() == cpu){
     this->nodes->transferMemoryTo(gpu);
   }
   int numUniqueNodes = this->nodes->numElements;
@@ -565,7 +565,7 @@ void ssrlcv::Octree::fillInCoarserDepths(){
 }
 
 void ssrlcv::Octree::fillNeighborhoods(){
-  if(this->nodes == nullptr || this->nodes->state == null){
+  if(this->nodes == nullptr || this->nodes->getMemoryState() == null){
     std::cout<<"ERROR cannot fill neighborhood without nodes"<<std::endl;
     exit(-1);
   }
@@ -627,11 +627,11 @@ void ssrlcv::Octree::fillNeighborhoods(){
   int depthStartingIndex;
   int childDepthIndex;
 
-  if(this->nodeDepthIndex->state != both || this->nodeDepthIndex->state != cpu){
+  if(this->nodeDepthIndex->getMemoryState() != both || this->nodeDepthIndex->getMemoryState() != cpu){
     this->nodeDepthIndex->transferMemoryTo(cpu);
   }
   unsigned int* nodeDepthIndex_host = (unsigned int*) this->nodeDepthIndex->host;
-  if(this->nodes->state != both || this->nodes->state != gpu){
+  if(this->nodes->getMemoryState() != both || this->nodes->getMemoryState() != gpu){
     this->nodes->transferMemoryTo(gpu);
   }
   for(int i = this->depth; i >= 0 ; --i){
@@ -665,7 +665,7 @@ void ssrlcv::Octree::fillNeighborhoods(){
 
   CudaSafeCall(cudaFree(childLUT_device));
   CudaSafeCall(cudaFree(parentLUT_device));
-  if(this->nodes->state == both) this->nodes->transferMemoryTo(cpu);
+  if(this->nodes->getMemoryState() == both) this->nodes->transferMemoryTo(cpu);
 }
 void ssrlcv::Octree::computeVertexArray(){
   clock_t cudatimer;
@@ -698,11 +698,11 @@ void ssrlcv::Octree::computeVertexArray(){
   CudaSafeCall(cudaMalloc((void**)&vertexArray2D_device, (this->depth + 1)*sizeof(Vertex*)));
   Vertex** vertexArray2D = new Vertex*[this->depth + 1];
 
-  if(this->nodeDepthIndex->state != both || this->nodeDepthIndex->state != cpu){
+  if(this->nodeDepthIndex->getMemoryState() != both || this->nodeDepthIndex->getMemoryState() != cpu){
     this->nodeDepthIndex->transferMemoryTo(cpu);
   }
   unsigned int* nodeDepthIndex_host = (unsigned int*) this->nodeDepthIndex->host;
-  if(this->nodes->state != both || this->nodes->state != gpu){
+  if(this->nodes->getMemoryState() != both || this->nodes->getMemoryState() != gpu){
     this->nodes->transferMemoryTo(gpu);
   }
 
@@ -856,11 +856,11 @@ void ssrlcv::Octree::computeEdgeArray(){
   CudaSafeCall(cudaMalloc((void**)&edgeArray2D_device, (this->depth + 1)*sizeof(Edge*)));
   Edge** edgeArray2D = new Edge*[this->depth + 1];
 
-  if(this->nodeDepthIndex->state != both || this->nodeDepthIndex->state != cpu){
+  if(this->nodeDepthIndex->getMemoryState() != both || this->nodeDepthIndex->getMemoryState() != cpu){
     this->nodeDepthIndex->transferMemoryTo(cpu);
   }
   unsigned int* nodeDepthIndex_host = (unsigned int*) this->nodeDepthIndex->host;
-  if(this->nodes->state != both || this->nodes->state != gpu){
+  if(this->nodes->getMemoryState() != both || this->nodes->getMemoryState() != gpu){
     this->nodes->transferMemoryTo(gpu);
   }
 
@@ -997,11 +997,11 @@ void ssrlcv::Octree::computeFaceArray(){
   CudaSafeCall(cudaMalloc((void**)&faceArray2D_device, (this->depth + 1)*sizeof(Face*)));
   Face** faceArray2D = new Face*[this->depth + 1];
 
-  if(this->nodeDepthIndex->state != both || this->nodeDepthIndex->state != cpu){
+  if(this->nodeDepthIndex->getMemoryState() != both || this->nodeDepthIndex->getMemoryState() != cpu){
     this->nodeDepthIndex->transferMemoryTo(cpu);
   }
   unsigned int* nodeDepthIndex_host = (unsigned int*) this->nodeDepthIndex->host;
-  if(this->nodes->state != both || this->nodes->state != gpu){
+  if(this->nodes->getMemoryState() != both || this->nodes->getMemoryState() != gpu){
     this->nodes->transferMemoryTo(gpu);
   }
 
@@ -1138,8 +1138,8 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
   int minPossibleNeighbors = std::numeric_limits<int>::max();
   int nodeDepthIndex = 0;
   int currentDepth = 0;
-  MemoryState node_origin = this->nodes->state;
-  MemoryState nodeDepthIndex_origin = this->nodeDepthIndex->state;
+  MemoryState node_origin = this->nodes->getMemoryState();
+  MemoryState nodeDepthIndex_origin = this->nodeDepthIndex->getMemoryState();
 
   if(node_origin != both || node_origin != cpu){
     this->nodes->transferMemoryTo(cpu);
@@ -1219,8 +1219,8 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
       ++grid.x;
     }
   }
-  MemoryState points_origin = this->points->state;
-  if(this->points->state != both && this->points->state != gpu){
+  MemoryState points_origin = this->points->getMemoryState();
+  if(this->points->getMemoryState() != both && this->points->getMemoryState() != gpu){
     this->points->transferMemoryTo(gpu);
   }
   std::cout<<"WARNING: float3 normal calculation is currently performed only on sphere centers"<<std::endl;
@@ -1328,8 +1328,8 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
   int minPossibleNeighbors = std::numeric_limits<int>::max();
   int nodeDepthIndex = 0;
   int currentDepth = 0;
-  MemoryState node_origin = this->nodes->state;
-  MemoryState nodeDepthIndex_origin = this->nodeDepthIndex->state;
+  MemoryState node_origin = this->nodes->getMemoryState();
+  MemoryState nodeDepthIndex_origin = this->nodeDepthIndex->getMemoryState();
 
   if(node_origin != both || node_origin != cpu){
     this->nodes->transferMemoryTo(cpu);
@@ -1414,8 +1414,8 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
       ++grid.x;
     }
   }
-  MemoryState points_origin = this->points->state;
-  if(this->points->state != both && this->points->state != gpu){
+  MemoryState points_origin = this->points->getMemoryState();
+  if(this->points->getMemoryState() != both && this->points->getMemoryState() != gpu){
     this->points->transferMemoryTo(gpu);
   }
 
@@ -1513,8 +1513,8 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
 
 
 void ssrlcv::Octree::writeVertexPLY(bool binary){
-  MemoryState origin = this->vertices->state;
-  if(origin != cpu && this->vertices->fore != cpu){
+  MemoryState origin = this->vertices->getMemoryState();
+  if(origin != cpu && this->vertices->getFore() != cpu){
     this->vertices->transferMemoryTo(cpu);
   }
   std::vector<float3> vertices_data;
@@ -1549,8 +1549,8 @@ void ssrlcv::Octree::writeVertexPLY(bool binary){
 }
 void ssrlcv::Octree::writeEdgePLY(bool binary){
   std::vector<int2> edges_data;
-  MemoryState origin[2] = {this->vertices->state, this->edges->state};
-  if(origin[0] != cpu && this->vertices->fore != cpu){
+  MemoryState origin[2] = {this->vertices->getMemoryState(), this->edges->getMemoryState()};
+  if(origin[0] != cpu && this->vertices->getFore() != cpu){
     this->vertices->transferMemoryTo(cpu);
   }
   std::vector<float3> vertices_data;
@@ -1558,7 +1558,7 @@ void ssrlcv::Octree::writeEdgePLY(bool binary){
     vertices_data.push_back(this->vertices->host[i].coord);
   }
   this->vertices->transferMemoryTo(origin[0]);
-  if(origin[1] != cpu && this->edges->fore != cpu){
+  if(origin[1] != cpu && this->edges->getFore() != cpu){
     this->edges->transferMemoryTo(cpu);
   }
   for(int i = 0; i < this->edges->numElements; ++i){
@@ -1593,8 +1593,8 @@ void ssrlcv::Octree::writeEdgePLY(bool binary){
 }
 void ssrlcv::Octree::writeCenterPLY(bool binary){
 
-  MemoryState origin = this->nodes->state;
-  if(origin != cpu && this->nodes->fore != cpu){
+  MemoryState origin = this->nodes->getMemoryState();
+  if(origin != cpu && this->nodes->getFore() != cpu){
     this->nodes->transferMemoryTo(cpu);
   }
 
@@ -1631,11 +1631,11 @@ void ssrlcv::Octree::writeCenterPLY(bool binary){
 }
 void ssrlcv::Octree::writeNormalPLY(bool binary){
 
-  MemoryState origin[2] = {this->points->state, this->normals->state};
-  if(origin[0] != cpu && this->points->fore != cpu){
+  MemoryState origin[2] = {this->points->getMemoryState(), this->normals->getMemoryState()};
+  if(origin[0] != cpu && this->points->getFore() != cpu){
     this->points->transferMemoryTo(cpu);
   }
-  if(origin[1] != cpu && this->normals->fore != cpu){
+  if(origin[1] != cpu && this->normals->getFore() != cpu){
     this->normals->transferMemoryTo(cpu);
   }
 
@@ -1665,13 +1665,13 @@ void ssrlcv::Octree::writeNormalPLY(bool binary){
 }
 void ssrlcv::Octree::writeDepthPLY(int d, bool binary){
   MemoryState origin[5] = {
-    this->vertices->state,
-    this->edges->state,
-    this->vertexDepthIndex->state,
-    this->edgeDepthIndex->state,
-    this->faceDepthIndex->state
+    this->vertices->getMemoryState(),
+    this->edges->getMemoryState(),
+    this->vertexDepthIndex->getMemoryState(),
+    this->edgeDepthIndex->getMemoryState(),
+    this->faceDepthIndex->getMemoryState()
   };
-  if(origin[0] != cpu && this->vertices->fore != cpu){
+  if(origin[0] != cpu && this->vertices->getFore() != cpu){
     this->vertices->transferMemoryTo(cpu);
   }
   std::vector<float3> vertices_data;
@@ -1680,7 +1680,7 @@ void ssrlcv::Octree::writeDepthPLY(int d, bool binary){
   }
   this->vertices->transferMemoryTo(origin[0]);
   std::vector<int2> edges_data;
-  if(origin[1] != cpu && this->edges->fore != cpu){
+  if(origin[1] != cpu && this->edges->getFore() != cpu){
     this->edges->transferMemoryTo(cpu);
   }
   for(int i = 0; i < this->edges->numElements; ++i){
@@ -1688,13 +1688,13 @@ void ssrlcv::Octree::writeDepthPLY(int d, bool binary){
   }
   this->edges->transferMemoryTo(origin[1]);
 
-  if(origin[2] != cpu && this->vertexDepthIndex->fore != cpu){
+  if(origin[2] != cpu && this->vertexDepthIndex->getFore() != cpu){
     this->vertexDepthIndex->transferMemoryTo(cpu);
   }
-  if(origin[3] != cpu && this->edgeDepthIndex->fore != cpu){
+  if(origin[3] != cpu && this->edgeDepthIndex->getFore() != cpu){
     this->edgeDepthIndex->transferMemoryTo(cpu);
   }
-  if(origin[4] != cpu && this->faceDepthIndex->fore != cpu){
+  if(origin[4] != cpu && this->faceDepthIndex->getFore() != cpu){
     this->faceDepthIndex->transferMemoryTo(cpu);
   }
 
@@ -1750,8 +1750,8 @@ void ssrlcv::Octree::writeDepthPLY(int d, bool binary){
 
 void ssrlcv::Octree::checkForGeneralNodeErrors(){
   MemoryState origin;
-  if(this->nodes != nullptr && this->nodes->state != null && this->nodes->numElements != 0){
-    origin = this->nodes->state;
+  if(this->nodes != nullptr && this->nodes->getMemoryState() != null && this->nodes->numElements != 0){
+    origin = this->nodes->getMemoryState();
     this->nodes->transferMemoryTo(cpu);
   }
   else{

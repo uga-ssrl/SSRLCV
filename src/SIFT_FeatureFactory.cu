@@ -8,7 +8,7 @@ ssrlcv::SIFT_FeatureFactory::SIFT_FeatureFactory(float orientationContribWidth, 
 ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFactory::generateFeatures(ssrlcv::Image* image, bool dense, unsigned int maxOrientations, float orientationThreshold){
   std::cout<<"Generating SIFT features for image "<<image->id<<std::endl<<"\t";
   Unity<Feature<SIFT_Descriptor>>* features = nullptr;
-  MemoryState origin = image->pixels->state;
+  MemoryState origin = image->pixels->getMemoryState();
   if(origin != gpu) image->pixels->setMemoryState(gpu);
 
   if(image->colorDepth != 1){
@@ -65,7 +65,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     for(int o = 0; o < dog->depth.x; ++o){
       currentOctave = dog->octaves[o];
       if(currentOctave->extrema == nullptr) continue;
-      extremaOrigin[o] = currentOctave->extrema->state; 
+      extremaOrigin[o] = currentOctave->extrema->getMemoryState(); 
       if(extremaOrigin[o] != gpu) currentOctave->extrema->setMemoryState(gpu);
       
       for(int b = 0; b < dog->depth.y; ++b){
@@ -125,7 +125,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
         if(numKeyPointsInBlur == 0) continue;
   
         currentBlur = currentOctave->blurs[b];
-        gradientsOrigin = currentBlur->gradients->state;
+        gradientsOrigin = currentBlur->gradients->getMemoryState();
         if(gradientsOrigin != gpu) currentBlur->gradients->setMemoryState(gpu);
   
         grid = {1,1,1};

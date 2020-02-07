@@ -8,6 +8,8 @@
 namespace ssrlcv{
   /**
   * \brief The base feature struct that can contain any descriptor type.
+  * \note it is advised to implement a D.distProtocol(D) method for 
+  * MatchFactory compatibility
   */
   template<typename D>
   struct Feature{
