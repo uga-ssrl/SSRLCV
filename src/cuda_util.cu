@@ -268,28 +268,15 @@ __device__ __host__ float2 operator*(const int2 &a, const float &b){
 __device__ __host__ bool operator>(const float2 &a, const float &b){
   return (a.x > b) && (a.y > b);
 }
-
 __device__ __host__ bool operator<(const float2 &a, const float &b){
   return (a.x < b) && (a.y < b);
 }
-
-__device__ __host__ bool operator>(const float2 &a, const float2 &b){
-  return (a.x > b.x) && (a.y > b.y);
-}
-
-__device__ __host__ bool operator<(const float2 &a, const float2 &b){
-  return (a.x < b.x) && (a.y < b.y);
-}
-
 __device__ __host__ bool operator>(const float2 &a, const int2 &b){
   return (a.x > b.x) && (a.y > b.y);
 }
-
 __device__ __host__ bool operator<(const float2 &a, const int2 &b){
   return (a.x < b.x) && (a.y < b.y);
 }
-
-
 __device__ __host__ bool operator==(const float2 &a, const float2 &b){
   return a.x == b.x && a.y == b.y;
 }
@@ -344,6 +331,520 @@ __device__ __host__ bool operator==(const ulong3 &a, const ulong3 &b){
 __device__ __host__ bool operator==(const ulong4 &a, const ulong4 &b){
   return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
 }
+
+__device__ __host__ bool operator!=(const float2 &a, const float2 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const float3 &a, const float3 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const float4 &a, const float4 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const double2 &a, const double2 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const double3 &a, const double3 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const double4 &a, const double4 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const int2 &a, const int2 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const int3 &a, const int3 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const int4 &a, const int4 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const long2 &a, const long2 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const long3 &a, const long3 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const long4 &a, const long4 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const uint2 &a, const uint2 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const uint3 &a, const uint3 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const uint4 &a, const uint4 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const ulong2 &a, const ulong2 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const ulong3 &a, const ulong3 &b){
+  return !(a==b);
+}
+__device__ __host__ bool operator!=(const ulong4 &a, const ulong4 &b){
+  return !(a==b);
+}
+
+
+__device__ __host__ bool operator<(const float2 &a, const float2 &b){
+  if(a == b) return false;
+  else if(a.x == b.x) return a.y < b.y;
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<(const float3 &a, const float3 &b){
+  if(a == b) return false;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<(const float4 &a, const float4 &b){
+  if(a == b) return false;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      if(a.z == b.z){
+        return a.w < b.w;
+      }
+      else return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator>(const float2 &a, const float2 &b){
+  return b < a;
+}
+__device__ __host__ bool operator>(const float3 &a, const float3 &b){
+  return b < a;
+}
+__device__ __host__ bool operator>(const float4 &a, const float4 &b){
+  return b < a;
+  
+}
+__device__ __host__ bool operator<(const double2 &a, const double2 &b){
+  if(a == b) return false;
+  else if(a.x == b.x) return a.y < b.y;
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<(const double3 &a, const double3 &b){
+  if(a == b) return false;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<(const double4 &a, const double4 &b){
+  if(a == b) return false;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      if(a.z == b.z){
+        return a.w < b.w;
+      }
+      else return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator>(const double2 &a, const double2 &b){
+  return b < a;
+}
+__device__ __host__ bool operator>(const double3 &a, const double3 &b){
+  return b < a;
+}
+__device__ __host__ bool operator>(const double4 &a, const double4 &b){
+  return b < a;
+  
+}
+__device__ __host__ bool operator<(const long2 &a, const long2 &b){
+  if(a == b) return false;
+  else if(a.x == b.x) return a.y < b.y;
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<(const long3 &a, const long3 &b){
+  if(a == b) return false;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<(const long4 &a, const long4 &b){
+  if(a == b) return false;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      if(a.z == b.z){
+        return a.w < b.w;
+      }
+      else return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator>(const long2 &a, const long2 &b){
+  return b < a;
+}
+__device__ __host__ bool operator>(const long3 &a, const long3 &b){
+  return b < a;
+}
+__device__ __host__ bool operator>(const long4 &a, const long4 &b){
+  return b < a;
+  
+}
+__device__ __host__ bool operator<(const ulong2 &a, const ulong2 &b){
+  if(a == b) return false;
+  else if(a.x == b.x) return a.y < b.y;
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<(const ulong3 &a, const ulong3 &b){
+  if(a == b) return false;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<(const ulong4 &a, const ulong4 &b){
+  if(a == b) return false;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      if(a.z == b.z){
+        return a.w < b.w;
+      }
+      else return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator>(const ulong2 &a, const ulong2 &b){
+  return b < a;
+}
+__device__ __host__ bool operator>(const ulong3 &a, const ulong3 &b){
+  return b < a;
+}
+__device__ __host__ bool operator>(const ulong4 &a, const ulong4 &b){
+  return b < a;
+  
+}
+__device__ __host__ bool operator<(const int2 &a, const int2 &b){
+  if(a == b) return false;
+  else if(a.x == b.x) return a.y < b.y;
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<(const int3 &a, const int3 &b){
+  if(a == b) return false;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<(const int4 &a, const int4 &b){
+  if(a == b) return false;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      if(a.z == b.z){
+        return a.w < b.w;
+      }
+      else return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator>(const int2 &a, const int2 &b){
+  return b < a;
+}
+__device__ __host__ bool operator>(const int3 &a, const int3 &b){
+  return b < a;
+}
+__device__ __host__ bool operator>(const int4 &a, const int4 &b){
+  return b < a;
+  
+}
+__device__ __host__ bool operator<(const uint2 &a, const uint2 &b){
+  if(a == b) return false;
+  else if(a.x == b.x) return a.y < b.y;
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<(const uint3 &a, const uint3 &b){
+  if(a == b) return false;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<(const uint4 &a, const uint4 &b){
+  if(a == b) return false;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      if(a.z == b.z){
+        return a.w < b.w;
+      }
+      else return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator>(const uint2 &a, const uint2 &b){
+  return b < a;
+}
+__device__ __host__ bool operator>(const uint3 &a, const uint3 &b){
+  return b < a;
+}
+__device__ __host__ bool operator>(const uint4 &a, const uint4 &b){
+  return b < a;
+  
+}
+
+__device__ __host__ bool operator<=(const float2 &a, const float2 &b){
+  if(a == b) return true;
+  else if(a.x == b.x) return a.y < b.y;
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<=(const float3 &a, const float3 &b){
+  if(a == b) return true;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<=(const float4 &a, const float4 &b){
+  if(a == b) return true;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      if(a.z == b.z){
+        return a.w < b.w;
+      }
+      else return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator>=(const float2 &a, const float2 &b){
+  return b <= a;
+}
+__device__ __host__ bool operator>=(const float3 &a, const float3 &b){
+  return b <= a;
+}
+__device__ __host__ bool operator>=(const float4 &a, const float4 &b){
+  return b <= a;
+  
+}
+__device__ __host__ bool operator<=(const double2 &a, const double2 &b){
+  if(a == b) return true;
+  else if(a.x == b.x) return a.y < b.y;
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<=(const double3 &a, const double3 &b){
+  if(a == b) return true;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<=(const double4 &a, const double4 &b){
+  if(a == b) return true;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      if(a.z == b.z){
+        return a.w < b.w;
+      }
+      else return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator>=(const double2 &a, const double2 &b){
+  return b <= a;
+}
+__device__ __host__ bool operator>=(const double3 &a, const double3 &b){
+  return b <= a;
+}
+__device__ __host__ bool operator>=(const double4 &a, const double4 &b){
+  return b <= a;
+  
+}
+__device__ __host__ bool operator<=(const long2 &a, const long2 &b){
+  if(a == b) return true;
+  else if(a.x == b.x) return a.y < b.y;
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<=(const long3 &a, const long3 &b){
+  if(a == b) return true;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<=(const long4 &a, const long4 &b){
+  if(a == b) return true;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      if(a.z == b.z){
+        return a.w < b.w;
+      }
+      else return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator>=(const long2 &a, const long2 &b){
+  return b <= a;
+}
+__device__ __host__ bool operator>=(const long3 &a, const long3 &b){
+  return b <= a;
+}
+__device__ __host__ bool operator>=(const long4 &a, const long4 &b){
+  return b <= a;
+  
+}
+__device__ __host__ bool operator<=(const ulong2 &a, const ulong2 &b){
+  if(a == b) return true;
+  else if(a.x == b.x) return a.y < b.y;
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<=(const ulong3 &a, const ulong3 &b){
+  if(a == b) return true;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<=(const ulong4 &a, const ulong4 &b){
+  if(a == b) return true;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      if(a.z == b.z){
+        return a.w < b.w;
+      }
+      else return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator>=(const ulong2 &a, const ulong2 &b){
+  return b <= a;
+}
+__device__ __host__ bool operator>=(const ulong3 &a, const ulong3 &b){
+  return b <= a;
+}
+__device__ __host__ bool operator>=(const ulong4 &a, const ulong4 &b){
+  return b <= a;
+  
+}
+__device__ __host__ bool operator<=(const int2 &a, const int2 &b){
+  if(a == b) return true;
+  else if(a.x == b.x) return a.y < b.y;
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<=(const int3 &a, const int3 &b){
+  if(a == b) return true;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<=(const int4 &a, const int4 &b){
+  if(a == b) return true;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      if(a.z == b.z){
+        return a.w < b.w;
+      }
+      else return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator>=(const int2 &a, const int2 &b){
+  return b <= a;
+}
+__device__ __host__ bool operator>=(const int3 &a, const int3 &b){
+  return b <= a;
+}
+__device__ __host__ bool operator>=(const int4 &a, const int4 &b){
+  return b <= a;
+  
+}
+__device__ __host__ bool operator<=(const uint2 &a, const uint2 &b){
+  if(a == b) return true;
+  else if(a.x == b.x) return a.y < b.y;
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<=(const uint3 &a, const uint3 &b){
+  if(a == b) return true;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator<=(const uint4 &a, const uint4 &b){
+  if(a == b) return true;
+  else if(a.x == b.x){
+    if(a.y == b.y){
+      if(a.z == b.z){
+        return a.w < b.w;
+      }
+      else return a.z < b.z;
+    }
+    else return a.y < b.y;
+  }
+  else return a.x < b.x; 
+}
+__device__ __host__ bool operator>=(const uint2 &a, const uint2 &b){
+  return b <= a;
+}
+__device__ __host__ bool operator>=(const uint3 &a, const uint3 &b){
+  return b <= a;
+}
+__device__ __host__ bool operator>=(const uint4 &a, const uint4 &b){
+  return b <= a;
+}
+
 
 
 void getGrid(unsigned long numElements, dim3 &grid, int device){

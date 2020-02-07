@@ -18,7 +18,7 @@ def main(argv):
     image1 = 'data/img/multiview_test/Lenna_512(1).png'
     image2 = 'data/img/multiview_test/Lenna_512(2).png'
     image3 = 'data/img/multiview_test/Lenna_512(3).png'
-    numMatches = 1
+    numMatches = 10
 
     img_left_up  = mpimg.imread(image0)
     img_right_up = mpimg.imread(image1)

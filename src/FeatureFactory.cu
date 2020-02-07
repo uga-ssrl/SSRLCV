@@ -1079,19 +1079,25 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
                 orientationHist[(int)floor(angle/rad10)] += getMagnitude(gradient)*expf(-((temp2.x*temp2.x)+(temp2.y*temp2.y))/weight);///pi/weight;
             }
         }
-        float3 convHelper = {orientationHist[35],orientationHist[0],orientationHist[1]};
-        for(int i = 0; i < 6; ++i){
-            temp2.x = orientationHist[0];//need to hold on to this for id = 35 conv
-            for(int id = 1; id < 36; ++id){
-                orientationHist[id] = (convHelper.x+convHelper.y+convHelper.z)/3.0f;
-                convHelper.x = convHelper.y;
-                convHelper.y = convHelper.z;
-                convHelper.z = (id < 35) ? orientationHist[id+1] : temp2.x;
-                if(i == 5){
-                    if(orientationHist[id] > maxHist){
-                        maxHist = orientationHist[id];
-                    }
-                }
+        //apparently has negligable impact
+        // float3 convHelper = {orientationHist[35],orientationHist[0],orientationHist[1]};
+        // for(int i = 0; i < 6; ++i){
+        //     temp2.x = orientationHist[0];//need to hold on to this for id = 35 conv
+        //     for(int id = 1; id < 36; ++id){
+        //         orientationHist[id] = (convHelper.x+convHelper.y+convHelper.z)/3.0f;
+        //         convHelper.x = convHelper.y;
+        //         convHelper.y = convHelper.z;
+        //         convHelper.z = (id < 35) ? orientationHist[id+1] : temp2.x;
+        //         if(i == 5){
+        //             if(orientationHist[id] > maxHist){
+        //                 maxHist = orientationHist[id];
+        //             }
+        //         }
+        //     }
+        // }
+        for(int id = 0; id < 36; ++id){
+            if(orientationHist[id] > maxHist){
+                maxHist = orientationHist[id];
             }
         }
         maxHist *= orientationThreshold;//% of max orientation value
@@ -1138,6 +1144,7 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
             else{
                 thetaNumbers[globalID*regNumOrient + i] = globalID + keyPointIndex;
                 thetas[globalID*regNumOrient + i] = bestMagWThetas[i].y;
+                //printf("%lu - %f\n",globalID + keyPointIndex,bestMagWThetas[i].y);
             }
         }
         delete[] bestMagWThetas;

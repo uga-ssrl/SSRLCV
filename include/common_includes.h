@@ -20,6 +20,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <algorithm>
+#include <iterator>
 #include <fstream>
 #include <cmath>
 #include <sstream>

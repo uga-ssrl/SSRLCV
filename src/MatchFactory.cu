@@ -784,6 +784,11 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
     }
   }
   if(seedDistances != nullptr) delete seedDistances;
+  if(totalMatches == 0){
+    std::cerr<<"There were no matches found in the set of images, likely due to unreasonable threshold"<<std::endl;
+    std::cerr<<"exiting..."<<std::endl;
+    exit(0);
+  }
   std::cout<<"prepping match interpolation on cpu"<<std::endl;
   //required connections to make a match?
   std::vector<uint2>** adjacencyList = new std::vector<uint2>*[images.size() - 1];
@@ -816,18 +821,36 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
       std::vector<uint2>* adj = &adjacencyList[i][f];
       if(!adj->size()) continue;
       badMatch = false;
-      if(adj->size() != images.size() - 1) badMatch = true;
-      // std::vector<uint2>* prev_adj = adj;
-      // std::vector<uint2>* next_adj;
+      std::vector<uint2>* prev_adj = adj;
+      std::vector<uint2>* next_adj = &adjacencyList[adj->begin()->x][adj->begin()->y];  
+      while(true){
+        if(!next_adj->size()){
+          badMatch = true;
+          break;
+        }
+        std::vector<uint2> intersection;
+        std::set_intersection(prev_adj->begin(),prev_adj->end(),next_adj->begin(),next_adj->end(),std::back_inserter(intersection));
+        if(intersection.size() != next_adj->size()){
+          badMatch = true;
+          break;
+        }
+        else if(next_adj->size() == 1) break;
+        else{
+          prev_adj = next_adj;
+          next_adj = &adjacencyList[prev_adj->begin()->x][prev_adj->begin()->y];
+        }
+      } 
       // for(auto m = adj->begin(); m != adj->end() - 1; ++m){
-      //   next_adj = &adjacencyList[m->x][m->y];
-      //   if(!next_adj->size() || next_adj->size() >= prev_adj->size()){
+      //   std::vector<uint2> intersection;
+      //   next_adj = ;
+      //   if(!next_adj->size()){
       //     badMatch = true;
       //     break;
       //   }
-      //   else if(adj->size() == 1) break;
-      //   if(std::find(next_adj->begin(),next_adj->end(),*(m+1)) != next_adj->end()){
-      //     prev_adj = next_adj;
+      //   std::set_intersection(adj->begin(),adj->end(),next_adj->begin(),next_adj->end(),std::back_inserter(intersection));
+      //   if(intersection.size() != next_adj->size()){
+      //     badMatch = true;
+      //     break;
       //   }
       // }
       if(badMatch) adj->clear();
@@ -836,6 +859,10 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
         match.push_back({i,f});
         match.insert(match.end(),adjacencyList[i][f].begin(),adjacencyList[i][f].end());
         multiMatch_vec.push_back(match);
+        for(auto m = adj->begin(); m != adj->end() - 1; ++m){
+          next_adj = &adjacencyList[m->x][m->y];
+          next_adj->clear();
+        }
       } 
     }
     delete[] adjacencyList[i];

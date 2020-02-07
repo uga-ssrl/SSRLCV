@@ -16,8 +16,6 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     image->colorDepth = 1;
   }
   if(dense){
-    dim3 grid = {1,1,1};
-    dim3 block = {1,1,1};
 
     clock_t timer = clock();
     Unity<float>* pixelsFLT = convertImageToFlt(image->pixels);
