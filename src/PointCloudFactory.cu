@@ -636,10 +636,10 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linear
   // fill in the value for the point cloud
   pointcloud[globalID] = point;
 
-  // add the linaer errors locally within the block before
+  // add the linear errors locally within the block before
   float error = sqrtf(dotProduct(s1,s2));
   errors[globalID] = error;
-  if (error > linearErrorCutoff* ) point = {NULL,NULL,NULL};
+  if (error > *linearErrorCutoff) pointcloud[globalID] = {NULL,NULL,NULL};
   int i_error = (int) error;
   atomicAdd(&localSum,i_error);
   __syncthreads();

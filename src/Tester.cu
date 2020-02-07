@@ -104,6 +104,7 @@ int main(int argc, char *argv[]){
 
     // here is a version that will give me individual linear errors
     ssrlcv::Unity<float>* errors = new ssrlcv::Unity<float>(nullptr,matches->numElements,ssrlcv::cpu);
+    *linearErrorCutoff = 650.0;
     ssrlcv::Unity<float3>* points2 = demPoints.twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
     // then I write them to a csv to see what to heck is goin on
     ssrlcv::writeCSV(errors->host, (int) errors->numElements, "individualLinearErrors");
