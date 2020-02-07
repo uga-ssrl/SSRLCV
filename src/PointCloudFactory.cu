@@ -153,6 +153,64 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
 }
 
 /**
+* The CPU method that sets up the GPU enabled two view tringulation.
+* @param bundleSet a set of lines and bundles that should be triangulated
+* @param the individual linear errors (for use in debugging and histogram)
+* @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
+* @param linearErrorCutoff is a value that all linear errors should be less than. points with larger errors are discarded.
+*/
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet bundleSet, Unity<float>* errors, unsigned long long int* linearError, float* linearErrorCutoff){
+
+  // to total error cacluation is stored in this guy
+  *linearError = 0;
+  unsigned long long int* d_linearError;
+  size_t eSize = sizeof(unsigned long long int);
+  CudaSafeCall(cudaMalloc((void**) &d_linearError,eSize));
+  CudaSafeCall(cudaMemcpy(d_linearError,linearError,eSize,cudaMemcpyHostToDevice));
+  // the cutoff boi
+  // *linearErrorCutoff = 10000.0;
+  float* d_linearErrorCutoff;
+  size_t cutSize = sizeof(float);
+  CudaSafeCall(cudaMalloc((void**) &d_linearErrorCutoff,cutSize));
+  CudaSafeCall(cudaMemcpy(d_linearErrorCutoff,linearErrorCutoff,cutSize,cudaMemcpyHostToDevice));
+
+  bundleSet.lines->transferMemoryTo(gpu);
+  bundleSet.bundles->transferMemoryTo(gpu);
+  errors->transferMemoryTo(gpu);
+
+  // Unity<float3>* pointcloud = new Unity<float3>(nullptr,2*bundleSet.bundles->numElements,gpu);
+  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->numElements,gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(bundleSet.bundles->numElements,grid,block,generateBundle);
+
+  std::cout << "Starting 2-view triangulation ..." << std::endl;
+  computeTwoViewTriangulate<<<grid,block>>>(d_linearError,d_linearErrorCutoff,errors->device,bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  std::cout << "2-view Triangulation done ... \n" << std::endl;
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  // transfer the poitns back to the CPU
+  pointcloud->transferMemoryTo(cpu);
+  pointcloud->clear(gpu);
+  // transfer the individual linear errors back to the CPU
+  errors->transferMemoryTo(cpu);
+  errors->clear(gpu);
+  // clear the other boiz
+  bundleSet.lines->clear(gpu);
+  bundleSet.bundles->clear(gpu);
+  // copy back the total error that occured
+  CudaSafeCall(cudaMemcpy(linearError,d_linearError,eSize,cudaMemcpyDeviceToHost));
+  cudaFree(d_linearError);
+  // free the cutoff, it's not needed on the cpu again tho
+  cudaFree(d_linearErrorCutoff);
+
+  return pointcloud;
+}
+
+/**
 * Preforms a Stereo Disparity with the correct scalar, calcualated form camera
 * parameters
 * @param matches0
@@ -535,8 +593,58 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linear
   if (!threadIdx.x) atomicAdd(linearError,localSum);
 }
 
+/**
+* Does a trigulation with skew lines to find their closest intercetion.
+* Generates a set of individual linear errors of debugging and analysis
+* Generates a total LinearError, which is an analog for reprojection error
+* If a point's linear error is larger than the cutoff it is not returned in the pointcloud
+*/
+__global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linearError, float* linearErrorCutoff, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
+  // get ready to do the stuff local memory space
+  // this will later be added back to a global memory space
+  __shared__ unsigned long long int localSum;
+  if (threadIdx.x == 0) localSum = 0;
+  __syncthreads();
 
+  // this method is from wikipedia, last seen janurary 2020
+  // https://en.wikipedia.org/wiki/Skew_lines#Nearest_Points
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  // if (globalID > (1)) return;
+  if (globalID > (pointnum-1)) return;
+  // we can assume that each line, so we don't need to get the numlines
+  // ne guys are made just for easy of writing
+  ssrlcv::Bundle::Line L1 = lines[bundles[globalID].index];
+  ssrlcv::Bundle::Line L2 = lines[bundles[globalID].index+1];
 
+  // calculate the normals
+  float3 n2 = crossProduct(L2.vec,crossProduct(L1.vec,L2.vec));
+  float3 n1 = crossProduct(L1.vec,crossProduct(L1.vec,L2.vec));
+
+  // calculate the numerators
+  float numer1 = dotProduct((L2.pnt - L1.pnt),n2);
+  float numer2 = dotProduct((L1.pnt - L2.pnt),n1);
+
+  // calculate the denominators
+  float denom1 = dotProduct(L1.vec,n2);
+  float denom2 = dotProduct(L2.vec,n1);
+
+  // get the S points
+  float3 s1 = L1.pnt + (numer1/denom1) * L1.vec;
+  float3 s2 = L2.pnt + (numer2/denom2) * L2.vec;
+  float3 point = (s1 + s2)/2.0;
+
+  // fill in the value for the point cloud
+  pointcloud[globalID] = point;
+
+  // add the linear errors locally within the block before
+  float error = sqrtf(dotProduct(s1,s2));
+  errors[globalID] = error;
+  if (error > *linearErrorCutoff) pointcloud[globalID] = {NULL,NULL,NULL};
+  int i_error = (int) error;
+  atomicAdd(&localSum,i_error);
+  __syncthreads();
+  if (!threadIdx.x) atomicAdd(linearError,localSum);
+}
 
 
 

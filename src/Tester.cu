@@ -94,7 +94,8 @@ int main(int argc, char *argv[]){
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
 
     // bunlde adjustment loop would be here. images_vec woudl be modified to minimize the boi
-    unsigned long long int* linearError = (unsigned long long int*)malloc(sizeof(unsigned long long int));
+    unsigned long long int* linearError = (unsigned long long int*) malloc(sizeof(unsigned long long int));
+    float* linearErrorCutoff = (float*) malloc(sizeof(float));
     ssrlcv::BundleSet bundleSet = demPoints.generateBundles(&matchSet,images);
 
     // the version that will be used normally
@@ -103,7 +104,8 @@ int main(int argc, char *argv[]){
 
     // here is a version that will give me individual linear errors
     ssrlcv::Unity<float>* errors = new ssrlcv::Unity<float>(nullptr,matches->numElements,ssrlcv::cpu);
-    ssrlcv::Unity<float3>* points2 = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
+    *linearErrorCutoff = 620.0;
+    ssrlcv::Unity<float3>* points2 = demPoints.twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
     // then I write them to a csv to see what to heck is goin on
     ssrlcv::writeCSV(errors->host, (int) errors->numElements, "individualLinearErrors");
 
@@ -116,8 +118,10 @@ int main(int argc, char *argv[]){
     //
 
     delete matches;
-    ssrlcv::writePLY("out/test.ply",points);
+    ssrlcv::writePLY("out/unfiltered.ply",points);
     delete points;
+    ssrlcv::writePLY("out/filtered.ply",points2);
+    delete points2;
 
     // clean up the images
     for(int i = 0; i < imagePaths.size(); ++i){
