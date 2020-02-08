@@ -129,6 +129,10 @@ namespace ssrlcv{
   /**
   * \brief Reads a png image and generates a pixel array.
   * \details 
+  * \param filePath const char* absolute filePath for image
+  * \param height
+  * \param width
+  * \param colorDepth
   * \returns a pixel array flattened row-wise with dimensions filled out in width, height, and colorDepth reference arguments
   */
   unsigned char* readPNG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
@@ -136,30 +140,53 @@ namespace ssrlcv{
   /**
   * \brief Writes a png image from a pixel array.
   * \details 
+  * \param filePath const char* absolute filePath where image is to be written
+  * \param image
+  * \param colorDepth
+  * \param width
+  * \param height
   */
   void writePNG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
 
   /**
   * \brief Reads a tiff image and generates a pixel array. 
   * \details 
+  * \param filePath const char* absolute filePath for image
+  * \param height
+  * \param width
+  * \param colorDepth
   * \returns a pixel array flattened row-wise with dimensions filled out in width, height, and colorDepth reference arguments
   */
   unsigned char* readTIFF(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
   /**
   * \brief Writes a tiff image from a pixel array.
   * \details 
+  * \param filePath const char* absolute filePath where image is to be written
+  * \param image
+  * \param colorDepth
+  * \param width
+  * \param height
   */
   void writeTIFF(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
 
   /**
   * \brief Reads a jpeg image and generates a pixel array.
   * \details 
+  * \param filePath const char* absolute filePath for image
+  * \param height
+  * \param width
+  * \param colorDepth
   * \returns a pixel array flattened row-wise with dimensions filled out in width, height, and colorDepth reference arguments
   */
   unsigned char* readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
   /**
   * \brief Writes a jpeg image from a pixel array.
   * \details 
+  * \param filePath const char* absolute filePath where image is to be written
+  * \param image
+  * \param colorDepth
+  * \param width
+  * \param height
   */
   void writeJPEG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
 

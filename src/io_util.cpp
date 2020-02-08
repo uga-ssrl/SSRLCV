@@ -571,7 +571,7 @@ bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out)
 //
 
 void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
-  MemoryState origin = points->state;
+  MemoryState origin = points->getMemoryState();
   if(origin == gpu) points->transferMemoryTo(cpu);
   tinyply::PlyFile ply;
   ply.get_comments().push_back("SSRL Test");
