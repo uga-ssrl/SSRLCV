@@ -28,31 +28,31 @@ namespace ssrlcv{
     * \brief this struct is meant to house image and camera parameters.
     */
     struct Camera{
-      /**\brief position of camera*/
-      float3 cam_pos;
-      /**\brief the x, y, z rotations of the camera*/
-      float3 cam_rot;
-      /**\brief feild of fiew of camera*/
-      float2 fov;
-      /**\brief focal length of camera*/
-      float foc;
-      /**\brief real world size of each pixel*/
-      float2 dpix;
-      /**\brief seconds since Jan 01, 1070*/
-      long long int timeStamp;
-      /**identical to the image size param, but used in GPU camera modification methods */
+      float3 cam_pos;///<\brief position of camera
+      /***/
+      float3 cam_rot;///<\brief the x, y, z rotations of the camera
+      /***/
+      float2 fov;///<\brief feild of fiew of camera
+      /***/
+      float foc;///<\brief focal length of camera
+      /***/
+      float2 dpix;///<\brief real world size of each pixel
+      long long int timeStamp;///<\brief seconds since Jan 01, 1070
+      /**
+       * \brief identical to the image size param, but used in GPU camera modification method
+       */
       uint2 size;
       __device__ __host__ Camera();
       __device__ __host__ Camera(uint2 size);
       __device__ __host__ Camera(uint2 size, float3 cam_pos, float3 camp_dir);
     };
 
-    std::string filePath;/**\brief path to image file*/
-    int id;/**\brief parent image id*/
-    uint2 size;/**\brief size of image*/
-    unsigned int colorDepth;/**\brief colorDepth of image*/
-    Camera camera;/**\brief Camera struct holding all camera parameters*/
-    Unity<unsigned char>* pixels;/**\brief pixels of image flattened row-wise*/
+    std::string filePath;///< \brief path to image file
+    int id;///<\brief parent image id
+    uint2 size;///<\brief size of image
+    unsigned int colorDepth;///<\brief colorDepth of image
+    Camera camera;///<\brief Camera struct holding all camera parameters
+    Unity<unsigned char>* pixels;///<\brief pixels of image flattened row-wise
 
     Image();
     Image(uint2 size, unsigned int colorDepth, Unity<unsigned char>* pixels);
@@ -60,7 +60,13 @@ namespace ssrlcv{
     Image(std::string filePath, unsigned int convertColorDepthTo, int id = -1);
     ~Image();
 
+    /**
+    * \brief 
+    */
     void convertColorDepthTo(unsigned int colorDepth);
+    /**
+    * \brief 
+    */
     Unity<int2>* getPixelGradients();
     /**
     *\breif This method will either bin or upsample an image based on the scaling factor
@@ -87,22 +93,41 @@ namespace ssrlcv{
     }
 
   };
-
+  /**
+  * \brief 
+  */
   Unity<unsigned char>* addBufferBorder(uint2 size, ssrlcv::Unity<unsigned char>* pixels, int2 border);
+    /**
+  * \brief 
+  */\
   Unity<float>* addBufferBorder(uint2 size, ssrlcv::Unity<float>* pixels, int2 border);
-
+  /**
+  * \brief 
+  */
   Unity<unsigned char>* convertImageToChar(Unity<float>* pixels);
+    /**
+  * \brief 
+  */
   Unity<float>* convertImageToFlt(Unity<unsigned char>* pixels);
-
+  /**
+  * \brief 
+  */
   void normalizeImage(Unity<float>* pixels);
+    /**
+  * \brief 
+  */
   void normalizeImage(Unity<float>* pixels, float2 minMax);
-
+  /**
+  * \brief 
+  */
   void convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth);
+    /**
+  * \brief 
+  */
   void convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth);
 
   //TODO implement
   void calcFundamentalMatrix_2View(float cam0[3][3], float cam1[3][3], float (&F)[3][3]);
-
   void calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F)[3]);
   void get_cam_params2view(Image* cam1, Image* cam2, std::string infile);
 
@@ -137,11 +162,19 @@ namespace ssrlcv{
   *\todo think about adding referenced imageSize for new image size
   */
   Unity<unsigned char>* scaleImage(uint2 imageSize, Unity<unsigned char>* pixels, float outputPixelWidth);
+  /**
+  * \brief 
+  */
   Unity<float>* scaleImage(uint2 imageSize, Unity<float>* pixels, float outputPixelWidth);
 
 
-
+  /**
+  * \brief 
+  */
   Unity<float>* convolve(uint2 imageSize, Unity<unsigned char>* pixels, int2 kernelSize, float* kernel, bool symmetric = true);
+  /**
+  * \brief 
+  */
   Unity<float>* convolve(uint2 imageSize, Unity<float>* pixels, int2 kernelSize, float* kernel, bool symmetric = true);
 
 

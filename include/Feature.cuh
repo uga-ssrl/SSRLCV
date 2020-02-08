@@ -1,5 +1,9 @@
-/** \file Feature.cuh
-* \brief this file contains all feature/feature descriptor definitions
+/** 
+* \file Feature.cuh
+* \brief This file contains all feature/feature descriptor definitions
+* \details This file is where all current and future descriptors will 
+* be defined. All features need a distProtocol implemented to be 
+* compatible with MatchFactory. 
 */
 #ifndef FEATURE_CUH
 #define FEATURE_CUH
@@ -8,12 +12,15 @@
 namespace ssrlcv{
   /**
   * \brief The base feature struct that can contain any descriptor type.
+  * \tparam Type of the descriptor 
+  * \note it is advised to implement a D.distProtocol(D) method for 
+  * MatchFactory compatibility
   */
   template<typename D>
   struct Feature{
-    int parent;
-    float2 loc;
-    D descriptor;
+    int parent;///< parent image ID
+    float2 loc;///< location on parent image
+    D descriptor;///< descriptor of feature
     __device__ __host__ Feature();
     __device__ __host__ Feature(float2 loc);
     __device__ __host__ Feature(float2 loc, D descriptor);
@@ -34,16 +41,32 @@ namespace ssrlcv{
   }
 
   /**
-  * \brief a descriptor for unsigned char[128] SIFT feature descriptor.
+  * \brief Descriptor for unsigned char[128] SIFT feature descriptor.
+  * \details This descriptor includes all the information generated during 
+  * SIFT feature detection.  
+  * \see SIFT_FeatureFactory
   */
   struct SIFT_Descriptor{
+    /**
+    * \brief location in space space
+    * \see FeatureFactory::ScaleSpace 
+    */
     float sigma;
-    float theta;//in radians
-    unsigned char values[128];//ordered left to right, top to bottom, 0->360 degrees
+    float theta;///< dominant directional vector from gradient analysis in radians
+    /**
+    * \brief Actual SIFT descriptor values.
+    * \details These values outline a flattened HOG (histogram of oriented gradients) 
+    * ordered left to right, top to bottom, 0->360 degrees.
+    */
+    unsigned char values[128];///< actual SIFT descriptor values ordered left to right, top to bottom, 0->360 degrees
     __device__ __host__ SIFT_Descriptor();
     __device__ __host__ SIFT_Descriptor(float theta);
     __device__ __host__ SIFT_Descriptor(float theta, unsigned char values[128]);
-    //dist here is euclidian distance squared
+    /**
+    * \brief The distance protocol used for matching.
+    * \details This distance protocol is euclidian distance squared between the value[128] arrays of 2 descriptors
+    * \see MatchFactory
+    */
     __device__ __host__ float distProtocol(const SIFT_Descriptor& b, const float &bestMatch);
     __device__ __host__ void print();//not recommended to execute on the gpu with more than one feature
   };
