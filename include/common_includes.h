@@ -15,6 +15,7 @@
 //util
 #include "cuda_util.cuh"
 #include "matrix_util.cuh"
+#include "Unity.cuh"
 
 //cpp includes
 #include <iostream>

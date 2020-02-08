@@ -264,7 +264,9 @@ namespace ssrlcv{
     */
     void transferMemoryTo(MemoryState state);
     /**
-    * \brief This method will delete all data and reset based on data provided. 
+    * \brief Method to effectively reset Unity based on input data.
+    * \details This method will erase all data in Unity and replace it with 
+    * data provided to this method. This does the same as the primary constructor. 
     * \param data - must be of previous type (can use nullptr for blank array of length numElements)
     * \param numElements - size of new data
     * \param state - location of new data (must be cpu or gpu)
@@ -272,6 +274,8 @@ namespace ssrlcv{
     void setData(T* data, unsigned long numElements, MemoryState state);
     /**
     * \brief This method will return a copy of this Unity<T>* with a specified memory state.
+    * \details This method will return a copy of this Unity with a new or the same 
+    * memory location. Due to this returning a Unity, destination can be both. 
     * \param destination - location of copied data (host,device,both)
     * \returns copy of data located in this
     */

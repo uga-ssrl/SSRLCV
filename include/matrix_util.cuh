@@ -38,21 +38,23 @@ namespace ssrlcv{
   __device__ float3 getVectorAngles(float3 v);
 
   /**
-   * Rotates a point around the x, y, and z axis by the given angles.
-   * @param point point to rotate
-   * @param angles angle to rotate
-   * @return point after rotation
+   * \brief Rotates a point around the x, y, and z.
+   * \details Rotates a point around the x, y, and z axis by the given angles.
+   * \param point point to rotate
+   * \param angles angle to rotate
+   * \return point after rotation
    */
   __device__ float3 rotatePoint(float3 point, float3 angles);
 
   /**
-   * Rotates a point around a given axis given by a unit vector through the origin
+   * \brief Rotates a point around a given axis.
+   * \details Rotates a point around a given axis given by a unit vector through the origin
    * by a given angle. The resulting point can be found by first rotating the axis
    * to the z-axis, performing the rotation, and rotating the axis back to the orginal orientation.
-   * @param point point to rotate
-   * @param axis axis to rotate
-   * @param angle angle to rotate
-   * @return point after the rotation
+   * \param point point to rotate
+   * \param axis axis to rotate
+   * \param angle angle to rotate
+   * \return point after the rotation
    */
   __device__ float3 rotatePointArbitrary(float3 point, float3 axis, float angle);
 

@@ -93,11 +93,16 @@ namespace ssrlcv{
 
   /**
   * \brief Factory for generating matches for accepted features
-  * \note if attempting to add new Feature support implement calcElucidSq
-  * as modeled by calcElucidSq(const Feature<SIFT_Descriptor>& a,
-  * const Feature<SIFT_Descriptor>& b);calcElucidSq(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b)
-  * and calcElucidSq(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b),
-  * then add template declaration at the top MatchFactory.cu like template class ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>;
+  * \details 
+  * \note if attempting to add new Feature support implement distProtocol() for 
+  * \see Feature 
+  * \see SIFT_Descriptor
+  * \see Window3x3
+  * \see Window9x9
+  * \see Window15x15
+  * \see Window25x25
+  * \see Window31x31
+
   */
   template<typename T>
   class MatchFactory{

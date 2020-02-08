@@ -15,49 +15,89 @@ namespace ssrlcv{
   /*
   ARG PARSING
   */
-  // \brief filled out in io_util.cpp
+  /**
+   * \brief Map for command line flag and argument type association.
+   * \details This map is filled out in io_util.cpp and contains all 
+   * possible command line argument flags and the associated argument identifier. 
+   * This map is primarily purposed to help parsArgs() method.
+   * \see parseArgs
+   */
   extern std::map<std::string, std::string> cl_args;
 
-  // \brief returns true if the fully qualified path exists
+  /**
+   * \brief Determines if a file path exists. 
+   * \details This method takes in an absolute path and 
+   * returns true if there is infact a file with that path. 
+   * \param fileName - the absolute path to the file in question
+   * \returns true if the path is a file, false otherwise
+   */
   bool fileExists(std::string fileName);
 
+  /**
+   * \brief Determines if a directory path exists.
+   * \details This method takes in an aboslute path 
+   * to a directory and returns true if it exists. 
+   * \param dirPath - the aboslute path to the directory
+   * \returns true if the path is a directory, false otherwise
+   */
   bool directoryExists(std::string dirPath);
 
+  /**
+   * \brief Extracts the file extension from a file path.
+   * \details This method simply takes the string that comes 
+   * after the last occurance of a '.'
+   * \param path - the path to a file, could be absolute or relative 
+   * \returns a string containing the file extension\
+   * \todo add a fileExists() check to this 
+   */
   std::string getFileExtension(std::string path);
 
-  /*
-   * Returns the folder of a file give a fully qualified filepath
-   * @param path a string representing a fully qualified filepath
-   * @return string which is the fully qualified folder path
+  /**
+   * \brief Returns the folder of a file give a fully qualified filepath.
+   * \param path a string representing a fully qualified filepath
+   * \return string which is the fully qualified folder path
    */
   std::string getFolderFromFilePath(std::string path);
 
-  /*
-   * Returns the filename from a fully qualified filepath
-   * @param path a string representing a fully qualified filepath
-   * @return string which is the filename only
+  /**
+   * \brief Returns the filename from a fully qualified filepath.
+   * \param path a string representing a fully qualified filepath
+   * \return string which is the filename only
    */
   std::string getFileFromFilePath(std::string path);
 
+
   void getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths);
 
+  /**
+   * \brief Base arg struct for arg parsing purposes. 
+   */
   struct arg{};
 
+  /**
+   * \brief arg containing an image path 
+   */
   struct img_arg : public arg{
     std::string path;
     img_arg(char* path);
   };
-
+  /**
+   * \brief arg containing a vector of image paths
+   */
   struct img_dir_arg : public arg{
     std::vector<std::string> paths;
     img_dir_arg(char* path);
   };
-
+  /**
+   * \brief arg containing a floating point value 
+   */
   struct flt_arg : public arg{
     float val;
     flt_arg(char* val);
   };
-
+  /**
+   * \brief arg containing an integer value 
+   */
   struct int_arg : public arg{
     int val;
     int_arg(char* val);
@@ -67,6 +107,11 @@ namespace ssrlcv{
 
   std::vector<std::string> findFiles(std::string path);//going to be deprecated
 
+  /**
+   * \brief Parses command line arguments into a map that can be easily processed in main().
+   * \details 
+   * \returns a map of string argument type identifiers and the argument  
+   */
   std::map<std::string, arg*> parseArgs(int numArgs, char* args[]);
 
 
@@ -76,25 +121,46 @@ namespace ssrlcv{
 
   /**
   * \brief get pixel array from a row of pointers generated from ssrlcv::readPNG utilizing png.h
+  * \details 
+  * \returns a row of pixels
   */
   unsigned char* getPixelArray(unsigned char** &row_pointers, const unsigned int &width, const unsigned int &height, const int numValues);
 
   /**
-  * \brief get pixel values from an image file
-  * \returns pixel array flattened row-wise
+  * \brief Reads a png image and generates a pixel array.
+  * \details 
+  * \returns a pixel array flattened row-wise with dimensions filled out in width, height, and colorDepth reference arguments
   */
   unsigned char* readPNG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
 
   /**
-  * \brief will write png from pixel array
+  * \brief Writes a png image from a pixel array.
+  * \details 
   */
   void writePNG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
 
-
+  /**
+  * \brief Reads a tiff image and generates a pixel array. 
+  * \details 
+  * \returns a pixel array flattened row-wise with dimensions filled out in width, height, and colorDepth reference arguments
+  */
   unsigned char* readTIFF(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
+  /**
+  * \brief Writes a tiff image from a pixel array.
+  * \details 
+  */
   void writeTIFF(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
 
+  /**
+  * \brief Reads a jpeg image and generates a pixel array.
+  * \details 
+  * \returns a pixel array flattened row-wise with dimensions filled out in width, height, and colorDepth reference arguments
+  */
   unsigned char* readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
+  /**
+  * \brief Writes a jpeg image from a pixel array.
+  * \details 
+  */
   void writeJPEG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
 
   /*

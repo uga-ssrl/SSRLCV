@@ -1,7 +1,7 @@
 /** \file FeatureFactory.cuh
- * \brief This file contains the base feature class definition.
- * All feature factories should be derivative of this class
- * and should include this file.
+* \brief This file contains the base feature class definition.
+* \details All feature factories should be derivative of this class
+* and should include this file.
 */
 
 #ifndef FEATUREFACTORY_CUH
@@ -26,8 +26,7 @@ namespace ssrlcv{
 
   /**
   * \brief Parent factory for generating a Feature array from an Image
-  *
-  * \detail Contains methods and members that could be useful
+  * \details Contains methods and members that could be useful
   * for any type of feature factory.
   */
   class FeatureFactory{
@@ -38,15 +37,16 @@ namespace ssrlcv{
   public:
 
     /**
-    * \brief this is a struct to house a set of octaves making a scale space
-    * \todo implement
+    * \brief A scale space holding a heirarchy of octaves and blurs.
+    * \details 
+    * \todo Allow for other kernels (not just gaussians) to be passed in for convolution. 
     */
     struct ScaleSpace{
     private:
       bool isDOG;
       /**
-      * \brief will convert scalespace to a difference of gaussians
-      * numBlurs-- will occur
+      * \brief Convert scalespace to a difference of gaussians
+      * \details 
       */
       void convertToDOG();  
     public:
@@ -109,7 +109,7 @@ namespace ssrlcv{
 
       };
 
-      uint2 depth;//octave,blur
+      uint2 depth;///< depth of ScaleSpace {numOctaves, numBlurs}
       Octave** octaves;
 
       ScaleSpace();
@@ -148,24 +148,44 @@ namespace ssrlcv{
     FeatureFactory(float orientationContribWidth = 1.5f, float descriptorContribWidth = 6.0f);
      /**
     * \brief set maximum number Feature's a keypoint can generate
+    * \details 
     */
     void setMaxOrientations(unsigned int maxOrientations);
     /**
     * \brief set threshold for a keypoint orientation to make a new Feature
+    * \details 
     */
     void setOrientationThreshold(float orientationThreshold);
     /**
     * \brief set contributer window width for orientation computation
+    * \details 
     */
     void setOrientationContribWidth(float orientationContribWidth);
 
-    /*
-    very simple feature generators for stereodisparity
+    /**
+    * \brief feature generators for 3x3 pixel window
+    * \details 
     */
     Unity<Feature<Window_3x3>>* generate3x3Windows(Image* image);
+    /**
+    * \brief feature generators for 9x9 pixel window
+    * \details 
+    */
     Unity<Feature<Window_9x9>>* generate9x9Windows(Image* image);
+    /**
+    * \brief feature generators for 15x15 pixel window
+    * \details 
+    */
     Unity<Feature<Window_15x15>>* generate15x15Windows(Image* image);
+    /**
+    * \brief feature generators for 25x25 pixel window
+    * \details 
+    */
     Unity<Feature<Window_25x25>>* generate25x25Windows(Image* image);
+    /**
+    * \brief feature generators for 31x31 pixel window
+    * \details 
+    */
     Unity<Feature<Window_31x31>>* generate31x31Windows(Image* image);
 
     ~FeatureFactory();  
@@ -204,11 +224,4 @@ namespace ssrlcv{
   __global__ void flagBorder(unsigned int numKeyPoints, uint2 imageSize, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float2 border);
 
   __global__ void computeThetas(unsigned long numKeyPoints, unsigned int keyPointIndex, uint2 imageSize, float pixelWidth, 
-  float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoints, float2* gradients, 
-  int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, float* thetas);
-
-  __global__ void expandKeyPoints(unsigned int numKeyPoints, FeatureFactory::ScaleSpace::SSKeyPoint* keyPointsIn, FeatureFactory::ScaleSpace::SSKeyPoint* keyPointsOut, int* thetaAddresses, float* thetas);
-}
-
-
-#endif /* FEATUREFACTORY_CUH */
+  float lambda, FeatureFactor    //dist here is euclidian distance squared
