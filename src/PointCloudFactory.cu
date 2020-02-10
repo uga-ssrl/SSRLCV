@@ -16,10 +16,11 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   Unity<Bundle>* bundles = new Unity<Bundle>(nullptr,matchSet->matches->numElements,gpu);
   Unity<Bundle::Line>* lines = new Unity<Bundle::Line>(nullptr,matchSet->keyPoints->numElements,gpu);
 
-  std::cout << "starting bundle generation ..." << std::endl;
+  // std::cout << "starting bundle generation ..." << std::endl;
   MemoryState origin[2] = {matchSet->matches->getMemoryState(),matchSet->keyPoints->getMemoryState()};
   if(origin[0] == cpu) matchSet->matches->transferMemoryTo(gpu);
   if(origin[1] == cpu) matchSet->keyPoints->transferMemoryTo(gpu);
+  // std::cout << "set the matches ... " << std::endl;
   // the cameras
   size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
   // fill the cam boi
@@ -29,6 +30,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
     h_cameras[i] = images.at(i)->camera;
   }
   ssrlcv::Image::Camera* d_cameras;
+  // std::cout << "set the cameras ... " << std::endl;
   CudaSafeCall(cudaMalloc(&d_cameras, cam_bytes));
   // copy the othe guy
   CudaSafeCall(cudaMemcpy(d_cameras, h_cameras, cam_bytes, cudaMemcpyHostToDevice));
@@ -38,9 +40,9 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   getFlatGridBlock(bundles->numElements,grid,block,generateBundle);
 
   //in this kernel fill lines and bundles from keyPoints and matches
-  std::cout << "Calling bundle generation kernel ..." << std::endl;
+  // std::cout << "Calling bundle generation kernel ..." << std::endl;
   generateBundle<<<grid, block>>>(bundles->numElements,bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
-  std::cout << "Returned from bundle generation kernel ... \n" << std::endl;
+  // std::cout << "Returned from bundle generation kernel ... \n" << std::endl;
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -211,6 +213,56 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
 }
 
 /**
+ * Same method as two view triangulation, but all that is desired fro this method is a calculation of the linearError
+ * @param bundleSet a set of lines and bundles that should be triangulated
+ * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
+ * @param linearErrorCutoff is a value that all linear errors should be less than. points with larger errors are discarded.
+ */
+void ssrlcv::PointCloudFactory::voidTwoViewTriangulate(BundleSet bundleSet, unsigned long long int* linearError, float* linearErrorCutoff){
+  // to total error cacluation is stored in this guy
+  *linearError = 0;
+  unsigned long long int* d_linearError;
+  size_t eSize = sizeof(unsigned long long int);
+  CudaSafeCall(cudaMalloc((void**) &d_linearError,eSize));
+  CudaSafeCall(cudaMemcpy(d_linearError,linearError,eSize,cudaMemcpyHostToDevice));
+  // the cutoff boi
+  // *linearErrorCutoff = 10000.0;
+  float* d_linearErrorCutoff;
+  size_t cutSize = sizeof(float);
+  CudaSafeCall(cudaMalloc((void**) &d_linearErrorCutoff,cutSize));
+  CudaSafeCall(cudaMemcpy(d_linearErrorCutoff,linearErrorCutoff,cutSize,cudaMemcpyHostToDevice));
+
+  bundleSet.lines->transferMemoryTo(gpu);
+  bundleSet.bundles->transferMemoryTo(gpu);
+
+  // Unity<float3>* pointcloud = new Unity<float3>(nullptr,2*bundleSet.bundles->numElements,gpu);
+  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->numElements,gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(bundleSet.bundles->numElements,grid,block,generateBundle);
+
+  voidComputeTwoViewTriangulate<<<grid,block>>>(d_linearError,d_linearErrorCutoff,bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  // transfer the poitns back to the CPU
+  pointcloud->transferMemoryTo(cpu);
+  pointcloud->clear(gpu);
+  // clear the other boiz
+  bundleSet.lines->clear(gpu);
+  bundleSet.bundles->clear(gpu);
+  // copy back the total error that occured
+  CudaSafeCall(cudaMemcpy(linearError,d_linearError,eSize,cudaMemcpyDeviceToHost));
+  cudaFree(d_linearError);
+  // free the cutoff, it's not needed on the cpu again tho
+  cudaFree(d_linearErrorCutoff);
+
+  return;
+}
+
+/**
 * Preforms a Stereo Disparity with the correct scalar, calcualated form camera
 * parameters
 * @param matches0
@@ -315,15 +367,212 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
  */
 ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
 
-  // the main factory we use to call our functions
-  ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
   // the initial linear error
   unsigned long long int* linearError = (unsigned long long int*) malloc(sizeof(unsigned long long int));
+  unsigned long long int* linearError_partial = (unsigned long long int*) malloc(sizeof(unsigned long long int));
   // the cutoff
   // TODO this shold later remove points that are bad
   float* linearErrorCutoff = (float*) malloc(sizeof(float));
-  ssrlcv::BundleSet bundleSet = demPoints.generateBundles(matchSet,images);
+  // make the temporary image struct
+  std::vector<ssrlcv::Image*> partials;
+  partials.push_back(images[0]);
+  partials.push_back(images[1]);
+  // used to store the gradients in the camera
+  std::vector<ssrlcv::Image::Camera> gradients;
+  ssrlcv::Image::Camera g_1 = ssrlcv::Image::Camera();
+  ssrlcv::Image::Camera g_2 = ssrlcv::Image::Camera();
+  gradients.push_back(g_1);
+  gradients.push_back(g_2);
+  ssrlcv::BundleSet bundleSet_partial;
 
+
+  for (int i = 1; i < 10; i++){
+    // generate the bundle set
+    ssrlcv::BundleSet bundleSet = generateBundles(matchSet,images);
+    // do an initial triangulation
+    ssrlcv::Unity<float>* errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->numElements,ssrlcv::cpu);
+    *linearErrorCutoff = 620.0;
+    ssrlcv::Unity<float3>* points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+    if (i == 1 ) ssrlcv::writePLY("out/rawPoints.ply",points);
+    // then I write them to a csv to see what to heck is goin on
+    // write some errors for debug
+    writeCSV(errors->host, (int) errors->numElements, "individualLinearErrors" + std::to_string(i));
+    std::cout << "[itr: " << i << "] linear error: " << *linearError << std::endl;
+
+    // what the step sizes should be tho:
+    // this is only for the "sensitivity" in those component directions
+    float h_rot = 0.0000001;
+    float h_pos = 0.0000001;
+    float h_foc = 0.0000001;
+    float h_fov = 0.0000001;
+    // the stepsize along the gradient
+    float step  = 0.01;
+
+    // calculate the descrete partial derivatives using forward difference
+    for (int j = 0; j < partials.size(); j++){
+      // rotations
+
+      // partial for x rotation
+      partials[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x + h_rot;
+      // get the error
+      bundleSet_partial = generateBundles(matchSet,partials);
+      voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
+      delete bundleSet_partial.lines;
+      delete bundleSet_partial.bundles;
+      gradients[j].cam_rot.x = ((float) *linearError + (float) *linearError_partial) / (h_rot);
+      // reset
+      partials[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x;
+
+      // partial for y rotation
+      partials[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y + h_rot;
+      // get the error
+      bundleSet_partial = generateBundles(matchSet,partials);
+      voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
+      delete bundleSet_partial.lines;
+      delete bundleSet_partial.bundles;
+      gradients[j].cam_rot.y = ((float) *linearError + (float) *linearError_partial) / (h_rot);
+      // reset
+      partials[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y;
+
+      // partial for z rotation
+      partials[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z + h_rot;
+      // get the error
+      bundleSet_partial = generateBundles(matchSet,partials);
+      voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
+      delete bundleSet_partial.lines;
+      delete bundleSet_partial.bundles;
+      gradients[j].cam_rot.z = ((float) *linearError + (float) *linearError_partial) / (h_rot);
+      // reset
+      partials[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z;
+
+      // positions
+
+      // partial for x position
+      partials[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x + h_pos;
+      // get the error
+      bundleSet_partial = generateBundles(matchSet,partials);
+      voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
+      delete bundleSet_partial.lines;
+      delete bundleSet_partial.bundles;
+      gradients[j].cam_pos.x = ((float) *linearError + (float) *linearError_partial) / (h_pos);
+      // reset
+      partials[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x;
+
+      // partial for y position
+      partials[j]->camera.cam_pos.y = images[j]->camera.cam_rot.y + h_pos;
+      // get the error
+      bundleSet_partial = generateBundles(matchSet,partials);
+      voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
+      delete bundleSet_partial.lines;
+      delete bundleSet_partial.bundles;
+      gradients[j].cam_pos.y = ((float) *linearError + (float) *linearError_partial) / (h_pos);
+      // reset
+      partials[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y;
+
+      // partial for z position
+      partials[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z + h_pos;
+      // get the error
+      bundleSet_partial = generateBundles(matchSet,partials);
+      voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
+      delete bundleSet_partial.lines;
+      delete bundleSet_partial.bundles;
+      gradients[j].cam_pos.z = ((float) *linearError + (float) *linearError_partial) / (h_pos);
+      // reset
+      partials[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z;
+
+      // focal length
+
+      // partial for focal length
+      partials[j]->camera.foc = images[j]->camera.foc + h_foc;
+      // get the error
+      bundleSet_partial = generateBundles(matchSet,partials);
+      voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
+      delete bundleSet_partial.lines;
+      delete bundleSet_partial.bundles;
+      gradients[j].foc = ((float) *linearError + (float) *linearError_partial) / (h_foc);
+      // reset
+      partials[j]->camera.foc = images[j]->camera.foc;
+
+      // field of view
+
+      // partial for x field of view
+      partials[j]->camera.fov.x = images[j]->camera.fov.x + h_fov;
+      // get the error
+      bundleSet_partial = generateBundles(matchSet,partials);
+      voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
+      delete bundleSet_partial.lines;
+      delete bundleSet_partial.bundles;
+      gradients[j].fov.x = ((float) *linearError + (float) *linearError_partial) / (h_fov);
+      // reset
+      partials[j]->camera.fov.x = images[j]->camera.fov.x;
+
+      // partial for y field of view
+      partials[j]->camera.fov.y = images[j]->camera.fov.y + h_fov;
+      // get the error
+      bundleSet_partial = generateBundles(matchSet,partials);
+      voidTwoViewTriangulate(bundleSet_partial, linearError_partial,linearErrorCutoff);
+      delete bundleSet_partial.lines;
+      delete bundleSet_partial.bundles;
+      gradients[j].fov.y = ((float) *linearError + (float) *linearError_partial) / (h_fov);
+      // reset
+      partials[j]->camera.fov.y = images[0]->camera.fov.y;
+
+      // normalize the gradient now that all components are known
+      float norm = 0.0f;
+      norm += (gradients[j].cam_rot.x)*(gradients[j].cam_rot.x);
+      norm += (gradients[j].cam_rot.y)*(gradients[j].cam_rot.y);
+      norm += (gradients[j].cam_rot.z)*(gradients[j].cam_rot.z);
+      norm += (gradients[j].cam_pos.x)*(gradients[j].cam_pos.x);
+      norm += (gradients[j].cam_pos.y)*(gradients[j].cam_pos.y);
+      norm += (gradients[j].cam_pos.z)*(gradients[j].cam_pos.z);
+      norm += (gradients[j].foc)*(gradients[j].foc);
+      norm += (gradients[j].fov.x)*(gradients[j].fov.x);
+      norm += (gradients[j].fov.y)*(gradients[j].fov.y);
+      norm = sqrtf(norm);
+      gradients[j].cam_rot.x /= norm;
+      gradients[j].cam_rot.y /= norm;
+      gradients[j].cam_rot.z /= norm;
+      gradients[j].cam_pos.x /= norm;
+      gradients[j].cam_pos.y /= norm;
+      gradients[j].cam_pos.z /= norm;
+      gradients[j].foc /= norm;
+      gradients[j].fov.x /= norm;
+      gradients[j].fov.y /= norm;
+    }
+
+    if (false){
+      for (int j = 0; j < partials.size(); j++){
+        std::cout << "Gradient " << std::to_string(j+1) << " | rot: (";
+        std::cout << gradients[j].cam_rot.x << ",";
+        std::cout << gradients[j].cam_rot.y << ",";
+        std::cout << gradients[j].cam_rot.z << ")\t";
+        std::cout << "pos: (";
+        std::cout << gradients[j].cam_pos.x << ",";
+        std::cout << gradients[j].cam_pos.y << ",";
+        std::cout << gradients[j].cam_pos.z << ")\t";
+        std::cout << "foc: ";
+        std::cout << gradients[j].foc << "\t";
+        std::cout << "fov: (";
+        std::cout << gradients[j].fov.x << ",";
+        std::cout << gradients[j].fov.y << ")" << std::endl;
+      }
+    }
+
+    // take a step down the hill!
+    for (int j = 0; j < images.size(); j++){
+      images[j]->camera.cam_rot.x -= step * gradients[j].cam_rot.x;
+      images[j]->camera.cam_rot.y -= step * gradients[j].cam_rot.y;
+      images[j]->camera.cam_rot.z -= step * gradients[j].cam_rot.z;
+      images[j]->camera.cam_pos.x -= step * gradients[j].cam_pos.x;
+      images[j]->camera.cam_pos.y -= step * gradients[j].cam_pos.y;
+      images[j]->camera.cam_pos.z -= step * gradients[j].cam_pos.z;
+      images[j]->camera.foc       -= step * gradients[j].foc;
+      images[j]->camera.fov.x     -= step * gradients[j].fov.x;
+      images[j]->camera.fov.y     -= step * gradients[j].fov.y;
+    }
+
+
+  }
   return nullptr;
 }
 
@@ -439,7 +688,7 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolati
 
 __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
-  if (globalID > numBundles) return;
+  if (globalID > numBundles - 1) return;
   MultiMatch match = matches[globalID];
   float3* kp = new float3[match.numKeyPoints]();
   int end =  (int) match.numKeyPoints + match.index;
@@ -667,7 +916,54 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linear
   if (!threadIdx.x) atomicAdd(linearError,localSum);
 }
 
+/**
+* Does a trigulation with skew lines to find their closest intercetion.
+* Generates a set of individual linear errors of debugging and analysis
+* Generates a total LinearError, which is an analog for reprojection error
+* this is purely used by the bundle adjustment to estimate errors and so on
+*/
+__global__ void ssrlcv::voidComputeTwoViewTriangulate(unsigned long long int* linearError, float* linearErrorCutoff, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles){
+  // get ready to do the stuff local memory space
+  // this will later be added back to a global memory space
+  __shared__ unsigned long long int localSum;
+  if (threadIdx.x == 0) localSum = 0;
+  __syncthreads();
 
+  // this method is from wikipedia, last seen janurary 2020
+  // https://en.wikipedia.org/wiki/Skew_lines#Nearest_Points
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  // if (globalID > (1)) return;
+  if (globalID > (pointnum-1)) return;
+  // we can assume that each line, so we don't need to get the numlines
+  // ne guys are made just for easy of writing
+  ssrlcv::Bundle::Line L1 = lines[bundles[globalID].index];
+  ssrlcv::Bundle::Line L2 = lines[bundles[globalID].index+1];
+
+  // calculate the normals
+  float3 n2 = crossProduct(L2.vec,crossProduct(L1.vec,L2.vec));
+  float3 n1 = crossProduct(L1.vec,crossProduct(L1.vec,L2.vec));
+
+  // calculate the numerators
+  float numer1 = dotProduct((L2.pnt - L1.pnt),n2);
+  float numer2 = dotProduct((L1.pnt - L2.pnt),n1);
+
+  // calculate the denominators
+  float denom1 = dotProduct(L1.vec,n2);
+  float denom2 = dotProduct(L2.vec,n1);
+
+  // get the S points
+  float3 s1 = L1.pnt + (numer1/denom1) * L1.vec;
+  float3 s2 = L2.pnt + (numer2/denom2) * L2.vec;
+  float3 point = (s1 + s2)/2.0;
+
+  // add the linear errors locally within the block before
+  float error = sqrtf(dotProduct(s1,s2));
+  if (error > *linearErrorCutoff) point = {NULL,NULL,NULL};
+  int i_error = (int) error;
+  atomicAdd(&localSum,i_error);
+  __syncthreads();
+  if (!threadIdx.x) atomicAdd(linearError,localSum);
+}
 
 
 

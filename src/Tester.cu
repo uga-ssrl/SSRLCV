@@ -87,8 +87,14 @@ int main(int argc, char *argv[]){
     }
     std::cout << "Generated MatchSet ..." << std::endl << "Total Matches: " << matches->numElements << std::endl << std::endl;
 
-    
+    /*
+    attempted bundle adjustment
+    */
 
+    ssrlcv::PointCloudFactory adjuster = ssrlcv::PointCloudFactory();
+    ssrlcv::Unity<float3>* points = adjuster.BundleAdjustTwoView(&matchSet,images);
+
+    ssrlcv::writePLY("out/bundleAdjustedPoints.ply",points);
 
     /*
     2 View Reprojection
