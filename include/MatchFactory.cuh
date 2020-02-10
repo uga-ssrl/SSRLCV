@@ -127,7 +127,7 @@ namespace ssrlcv{
     MatchFactory(float relativeThreshold, float absoluteThreshold);
     void setSeedFeatures(Unity<Feature<T>>* seedFeatures);//implement
 
-    //NOTE nothing for nvyesUnity<Match>* matches);
+    void validateMatches(Unity<Match>* matches);
     void validateMatches(Unity<DMatch>* matches);
     void validateMatches(Unity<FeatureMatch<T>>* matches);
     void validateMatches(Unity<uint2_pair>* matches);

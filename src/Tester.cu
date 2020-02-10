@@ -69,7 +69,7 @@ int main(int argc, char *argv[]){
         if(maxDist < distanceMatches->host[i].distance) maxDist = distanceMatches->host[i].distance;
       }
       printf("max euclidean distance between features = %f\n",maxDist);
-      if(distanceMatches->state != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
+      if(distanceMatches->getMemoryState() != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
       ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
       delete distanceMatches;
       std::string delimiter = "/";
@@ -87,8 +87,8 @@ int main(int argc, char *argv[]){
     }
     else{
       ssrlcv::MatchSet multiviewMatches = matchFactory.generateMatchesExaustive(images,allFeatures);
-      if(multiviewMatches.matches->state != ssrlcv::cpu) multiviewMatches.matches->setMemoryState(ssrlcv::cpu);
-      if(multiviewMatches.keyPoints->state != ssrlcv::cpu) multiviewMatches.keyPoints->setMemoryState(ssrlcv::cpu);
+      if(multiviewMatches.matches->getMemoryState() != ssrlcv::cpu) multiviewMatches.matches->setMemoryState(ssrlcv::cpu);
+      if(multiviewMatches.keyPoints->getMemoryState() != ssrlcv::cpu) multiviewMatches.keyPoints->setMemoryState(ssrlcv::cpu);
       // for(int i = 0; i < multiviewMatches.matches->numElements; ++i){
       //   for(int j = multiviewMatches.matches->host[i].index; j < multiviewMatches.matches->host[i].numKeyPoints + multiviewMatches.matches->host[i].index; ++j){
       //     printf("{%u,{%f,%f}} ",multiviewMatches.keyPoints->host[j].parentId,multiviewMatches.keyPoints->host[j].loc.x,multiviewMatches.keyPoints->host[j].loc.y);

@@ -26,7 +26,7 @@ void ssrlcv::MatchFactory<T>::setSeedFeatures(Unity<Feature<T>>* seedFeatures){
 }
 template<typename T>
 void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<uint2_pair>* matches){
-  MemoryState origin = matches->state;
+  MemoryState origin = matches->getMemoryState();
   if(origin != gpu) matches->setMemoryState(gpu);
   
   thrust::device_ptr<uint2_pair> needsValidating(matches->device);
@@ -654,7 +654,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
 
 template<typename T>
 ssrlcv::Unity<ssrlcv::uint2_pair>* ssrlcv::MatchFactory<T>::generateMatchesIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances){
-  MemoryState origin[2] = {queryFeatures->state, targetFeatures->state};
+  MemoryState origin[2] = {queryFeatures->getMemoryState(), targetFeatures->getMemoryState()};
 
   if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
   if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
@@ -680,7 +680,7 @@ ssrlcv::Unity<ssrlcv::uint2_pair>* ssrlcv::MatchFactory<T>::generateMatchesIndex
     exit(-1);
   }
   else{
-    MemoryState seedOrigin = seedDistances->state;
+    MemoryState seedOrigin = seedDistances->getMemoryState();
     if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
     matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
     target->id, targetFeatures->numElements, targetFeatures->device, matches->device,seedDistances->device,
@@ -702,7 +702,7 @@ ssrlcv::Unity<ssrlcv::uint2_pair>* ssrlcv::MatchFactory<T>::generateMatchesIndex
 }
 template<typename T>
 ssrlcv::Unity<ssrlcv::uint2_pair>* ssrlcv::MatchFactory<T>::generateMatchesConstrainedIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances){
-  MemoryState origin[2] = {queryFeatures->state, targetFeatures->state};
+  MemoryState origin[2] = {queryFeatures->getMemoryState(), targetFeatures->getMemoryState()};
 
   if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
   if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
@@ -733,7 +733,7 @@ ssrlcv::Unity<ssrlcv::uint2_pair>* ssrlcv::MatchFactory<T>::generateMatchesConst
     exit(-1);
   }
   else{
-    MemoryState seedOrigin = seedDistances->state;
+    MemoryState seedOrigin = seedDistances->getMemoryState();
     if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
     matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
     target->id, targetFeatures->numElements, targetFeatures->device, matches->device,epsilon,fundamental_device,seedDistances->device,
@@ -798,7 +798,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
   std::cout<<"building adjacency list"<<std::endl;
   for(auto m = matchIndices.begin(); m != matchIndices.end(); ++m){
     Unity<uint2_pair>* currentMatches = *m;
-    if(currentMatches->state != cpu) currentMatches->setMemoryState(cpu);
+    if(currentMatches->getMemoryState() != cpu) currentMatches->setMemoryState(cpu);
     if(currentMatches->host[0].a.x != i){
       i++;
       adjacencyList[i] = new std::vector<uint2>[features[i]->numElements];
@@ -815,7 +815,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
   bool badMatch = false;
   for(i = 0; i < images.size() - 1; ++i){
     std::cout<<"building MultiMatches with features starting at image "<<i<<std::endl;
-    origin[i] = features[i]->state;
+    origin[i] = features[i]->getMemoryState();
     if(origin[i] != cpu) features[i]->setMemoryState(cpu);
     for(int f = 0; f < features[i]->numElements; ++f){
       std::vector<uint2>* adj = &adjacencyList[i][f];
@@ -868,7 +868,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
     delete[] adjacencyList[i];
   }
 
-  origin[images.size() - 1] = features[images.size() - 1]->state;
+  origin[images.size() - 1] = features[images.size() - 1]->getMemoryState();
   if(origin[images.size() - 1] != cpu) features[images.size() - 1]->setMemoryState(cpu);
   std::cout<<multiMatch_vec.size()<<std::endl;
   matchSet.matches = new Unity<MultiMatch>(nullptr,multiMatch_vec.size(),cpu);
@@ -1027,7 +1027,7 @@ void ssrlcv::writeMatchFile(Unity<Match>* matches, std::string pathToFile, bool 
 void ssrlcv::writeMatchFile(MatchSet multiview_matches, std::string pathToFile, bool binary){
   Unity<MultiMatch>* matches = multiview_matches.matches;
   Unity<KeyPoint>* keyPoints = multiview_matches.keyPoints;
-  MemoryState origin[2] = {matches->state,keyPoints->state};
+  MemoryState origin[2] = {matches->getMemoryState(),keyPoints->getMemoryState()};
   if(origin[0] != cpu) matches->setMemoryState(cpu);
   if(origin[1] != cpu) keyPoints->setMemoryState(cpu);
 
