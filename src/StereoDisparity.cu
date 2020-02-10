@@ -57,29 +57,23 @@ int main(int argc, char *argv[]){
     images[0]->id = 0;
     images[0]->camera.size = {1024,1024};
     images[0]->camera.cam_pos = {781.417,0.0,4436.30};//{7.81417,0.0,44.3630};
-    images[0]->camera.cam_vec = {-0.173648,0.0,-0.984808};
-    images[0]->camera.axangle = 0.0f;
-    images[0]->camera.fov = (11.4212 * (M_PI/180.0)); // 11.4212 degrees
+    images[0]->camera.cam_rot = {-0.173648,0.0,-0.984808};
+    images[0]->camera.fov = {(11.4212 * (M_PI/180.0)),(11.4212 * (M_PI/180.0))}; // 11.4212 degrees
     images[0]->camera.foc = 0.16; // 160mm, 0.16m
     // this can also be a passthru (and really should be)
-    images[0]->camera.dpix.x = (images[0]->camera.foc * tanf(images[0]->camera.fov / 2.0f)) / (images[0]->camera.size.x / 2.0f );
+    images[0]->camera.dpix.x = (images[0]->camera.foc * tanf(images[0]->camera.fov.x / 2.0f)) / (images[0]->camera.size.x / 2.0f );
     images[0]->camera.dpix.y = images[0]->camera.dpix.y;
     std::cout << "Estimated pixel size: " << images[0]->camera.dpix.y << std::endl;
-    // images[0]->camera.dpix.x = 0.014; // 14nm
-    // images[0]->camera.dpix.y = 0.014; // 14nm
 
     images[1]->id = 1;
     images[1]->camera.size = {1024,1024};
     images[1]->camera.cam_pos = {0.0,0.0,4500.0};//{0.0,0.0,45.0};
-    images[1]->camera.cam_vec = {0.0, 0.0,-1.0};
-    images[0]->camera.axangle = 0.0f;
-    images[1]->camera.fov = (0.0 * (M_PI/180.0));// 0 degress
+    images[1]->camera.cam_rot = {0.0, 0.0,-1.0};
+    images[1]->camera.fov = {(11.4212 * (M_PI/180.0)),(11.4212 * (M_PI/180.0))};
     images[1]->camera.foc = 0.16; //160mm, 1.6cm, 0.16m
     // this can also be a passthru (and really should be)
-    images[1]->camera.dpix.x = (images[1]->camera.foc * tanf(images[1]->camera.fov / 2.0f)) / (images[1]->camera.size.x / 2.0f );
+    images[1]->camera.dpix.x = (images[1]->camera.foc * tanf(images[1]->camera.fov.x / 2.0f)) / (images[1]->camera.size.x / 2.0f );
     images[1]->camera.dpix.y = images[1]->camera.dpix.y;
-    // images[1]->camera.dpix.x = 0.000014; // 14um
-    // images[1]->camera.dpix.y = 0.000014; // 14um
 
     // make the camera array
     size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
@@ -104,7 +98,7 @@ int main(int argc, char *argv[]){
       if(maxDist < distanceMatches->host[i].distance) maxDist = distanceMatches->host[i].distance;
     }
     printf("%f\n",maxDist);
-    if(distanceMatches->state != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
+    if(distanceMatches->getMemoryState() != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
     ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
     delete distanceMatches;
     std::string delimiter = "/";

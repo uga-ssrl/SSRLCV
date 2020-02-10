@@ -1,4 +1,5 @@
-/** \file MatchFactory.cuh
+/** 
+* \file MatchFactory.cuh
 * \brief this file contains all feature matching methods
 */
 #ifndef MATCHFACTORY_CUH
@@ -13,6 +14,10 @@
 #include <thrust/scan.h>
 
 namespace ssrlcv{
+  /**
+  * \defgroup matching
+  * \{
+  */
 
   struct uint2_pair{
     uint2 a;
@@ -101,11 +106,15 @@ namespace ssrlcv{
 
   /**
   * \brief Factory for generating matches for accepted features
-  * \note if attempting to add new Feature support implement calcElucidSq
-  * as modeled by calcElucidSq(const Feature<SIFT_Descriptor>& a,
-  * const Feature<SIFT_Descriptor>& b);calcElucidSq(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b)
-  * and calcElucidSq(const Feature<SIFT_Descriptor>& a, const Feature<SIFT_Descriptor>& b),
-  * then add template declaration at the top MatchFactory.cu like template class ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>;
+  * \details 
+  * \note if attempting to add new Feature support implement distProtocol() for 
+  * \see Feature 
+  * \see SIFT_Descriptor
+  * \see Window3x3
+  * \see Window9x9
+  * \see Window15x15
+  * \see Window25x25
+  * \see Window31x31
   */
   template<typename T>
   class MatchFactory{
@@ -118,10 +127,7 @@ namespace ssrlcv{
     MatchFactory(float relativeThreshold, float absoluteThreshold);
     void setSeedFeatures(Unity<Feature<T>>* seedFeatures);//implement
 
-    //NOTE nothing for nview is implemented
-    //TODO consider making it so features are computed if they arent instead of throwing errors with image parameters
-
-    void validateMatches(Unity<Match>* matches);
+    //NOTE nothing for nvyesUnity<Match>* matches);
     void validateMatches(Unity<DMatch>* matches);
     void validateMatches(Unity<FeatureMatch<T>>* matches);
     void validateMatches(Unity<uint2_pair>* matches);
@@ -182,18 +188,36 @@ namespace ssrlcv{
     
 
   };
+
   Unity<Match>* generateDiparityMatches(uint2 querySize, Unity<unsigned char>* queryPixels, uint2 targetSize, Unity<unsigned char>* targetPixels, 
     float fundamental[3][3], unsigned int maxDisparity, unsigned int windowSize = 3, Direction direction = undefined);
 
+  /**
+  * \defgroup match_io
+  * \{
+  */
   void writeMatchFile(Unity<Match>* matches, std::string pathToFile, bool binary = false);
   void writeMatchFile(MatchSet multiview_matches, std::string pathToFile, bool binary = false);
   Unity<Match>* readMatchFile(std::string pathToFile);
+  /** \} */
 
   /* CUDA variable, method and kernel defintions */
 
+
+  /**
+  * \ingroup cuda_util 
+  * \{
+  */
   __host__ __device__ __forceinline__ float sum(const float3 &a);
   __host__ __device__ __forceinline__ float square(const float &a);
   __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
+  /** \} */
+
+  /**
+  * \ingroup cuda_kernels
+  * \defgroup matching_kernels
+  * \{
+  */
 
   template<typename T>
   __global__ void getSeedMatchDistances(unsigned long numFeaturesQuery, Feature<T>* featuresQuery, unsigned long numSeedFeatures,
@@ -283,6 +307,9 @@ namespace ssrlcv{
   __global__ void convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::DMatch* matches);
   template<typename T>
   __global__ void convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::FeatureMatch<T>* matches);
+  
+  /** /} */
+  /** /} */
 
 }
 

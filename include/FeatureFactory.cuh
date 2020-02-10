@@ -1,7 +1,7 @@
 /** \file FeatureFactory.cuh
- * \brief This file contains the base feature class definition.
- * All feature factories should be derivative of this class
- * and should include this file.
+* \brief This file contains the base feature class definition.
+* \details All feature factories should be derivative of this class
+* and should include this file.
 */
 
 #ifndef FEATUREFACTORY_CUH
@@ -23,11 +23,14 @@
 #define SIFTBORDER 12
 
 namespace ssrlcv{
+  /**
+  * \defgroup feature_detection
+  * \{
+  */
 
   /**
   * \brief Parent factory for generating a Feature array from an Image
-  *
-  * \detail Contains methods and members that could be useful
+  * \details Contains methods and members that could be useful
   * for any type of feature factory.
   */
   class FeatureFactory{
@@ -38,19 +41,27 @@ namespace ssrlcv{
   public:
 
     /**
-    * \brief this is a struct to house a set of octaves making a scale space
-    * \todo implement
+    * \ingroup feature_detection
+    * \defgroup scalespace
+    * \{
+    */
+    /**
+    * \brief A scale space holding a heirarchy of octaves and blurs.
+    * \details 
+    * \todo Allow for other kernels (not just gaussians) to be passed in for convolution. 
     */
     struct ScaleSpace{
     private:
       bool isDOG;
       /**
-      * \brief will convert scalespace to a difference of gaussians
-      * numBlurs-- will occur
+      * \brief Convert scalespace to a difference of gaussians
+      * \details 
       */
       void convertToDOG();  
     public:
-
+      /**
+      * \ingroup scalespace
+      */
       struct SSKeyPoint{
         int octave;
         int blur;
@@ -73,8 +84,13 @@ namespace ssrlcv{
       /**
       * \brief this represents an iterative convolutional sample of a ScaleSpace
       * \todo implement
+      * \ingroup scalespace
       */
       struct Octave{
+        /**
+        * \brief 
+        * \ingroup scalespace
+        */
         struct Blur{
           uint2 size;
           float sigma;
@@ -82,8 +98,8 @@ namespace ssrlcv{
           Unity<float2>* gradients;
           Blur();
           Blur(float sigma, int2 kernelSize, Unity<float>* pixels, uint2 size, float pixelWidth);
-          void computeGradients();
           ~Blur();
+          void computeGradients();
         };
 
 
@@ -95,7 +111,6 @@ namespace ssrlcv{
         int* extremaBlurIndices;
 
         Octave();
-        //may want to remove kernelSize as it is static in anatomy
         Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<float>* pixels, uint2 size, float pixelWidth, int keepPixelsAfterBlur);      
         void searchForExtrema();
         void discardExtrema();
@@ -109,7 +124,7 @@ namespace ssrlcv{
 
       };
 
-      uint2 depth;//octave,blur
+      uint2 depth;///< depth of ScaleSpace {numOctaves, numBlurs}
       Octave** octaves;
 
       ScaleSpace();
@@ -140,6 +155,9 @@ namespace ssrlcv{
       ~ScaleSpace();
     };
     typedef ScaleSpace DOG;
+    /**
+    * \}
+    */
 
     /**
     * \brief Constructor
@@ -148,32 +166,60 @@ namespace ssrlcv{
     FeatureFactory(float orientationContribWidth = 1.5f, float descriptorContribWidth = 6.0f);
      /**
     * \brief set maximum number Feature's a keypoint can generate
+    * \details 
     */
     void setMaxOrientations(unsigned int maxOrientations);
     /**
     * \brief set threshold for a keypoint orientation to make a new Feature
+    * \details 
     */
     void setOrientationThreshold(float orientationThreshold);
     /**
     * \brief set contributer window width for orientation computation
+    * \details 
     */
     void setOrientationContribWidth(float orientationContribWidth);
 
-    /*
-    very simple feature generators for stereodisparity
+    /**
+    * \brief feature generators for 3x3 pixel window
+    * \details 
     */
     Unity<Feature<Window_3x3>>* generate3x3Windows(Image* image);
+    /**
+    * \brief feature generators for 9x9 pixel window
+    * \details 
+    */
     Unity<Feature<Window_9x9>>* generate9x9Windows(Image* image);
+    /**
+    * \brief feature generators for 15x15 pixel window
+    * \details 
+    */
     Unity<Feature<Window_15x15>>* generate15x15Windows(Image* image);
+    /**
+    * \brief feature generators for 25x25 pixel window
+    * \details 
+    */
     Unity<Feature<Window_25x25>>* generate25x25Windows(Image* image);
+    /**
+    * \brief feature generators for 31x31 pixel window
+    * \details 
+    */
     Unity<Feature<Window_31x31>>* generate31x31Windows(Image* image);
 
     ~FeatureFactory();  
 
   };
 
+  /**
+  * \}
+  */
+
   /*
   CUDA variables, methods and kernels
+  */
+  /**
+  * \ingroup cuda_util
+  * \{
   */
   extern __constant__ float pi;
   __device__ __forceinline__ float getMagnitude(const int2 &vector);
@@ -182,7 +228,16 @@ namespace ssrlcv{
   __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
   __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
   __device__ __forceinline__ float edgeness(const float (&hessian)[2][2]);
+  /**
+  * \}
+  */
 
+  /**
+  * \ingroup feature_detection
+  * \ingroup cuda_kernels
+  * \defgroup feature_detection_kernels
+  * \{
+  */
 
   __global__ void fillWindows(uint2 size, int parent, unsigned char* pixels, Feature<Window_3x3>* windows);
   __global__ void fillWindows(uint2 size, int parent, unsigned char* pixels, Feature<Window_9x9>* windows);
@@ -200,7 +255,6 @@ namespace ssrlcv{
   __global__ void flagNoise(unsigned int numKeyPoints, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float threshold);
   __global__ void flagEdges(unsigned int numKeyPoints, unsigned int startingIndex, uint2 imageSize, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float* pixels, float threshold);
 
-
   __global__ void flagBorder(unsigned int numKeyPoints, uint2 imageSize, FeatureFactory::ScaleSpace::SSKeyPoint* scaleSpaceKP, float2 border);
 
   __global__ void computeThetas(unsigned long numKeyPoints, unsigned int keyPointIndex, uint2 imageSize, float pixelWidth, 
@@ -208,6 +262,10 @@ namespace ssrlcv{
   int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, float* thetas);
 
   __global__ void expandKeyPoints(unsigned int numKeyPoints, FeatureFactory::ScaleSpace::SSKeyPoint* keyPointsIn, FeatureFactory::ScaleSpace::SSKeyPoint* keyPointsOut, int* thetaAddresses, float* thetas);
+
+  /** 
+  * \}
+  */
 }
 
 

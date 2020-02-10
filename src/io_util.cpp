@@ -1,13 +1,16 @@
 #include "io_util.h"
 
-
+// \brief these are the args for the main program
+// "flag" "identifier"
 std::map<std::string, std::string> ssrlcv::cl_args = {
-  {"-i","img"},
-  {"--image","img"},
-  {"-d","dir"},
-  {"--directory","dir"},
-  {"-s","seed"},
-  {"--seed","seed"}
+  {"-i","img"}, // for single images
+  {"--image","img"}, // for single images
+  {"-d","dir"}, // for directories
+  {"--directory","dir"}, // for directories
+  {"-s","seed"}, // for seed images
+  {"--seed","seed"}, // for seed images
+  {"-np","noparams"}, // to disable the requirement of a params.csv or params.bcp file
+  {"--noparams","noparams"}  // to disable the requirement of a params.csv or params.bcp file
 };
 
 bool ssrlcv::fileExists(std::string fileName){
@@ -25,8 +28,32 @@ bool ssrlcv::directoryExists(std::string dirPath){
     }
     return bExists;
 }
+
+/*
+ * retunrs the file extension of a give file
+ * @param path a string of a filepath
+ * @return string a string of the end of the file
+ */
 std::string ssrlcv::getFileExtension(std::string path){
   return path.substr(path.find_last_of(".") + 1);
+}
+
+/*
+ * Returns the folder of a file give a fully qualified filepath
+ * @param path a string representing a fully qualified filepath
+ * @return string
+ */
+std::string ssrlcv::getFolderFromFilePath(std::string path){
+  return path.substr(0, path.find_last_of("\\/"));
+}
+
+/*
+ * Returns the filename from a fully qualified filepath
+ * @param path a string representing a fully qualified filepath
+ * @return string which is the filename only
+ */
+std::string ssrlcv::getFileFromFilePath(std::string path){
+  return path.substr(path.find_last_of("\\/") + 1);
 }
 
 void ssrlcv::getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths){
@@ -41,9 +68,9 @@ void ssrlcv::getImagePaths(std::string dirPath, std::vector<std::string> &imageP
   while((in_file = readdir(dir)) != nullptr){
     std::string currentFileName = in_file->d_name;
     extension = getFileExtension(currentFileName);
-    if(extension == "png" || 
-    extension == "jpg" || extension == "jpeg" || 
-    extension == "tif" || extension == "tiff"){ 
+    if(extension == "png" ||
+    extension == "jpg" || extension == "jpeg" ||
+    extension == "tif" || extension == "tiff"){
       currentFileName = dirPath + currentFileName;
       imagePaths.push_back(currentFileName);
     }
@@ -84,12 +111,19 @@ ssrlcv::img_dir_arg::img_dir_arg(char* path){
     exit(-1);
   }
 }
+
 ssrlcv::flt_arg::flt_arg(char* val){
   this->val = std::stof(val);
 }
+
 ssrlcv::int_arg::int_arg(char* val){
   this->val = std::stoi(val);
 }
+
+/*
+ * Arguments from the main executable are parsed here. These are set above in the cl_args map
+ * @param
+ */
 std::map<std::string, ssrlcv::arg*> ssrlcv::parseArgs(int numArgs, char* args[]){
   if(numArgs < 3){
     std::cout<<"USAGE ./bin/<executable> -d </path/to/image/directory/> -i </path/to/image> -s </path/to/seed/image>"<<std::endl;
@@ -224,7 +258,7 @@ void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned
   if (setjmp(png_jmpbuf(png_ptr))){
     std::cout<<"[write_png_file] Error during init_io "<<std::endl;
   }
-  
+
   png_init_io(png_ptr, fp);
 
   /* write header */
@@ -280,7 +314,7 @@ unsigned char* ssrlcv::readTIFF(const char* filePath, unsigned int &height, unsi
     TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
     int scanLineSize = TIFFScanlineSize(tif);
     colorDepth = scanLineSize/width;
-    
+
     unsigned char* pixels = new unsigned char[height*width*colorDepth];
     tdata_t buf;
     buf = _TIFFmalloc(scanLineSize);
@@ -341,7 +375,7 @@ void ssrlcv::writeTIFF(const char* filePath, unsigned char* image, const unsigne
   }
 }
 unsigned char* ssrlcv::readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth){
-  struct jpeg_decompress_struct cinfo;   
+  struct jpeg_decompress_struct cinfo;
   struct jpeg_error_mgr jerr;
   std::cout<<"attempting to read "<<filePath<<std::endl;
   FILE *infile = fopen(filePath, "rb");
@@ -421,6 +455,24 @@ void ssrlcv::writeJPEG(const char* filePath, unsigned char* image, const unsigne
   std::cout<<filePath<<" has been written"<<std::endl;
 }
 
+//
+// CSV and Misc Debug IO
+//
+
+/*
+ * Takes in an array of floats and writes them to a CSV
+ * @param values a set of float elements as a float array that are written in csv format on one line
+ * @param num the number of elements in the float array
+ * @param filename a string representing the desired filename of the csv output
+ */
+void ssrlcv::writeCSV(float* values, int num, std::string filename){
+  std::ofstream outfile;
+  outfile.open("out/" + filename + ".csv");
+  // the stupid method of doing this would be to just write it all on the same line ... that's what I'm going to do!
+  // other overloaded versions of this method will handle more robust types of inputs and saving and so on.
+  for(int i = 0; i < num; i++) outfile << std::to_string(values[i]) << ",";
+  outfile.close();
+}
 
 //
 // Binary files - Gitlab #58
@@ -520,7 +572,7 @@ bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out)
 //
 
 void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
-  MemoryState origin = points->state;
+  MemoryState origin = points->getMemoryState();
   if(origin == gpu) points->transferMemoryTo(cpu);
   tinyply::PlyFile ply;
   ply.get_comments().push_back("SSRL Test");
@@ -546,3 +598,30 @@ void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// yee 

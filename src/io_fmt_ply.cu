@@ -58,7 +58,7 @@ namespace ssrlcv {
     this->header_end(); 
 
 
-    if(points->state != cpu) points->transferMemoryTo(cpu);
+    if(points->getMemoryState() != cpu) points->transferMemoryTo(cpu);
     for(int i = 0; i < points->numElements; i++) {
       FWRITE(points->host[i].x);
       FWRITE(points->host[i].y);
@@ -80,7 +80,7 @@ namespace ssrlcv {
 
     if(vertices) {
       Unity<Octree::Vertex> * vertices = octree->vertices;
-      if(vertices->state != cpu) vertices->transferMemoryTo(cpu);
+      if(vertices->getMemoryState() != cpu) vertices->transferMemoryTo(cpu);
       for(int i =0; i < vertices->numElements; i++) {
         FWRITE(vertices->host[i].coord.x);
         FWRITE(vertices->host[i].coord.y);
@@ -90,7 +90,7 @@ namespace ssrlcv {
 
     if(edges) { 
       Unity<Octree::Edge> * edges = octree->edges;
-      if(edges->state != cpu) edges->transferMemoryTo(cpu);
+      if(edges->getMemoryState() != cpu) edges->transferMemoryTo(cpu);
       for(int i =0; i < edges->numElements; i++) {
         FWRITE(edges->host[i].v1);
         FWRITE(edges->host[i].v2);

@@ -10,7 +10,7 @@ ssrlcv::FeatureFactory::ScaleSpace::Octave::Blur::Blur(){
 }
 ssrlcv::FeatureFactory::ScaleSpace::Octave::Blur::Blur(float sigma, int2 kernelSize, Unity<float>* pixels, uint2 size, float pixelWidth) : 
 sigma(sigma),size(size){
-    MemoryState origin = pixels->state;
+    MemoryState origin = pixels->getMemoryState();
     if(origin != gpu) pixels->setMemoryState(gpu);
     kernelSize.x = ceil((float)kernelSize.x*this->sigma/pixelWidth);
     kernelSize.y = ceil((float)kernelSize.y*this->sigma/pixelWidth);
@@ -34,7 +34,7 @@ sigma(sigma),size(size){
     this->gradients = nullptr;
 }
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::Blur::computeGradients(){
-    MemoryState origin = this->pixels->state;
+    MemoryState origin = this->pixels->getMemoryState();
     if(origin != gpu) this->pixels->setMemoryState(gpu);
     this->gradients = generatePixelGradients(this->size, this->pixels);
     if(origin != gpu){
@@ -60,7 +60,7 @@ numBlurs(numBlurs),pixelWidth(pixelWidth),id(id){
     this->extrema = nullptr;
     this->extremaBlurIndices = nullptr;
     printf("creating octave[%d] with %d blurs of size {%d,%d}\n",this->id,this->numBlurs,size.x,size.y);
-    MemoryState origin = pixels->state;
+    MemoryState origin = pixels->getMemoryState();
     if(origin != gpu) pixels->setMemoryState(gpu);
 
     this->blurs = new Blur*[this->numBlurs]();
@@ -113,9 +113,9 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
         CudaSafeCall(cudaMemcpy(extremaAddresses,temp,pixelsLower->numElements*sizeof(int),cudaMemcpyHostToDevice));
         pixelsMiddle = this->blurs[b]->pixels;
         pixelsUpper = this->blurs[b+1]->pixels;
-        origin[0] = pixelsLower->state;
-        origin[1] = pixelsMiddle->state;
-        origin[2] = pixelsUpper->state;
+        origin[0] = pixelsLower->getMemoryState();
+        origin[1] = pixelsMiddle->getMemoryState();
+        origin[2] = pixelsUpper->getMemoryState();
         if(origin[0] != gpu) pixelsLower->setMemoryState(gpu);
         if(origin[1] != gpu) pixelsMiddle->setMemoryState(gpu);
         if(origin[2] != gpu) pixelsUpper->setMemoryState(gpu);
@@ -144,7 +144,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
             extrema2D[b-1] = nullptr;
         }
         
-        pixelsLower->fore = gpu;
+        pixelsLower->setFore(gpu);
         if(origin[0] != gpu) pixelsLower->setMemoryState(origin[0]);
         pixelsLower = pixelsMiddle;
         pixelsMiddle = pixelsUpper;
@@ -169,7 +169,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
 }
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::discardExtrema(){
     if(this->extrema == nullptr) return;
-    MemoryState origin = this->extrema->state;
+    MemoryState origin = this->extrema->getMemoryState();
     if(origin != gpu) this->extrema->setMemoryState(gpu);
     SSKeyPoint** temp = new SSKeyPoint*[this->numBlurs];
     int* numExtrema = new int[this->numBlurs];
@@ -230,11 +230,11 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::discardExtrema(){
 
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(){
     if(this->extrema == nullptr) return;
-    MemoryState origin = this->extrema->state;
+    MemoryState origin = this->extrema->getMemoryState();
     if(origin != gpu) this->extrema->setMemoryState(gpu);
     MemoryState* pixelsOrigin = new MemoryState[this->numBlurs];
     for(int i = 0; i < this->numBlurs; ++i){
-        pixelsOrigin[i] = this->blurs[i]->pixels->state;
+        pixelsOrigin[i] = this->blurs[i]->pixels->getMemoryState();
         if(pixelsOrigin[i] != gpu) this->blurs[i]->pixels->setMemoryState(gpu);
     } 
 
@@ -272,8 +272,8 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(){
         } 
     }
     this->extremaBlurIndices[this->numBlurs - 1] = this->extrema->numElements;
-    this->extrema->fore = cpu;//ensuring that Unity knows where most up to date memory is
-    if(origin != this->extrema->state) this->extrema->setMemoryState(origin);
+    this->extrema->setFore(cpu);//ensuring that Unity knows where most up to date memory is
+    if(origin != this->extrema->getMemoryState()) this->extrema->setMemoryState(origin);
     for(int i = 0; i < this->numBlurs; ++i){
         if(pixelsOrigin[i] != gpu) this->blurs[i]->pixels->setMemoryState(pixelsOrigin[i]);
     }
@@ -281,7 +281,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(){
 }
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeNoise(float noiseThreshold){
     if(this->extrema == nullptr) return;
-    MemoryState origin = this->extrema->state;
+    MemoryState origin = this->extrema->getMemoryState();
     if(origin != gpu) this->extrema->setMemoryState(gpu);
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
@@ -294,7 +294,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeNoise(float noiseThreshol
 }
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeEdges(float edgeThreshold){
     if(this->extrema == nullptr) return;
-    MemoryState origin = this->extrema->state;
+    MemoryState origin = this->extrema->getMemoryState();
     if(origin != gpu) this->extrema->setMemoryState(gpu);
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
@@ -310,7 +310,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeEdges(float edgeThreshold
             numExtremaAtBlur = this->extrema->numElements - this->extremaBlurIndices[i];
         }
         if(numExtremaAtBlur == 0) continue;
-        pixelOrigin = this->blurs[i+1]->pixels->state;
+        pixelOrigin = this->blurs[i+1]->pixels->getMemoryState();
         if(pixelOrigin != gpu) this->blurs[i]->pixels->setMemoryState(gpu);
         
         getFlatGridBlock(numExtremaAtBlur,grid,block,flagEdges);
@@ -325,7 +325,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeEdges(float edgeThreshold
 }
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeBorder(float2 border){
     if(this->extrema == nullptr) return;
-    MemoryState origin = this->extrema->state;
+    MemoryState origin = this->extrema->getMemoryState();
     if(origin != gpu) this->extrema->setMemoryState(gpu);
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
@@ -362,7 +362,7 @@ depth(depth), isDOG(makeDOG){
 
     printf("creating scalespace with depth {%d,%d}\n",this->depth.x,this->depth.y);
     Unity<float>* pixels = nullptr;
-    MemoryState origin = image->pixels->state;
+    MemoryState origin = image->pixels->getMemoryState();
     if(origin != gpu) image->pixels->setMemoryState(gpu);
     if(image->colorDepth != 1){
         Unity<unsigned char>* charPixels = new Unity<unsigned char>(nullptr,image->pixels->numElements,gpu);
@@ -445,8 +445,8 @@ void ssrlcv::FeatureFactory::ScaleSpace::convertToDOG(){
             //dogOctaves[o]->blurs[b]->sigma = this->octaves[o]->blurs[0]*powf(this->octaves[o]->blurs[1]->sigma/this->octaves[o]->blurs[0]->sigma,(float)b + 0.5f);
             dogOctaves[o]->blurs[b]->pixels = new Unity<float>(nullptr,pixelsLower->numElements,gpu);
             pixelsUpper = this->octaves[o]->blurs[b+1]->pixels;
-            origin[0] = pixelsLower->state;
-            origin[1] = pixelsUpper->state;
+            origin[0] = pixelsLower->getMemoryState();
+            origin[1] = pixelsUpper->getMemoryState();
             if(origin[0] != gpu) pixelsLower->setMemoryState(gpu);
             if(origin[1] != gpu) pixelsUpper->setMemoryState(gpu);
             subtractImages<<<grid,block>>>(pixelsLower->numElements,pixelsUpper->device,pixelsLower->device,dogOctaves[o]->blurs[b]->pixels->device);
@@ -479,7 +479,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::dumpData(std::string filePath){
     MemoryState origin;
     for(int o = 0; o < this->depth.x; ++o){
         for(int b = 0; b < this->depth.y; ++b){
-            origin = this->octaves[o]->blurs[b]->pixels->state;
+            origin = this->octaves[o]->blurs[b]->pixels->getMemoryState();
             if(origin != gpu) this->octaves[o]->blurs[b]->pixels->setMemoryState(gpu);
             Unity<unsigned char>* writable = convertImageToChar(this->octaves[o]->blurs[b]->pixels);
             if(origin != gpu) this->octaves[o]->blurs[b]->pixels->setMemoryState(origin);
@@ -544,9 +544,9 @@ ssrlcv::Unity<ssrlcv::FeatureFactory::ScaleSpace::SSKeyPoint>* ssrlcv::FeatureFa
     MemoryState* origin = new MemoryState[this->depth.x];
     bool keepThenTransfer = destination == both; 
     for(int i = 0; i < this->depth.x; ++i){
-        origin[i] = this->octaves[i]->extrema->state;
+        origin[i] = this->octaves[i]->extrema->getMemoryState();
         if(!keepThenTransfer &&  origin[i] != both && origin[i] != destination) this->octaves[i]->extrema->transferMemoryTo(destination);
-        else if(keepThenTransfer && origin[i] == both && this->octaves[i]->extrema->fore == cpu) this->octaves[i]->extrema->transferMemoryTo(gpu);
+        else if(keepThenTransfer && origin[i] == both && this->octaves[i]->extrema->getFore() == cpu) this->octaves[i]->extrema->transferMemoryTo(gpu);
         totalKeyPoints += this->octaves[i]->extrema->numElements;
     }
     if(totalKeyPoints == 0){
@@ -563,7 +563,7 @@ ssrlcv::Unity<ssrlcv::FeatureFactory::ScaleSpace::SSKeyPoint>* ssrlcv::FeatureFa
             CudaSafeCall(cudaMemcpy(aggregatedKeyPoints->device + currentIndex, this->octaves[i]->extrema->device, this->octaves[i]->extrema->numElements*sizeof(SSKeyPoint),cudaMemcpyDeviceToDevice));
         }
         currentIndex += this->octaves[i]->extrema->numElements;
-        if(origin[i] != this->octaves[i]->extrema->state) this->octaves[i]->extrema->setMemoryState(origin[i]);
+        if(origin[i] != this->octaves[i]->extrema->getMemoryState()) this->octaves[i]->extrema->setMemoryState(origin[i]);
     }
     if(keepThenTransfer) aggregatedKeyPoints->transferMemoryTo(cpu);
     return aggregatedKeyPoints;
@@ -589,8 +589,8 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
         if(currentOctave->extrema == nullptr) continue;
         totalKeyPoints = 0;
         orientedKeyPoints2D = new ScaleSpace::SSKeyPoint*[this->depth.y];
-        origin = currentOctave->extrema->state;
-        if(origin == cpu || currentOctave->extrema->fore == cpu){
+        origin = currentOctave->extrema->getMemoryState();
+        if(origin == cpu || currentOctave->extrema->getFore() == cpu){
             currentOctave->extrema->setMemoryState(gpu);
         }
         for(int b = 0; b < this->depth.y; ++b){
@@ -616,7 +616,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
 
             gradientsExisted = currentBlur->gradients != nullptr;
             if(!gradientsExisted) currentBlur->computeGradients();
-            if(currentBlur->gradients->state != gpu) currentBlur->gradients->setMemoryState(gpu);
+            if(currentBlur->gradients->getMemoryState() != gpu) currentBlur->gradients->setMemoryState(gpu);
             
             computeThetas<<<grid,block>>>(numKeyPointsAtBlur,keyPointIndex,currentBlur->size, currentOctave->pixelWidth,
                 contributerWindowWidth,currentOctave->extrema->device, currentBlur->gradients->device, thetaAddresses_device, maxOrientations, orientationThreshold, thetas_device);
@@ -679,8 +679,8 @@ orientationContribWidth(orientationContribWidth), descriptorContribWidth(descrip
 
 
 ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_3x3>>* ssrlcv::FeatureFactory::generate3x3Windows(Image* image){
-    MemoryState origin = image->pixels->state;
-    if(origin == cpu || image->pixels->fore == cpu){
+    MemoryState origin = image->pixels->getMemoryState();
+    if(origin == cpu || image->pixels->getFore() == cpu){
         image->pixels->setMemoryState(gpu);
     }
     dim3 grid = {1,1,1};
@@ -699,8 +699,8 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_3x3>>* ssrlcv::FeatureFactory::gene
     return windows;
 }
 ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_9x9>>* ssrlcv::FeatureFactory::generate9x9Windows(Image* image){
-    MemoryState origin = image->pixels->state;
-    if(origin == cpu || image->pixels->fore == cpu){
+    MemoryState origin = image->pixels->getMemoryState();
+    if(origin == cpu || image->pixels->getFore() == cpu){
         image->pixels->setMemoryState(gpu);
     }
     dim3 grid = {1,1,1};
@@ -719,8 +719,8 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_9x9>>* ssrlcv::FeatureFactory::gene
     return windows;
 }
 ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_15x15>>* ssrlcv::FeatureFactory::generate15x15Windows(Image* image){
-    MemoryState origin = image->pixels->state;
-    if(origin == cpu || image->pixels->fore == cpu){
+    MemoryState origin = image->pixels->getMemoryState();
+    if(origin == cpu || image->pixels->getFore() == cpu){
         image->pixels->setMemoryState(gpu);
     }
     dim3 grid = {1,1,1};
@@ -739,8 +739,8 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_15x15>>* ssrlcv::FeatureFactory::ge
     return windows;
 }
 ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_25x25>>* ssrlcv::FeatureFactory::generate25x25Windows(Image* image){
-    MemoryState origin = image->pixels->state;
-    if(origin == cpu || image->pixels->fore == cpu){
+    MemoryState origin = image->pixels->getMemoryState();
+    if(origin == cpu || image->pixels->getFore() == cpu){
         image->pixels->setMemoryState(gpu);
     }
     dim3 grid = {1,1,1};
@@ -759,8 +759,8 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_25x25>>* ssrlcv::FeatureFactory::ge
     return windows;
 }
 ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_31x31>>* ssrlcv::FeatureFactory::generate31x31Windows(Image* image){
-    MemoryState origin = image->pixels->state;
-    if(origin == cpu || image->pixels->fore == cpu){
+    MemoryState origin = image->pixels->getMemoryState();
+    if(origin == cpu || image->pixels->getFore() == cpu){
         image->pixels->setMemoryState(gpu);
     }
     dim3 grid = {1,1,1};
@@ -1076,7 +1076,7 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
                 gradient = gradients[llroundf(y)*imageWidth + llroundf(x)];//may want to do interpolation here
                 temp2 = {x - keyPoint.x,y - keyPoint.y};
                 angle = fmodf(atan2f(gradient.y,gradient.x) + (2.0f*pi),2.0f*pi);//atan2f returns between -pi to pi
-                orientationHist[(int)floor(angle/rad10)] += getMagnitude(gradient)*expf(-((temp2.x*temp2.x)+(temp2.y*temp2.y))/weight);///pi/weight;
+                orientationHist[(int)floor(angle/rad10)] += getMagnitude(gradient)*expf(-((temp2.x*temp2.x)+(temp2.y*temp2.y))/weight);//(/pi/weight);
             }
         }
         //apparently has negligable impact

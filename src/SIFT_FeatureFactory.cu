@@ -8,7 +8,7 @@ ssrlcv::SIFT_FeatureFactory::SIFT_FeatureFactory(float orientationContribWidth, 
 ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFactory::generateFeatures(ssrlcv::Image* image, bool dense, unsigned int maxOrientations, float orientationThreshold){
   std::cout<<"Generating SIFT features for image "<<image->id<<std::endl<<"\t";
   Unity<Feature<SIFT_Descriptor>>* features = nullptr;
-  MemoryState origin = image->pixels->state;
+  MemoryState origin = image->pixels->getMemoryState();
   if(origin != gpu) image->pixels->setMemoryState(gpu);
 
   if(image->colorDepth != 1){
@@ -63,7 +63,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     for(int o = 0; o < dog->depth.x; ++o){
       currentOctave = dog->octaves[o];
       if(currentOctave->extrema == nullptr) continue;
-      extremaOrigin[o] = currentOctave->extrema->state; 
+      extremaOrigin[o] = currentOctave->extrema->getMemoryState(); 
       if(extremaOrigin[o] != gpu) currentOctave->extrema->setMemoryState(gpu);
       
       for(int b = 0; b < dog->depth.y; ++b){
@@ -123,7 +123,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
         if(numKeyPointsInBlur == 0) continue;
   
         currentBlur = currentOctave->blurs[b];
-        gradientsOrigin = currentBlur->gradients->state;
+        gradientsOrigin = currentBlur->gradients->getMemoryState();
         if(gradientsOrigin != gpu) currentBlur->gradients->setMemoryState(gpu);
   
         grid = {1,1,1};
@@ -273,7 +273,7 @@ __global__ void ssrlcv::computeThetas(const unsigned long numKeyPoints, const un
         gradient = gradients[llroundf(y)*imageWidth + llroundf(x)];//interpolation?
         temp2 = {x*pixelWidth - keyPoint.x,y*pixelWidth - keyPoint.y};
         angle = fmodf(atan2f(gradient.y,gradient.x) + (2.0f*pi),2.0f*pi);//atan2f returns from -pi tp pi
-        orientationHist[(int)floor(angle/rad10)] += getMagnitude(gradient)*expf(-((temp2.x*temp2.x)+(temp2.y*temp2.y))/weight);///pi/weight;
+        orientationHist[(int)floor(angle/rad10)] += getMagnitude(gradient)*expf(-((temp2.x*temp2.x)+(temp2.y*temp2.y))/weight);//(/pi/weight);
       }
     }
     float3 convHelper = {orientationHist[35],orientationHist[0],orientationHist[1]};

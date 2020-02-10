@@ -2,7 +2,7 @@
 
 ssrlcv::MeshFactory::MeshFactory(Octree* octree){
   this->octree = octree;
-  if(this->octree->normals == nullptr || this->octree->normals->state == null){
+  if(this->octree->normals == nullptr || this->octree->normals->getMemoryState() == null){
     this->octree->computeNormals(3, 20);
   }
 
@@ -22,31 +22,31 @@ void ssrlcv::MeshFactory::computeVertexImplicitJAX(int focusDepth){
   float* easyVertexImplicit = new float[this->octree->nodes->numElements];
   int numConsideredVertices = -1;
   MemoryState origin[5] = {
-    this->octree->vertexDepthIndex->state,
-    this->octree->vertices->state,
-    this->octree->points->state,
-    this->octree->normals->state,
-    this->octree->nodes->state
+    this->octree->vertexDepthIndex->getMemoryState(),
+    this->octree->vertices->getMemoryState(),
+    this->octree->points->getMemoryState(),
+    this->octree->normals->getMemoryState(),
+    this->octree->nodes->getMemoryState()
   };
   if(focusDepth == 0){
     numConsideredVertices = this->octree->vertices->numElements;
   }
   else{
-    if(origin[0] != cpu && this->octree->vertexDepthIndex->fore != cpu){
+    if(origin[0] != cpu && this->octree->vertexDepthIndex->getFore() != cpu){
       this->octree->vertexDepthIndex->transferMemoryTo(cpu);
     }
     numConsideredVertices = this->octree->vertexDepthIndex->host[this->octree->depth - focusDepth + 1];
   }
-  if(origin[1] != gpu && this->octree->vertices->fore != gpu){
+  if(origin[1] != gpu && this->octree->vertices->getFore() != gpu){
     this->octree->vertices->transferMemoryTo(gpu);
   }
-  if(origin[2] != gpu && this->octree->points->fore != gpu){
+  if(origin[2] != gpu && this->octree->points->getFore() != gpu){
     this->octree->points->transferMemoryTo(gpu);
   }
-  if(origin[3] != gpu && this->octree->normals->fore != gpu){
+  if(origin[3] != gpu && this->octree->normals->getFore() != gpu){
     this->octree->normals->transferMemoryTo(gpu);
   }
-  if(origin[4] != gpu && this->octree->nodes->fore != gpu){
+  if(origin[4] != gpu && this->octree->nodes->getFore() != gpu){
     this->octree->nodes->transferMemoryTo(gpu);
   }
   CudaSafeCall(cudaMalloc((void**)&this->vertexImplicitDevice, numConsideredVertices*sizeof(float)));
@@ -99,14 +99,14 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   timer = clock();
 
   MemoryState origin[4] = {
-    this->octree->edges->state,
-    this->octree->nodes->state,
-    this->octree->nodeDepthIndex->state,
-    this->octree->vertices->state
+    this->octree->edges->getMemoryState(),
+    this->octree->nodes->getMemoryState(),
+    this->octree->nodeDepthIndex->getMemoryState(),
+    this->octree->vertices->getMemoryState()
   };
-  if(origin[0] != gpu && this->octree->edges->fore != gpu) this->octree->edges->transferMemoryTo(gpu);
-  if(origin[1] != gpu && this->octree->nodes->fore != gpu) this->octree->nodes->transferMemoryTo(gpu);
-  if(origin[2] != cpu && this->octree->nodeDepthIndex->fore != cpu){
+  if(origin[0] != gpu && this->octree->edges->getFore() != gpu) this->octree->edges->transferMemoryTo(gpu);
+  if(origin[1] != gpu && this->octree->nodes->getFore() != gpu) this->octree->nodes->transferMemoryTo(gpu);
+  if(origin[2] != cpu && this->octree->nodeDepthIndex->getFore() != cpu){
     this->octree->nodeDepthIndex->transferMemoryTo(cpu);
   }
   int* vertexNumbersDevice;
@@ -194,7 +194,7 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   float3* surfaceVerticesDevice;
   CudaSafeCall(cudaMalloc((void**)&surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3)));
 
-  if(origin[3] != gpu && this->octree->vertices->fore != gpu){
+  if(origin[3] != gpu && this->octree->vertices->getFore() != gpu){
     this->octree->vertices->transferMemoryTo(gpu);
   }
 
@@ -260,18 +260,18 @@ void ssrlcv::MeshFactory::marchingCubes(){
   timer = clock();
 
   MemoryState origin[5] = {
-    this->octree->edges->state,
-    this->octree->nodes->state,
-    this->octree->nodeDepthIndex->state,
-    this->octree->vertices->state,
-    this->octree->edgeDepthIndex->state
+    this->octree->edges->getMemoryState(),
+    this->octree->nodes->getMemoryState(),
+    this->octree->nodeDepthIndex->getMemoryState(),
+    this->octree->vertices->getMemoryState(),
+    this->octree->edgeDepthIndex->getMemoryState()
   };
-  if(origin[0] != gpu && this->octree->edges->fore != gpu) this->octree->edges->transferMemoryTo(gpu);
-  if(origin[1] != gpu && this->octree->nodes->fore != gpu) this->octree->nodes->transferMemoryTo(gpu);
-  if(origin[2] != cpu && this->octree->nodeDepthIndex->fore != cpu){
+  if(origin[0] != gpu && this->octree->edges->getFore() != gpu) this->octree->edges->transferMemoryTo(gpu);
+  if(origin[1] != gpu && this->octree->nodes->getFore() != gpu) this->octree->nodes->transferMemoryTo(gpu);
+  if(origin[2] != cpu && this->octree->nodeDepthIndex->getFore() != cpu){
     this->octree->nodeDepthIndex->transferMemoryTo(cpu);
   }
-  if(origin[4] != cpu && this->octree->edgeDepthIndex->fore != cpu){
+  if(origin[4] != cpu && this->octree->edgeDepthIndex->getFore() != cpu){
     this->octree->edgeDepthIndex->transferMemoryTo(cpu);
   }
   int numFinestEdges = this->octree->edgeDepthIndex->host[1];
@@ -359,7 +359,7 @@ void ssrlcv::MeshFactory::marchingCubes(){
   CudaSafeCall(cudaMalloc((void**)&surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3)));
 
 
-  if(origin[3] != gpu && this->octree->vertices->fore != gpu){
+  if(origin[3] != gpu && this->octree->vertices->getFore() != gpu){
     this->octree->vertices->transferMemoryTo(gpu);
   }
 
@@ -422,18 +422,18 @@ void ssrlcv::MeshFactory::jaxMeshing(){
   clock_t timer;
   timer = clock();
   MemoryState origin[5] = {
-    this->octree->edges->state,
-    this->octree->edgeDepthIndex->state,
-    this->octree->nodes->state,
-    this->octree->nodeDepthIndex->state,
-    this->octree->vertices->state
+    this->octree->edges->getMemoryState(),
+    this->octree->edgeDepthIndex->getMemoryState(),
+    this->octree->nodes->getMemoryState(),
+    this->octree->nodeDepthIndex->getMemoryState(),
+    this->octree->vertices->getMemoryState()
   };
-  if(origin[0] != gpu && this->octree->edges->fore != gpu) this->octree->edges->transferMemoryTo(gpu);
-  if(origin[1] != cpu && this->octree->edgeDepthIndex->fore != cpu){
+  if(origin[0] != gpu && this->octree->edges->getFore() != gpu) this->octree->edges->transferMemoryTo(gpu);
+  if(origin[1] != cpu && this->octree->edgeDepthIndex->getFore() != cpu){
     this->octree->edgeDepthIndex->transferMemoryTo(cpu);
   }
-  if(origin[2] != both && this->octree->nodes->fore != both) this->octree->nodes->transferMemoryTo(both);
-  if(origin[3] != cpu && this->octree->nodeDepthIndex->fore != cpu){
+  if(origin[2] != both && this->octree->nodes->getFore() != both) this->octree->nodes->transferMemoryTo(both);
+  if(origin[3] != cpu && this->octree->nodeDepthIndex->getFore() != cpu){
     this->octree->nodeDepthIndex->transferMemoryTo(cpu);
   }
 
@@ -558,7 +558,7 @@ void ssrlcv::MeshFactory::jaxMeshing(){
   CudaSafeCall(cudaMalloc((void**)&surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3)));
 
 
-  if(origin[4] != gpu && this->octree->vertices->fore != gpu){
+  if(origin[4] != gpu && this->octree->vertices->getFore() != gpu){
     this->octree->vertices->transferMemoryTo(gpu);
   }
   /* generate vertices */
@@ -704,21 +704,21 @@ void ssrlcv::MeshFactory::generateMeshWithFinestEdges(){
   std::string newFile = "out" + this->octree->name + "_meshwedges_" + std::to_string(this->octree->depth)+ ".ply";
   std::ofstream plystream(newFile);
   MemoryState origin[4] = {
-    this->octree->vertices->state,
-    this->octree->vertexDepthIndex->state,
-    this->octree->edges->state,
-    this->octree->edgeDepthIndex->state
+    this->octree->vertices->getMemoryState(),
+    this->octree->vertexDepthIndex->getMemoryState(),
+    this->octree->edges->getMemoryState(),
+    this->octree->edgeDepthIndex->getMemoryState()
   };
-  if(origin[0] != cpu || this->octree->vertices->fore != cpu){
+  if(origin[0] != cpu || this->octree->vertices->getFore() != cpu){
     this->octree->vertices->transferMemoryTo(cpu);
   }
-  if(origin[1] != cpu || this->octree->vertexDepthIndex->fore != cpu){
+  if(origin[1] != cpu || this->octree->vertexDepthIndex->getFore() != cpu){
     this->octree->vertexDepthIndex->transferMemoryTo(cpu);
   }
-  if(origin[2] != cpu || this->octree->edges->fore != cpu){
+  if(origin[2] != cpu || this->octree->edges->getFore() != cpu){
     this->octree->edges->transferMemoryTo(cpu);
   }
-  if(origin[3] != cpu || this->octree->edgeDepthIndex->fore != cpu){
+  if(origin[3] != cpu || this->octree->edgeDepthIndex->getFore() != cpu){
     this->octree->edgeDepthIndex->transferMemoryTo(cpu);
   }
   if (plystream.is_open()) {

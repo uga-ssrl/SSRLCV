@@ -174,7 +174,7 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(){
   thrust::gather(indices.begin(), indices.end(), cnts, sortedCnts.begin());
   CudaSafeCall(cudaMemcpy(leafNodeCenters_device, thrust::raw_pointer_cast(sortedCnts.data()), this->data->numElements*sizeof(float2),cudaMemcpyDeviceToDevice));
 
-  if(this->data->fore != gpu){
+  if(this->data->getFore() != gpu){
     this->data->transferMemoryTo(gpu);
   }
 
@@ -206,7 +206,7 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(){
 
   this->nodes = new Unity<Node>(leafNodes_device, numLeafNodes, gpu);
 
-  this->nodes->fore = gpu;
+  this->nodes->setFore(gpu);
 
   CudaSafeCall(cudaFree(leafNodeKeys_device));
   CudaSafeCall(cudaFree(leafNodeCenters_device));
@@ -221,12 +221,12 @@ template<typename T>
 void ssrlcv::Quadtree<T>::generateParentNodes(){
   clock_t timer = clock();
   std::cout<<"filling coarser depths of quadtree..."<<std::endl;
-  if(this->nodes == nullptr || this->nodes->state == null){
+  if(this->nodes == nullptr || this->nodes->getMemoryState() == null){
     //TODO potentially develop support for bottom up growth
     throw NullUnityException("Cannot generate parent nodes before children");
   }
   Node* uniqueNodes_device;
-  if(this->nodes->state == cpu){
+  if(this->nodes->getMemoryState() == cpu){
     this->nodes->transferMemoryTo(gpu);
   }
   int numUniqueNodes = this->nodes->numElements;
@@ -334,8 +334,8 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
   printf("TOTAL NODES = %d\n\n",totalNodes);
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
-  this->nodes->fore = gpu;
-  this->dataNodeIndex->fore = gpu;
+  this->nodes->setFore(gpu);
+  this->dataNodeIndex->setFore(gpu);
 }
 
 template<typename T>
@@ -377,7 +377,7 @@ void ssrlcv::Quadtree<T>::fillNeighborhoods(){
     cudaDeviceSynchronize();
     CudaCheckError();
   }
-  this->nodes->fore = gpu;//just to ensure that it is known gpu nodes was edited last
+  this->nodes->setFore(gpu);//just to ensure that it is known gpu nodes was edited last
   CudaSafeCall(cudaFree(parentLUT_device));
   CudaSafeCall(cudaFree(childLUT_device));
   std::cout<<"Neighborhoods filled"<<std::endl;
@@ -595,17 +595,17 @@ void ssrlcv::Quadtree<T>::generateVerticesAndEdges(){
 
 template<typename T>
 void ssrlcv::Quadtree<T>::setNodeFlags(ssrlcv::Unity<bool>* hashMap, bool requireFullNeighbors, uint2 depthRange){
-  if(hashMap == nullptr || hashMap->state == null){
+  if(hashMap == nullptr || hashMap->getMemoryState() == null){
     throw NullUnityException("hashMap must be filled before setFlags is called");
   }
   if(!(depthRange.x == 0 && depthRange.y == 0) && (depthRange.x > depthRange.y || depthRange.x > this->depth || this->depth > depthRange.y || this->depth < depthRange.x)){
     std::cout<<"ERROR: invalid depthRange in setFlags"<<std::endl;
     exit(-1);
   }
-  MemoryState origin[3] = {hashMap->state,this->nodes->state,this->nodeDepthIndex->state};
-  if(hashMap->fore == cpu) hashMap->transferMemoryTo(gpu);
-  if(this->nodes->fore == cpu) this->nodes->transferMemoryTo(gpu);
-  if(this->nodeDepthIndex->fore == gpu) this->nodeDepthIndex->transferMemoryTo(cpu);
+  MemoryState origin[3] = {hashMap->getMemoryState(),this->nodes->getMemoryState(),this->nodeDepthIndex->getMemoryState()};
+  if(hashMap->getFore() == cpu) hashMap->transferMemoryTo(gpu);
+  if(this->nodes->getFore() == cpu) this->nodes->transferMemoryTo(gpu);
+  if(this->nodeDepthIndex->getFore() == gpu) this->nodeDepthIndex->transferMemoryTo(cpu);
 
   unsigned int nodeDepthIndex = 0;
   if(depthRange.y == 0){
@@ -630,14 +630,14 @@ void ssrlcv::Quadtree<T>::setNodeFlags(ssrlcv::Unity<bool>* hashMap, bool requir
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  if(origin[0] != hashMap->state){
+  if(origin[0] != hashMap->getMemoryState()){
     hashMap->setMemoryState(origin[0]);
   }
-  this->nodes->fore = gpu;//due to editing nodes in this method
-  if(origin[1] != this->nodes->state){
+  this->nodes->setFore(gpu);//due to editing nodes in this method
+  if(origin[1] != this->nodes->getMemoryState()){
     this->nodes->setMemoryState(origin[1]);
   }
-  if(origin[2] != this->nodeDepthIndex->state){
+  if(origin[2] != this->nodeDepthIndex->getMemoryState()){
     this->nodeDepthIndex->setMemoryState(origin[2]);
   }
 }
@@ -648,9 +648,9 @@ void ssrlcv::Quadtree<T>::setNodeFlags(float2 flagBorder, bool requireFullNeighb
     std::cout<<"ERROR: invalid depthRange in setFlags"<<std::endl;
     exit(-1);
   }
-  MemoryState origin[2] = {this->nodes->state,this->nodeDepthIndex->state};
-  if(this->nodes->fore == cpu) this->nodes->transferMemoryTo(gpu);
-  if(this->nodeDepthIndex->fore == gpu) this->nodeDepthIndex->transferMemoryTo(cpu);
+  MemoryState origin[2] = {this->nodes->getMemoryState(),this->nodeDepthIndex->getMemoryState()};
+  if(this->nodes->getFore() == cpu) this->nodes->transferMemoryTo(gpu);
+  if(this->nodeDepthIndex->getFore() == gpu) this->nodeDepthIndex->transferMemoryTo(cpu);
 
   unsigned int nodeDepthIndex = 0;
   if(depthRange.y == 0){
@@ -681,11 +681,11 @@ void ssrlcv::Quadtree<T>::setNodeFlags(float2 flagBorder, bool requireFullNeighb
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  this->nodes->fore = gpu;//due to editing nodes in this method
-  if(origin[0] != this->nodes->state){
+  this->nodes->setFore(gpu);//due to editing nodes in this method
+  if(origin[0] != this->nodes->getMemoryState()){
     this->nodes->setMemoryState(origin[0]);
   }
-  if(origin[1] != this->nodeDepthIndex->state){
+  if(origin[1] != this->nodeDepthIndex->getMemoryState()){
     this->nodeDepthIndex->setMemoryState(origin[1]);
   }
 }

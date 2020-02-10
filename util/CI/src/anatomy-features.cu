@@ -12,7 +12,7 @@ int main(int argc, char ** argv) {
     file.open(testfile, std::ifstream::in); 
     if(file.fail()) throw errno; 
     Unity<Feature<SIFT_Descriptor>> * features = ssrlcv::io::anatomy::readFeatures(file);
-    TEST(features->state == cpu, "Features expected to be on CPU"); 
+    TEST(features->getMemoryState() == cpu, "Features expected to be on CPU"); 
 
     // Only testing the first line.  This is pretty weak tbh but confirms the concept
     const int SIZE = 128; 
