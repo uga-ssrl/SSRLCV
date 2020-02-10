@@ -20,6 +20,10 @@
 #include <map>
 #include <string>
 
+/**
+* \ingroup cuda_util
+* \{
+*/
 
 /**
 * \brief Method for getting grid and block for a 1D kernel.
@@ -368,5 +372,8 @@ __device__ __forceinline__ unsigned long getGlobalIdx_3D_3D(){
 }
 */
 
+/**
+* \}
+*/
 
 #endif /* CUDA_UTIL_CUH */

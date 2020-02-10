@@ -16,7 +16,7 @@ __device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size){
   this->dpix = {0.0f,0.0f};
   this->size = {0,0};
 }
-__device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size, float3 cam_pos, float3 camp_dir){
+__device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size, float3 cam_pos, float3 cam_rot){
   this->cam_pos = cam_pos;
   this->cam_rot = cam_rot;
   this->fov = {0.0f,0.0f};
@@ -39,11 +39,6 @@ ssrlcv::Image::Image(uint2 size, unsigned int colorDepth, Unity<unsigned char>* 
   this->size = size;
 }
 
-/**
-* Creates and Image with Camera Parameters
-* @param filePath is a string of a fully qualified path to an image file
-* @param id the number representing the image, id is 0-maxint if a real image or -1 if a seed image
-*/
 ssrlcv::Image::Image(std::string filePath, int id) {
   std::string filename = getFileFromFilePath(filePath);
   this->filePath = filePath;
@@ -618,7 +613,7 @@ ssrlcv::Unity<float2>* ssrlcv::generatePixelGradients(uint2 imageSize, Unity<flo
 
 void ssrlcv::makeBinnable(uint2 &size, Unity<unsigned char>* pixels, int plannedDepth){
   MemoryState origin = pixels->getMemoryState();
-  int numResize = (int)powf(2, plannedDepth);
+  int numResize = (int)pow(2, plannedDepth);
   int dimOffset[2] = {size.x%numResize,size.y%numResize};
   if(dimOffset[0] || dimOffset[1]){
     if(origin != gpu) pixels->setMemoryState(gpu);
@@ -646,7 +641,7 @@ void ssrlcv::makeBinnable(uint2 &size, Unity<unsigned char>* pixels, int planned
 }
 void ssrlcv::makeBinnable(uint2 &size, Unity<float>* pixels, int plannedDepth){
   MemoryState origin = pixels->getMemoryState();
-  int numResize = (int)powf(2, plannedDepth);
+  int numResize = (int)pow(2, plannedDepth);
   int dimOffset[2] = {size.x%numResize,size.y%numResize};
   if(dimOffset[0] || dimOffset[1]){
     if(origin != gpu) pixels->setMemoryState(gpu);
@@ -891,23 +886,23 @@ __device__ __host__ __forceinline__ int ssrlcv::getSymmetrizedCoord(int i, unsig
   i = (i+ll)%ll;
   return (i>l-1) ? i = ll - 1 - i : i;
 }
-__device__ __forceinline__ unsigned char ssrlcv::bwaToBW(const uchar2 &color){
+__device__ __host__ __forceinline__ unsigned char ssrlcv::bwaToBW(const uchar2 &color){
   return (1-color.y)*color.x + color.y*color.x;
 }
-__device__ __forceinline__ unsigned char ssrlcv::rgbToBW(const uchar3 &color){
+__device__ __host__ __forceinline__ unsigned char ssrlcv::rgbToBW(const uchar3 &color){
   return (color.x/4) + (color.y/2) + (color.z/4);
 }
-__device__ __forceinline__ unsigned char ssrlcv::rgbaToBW(const uchar4 &color){
+__device__ __host__ __forceinline__ unsigned char ssrlcv::rgbaToBW(const uchar4 &color){
   return rgbToBW(rgbaToRGB(color));
 }
-__device__ __forceinline__ uchar3 ssrlcv::bwToRGB(const unsigned char &color){
+__device__ __host__ __forceinline__ uchar3 ssrlcv::bwToRGB(const unsigned char &color){
   int colorTemp = (int) color*10;
   return {(unsigned char)colorTemp/4,(unsigned char)colorTemp/2,(unsigned char)colorTemp/4};
 }
-__device__ __forceinline__ uchar3 ssrlcv::bwaToRGB(const uchar2 &color){
+__device__ __host__ __forceinline__ uchar3 ssrlcv::bwaToRGB(const uchar2 &color){
   return {color.x,color.y,(color.x/3)*2 + (color.y/3)};
 }
-__device__ __forceinline__ uchar3 ssrlcv::rgbaToRGB(const uchar4 &color){
+__device__ __host__ __forceinline__ uchar3 ssrlcv::rgbaToRGB(const uchar4 &color){
   return {
     (1-color.w)*color.x + color.w*color.x,
     (1-color.w)*color.y + color.w*color.y,

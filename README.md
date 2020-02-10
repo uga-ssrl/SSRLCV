@@ -115,11 +115,10 @@ TODO information about ply support and limitations here
 
 TODO Match file support here
 
-
-
+Check out the [contributors guide](CONTRIB.md) for imformation on contributions
 
 # TODO
-* ensure that thrust functions are using GPU
+* ensure that thrust functions are usi ng GPU
 * more documentations
 
 

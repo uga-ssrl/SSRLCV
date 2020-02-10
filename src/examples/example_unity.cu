@@ -1,5 +1,12 @@
+/**
+* \file example_unity.cu
+* \author  Jackson Parker
+* \date    Feb 8 2020
+* \brief Example on the usage of the Unity structure.
+* \example 
+* \see Unity
+*/
 #include "../../include/common_includes.h"
-
 /*
 NOTE: This example kernel is VERY simple compared to most and never has numElements hit grid.x limits
 It is meant as a Unity example

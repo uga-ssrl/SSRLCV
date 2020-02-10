@@ -23,6 +23,9 @@
 
 namespace ssrlcv{
   /**
+  * \ingroup trees
+  */
+  /**
   * \brief data parallel octree
   *
   * \detail this class is used for quick near neighbor searches
