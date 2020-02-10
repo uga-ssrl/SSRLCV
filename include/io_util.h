@@ -120,73 +120,81 @@ namespace ssrlcv{
   */
 
   /**
-  * \brief get pixel array from a row of pointers generated from ssrlcv::readPNG utilizing png.h
-  * \details 
-  * \returns a row of pixels
+  * \brief Get pixel array from a row of pointers generated from ssrlcv::readPNG utilizing png.h.
+  * \details This method is utilized by readPNG and writePNG for help in writing images. 
+  * \param row_pointers - pointers to rows of pixels in an image
+  * \param width - width of image in pixels
+  * \param height - height of image in pixels 
+  * \param numValues - value to help with colorDepth determination
+  * \returns a row-wise flattened pixel array
   */
   unsigned char* getPixelArray(unsigned char** &row_pointers, const unsigned int &width, const unsigned int &height, const int numValues);
 
   /**
   * \brief Reads a png image and generates a pixel array.
-  * \details 
-  * \param filePath const char* absolute filePath for image
-  * \param height
-  * \param width
-  * \param colorDepth
+  * \details This method will read a PNG image utilizing libpng and fill in the passed-by-reference arguments 
+  * height, width and colorDepth. 
+  * \param filePath - const char* filePath for location of image (<string>.c_str() is easiest way to use a string path)
+  * \param height - image height in pixels (reference argument that will be filled in during reading of image)
+  * \param width - image width in pixels (reference argument that will be filled in during reading of image)
+  * \param colorDepth - number of unsigned char values per pixel (reference argument that will be filled in during reading of image)
   * \returns a pixel array flattened row-wise with dimensions filled out in width, height, and colorDepth reference arguments
   */
   unsigned char* readPNG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
 
   /**
   * \brief Writes a png image from a pixel array.
-  * \details 
-  * \param filePath const char* absolute filePath where image is to be written
-  * \param image
-  * \param colorDepth
-  * \param width
-  * \param height
+  * \details This method will write a PNG image from a row-wise flattened pixel array using libpng.
+  * \param filePath const char* filePath where image is to be written (<string>.c_str() is easiest way to use a string path)
+  * \param image - unsigned char array with pixels values flattened row wise
+  * \param colorDepth - number of unsigned chars per pixel value
+  * \param width - number of pixels in a row
+  * \param height - number of rows in an image
   */
   void writePNG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
 
   /**
   * \brief Reads a tiff image and generates a pixel array. 
-  * \details 
-  * \param filePath const char* absolute filePath for image
-  * \param height
-  * \param width
-  * \param colorDepth
+  * \details This method will read a JPG/JPEG image utilizing libjpeg and fill in the passed-by-reference arguments 
+  * height, width and colorDepth. 
+  * \param filePath - const char* filePath for location of image (<string>.c_str() is easiest way to use a string path)
+  * \param height - image height in pixels (reference argument that will be filled in during reading of image)
+  * \param width - image width in pixels (reference argument that will be filled in during reading of image)
+  * \param colorDepth - number of unsigned char values per pixel (reference argument that will be filled in during reading of image)
   * \returns a pixel array flattened row-wise with dimensions filled out in width, height, and colorDepth reference arguments
   */
   unsigned char* readTIFF(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
   /**
   * \brief Writes a tiff image from a pixel array.
-  * \details 
-  * \param filePath const char* absolute filePath where image is to be written
-  * \param image
-  * \param colorDepth
-  * \param width
-  * \param height
+  * \details This method will write a JPG/JPEG image from a row-wise flattened pixel array using libjpeg.
+  * \param filePath - const char* filePath where image is to be written (<string>.c_str() is easiest way to use a string path)
+  * \param image - unsigned char array with pixels values flattened row wise
+  * \param colorDepth - number of unsigned chars per pixel value
+  * \param width - number of pixels in a row
+  * \param height - number of rows in an image
+  * \todo make variable for specifying compression parameters
   */
   void writeTIFF(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
 
   /**
   * \brief Reads a jpeg image and generates a pixel array.
-  * \details 
-  * \param filePath const char* absolute filePath for image
-  * \param height
-  * \param width
-  * \param colorDepth
+  * \details This method will read a TIF/TIFF image utilizing libtiff and fill in the passed-by-reference arguments 
+  * height, width and colorDepth. 
+  * \param filePath - const char* filePath for location of image (<string>.c_str() is easiest way to use a string path)
+  * \param height - image height in pixels (reference argument that will be filled in during reading of image)
+  * \param width - image width in pixels (reference argument that will be filled in during reading of image)
+  * \param colorDepth - number of unsigned char values per pixel (reference argument that will be filled in during reading of image)
   * \returns a pixel array flattened row-wise with dimensions filled out in width, height, and colorDepth reference arguments
   */
   unsigned char* readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
   /**
   * \brief Writes a jpeg image from a pixel array.
-  * \details 
-  * \param filePath const char* absolute filePath where image is to be written
-  * \param image
-  * \param colorDepth
-  * \param width
-  * \param height
+  * \details This method will write a TIF/TIFF image from a row-wise flattened pixel array using libtiff.
+  * \param filePath - const char* filePath where image is to be written (<string>.c_str() is easiest way to use a string path)
+  * \param image - unsigned char array with pixels values flattened row wise
+  * \param colorDepth - number of unsigned chars per pixel value
+  * \param width - number of pixels in a row
+  * \param height - number of rows in an image
   */
   void writeJPEG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
 
@@ -201,7 +209,13 @@ namespace ssrlcv{
 
   //TODO make readPLY
   /**
-  * \brief will write ply from point array
+  * \brief Will write a ply file based on a set of float3 values.
+  * \details This method will write a ply in the specified location and can 
+  * be written in binary or ASCII format.
+  * \param filePath - path where image will be written (<string>.c_str() is easiest way to use a string path)
+  * \param points - a Unity<float3>* where the points are listed
+  * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
+  * \see Unity
   */
   void writePLY(const char* filePath, Unity<float3>* points, bool binary = false);
 
@@ -209,11 +223,11 @@ namespace ssrlcv{
   CSV and Misc Debug IO
   */
 
-  /*
-   * Takes in an array of floats and writes them to a CSV
-   * @param values a set of float elements as a float array that are written in csv format on one line
-   * @param num the number of elements in the float array
-   * @param filename a string representing the desired filename of the csv output
+  /**
+   * \brief Takes in an array of floats and writes them to a CSV.
+   * \param values a set of float elements as a float array that are written in csv format on one line
+   * \param num the number of elements in the float array
+   * \param filename a string representing the desired filename of the csv output
    */
   void writeCSV(float* values, int num, std::string filename);
 

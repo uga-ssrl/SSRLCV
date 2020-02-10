@@ -68,9 +68,11 @@ namespace ssrlcv{
     * \see MatchFactory
     */
     __device__ __host__ float distProtocol(const SIFT_Descriptor& b, const float &bestMatch);
+    /**
+    * \brief Prints sigma, theta and 128D vector of SIFT_Descriptor
+    */
     __device__ __host__ void print();//not recommended to execute on the gpu with more than one feature
   };
-  void printSIFTFeature(ssrlcv::Feature<ssrlcv::SIFT_Descriptor> feature);
 
   struct Window_3x3{
     unsigned char values[3][3];

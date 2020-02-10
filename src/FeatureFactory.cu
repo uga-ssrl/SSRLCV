@@ -1077,7 +1077,7 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
                 gradient = gradients[llroundf(y)*imageWidth + llroundf(x)];//may want to do interpolation here
                 temp2 = {x - keyPoint.x,y - keyPoint.y};
                 angle = fmodf(atan2f(gradient.y,gradient.x) + (2.0f*pi),2.0f*pi);//atan2f returns between -pi to pi
-                orientationHist[(int)floor(angle/rad10)] += getMagnitude(gradient)*expf(-((temp2.x*temp2.x)+(temp2.y*temp2.y))/weight);///pi/weight;
+                orientationHist[(int)floor(angle/rad10)] += getMagnitude(gradient)*expf(-((temp2.x*temp2.x)+(temp2.y*temp2.y))/weight);//(/pi/weight);
             }
         }
         float3 convHelper = {orientationHist[35],orientationHist[0],orientationHist[1]};

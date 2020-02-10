@@ -16,7 +16,7 @@ __device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size){
   this->dpix = {0.0f,0.0f};
   this->size = {0,0};
 }
-__device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size, float3 cam_pos, float3 camp_dir){
+__device__ __host__ ssrlcv::Image::Camera::Camera(uint2 size, float3 cam_pos, float3 cam_rot){
   this->cam_pos = cam_pos;
   this->cam_rot = cam_rot;
   this->fov = {0.0f,0.0f};
@@ -618,7 +618,7 @@ ssrlcv::Unity<float2>* ssrlcv::generatePixelGradients(uint2 imageSize, Unity<flo
 
 void ssrlcv::makeBinnable(uint2 &size, Unity<unsigned char>* pixels, int plannedDepth){
   MemoryState origin = pixels->getMemoryState();
-  int numResize = (int)powf(2, plannedDepth);
+  int numResize = (int)pow(2, plannedDepth);
   int dimOffset[2] = {size.x%numResize,size.y%numResize};
   if(dimOffset[0] || dimOffset[1]){
     if(origin != gpu) pixels->setMemoryState(gpu);
@@ -646,7 +646,7 @@ void ssrlcv::makeBinnable(uint2 &size, Unity<unsigned char>* pixels, int planned
 }
 void ssrlcv::makeBinnable(uint2 &size, Unity<float>* pixels, int plannedDepth){
   MemoryState origin = pixels->getMemoryState();
-  int numResize = (int)powf(2, plannedDepth);
+  int numResize = (int)pow(2, plannedDepth);
   int dimOffset[2] = {size.x%numResize,size.y%numResize};
   if(dimOffset[0] || dimOffset[1]){
     if(origin != gpu) pixels->setMemoryState(gpu);

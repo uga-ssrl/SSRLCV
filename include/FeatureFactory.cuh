@@ -82,8 +82,8 @@ namespace ssrlcv{
           Unity<float2>* gradients;
           Blur();
           Blur(float sigma, int2 kernelSize, Unity<float>* pixels, uint2 size, float pixelWidth);
-          void computeGradients();
           ~Blur();
+          void computeGradients();
         };
 
 
@@ -95,7 +95,6 @@ namespace ssrlcv{
         int* extremaBlurIndices;
 
         Octave();
-        //may want to remove kernelSize as it is static in anatomy
         Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<float>* pixels, uint2 size, float pixelWidth, int keepPixelsAfterBlur);      
         void searchForExtrema();
         void discardExtrema();
