@@ -95,6 +95,7 @@ int main(int argc, char *argv[]){
     ssrlcv::Unity<float3>* points = adjuster.BundleAdjustTwoView(&matchSet,images);
 
     ssrlcv::writePLY("out/bundleAdjustedPoints.ply",points);
+    // points->clear();
 
     /*
     2 View Reprojection

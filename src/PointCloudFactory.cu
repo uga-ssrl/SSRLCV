@@ -369,6 +369,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
 
   // the initial linear error
   unsigned long long int* linearError = (unsigned long long int*) malloc(sizeof(unsigned long long int));
+  *linearError = 100000; // just something to satisfy the first if statment
   unsigned long long int* linearError_partial = (unsigned long long int*) malloc(sizeof(unsigned long long int));
   // the cutoff
   // TODO this shold later remove points that are bad
@@ -383,21 +384,40 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
   ssrlcv::Image::Camera g_2 = ssrlcv::Image::Camera();
   gradients.push_back(g_1);
   gradients.push_back(g_2);
+
+  // the boiz in the loop
+  ssrlcv::BundleSet bundleSet;
   ssrlcv::BundleSet bundleSet_partial;
+  ssrlcv::Unity<float>* errors;
+  ssrlcv::Unity<float3>* points;
 
+  // for printing out data about iterations and shit later
+  std::vector<unsigned long long int> errorTracker;
 
-  for (int i = 1; i < 10; i++){
+  int i = 1;
+  while(*linearError > 9001){
     // generate the bundle set
-    ssrlcv::BundleSet bundleSet = generateBundles(matchSet,images);
+    bundleSet = generateBundles(matchSet,images);
     // do an initial triangulation
-    ssrlcv::Unity<float>* errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->numElements,ssrlcv::cpu);
+    errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->numElements,ssrlcv::cpu);
     *linearErrorCutoff = 620.0;
-    ssrlcv::Unity<float3>* points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+    points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+    // do this only once
     if (i == 1 ) ssrlcv::writePLY("out/rawPoints.ply",points);
     // then I write them to a csv to see what to heck is goin on
+
     // write some errors for debug
-    writeCSV(errors->host, (int) errors->numElements, "individualLinearErrors" + std::to_string(i));
+    //writeCSV(errors->host, (int) errors->numElements, "individualLinearErrors" + std::to_string(i));
+
+    // clear uneeded memory
+    delete bundleSet.lines;
+    delete bundleSet.bundles;
+    errors->clear();
+    // points->clear();
+
+    // a nice printout for the humans
     std::cout << "[itr: " << i << "] linear error: " << *linearError << std::endl;
+    errorTracker.push_back(*linearError);
 
     // what the step sizes should be tho:
     // this is only for the "sensitivity" in those component directions
@@ -406,7 +426,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
     float h_foc = 0.0000001;
     float h_fov = 0.0000001;
     // the stepsize along the gradient
-    float step  = 0.01;
+    float step  = 0.0001;
 
     // calculate the descrete partial derivatives using forward difference
     for (int j = 0; j < partials.size(); j++){
@@ -538,6 +558,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       gradients[j].foc /= norm;
       gradients[j].fov.x /= norm;
       gradients[j].fov.y /= norm;
+
+      // ya boi
+      i++;
     }
 
     if (false){
@@ -573,7 +596,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
 
 
   }
-  return nullptr;
+
+  return points;
 }
 
 uchar3 ssrlcv::heatMap(float value){
