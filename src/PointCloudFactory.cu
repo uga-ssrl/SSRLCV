@@ -307,6 +307,26 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   return points;
 }
 
+/**
+ * A Naive bundle adjustment based on a two-view triangulation and a first order descrete gradient decent
+ * @param matchSet a group of matches
+ * @param a group of images, used only for their stored camera parameters
+ * @return a bundle adjusted point cloud
+ */
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
+
+  // the main factory we use to call our functions
+  ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
+  // the initial linear error
+  unsigned long long int* linearError = (unsigned long long int*) malloc(sizeof(unsigned long long int));
+  // the cutoff
+  // TODO this shold later remove points that are bad
+  float* linearErrorCutoff = (float*) malloc(sizeof(float));
+  ssrlcv::BundleSet bundleSet = demPoints.generateBundles(matchSet,images);
+
+  return nullptr;
+}
+
 uchar3 ssrlcv::heatMap(float value){
   uchar3 rgb;
   // float3 colorMap[5] = {
@@ -412,8 +432,9 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolati
   delete disparityImage;
 }
 
-
-// device methods
+// ==================================================================================================== //
+//                                        device methods                                                //
+// ==================================================================================================== //
 
 
 __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras){

@@ -83,6 +83,14 @@ namespace ssrlcv{
     */
     ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bundleSet, Unity<float>* errors, unsigned long long int* linearError, float* linearErrorCutoff);
 
+    /**
+     * A Naive bundle adjustment based on a two-view triangulation and a first order descrete gradient decent
+     * @param matchSet a group of matches
+     * @param a group of images, used only for their stored camera parameters
+     * @return a bundle adjusted point cloud
+     */
+    ssrlcv::Unity<float3>* BundleAdjustTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images);
+
   };
 
   uchar3 heatMap(float value);

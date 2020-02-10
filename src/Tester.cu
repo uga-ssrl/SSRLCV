@@ -87,27 +87,29 @@ int main(int argc, char *argv[]){
     }
     std::cout << "Generated MatchSet ..." << std::endl << "Total Matches: " << matches->numElements << std::endl << std::endl;
 
+    
+
 
     /*
     2 View Reprojection
     */
-    ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
-
-    // bunlde adjustment loop would be here. images_vec woudl be modified to minimize the boi
-    unsigned long long int* linearError = (unsigned long long int*) malloc(sizeof(unsigned long long int));
-    float* linearErrorCutoff = (float*) malloc(sizeof(float));
-    ssrlcv::BundleSet bundleSet = demPoints.generateBundles(&matchSet,images);
-
-    // the version that will be used normally
-    ssrlcv::Unity<float3>* points = demPoints.twoViewTriangulate(bundleSet, linearError);
-    std::cout << "Total Linear Error: " << *linearError << std::endl;
-
-    // here is a version that will give me individual linear errors
-    ssrlcv::Unity<float>* errors = new ssrlcv::Unity<float>(nullptr,matches->numElements,ssrlcv::cpu);
-    *linearErrorCutoff = 620.0;
-    ssrlcv::Unity<float3>* points2 = demPoints.twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
-    // then I write them to a csv to see what to heck is goin on
-    ssrlcv::writeCSV(errors->host, (int) errors->numElements, "individualLinearErrors");
+    // ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
+    //
+    // // bunlde adjustment loop would be here. images_vec woudl be modified to minimize the boi
+    // unsigned long long int* linearError = (unsigned long long int*) malloc(sizeof(unsigned long long int));
+    // float* linearErrorCutoff = (float*) malloc(sizeof(float));
+    // ssrlcv::BundleSet bundleSet = demPoints.generateBundles(&matchSet,images);
+    //
+    // // the version that will be used normally
+    // ssrlcv::Unity<float3>* points = demPoints.twoViewTriangulate(bundleSet, linearError);
+    // std::cout << "Total Linear Error: " << *linearError << std::endl;
+    //
+    // // here is a version that will give me individual linear errors
+    // ssrlcv::Unity<float>* errors = new ssrlcv::Unity<float>(nullptr,matches->numElements,ssrlcv::cpu);
+    // *linearErrorCutoff = 620.0;
+    // ssrlcv::Unity<float3>* points2 = demPoints.twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+    // // then I write them to a csv to see what to heck is goin on
+    // ssrlcv::writeCSV(errors->host, (int) errors->numElements, "individualLinearErrors");
 
     // optional stereo disparity here
     // /*
@@ -117,11 +119,11 @@ int main(int argc, char *argv[]){
     // ssrlcv::Unity<float3>* points = demPoints.stereo_disparity(matches,8.0);
     //
 
-    delete matches;
-    ssrlcv::writePLY("out/unfiltered.ply",points);
-    delete points;
-    ssrlcv::writePLY("out/filtered.ply",points2);
-    delete points2;
+    // delete matches;
+    // ssrlcv::writePLY("out/unfiltered.ply",points);
+    // delete points;
+    // ssrlcv::writePLY("out/filtered.ply",points2);
+    // delete points2;
 
     // clean up the images
     for(int i = 0; i < imagePaths.size(); ++i){
