@@ -85,9 +85,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   dim3 block = {1,1,1};
   getFlatGridBlock(bundleSet.bundles->numElements,grid,block,generateBundle);
 
-  std::cout << "Starting 2-view triangulation ..." << std::endl;
+  // std::cout << "Starting 2-view triangulation ..." << std::endl;
   computeTwoViewTriangulate<<<grid,block>>>(d_linearError,bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
-  std::cout << "2-view Triangulation done ... \n" << std::endl;
+  // std::cout << "2-view Triangulation done ... \n" << std::endl;
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -131,9 +131,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   dim3 block = {1,1,1};
   getFlatGridBlock(bundleSet.bundles->numElements,grid,block,generateBundle);
 
-  std::cout << "Starting 2-view triangulation ..." << std::endl;
+  // std::cout << "Starting 2-view triangulation ..." << std::endl;
   computeTwoViewTriangulate<<<grid,block>>>(d_linearError,errors->device,bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
-  std::cout << "2-view Triangulation done ... \n" << std::endl;
+  // std::cout << "2-view Triangulation done ... \n" << std::endl;
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -187,9 +187,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   dim3 block = {1,1,1};
   getFlatGridBlock(bundleSet.bundles->numElements,grid,block,generateBundle);
 
-  std::cout << "Starting 2-view triangulation ..." << std::endl;
+  // std::cout << "Starting 2-view triangulation ..." << std::endl;
   computeTwoViewTriangulate<<<grid,block>>>(d_linearError,d_linearErrorCutoff,errors->device,bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
-  std::cout << "2-view Triangulation done ... \n" << std::endl;
+  // std::cout << "2-view Triangulation done ... \n" << std::endl;
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -404,7 +404,6 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
     points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
     // do this only once
     if (i == 1 ) ssrlcv::writePLY("out/rawPoints.ply",points);
-    // then I write them to a csv to see what to heck is goin on
 
     // write some errors for debug
     //writeCSV(errors->host, (int) errors->numElements, "individualLinearErrors" + std::to_string(i));
@@ -426,7 +425,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
     float h_foc = 0.0000001;
     float h_fov = 0.0000001;
     // the stepsize along the gradient
-    float step  = 0.0001;
+    float step  = 0.001;
 
     // calculate the descrete partial derivatives using forward difference
     for (int j = 0; j < partials.size(); j++){
@@ -597,6 +596,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
 
   }
 
+  // write linearError chagnes to a CSV
+  writeCSV(errorTracker, "totalErrorOverIterations");
+  //goodbye
   return points;
 }
 

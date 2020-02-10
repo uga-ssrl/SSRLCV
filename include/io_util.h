@@ -17,17 +17,17 @@ namespace ssrlcv{
   */
   /**
    * \brief Map for command line flag and argument type association.
-   * \details This map is filled out in io_util.cpp and contains all 
-   * possible command line argument flags and the associated argument identifier. 
+   * \details This map is filled out in io_util.cpp and contains all
+   * possible command line argument flags and the associated argument identifier.
    * This map is primarily purposed to help parsArgs() method.
    * \see parseArgs
    */
   extern std::map<std::string, std::string> cl_args;
 
   /**
-   * \brief Determines if a file path exists. 
-   * \details This method takes in an absolute path and 
-   * returns true if there is infact a file with that path. 
+   * \brief Determines if a file path exists.
+   * \details This method takes in an absolute path and
+   * returns true if there is infact a file with that path.
    * \param fileName - the absolute path to the file in question
    * \returns true if the path is a file, false otherwise
    */
@@ -35,8 +35,8 @@ namespace ssrlcv{
 
   /**
    * \brief Determines if a directory path exists.
-   * \details This method takes in an aboslute path 
-   * to a directory and returns true if it exists. 
+   * \details This method takes in an aboslute path
+   * to a directory and returns true if it exists.
    * \param dirPath - the aboslute path to the directory
    * \returns true if the path is a directory, false otherwise
    */
@@ -44,11 +44,11 @@ namespace ssrlcv{
 
   /**
    * \brief Extracts the file extension from a file path.
-   * \details This method simply takes the string that comes 
+   * \details This method simply takes the string that comes
    * after the last occurance of a '.'
-   * \param path - the path to a file, could be absolute or relative 
+   * \param path - the path to a file, could be absolute or relative
    * \returns a string containing the file extension\
-   * \todo add a fileExists() check to this 
+   * \todo add a fileExists() check to this
    */
   std::string getFileExtension(std::string path);
 
@@ -70,12 +70,12 @@ namespace ssrlcv{
   void getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths);
 
   /**
-   * \brief Base arg struct for arg parsing purposes. 
+   * \brief Base arg struct for arg parsing purposes.
    */
   struct arg{};
 
   /**
-   * \brief arg containing an image path 
+   * \brief arg containing an image path
    */
   struct img_arg : public arg{
     std::string path;
@@ -89,14 +89,14 @@ namespace ssrlcv{
     img_dir_arg(char* path);
   };
   /**
-   * \brief arg containing a floating point value 
+   * \brief arg containing a floating point value
    */
   struct flt_arg : public arg{
     float val;
     flt_arg(char* val);
   };
   /**
-   * \brief arg containing an integer value 
+   * \brief arg containing an integer value
    */
   struct int_arg : public arg{
     int val;
@@ -109,8 +109,8 @@ namespace ssrlcv{
 
   /**
    * \brief Parses command line arguments into a map that can be easily processed in main().
-   * \details 
-   * \returns a map of string argument type identifiers and the argument  
+   * \details
+   * \returns a map of string argument type identifiers and the argument
    */
   std::map<std::string, arg*> parseArgs(int numArgs, char* args[]);
 
@@ -121,14 +121,14 @@ namespace ssrlcv{
 
   /**
   * \brief get pixel array from a row of pointers generated from ssrlcv::readPNG utilizing png.h
-  * \details 
+  * \details
   * \returns a row of pixels
   */
   unsigned char* getPixelArray(unsigned char** &row_pointers, const unsigned int &width, const unsigned int &height, const int numValues);
 
   /**
   * \brief Reads a png image and generates a pixel array.
-  * \details 
+  * \details
   * \param filePath const char* absolute filePath for image
   * \param height
   * \param width
@@ -139,7 +139,7 @@ namespace ssrlcv{
 
   /**
   * \brief Writes a png image from a pixel array.
-  * \details 
+  * \details
   * \param filePath const char* absolute filePath where image is to be written
   * \param image
   * \param colorDepth
@@ -149,8 +149,8 @@ namespace ssrlcv{
   void writePNG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
 
   /**
-  * \brief Reads a tiff image and generates a pixel array. 
-  * \details 
+  * \brief Reads a tiff image and generates a pixel array.
+  * \details
   * \param filePath const char* absolute filePath for image
   * \param height
   * \param width
@@ -160,7 +160,7 @@ namespace ssrlcv{
   unsigned char* readTIFF(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
   /**
   * \brief Writes a tiff image from a pixel array.
-  * \details 
+  * \details
   * \param filePath const char* absolute filePath where image is to be written
   * \param image
   * \param colorDepth
@@ -171,7 +171,7 @@ namespace ssrlcv{
 
   /**
   * \brief Reads a jpeg image and generates a pixel array.
-  * \details 
+  * \details
   * \param filePath const char* absolute filePath for image
   * \param height
   * \param width
@@ -181,7 +181,7 @@ namespace ssrlcv{
   unsigned char* readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
   /**
   * \brief Writes a jpeg image from a pixel array.
-  * \details 
+  * \details
   * \param filePath const char* absolute filePath where image is to be written
   * \param image
   * \param colorDepth
@@ -216,6 +216,13 @@ namespace ssrlcv{
    * @param filename a string representing the desired filename of the csv output
    */
   void writeCSV(float* values, int num, std::string filename);
+
+  /*
+   * Takes in a c++ vector and prints it all on one line of a csv
+   * @param v a vector of unsinged long long int guys
+   * @param filename a string representing the desired filename of the csv output
+   */
+  void writeCSV(std::vector<unsigned long long int> v, std::string filename);
 
   //
   // Binary files - Gitlab #58
