@@ -76,4 +76,10 @@ namespace ssrlcv{
     } Direction;
 }
 
+/**
+ * \defgroup cuda_kernels
+ * \defgroup cuda_util
+ * \defgroup trees
+ */
+
 #endif /* COMMON_INCLUDES_H */

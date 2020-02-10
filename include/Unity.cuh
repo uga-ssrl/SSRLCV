@@ -22,6 +22,10 @@
 #define CUDA_ERROR_CHECK
 #define CudaSafeCall( err ) __cudaSafeCall( err, __FILE__, __LINE__ )
 #define CudaCheckError()    __cudaCheckError( __FILE__, __LINE__ )
+/**
+* \defgroup error_util
+* \{
+*/
 
 /**
  * \brief CUDA error checking function wrapper. 
@@ -70,8 +74,15 @@ inline void __cudaCheckError(const char *file, const int line) {
 
   return;
 }
+/**
+* \}
+*/
 
 namespace ssrlcv{
+  /**
+  * \defgroup unity
+  * \{
+  */
 
   /**
   * \brief Internal way of representing pointer location and
@@ -113,6 +124,7 @@ namespace ssrlcv{
   }
   /**
   * \brief base unity exception.
+  * \ingroup error_util
   */
   struct UnityException : std::exception{
     std::string msg;
@@ -128,6 +140,7 @@ namespace ssrlcv{
   * \brief Exception thrown when attempting an illegal memory transition. 
   * \details This exception is primarily used to avoid segfaults. It is thrown 
   * when attempting to transfer to an unknown or impossible memory state.
+  * \ingroup error_util
   */
   struct IllegalUnityTransition : public UnityException{
     std::string msg;
@@ -142,7 +155,8 @@ namespace ssrlcv{
   /**
   * \brief Exception thrown with operation on null memory.
   * \details This exception is primarily thrown when trying to operate on a null Unity 
-  * or when trying to setMemory to null. (clear() should be used for that)
+  * or when trying to setMemory to null. (clear() should be used for that) 
+  * \ingroup error_util
   */
   struct NullUnityException : public UnityException{
     std::string msg;
@@ -544,7 +558,11 @@ namespace ssrlcv{
       else{//then gpu
         CudaSafeCall(cudaMemcpy(copied->device,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
       }
-    }
+    }/**
+* \defgroup unity
+* \{
+*/
+
     else{
       if(this->state == both){
         if(this->fore != both) this->transferMemoryTo(both);
@@ -573,6 +591,10 @@ namespace ssrlcv{
       }
     }    
   }
+  /**
+  * \}
+  */
 }
+
 
 #endif /*UNITY_CUH*/

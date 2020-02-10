@@ -14,6 +14,10 @@
 
 namespace ssrlcv{
   /**
+   * \addtogroup error_util
+   * \{
+   */
+  /**
    * \brief Base SSRLCV exception.
    * \details All other SSRLCV exceptions should be 
    * children of this struct.
@@ -30,6 +34,11 @@ namespace ssrlcv{
   };
 
 
+
+
+  /**
+   * \}
+   */
 }
 
 

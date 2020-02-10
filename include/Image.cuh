@@ -19,6 +19,10 @@
 #include <thrust/copy.h>
 
 namespace ssrlcv{
+  /**
+  * \defgroup image_manipulation 
+  * \{
+  */
 
   /**
   * \brief This class holds the information necessary to describe an image.
@@ -450,21 +454,30 @@ namespace ssrlcv{
   /* CUDA variable, method and kernel defintions */
 
   /**
+  * \ingroup cuda_util
+  * \{
+  */
+
+  /**
   * \brief symmetrizes a coordinate based
   * \todo determine if this causes the image to act spherical (circular with respect to x and y)
   */
   __device__ __host__ __forceinline__ int getSymmetrizedCoord(int i, unsigned int l);
 
-  __device__ __forceinline__ unsigned char bwaToBW(const uchar2 &color);
-  __device__ __forceinline__ unsigned char rgbToBW(const uchar3 &color);
-  __device__ __forceinline__ unsigned char rgbaToBW(const uchar4 &color);
+  __device__ __host__ __forceinline__ unsigned char bwaToBW(const uchar2 &color);
+  __device__ __host__ __forceinline__ unsigned char rgbToBW(const uchar3 &color);
+  __device__ __host__ __forceinline__ unsigned char rgbaToBW(const uchar4 &color);
+  
+  __device__ __host__ __forceinline__ uchar3 bwToRGB(const unsigned char &color);
+  __device__ __host__ __forceinline__ uchar3 bwaToRGB(const uchar2 &color);
+  __device__ __host__ __forceinline__ uchar3 rgbaToRGB(const uchar4 &color);
 
   /**
-  *\note upsampling color is not an exact science
+  * \}
+  * \ingroup cuda_kernels
+  * \defgroup image_manipulation_kernels
+  * \{
   */
-  __device__ __forceinline__ uchar3 bwToRGB(const unsigned char &color);
-  __device__ __forceinline__ uchar3 bwaToRGB(const uchar2 &color);
-  __device__ __forceinline__ uchar3 rgbaToRGB(const uchar4 &color);
 
   __global__ void generateBW(int numPixels, unsigned int colorDepth, unsigned char* colorPixels, unsigned char* pixels);
   __global__ void generateRGB(int numPixels, unsigned int colorDepth, unsigned char* colorPixels, unsigned char* pixels);
@@ -494,6 +507,8 @@ namespace ssrlcv{
 
   __global__ void calculatePixelGradients(uint2 imageSize, float* pixels, float2* gradients);
   __global__ void calculatePixelGradients(uint2 imageSize, unsigned char* pixels, int2* gradients);
-
+  /**\}*/
+  /**\}*/
+  /**\}*/
 }
 #endif /* IMAGE_CUH */

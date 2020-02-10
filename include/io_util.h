@@ -1,4 +1,5 @@
-/** \file io_util.h
+/** 
+* \file io_util.h
 * \brief This file contains image io methods.
 */
 #ifndef IO_UTIL_H
@@ -11,7 +12,10 @@
 #include <stdio.h>
 
 namespace ssrlcv{
-
+  /**
+  * \defgroup file_io 
+  * \{
+  */
   /*
   ARG PARSING
   */
@@ -22,27 +26,27 @@ namespace ssrlcv{
    * This map is primarily purposed to help parsArgs() method.
    * \see parseArgs
    */
-  extern std::map<std::string, std::string> cl_args;
+extern std::map<std::string, std::string> cl_args;
 
-  /**
+/**
    * \brief Determines if a file path exists. 
    * \details This method takes in an absolute path and 
    * returns true if there is infact a file with that path. 
    * \param fileName - the absolute path to the file in question
    * \returns true if the path is a file, false otherwise
    */
-  bool fileExists(std::string fileName);
+bool fileExists(std::string fileName);
 
-  /**
+/**
    * \brief Determines if a directory path exists.
    * \details This method takes in an aboslute path 
    * to a directory and returns true if it exists. 
    * \param dirPath - the aboslute path to the directory
    * \returns true if the path is a directory, false otherwise
    */
-  bool directoryExists(std::string dirPath);
+bool directoryExists(std::string dirPath);
 
-  /**
+/**
    * \brief Extracts the file extension from a file path.
    * \details This method simply takes the string that comes 
    * after the last occurance of a '.'
@@ -50,29 +54,29 @@ namespace ssrlcv{
    * \returns a string containing the file extension\
    * \todo add a fileExists() check to this 
    */
-  std::string getFileExtension(std::string path);
+std::string getFileExtension(std::string path);
 
-  /**
+/**
    * \brief Returns the folder of a file give a fully qualified filepath.
    * \param path a string representing a fully qualified filepath
    * \return string which is the fully qualified folder path
    */
-  std::string getFolderFromFilePath(std::string path);
+std::string getFolderFromFilePath(std::string path);
 
-  /**
+/**
    * \brief Returns the filename from a fully qualified filepath.
    * \param path a string representing a fully qualified filepath
    * \return string which is the filename only
    */
-  std::string getFileFromFilePath(std::string path);
+std::string getFileFromFilePath(std::string path);
 
+void getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths);
 
-  void getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths);
-
-  /**
+/**
    * \brief Base arg struct for arg parsing purposes. 
    */
-  struct arg{};
+struct arg
+{};
 
   /**
    * \brief arg containing an image path 
@@ -169,10 +173,7 @@ namespace ssrlcv{
   * \details This method will write a JPG/JPEG image from a row-wise flattened pixel array using libjpeg.
   * \param filePath - const char* filePath where image is to be written (<string>.c_str() is easiest way to use a string path)
   * \param image - unsigned char array with pixels values flattened row wise
-  * \param colorDepth - number of unsigned chars per pixel value
-  * \param width - number of pixels in a row
-  * \param height - number of rows in an image
-  * \todo make variable for specifying compression parameters
+  * \param colorDepth - number of unsitin compression parameters
   */
   void writeTIFF(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
 
@@ -255,7 +256,7 @@ namespace ssrlcv{
 
 
 
-
+  /**\}*/ 
 }
 
 #endif /* IO_UTIL_H */

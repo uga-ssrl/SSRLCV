@@ -1,4 +1,5 @@
-/** \file MatchFactory.cuh
+/** 
+* \file MatchFactory.cuh
 * \brief this file contains all feature matching methods
 */
 #ifndef MATCHFACTORY_CUH
@@ -13,8 +14,10 @@
 #include <thrust/scan.h>
 
 namespace ssrlcv{
-
-  //TODO differentiate distance methods and pass function pointers to matching kernels
+  /**
+  * \defgroup matching
+  * \{
+  */
 
   /**
   * \brief simple struct meant to fill out matches
@@ -102,7 +105,6 @@ namespace ssrlcv{
   * \see Window15x15
   * \see Window25x25
   * \see Window31x31
-
   */
   template<typename T>
   class MatchFactory{
@@ -115,10 +117,7 @@ namespace ssrlcv{
     MatchFactory(float relativeThreshold, float absoluteThreshold);
     void setSeedFeatures(Unity<Feature<T>>* seedFeatures);//implement
 
-    //NOTE nothing for nview is implemented
-    //TODO consider making it so features are computed if they arent instead of throwing errors with image parameters
-
-    void validateMatches(Unity<Match>* matches);
+    //NOTE nothing for nvyesUnity<Match>* matches);
     void validateMatches(Unity<DMatch>* matches);
     void validateMatches(Unity<FeatureMatch<T>>* matches);
 
@@ -185,17 +184,35 @@ namespace ssrlcv{
 
     
   };
+
   Unity<Match>* generateDiparityMatches(uint2 querySize, Unity<unsigned char>* queryPixels, uint2 targetSize, Unity<unsigned char>* targetPixels, 
     float fundamental[3][3], unsigned int maxDisparity, unsigned int windowSize = 3, Direction direction = undefined);
 
+  /**
+  * \defgroup match_io
+  * \{
+  */
   void writeMatchFile(Unity<Match>* matches, std::string pathToFile, bool binary = false);
   Unity<Match>* readMatchFile(std::string pathToFile);
+  /** \} */
 
   /* CUDA variable, method and kernel defintions */
 
+
+  /**
+  * \ingroup cuda_util 
+  * \{
+  */
   __host__ __device__ __forceinline__ float sum(const float3 &a);
   __host__ __device__ __forceinline__ float square(const float &a);
   __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
+  /** \} */
+
+  /**
+  * \ingroup cuda_kernels
+  * \defgroup matching_kernels
+  * \{
+  */
 
   template<typename T>
   __global__ void getSeedMatchDistances(unsigned long numFeaturesQuery, Feature<T>* featuresQuery, unsigned long numSeedFeatures,
@@ -263,6 +280,9 @@ namespace ssrlcv{
   __global__ void convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::DMatch* matches);
   template<typename T>
   __global__ void convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::FeatureMatch<T>* matches);
+  
+  /** /} */
+  /** /} */
 
 }
 
