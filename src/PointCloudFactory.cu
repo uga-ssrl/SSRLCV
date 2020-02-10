@@ -420,10 +420,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
 
     // what the step sizes should be tho:
     // this is only for the "sensitivity" in those component directions
-    float h_rot = 0.0000001;
-    float h_pos = 0.0000001;
-    float h_foc = 0.0000001;
-    float h_fov = 0.0000001;
+    float h_rot = 0.00000001;
+    float h_pos = 0.00000001;
+    float h_foc = 0.00000001;
+    float h_fov = 0.00000001;
     // the stepsize along the gradient
     float step  = 0.001;
 
@@ -503,6 +503,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
 
       // partial for focal length
       partials[j]->camera.foc = images[j]->camera.foc + h_foc;
+      // update dpix
+      partials[j]->camera.dpix.x = (partials[j]->camera.foc * tanf(partials[j]->camera.fov.x / 2.0f)) / (partials[j]->camera.size.x / 2.0f );
+      partials[j]->camera.dpix.y = partials[j]->camera.dpix.x;
       // get the error
       bundleSet_partial = generateBundles(matchSet,partials);
       voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
@@ -511,11 +514,15 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       gradients[j].foc = ((float) *linearError + (float) *linearError_partial) / (h_foc);
       // reset
       partials[j]->camera.foc = images[j]->camera.foc;
+      partials[j]->camera.dpix = images[j]->camera.dpix;
 
       // field of view
 
       // partial for x field of view
       partials[j]->camera.fov.x = images[j]->camera.fov.x + h_fov;
+      // update dpix
+      partials[j]->camera.dpix.x = (partials[j]->camera.foc * tanf(partials[j]->camera.fov.x / 2.0f)) / (partials[j]->camera.size.x / 2.0f );
+      partials[j]->camera.dpix.y = partials[j]->camera.dpix.x;
       // get the error
       bundleSet_partial = generateBundles(matchSet,partials);
       voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
@@ -524,9 +531,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       gradients[j].fov.x = ((float) *linearError + (float) *linearError_partial) / (h_fov);
       // reset
       partials[j]->camera.fov.x = images[j]->camera.fov.x;
+      partials[j]->camera.dpix = images[j]->camera.dpix;
 
       // partial for y field of view
       partials[j]->camera.fov.y = images[j]->camera.fov.y + h_fov;
+      // update dpix
+      partials[j]->camera.dpix.x = (partials[j]->camera.foc * tanf(partials[j]->camera.fov.x / 2.0f)) / (partials[j]->camera.size.x / 2.0f );
+      partials[j]->camera.dpix.y = partials[j]->camera.dpix.x;
       // get the error
       bundleSet_partial = generateBundles(matchSet,partials);
       voidTwoViewTriangulate(bundleSet_partial, linearError_partial,linearErrorCutoff);
@@ -535,6 +546,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       gradients[j].fov.y = ((float) *linearError + (float) *linearError_partial) / (h_fov);
       // reset
       partials[j]->camera.fov.y = images[0]->camera.fov.y;
+      partials[j]->camera.dpix = images[j]->camera.dpix;
 
       // normalize the gradient now that all components are known
       float norm = 0.0f;
@@ -557,9 +569,6 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       gradients[j].foc /= norm;
       gradients[j].fov.x /= norm;
       gradients[j].fov.y /= norm;
-
-      // ya boi
-      i++;
     }
 
     if (false){
@@ -591,13 +600,33 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       images[j]->camera.foc       -= step * gradients[j].foc;
       images[j]->camera.fov.x     -= step * gradients[j].fov.x;
       images[j]->camera.fov.y     -= step * gradients[j].fov.y;
+      // update dpix
+      images[j]->camera.dpix.x = (images[j]->camera.foc * tanf(images[j]->camera.fov.x / 2.0f)) / (images[j]->camera.size.x / 2.0f );
+      images[j]->camera.dpix.y = images[j]->camera.dpix.x;
     }
 
+    // yahboi
+    i++;
 
   }
 
   // write linearError chagnes to a CSV
   writeCSV(errorTracker, "totalErrorOverIterations");
+  std::cout << "Final Camera Parameters: " << std::endl;
+  // take a step down the hill!
+  for (int j = 0; j < images.size(); j++){
+    std::cout << "___________________________________" << std::endl;
+    std::cout << "rot_x: " << images[j]->camera.cam_rot.x << "\t\t |" << std::endl;
+    std::cout << "rot_y: " << images[j]->camera.cam_rot.y << "\t\t |" << std::endl;
+    std::cout << "rot_z: " << images[j]->camera.cam_rot.z << "\t\t |" << std::endl;
+    std::cout << "pos_x: " << images[j]->camera.cam_pos.x << "\t\t |" << std::endl;
+    std::cout << "pos_y: " << images[j]->camera.cam_pos.y << "\t\t |" << std::endl;
+    std::cout << "pos_z: " << images[j]->camera.cam_pos.z << "\t\t\t |" << std::endl;
+    std::cout << "foc  : " << images[j]->camera.foc       << "\t\t |" << std::endl;
+    std::cout << "fov_x: " << images[j]->camera.fov.x     << "\t\t |" << std::endl;
+    std::cout << "fov_y: " << images[j]->camera.fov.y     << "\t\t |" << std::endl;
+  }
+
   //goodbye
   return points;
 }
