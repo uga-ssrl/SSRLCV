@@ -620,7 +620,7 @@ void ssrlcv::makeBinnable(uint2 &size, Unity<unsigned char>* pixels, int planned
     bool mustSizeUp = size.x%2 || size.y%2;
     if(mustSizeUp){
       pixels->setData(upsample(size,pixels)->device,pixels->numElements*4,gpu);
-      size.x*=2;size.y*=2;numResize *= 2;
+      size = size*2;numResize *= 2;
       dimOffset[0] = size.x%numResize;
       dimOffset[1] = size.y%numResize;
     }
@@ -632,7 +632,7 @@ void ssrlcv::makeBinnable(uint2 &size, Unity<unsigned char>* pixels, int planned
     pixels->setData(addBufferBorder(size,pixels,border)->device,newSize.x*newSize.y,gpu);
     size = newSize;
     pixels->setData(bin(size,pixels)->device,pixels->numElements/4,gpu);
-    size = size/4;
+    size = size/2;
     if(origin != gpu) pixels->setMemoryState(origin);
   }
   else{
@@ -648,7 +648,7 @@ void ssrlcv::makeBinnable(uint2 &size, Unity<float>* pixels, int plannedDepth){
     bool mustSizeUp = size.x%2 || size.y%2;
     if(mustSizeUp){
       pixels->setData(upsample(size,pixels)->device,pixels->numElements*4,gpu);
-      size.x*=2;size.y*=2;numResize *= 2;
+      size = size*2;numResize *= 2;
       dimOffset[0] = size.x%numResize;
       dimOffset[1] = size.y%numResize;
     }
@@ -661,7 +661,7 @@ void ssrlcv::makeBinnable(uint2 &size, Unity<float>* pixels, int plannedDepth){
     size = newSize;
     if(mustSizeUp){
         pixels->setData(bin(size,pixels)->device,pixels->numElements/4,gpu);
-        size = size/4;
+        size = size/2;
     }
     if(origin != gpu) pixels->setMemoryState(origin);
   }

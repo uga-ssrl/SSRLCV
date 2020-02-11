@@ -100,7 +100,7 @@ int main(int argc, char *argv[]){
       exit(-1);
     }
     ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1.5f,6.0f);
-    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.7f,200.0f*200.0f);
+    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,200.0f*200.0f);
     bool seedProvided = false;
     ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* seedFeatures = nullptr;
     if(args.find("seed") != args.end()){
@@ -119,7 +119,7 @@ int main(int argc, char *argv[]){
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
     for(int i = 0; i < numImages; ++i){
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
-      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
+      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,3,0.8);
       features->transferMemoryTo(ssrlcv::cpu);
       images.push_back(image);
       allFeatures.push_back(features);

@@ -803,7 +803,6 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
       i++;
       adjacencyList[i] = new std::vector<uint2>[features[i]->numElements];
     }
-    std::cout<<"\t{"<<i<<","<<currentMatches->host[0].b.x<<"}"<<std::endl;
     for(int p = 0; p < currentMatches->numElements; ++p){
       uint2_pair* currentPair = &currentMatches->host[p];
       adjacencyList[currentPair->a.x][currentPair->a.y].push_back(currentPair->b); 
@@ -821,44 +820,30 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
       if(!adj->size()) continue;
       badMatch = false;
       std::vector<uint2>* prev_adj = adj;
-      std::vector<uint2>* next_adj = &adjacencyList[adj->begin()->x][adj->begin()->y];  
+      std::vector<uint2>* next_adj = nullptr;  
       while(true){
-        if(!next_adj->size()){
-          badMatch = true;
-          break;
-        }
+        if(prev_adj->begin()->x == images.size() - 1) break;
+        next_adj = &adjacencyList[prev_adj->begin()->x][prev_adj->begin()->y];
+        if(!next_adj->size()) break;
         std::vector<uint2> intersection;
         std::set_intersection(prev_adj->begin(),prev_adj->end(),next_adj->begin(),next_adj->end(),std::back_inserter(intersection));
-        if(intersection.size() == 0){ //!= next_adj->size()){
+        if(intersection.size() != next_adj->size()){
           badMatch = true;
           break;
         }
         else if(next_adj->size() == 1) break;
         else{
           prev_adj = next_adj;
-          next_adj = &adjacencyList[prev_adj->begin()->x][prev_adj->begin()->y];
         }
       } 
-      // for(auto m = adj->begin(); m != adj->end() - 1; ++m){
-      //   std::vector<uint2> intersection;
-      //   next_adj = ;
-      //   if(!next_adj->size()){
-      //     badMatch = true;
-      //     break;
-      //   }
-      //   std::set_intersection(adj->begin(),adj->end(),next_adj->begin(),next_adj->end(),std::back_inserter(intersection));
-      //   if(intersection.size() != next_adj->size()){
-      //     badMatch = true;
-      //     break;
-      //   }
-      // }
-      if(badMatch || adj->size() != images.size()) adj->clear();
+      if(badMatch) adj->clear();
       else{
         std::vector<uint2> match;
         match.push_back({i,f});
         match.insert(match.end(),adjacencyList[i][f].begin(),adjacencyList[i][f].end());
         multiMatch_vec.push_back(match);
         for(auto m = adj->begin(); m != adj->end() - 1; ++m){
+          if(m->x == images.size() - 1) break;
           next_adj = &adjacencyList[m->x][m->y];
           next_adj->clear();
         }
@@ -1309,7 +1294,7 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float absoluteThreshold){
       }
     }
     Match match;
-    if(currentDist > absoluteThreshold){
+    if(currentDist >= absoluteThreshold){
       match.invalid = true;
     }
     else{
@@ -1369,7 +1354,7 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float epsilon, float* fundam
       }
     }
     Match match;
-    if(currentDist > absoluteThreshold){
+    if(currentDist >= absoluteThreshold){
       match.invalid = true;
     }
     else{
@@ -1415,7 +1400,7 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float* seedDistances, float 
       }
     }
     Match match;
-    if(currentDist > absoluteThreshold || matchIndex == -1){
+    if(currentDist >= absoluteThreshold || matchIndex == -1){
       match.invalid = true;
     }
     else{
@@ -1482,7 +1467,7 @@ float relativeThreshold, float absoluteThreshold){
       }
     }
     Match match;
-    if(currentDist > absoluteThreshold || matchIndex == -1){
+    if(currentDist >= absoluteThreshold || matchIndex == -1){
       match.invalid = true;
     }
     else{
@@ -1535,7 +1520,7 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float absoluteThreshold){
     }
     DMatch match;
     match.distance = currentDist;
-    if(match.distance > absoluteThreshold){
+    if(match.distance >= absoluteThreshold){
       match.invalid = true;
     }
     else{
@@ -1596,7 +1581,7 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, float* funda
     }
     DMatch match;
     match.distance = currentDist;
-    if(match.distance > absoluteThreshold){
+    if(match.distance >= absoluteThreshold){
       match.invalid = true;
     }
     else{
@@ -1644,7 +1629,7 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
     }
     DMatch match;
     match.distance = currentDist;
-    if(match.distance > absoluteThreshold || matchIndex == -1){
+    if(match.distance >= absoluteThreshold || matchIndex == -1){
       match.invalid = true;
     }
     else{
@@ -1712,7 +1697,7 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
     }
     DMatch match;
     match.distance = currentDist;
-    if(match.distance > absoluteThreshold || matchIndex == -1){
+    if(match.distance >= absoluteThreshold || matchIndex == -1){
       match.invalid = true;
     }
     else{
@@ -1764,7 +1749,7 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float abso
     }
     FeatureMatch<T> match;    
     match.distance = currentDist;
-    if(match.distance > absoluteThreshold){
+    if(match.distance >= absoluteThreshold){
       match.invalid = true;
     }
     else{
@@ -1827,7 +1812,7 @@ ssrlcv::Feature<T>* featuresTarget, ssrlcv::FeatureMatch<T>* matches, float epsi
     }
     FeatureMatch<T> match;    
     match.distance = currentDist;
-    if(match.distance > absoluteThreshold){
+    if(match.distance >= absoluteThreshold){
       match.invalid = true;
     }
     else{
@@ -1877,7 +1862,7 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
     }
     FeatureMatch<T> match;    
     match.distance = currentDist;
-    if(match.distance > absoluteThreshold || matchIndex == -1){
+    if(match.distance >= absoluteThreshold || matchIndex == -1){
       match.invalid = true;
     }
     else{
@@ -1947,7 +1932,7 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
     }
     FeatureMatch<T> match;    
     match.distance = currentDist;
-    if(match.distance > absoluteThreshold || matchIndex == -1){
+    if(match.distance >= absoluteThreshold || matchIndex == -1){
       match.invalid = true;
     }
     else{
@@ -2002,7 +1987,7 @@ ssrlcv::Feature<T>* featuresTarget, uint2_pair* matches, float absoluteThreshold
       }
     }
     uint2_pair match;
-    if(currentDist > absoluteThreshold){
+    if(currentDist >= absoluteThreshold){
       match = {{queryImageID,blockId},{queryImageID,blockId}};
     }
     else{
@@ -2058,7 +2043,7 @@ ssrlcv::Feature<T>* featuresTarget, uint2_pair* matches, float epsilon, float* f
       }
     }
     uint2_pair match;
-    if(currentDist > absoluteThreshold){
+    if(currentDist >= absoluteThreshold){
       match = {{queryImageID,blockId},{queryImageID,blockId}};
     }
     else{
@@ -2100,7 +2085,7 @@ ssrlcv::Feature<T>* featuresTarget, uint2_pair* matches, float* seedDistances, f
       }
     }
     uint2_pair match;
-    if(currentDist > absoluteThreshold || matchIndex == -1){
+    if(currentDist >= absoluteThreshold || matchIndex == -1){
       match = {{queryImageID,blockId},{queryImageID,blockId}};
     }
     else{
@@ -2163,7 +2148,7 @@ float relativeThreshold, float absoluteThreshold){
       }
     }
     uint2_pair match;
-    if(currentDist > absoluteThreshold || matchIndex == -1){
+    if(currentDist >= absoluteThreshold || matchIndex == -1){
       match = {{queryImageID,blockId},{queryImageID,blockId}};
     }
     else{
