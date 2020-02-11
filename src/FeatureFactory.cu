@@ -354,7 +354,7 @@ ssrlcv::FeatureFactory::ScaleSpace::ScaleSpace(Image* image, int startingOctave,
 depth(depth), isDOG(makeDOG){ 
 
     int numResize = (int)powf(2, startingOctave+depth.x);
-    if(image->size.x/numResize == 0 || image->size.x/numResize == 0){
+    if(image->size.x/numResize == 0 || image->size.y/numResize == 0){
         std::cerr<<"This image is too small to make a ScaleSpace of the specified depth"<<std::endl;
         exit(-1);
     }
@@ -379,15 +379,13 @@ depth(depth), isDOG(makeDOG){
     uint2 imageSize = image->size;
     uint2 scalar = {2,2};
     
-    bool canBinEarly = imageSize.x%2 == 0 && imageSize.x%2 == 0;
+    bool canBinEarly = imageSize.x%2 == 0 && imageSize.y%2 == 0;
     if(canBinEarly) makeBinnable(imageSize,pixels,startingOctave+depth.x);
-
     float pixelWidth = 1.0f;
     for(int i = startingOctave; i < 0; ++i){
-        pixels->setData(upsample(imageSize,pixels)->device,pixels->numElements*4,gpu);   
-        imageSize = imageSize*scalar;
+        pixels->setData(upsample(imageSize,pixels)->device,pixels->numElements*4,gpu);  
+        imageSize = imageSize*2;
         pixelWidth /= 2.0f;
-        
         if(i == startingOctave && !canBinEarly){
             makeBinnable(imageSize,pixels,depth.x-i);
         } 
@@ -515,10 +513,10 @@ void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, flo
         std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
         if(currentExtrema == nullptr) continue;
         if(subpixel){
-            // temp = currentExtrema->numElements;
-            // this->octaves[i]->refineExtremaLocation();
-            // if(currentExtrema == nullptr) continue;
-            // std::cout<<"-"<<temp - currentExtrema->numElements;
+            temp = currentExtrema->numElements;
+            this->octaves[i]->refineExtremaLocation();
+            if(currentExtrema == nullptr) continue;
+            std::cout<<"-"<<temp - currentExtrema->numElements;
             temp = currentExtrema->numElements;
             this->octaves[i]->removeNoise(noiseThreshold);
             if(currentExtrema == nullptr) continue;
@@ -1145,9 +1143,6 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
             else{
                 thetaNumbers[globalID*regNumOrient + i] = globalID + keyPointIndex;
                 thetas[globalID*regNumOrient + i] = bestMagWThetas[i].y;
-                // if(roundf(kp.loc.x) == 66.0f && roundf(kp.loc.y) == 158 || roundf(kp.loc.x) == 158 || roundf(kp.loc.y) == 66){
-                //     printf("%f,%f - %f\n",kp.loc.x,kp.loc.y,bestMagWThetas[i].y);
-                // }
             }
         }
         delete[] bestMagWThetas;

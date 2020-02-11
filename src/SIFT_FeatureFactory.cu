@@ -321,7 +321,6 @@ __global__ void ssrlcv::computeThetas(const unsigned long numKeyPoints, const un
       tempMagWTheta.y *= (pi/36.0f);
       tempMagWTheta.y += (b*rad10);
       tempMagWTheta.y = fmodf(tempMagWTheta.y + (2.0f*pi),2.0f*pi);
-      //tempMagWTheta.y = fmodf(tempMagWTheta.y,2.0f*pi);
 
       for(int i = 0; i < regNumOrient; ++i){
         if(tempMagWTheta.x > bestMagWThetas[i].x){
@@ -422,47 +421,13 @@ __global__ void ssrlcv::fillDescriptors(const unsigned long numFeatures, const u
     atomicAdd(&normSq, bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]*bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]);
     __syncthreads();
     features[blockId].descriptor.values[(threadIdx.y*4 + threadIdx.x)*8 + threadIdx.z] = (unsigned char) roundf(255.0f*bin_descriptors[threadIdx.x][threadIdx.y][threadIdx.z]/sqrtf(normSq));
-    //__syncthreads();
     if(threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0){
       features[blockId].descriptor.theta = theta;
       features[blockId].descriptor.sigma = 1.0f;
       features[blockId].loc = keyPoint*pixelWidth;//absolute location on image
-      //if(roundf(keyPoint.x) == 20.0f && roundf(keyPoint.y) == 20.0f){
-      //if(roundf(keyPoint.x) == 512 - 20.0f && roundf(keyPoint.y) == 20.0f){
-      // if(roundf(keyPoint.x) == 512 - 20.0f && roundf(keyPoint.y) == 512 - 20.0f){
-      //   features[blockId].descriptor.print();
-      // }
     }
   }
 }
-/*
-20.0f,20.0f
-1.000000,2.963391
-
-  0,11,26,12,13,14,8,16,  18,14,20,23,23,45,28,18,  17,17,10,20,13,8,8,46,  9,14,15,8,6,17,21,30,
-  2,12,15,7,10,14,52,52,  39,52,29,3,10,30,44,35,  35,38,22,16,41,35,23,22,  32,47,9,11,6,17,36,19,
-  7,22,14,17,20,15,30,6,  17,46,18,7,9,4,20,38,  7,11,12,37,29,13,21,52,  7,21,7,33,16,8,19,40,
-  9,8,11,17,12,19,7,1,  8,13,14,8,14,23,25,7,  6,7,19,18,13,13,31,15,  9,3,4,11,22,13,22,24,
-
-//90 degrees off
-
-512 - 20.0f, 20.0f
-1.000000,4.547671
-
-  8,11,12,11,16,20,12,1,  5,23,20,13,9,12,49,7,  9,15,14,5,2,13,35,6,  6,23,24,14,27,11,8,0,
-  33,22,14,12,15,8,21,2,  42,52,20,4,11,4,22,5,  45,48,22,6,20,52,46,3,  18,22,10,25,15,30,34,0,
-  17,2,12,21,9,15,25,2,  19,32,20,48,45,26,19,2,  52,40,28,10,32,34,18,1,  38,28,5,39,8,1,2,0,
-  20,3,2,11,14,15,5,1,  19,43,12,37,30,8,9,1,  48,32,5,2,12,23,36,0,  21,18,24,27,7,12,3,0,
-
-512 - 20.0f, 512 - 20.0f
-1.000000,0.000072
-
-  0,1,10,12,5,6,25,32,  1,7,14,17,12,12,31,22,  6,30,7,10,16,9,11,16,  3,3,13,13,13,18,7,4,
-  10,42,20,38,8,17,11,24,  0,32,8,29,24,14,33,47,  1,51,13,5,7,15,40,19,  11,20,14,47,17,11,46,8,
-  3,17,7,4,22,26,24,35,  28,39,24,8,36,32,20,14,  6,30,24,13,26,52,52,35,  0,16,9,10,7,10,52,49,
-  0,7,17,16,5,1,8,39,  8,16,9,29,7,9,22,46,  11,32,44,22,17,24,20,20,  3,21,14,7,21,6,5,11,
-
-*/
 
 
 __global__ void ssrlcv::checkKeyPoints(unsigned int numKeyPoints, unsigned int keyPointIndex, uint2 imageSize, float pixelWidth, float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoints){

@@ -181,6 +181,10 @@ namespace ssrlcv{
     Unity<uint2_pair>* generateMatchesConstrainedIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
 
     //estimated overlap is a fraction
+    /**
+    * \brief Match a set of images 
+    * \details 
+    */
     MatchSet generateMatchesExaustive(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
     MatchSet generateMatchesBBF(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
     MatchSet generateMatchesKDTree(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
