@@ -15,6 +15,7 @@ bin/*
 
 util/.DS_Store
 src/.DS_Store
+src/Tester.cu
 
 data/.DS_Store
 data/img/.DS_Store

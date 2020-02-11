@@ -810,11 +810,10 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
     }
     delete currentMatches;
   }
-  MemoryState* origin = new MemoryState[images.size()];
+  MemoryState* origin = new MemoryState[images.size() - 2];
   std::vector<std::vector<uint2>> multiMatch_vec;
   bool badMatch = false;
-  for(i = 0; i < images.size() - 1; ++i){
-    std::cout<<"building MultiMatches with features starting at image "<<i<<std::endl;
+  for(i = 0; i < images.size() - 2; ++i){
     origin[i] = features[i]->getMemoryState();
     if(origin[i] != cpu) features[i]->setMemoryState(cpu);
     for(int f = 0; f < features[i]->numElements; ++f){
@@ -830,7 +829,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
         }
         std::vector<uint2> intersection;
         std::set_intersection(prev_adj->begin(),prev_adj->end(),next_adj->begin(),next_adj->end(),std::back_inserter(intersection));
-        if(intersection.size() != next_adj->size()){
+        if(intersection.size() == 0){ //!= next_adj->size()){
           badMatch = true;
           break;
         }
@@ -853,7 +852,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
       //     break;
       //   }
       // }
-      if(badMatch) adj->clear();
+      if(badMatch || adj->size() != images.size()) adj->clear();
       else{
         std::vector<uint2> match;
         match.push_back({i,f});
@@ -870,6 +869,8 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
 
   origin[images.size() - 1] = features[images.size() - 1]->getMemoryState();
   if(origin[images.size() - 1] != cpu) features[images.size() - 1]->setMemoryState(cpu);
+  origin[images.size() - 2] = features[images.size() - 2]->getMemoryState();
+  if(origin[images.size() - 2] != cpu) features[images.size() - 2]->setMemoryState(cpu);
   std::cout<<multiMatch_vec.size()<<std::endl;
   matchSet.matches = new Unity<MultiMatch>(nullptr,multiMatch_vec.size(),cpu);
   std::vector<KeyPoint> kp_vec;
@@ -884,7 +885,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
   }
   matchSet.keyPoints = new Unity<KeyPoint>(nullptr,kp_vec.size(),gpu);
   CudaSafeCall(cudaMemcpy(matchSet.keyPoints->device,&kp_vec[0],kp_vec.size()*sizeof(KeyPoint),cudaMemcpyHostToDevice));
-  for(int i = 0; i < images.size(); ++i){
+  for(int i = 0; i < images.size() - 2; ++i){
     if(origin[i] != cpu) features[i]->setMemoryState(origin[i]);
   }
   delete[] origin;

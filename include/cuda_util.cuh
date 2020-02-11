@@ -302,6 +302,7 @@ __device__ __host__ bool operator<(const float2 &a, const float &b);
 __device__ __host__ bool operator>(const float2 &a, const int2 &b);
 __device__ __host__ bool operator<(const float2 &a, const int2 &b);
 
+
 __device__ __host__ bool operator==(const float2 &a, const float2 &b);
 __device__ __host__ bool operator==(const float3 &a, const float3 &b);
 __device__ __host__ bool operator==(const float4 &a, const float4 &b);

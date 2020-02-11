@@ -144,7 +144,6 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
             extrema2D[b-1] = nullptr;
         }
         
-        pixelsLower->setFore(gpu);
         if(origin[0] != gpu) pixelsLower->setMemoryState(origin[0]);
         pixelsLower = pixelsMiddle;
         pixelsMiddle = pixelsUpper;
@@ -516,11 +515,10 @@ void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, flo
         std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
         if(currentExtrema == nullptr) continue;
         if(subpixel){
-            temp = currentExtrema->numElements;
-            this->octaves[i]->refineExtremaLocation();
-            if(currentExtrema == nullptr) continue;
-            std::cout<<"-"<<temp - currentExtrema->numElements;
-            if(currentExtrema == nullptr) continue;
+            // temp = currentExtrema->numElements;
+            // this->octaves[i]->refineExtremaLocation();
+            // if(currentExtrema == nullptr) continue;
+            // std::cout<<"-"<<temp - currentExtrema->numElements;
             temp = currentExtrema->numElements;
             this->octaves[i]->removeNoise(noiseThreshold);
             if(currentExtrema == nullptr) continue;
@@ -1082,23 +1080,21 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
         //apparently has negligable impact
         // float3 convHelper = {orientationHist[35],orientationHist[0],orientationHist[1]};
         // for(int i = 0; i < 6; ++i){
-        //     temp2.x = orientationHist[0];//need to hold on to this for id = 35 conv
-        //     for(int id = 1; id < 36; ++id){
-        //         orientationHist[id] = (convHelper.x+convHelper.y+convHelper.z)/3.0f;
-        //         convHelper.x = convHelper.y;
-        //         convHelper.y = convHelper.z;
-        //         convHelper.z = (id < 35) ? orientationHist[id+1] : temp2.x;
-        //         if(i == 5){
-        //             if(orientationHist[id] > maxHist){
-        //                 maxHist = orientationHist[id];
-        //             }
-        //         }
-        //     }
+        //  temp2.x = orientationHist[0];//need to hold on to this for id = 35 conv
+        //  for(int id = 1; id < 36; ++id){
+        //    orientationHist[id] = (convHelper.x+convHelper.y+convHelper.z)/3.0f;
+        //    convHelper.x = convHelper.y;
+        //    convHelper.y = convHelper.z;
+        //    convHelper.z = (id < 35) ? orientationHist[id+1] : temp2.x;
+        //    if(i == 5){
+        //      if(orientationHist[id] > maxHist){
+        //        maxHist = orientationHist[id];
+        //      }
+        //    }
+        //  }
         // }
-        for(int id = 0; id < 36; ++id){
-            if(orientationHist[id] > maxHist){
-                maxHist = orientationHist[id];
-            }
+        for(int i = 0; i < 36; ++i){
+          if(orientationHist[i] > maxHist) maxHist = orientationHist[i];
         }
         maxHist *= orientationThreshold;//% of max orientation value
 
@@ -1108,7 +1104,12 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
             if(orientationHist[b] < maxHist ||
             (b > 0 && orientationHist[b] < orientationHist[b-1]) ||
             (b < 35 && orientationHist[b] < orientationHist[b+1]) ||
-            (orientationHist[b] < bestMagWThetas[regNumOrient-1].x)) continue;
+            (b == 0 && orientationHist[b] < orientationHist[35]) || 
+            (b == 35 && orientationHist[b] < orientationHist[0]) ||
+            (orientationHist[b] < bestMagWThetas[regNumOrient-1].x)){
+                continue;
+            } 
+
 
             tempMagWTheta.x = orientationHist[b];
 
@@ -1144,7 +1145,9 @@ int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, flo
             else{
                 thetaNumbers[globalID*regNumOrient + i] = globalID + keyPointIndex;
                 thetas[globalID*regNumOrient + i] = bestMagWThetas[i].y;
-                //printf("%lu - %f\n",globalID + keyPointIndex,bestMagWThetas[i].y);
+                // if(roundf(kp.loc.x) == 66.0f && roundf(kp.loc.y) == 158 || roundf(kp.loc.x) == 158 || roundf(kp.loc.y) == 66){
+                //     printf("%f,%f - %f\n",kp.loc.x,kp.loc.y,bestMagWThetas[i].y);
+                // }
             }
         }
         delete[] bestMagWThetas;
