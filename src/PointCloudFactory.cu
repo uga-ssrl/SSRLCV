@@ -675,26 +675,44 @@ __global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::
 
   float3 S [3];
   float3 C;
-  S = {{0,0,0},{0,0,0},{0,0,0}};
+  S[0] = {0,0,0};
+  S[1] = {0,0,0};
+  S[2] = {0,0,0};
   C = {0,0,0};
+  
   for(int i = 0; i < bundles[globalID].numLines; i++){
-    ssrlvc::Bundle::Line L1 = lines[bundles[globalID].i];
+    ssrlcv::Bundle::Line L1 = lines[globalID+i]; //
     float3 tmp [3];
-    tmp = matrixProduct(L1.vec, tmp);
+    normalize(L1.vec);
+    matrixProduct(L1.vec, tmp);
     //Subtracting the 3x3 Identity Matrix from tmp
     tmp[0].x -= 1;
     tmp[1].y -= 1;
     tmp[2].z -= 1;
     //Adding tmp to S
-    S[0] += tmp[0];
-    S[1] += tmp[1];
-    S[2] += tmp[2];
+    S[0].x += tmp[0].x;
+    S[0].y += tmp[0].y;
+    S[0].z += tmp[0].z;
+    S[1].x += tmp[1].x;
+    S[1].y += tmp[1].y;
+    S[1].z += tmp[1].z;
+    S[2].x += tmp[1].x;
+    S[2].y += tmp[1].y;
+    S[2].z += tmp[1].z;   
     //Adding tmp * pnt to C
     float3 vectmp;
     multiply(tmp, L1.pnt, vectmp);
-    C += vectmp;
+    C.x += vectmp.x;
+    C.y += vectmp.y;
+    C.z += vectmp.z;
   }
+  
   float3 Inverse [3];
+  /**
+   * If all of the directional vectors are skew and not parallel, then I think S is nonsingular.
+   * However, I will look into this some more. This may have to use a pseudo-inverse matrix if that
+   * is not the case.
+   */
   if(inverse(S, Inverse)){
     float3 point;
     multiply(Inverse, C, point);
