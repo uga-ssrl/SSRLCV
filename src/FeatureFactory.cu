@@ -513,10 +513,10 @@ void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, flo
         std::cout<<"-"<<temp - this->octaves[i]->extrema->numElements;
         if(currentExtrema == nullptr) continue;
         if(subpixel){
-            temp = currentExtrema->numElements;
-            this->octaves[i]->refineExtremaLocation();
-            if(currentExtrema == nullptr) continue;
-            std::cout<<"-"<<temp - currentExtrema->numElements;
+            // temp = currentExtrema->numElements;
+            // this->octaves[i]->refineExtremaLocation();
+            // if(currentExtrema == nullptr) continue;
+            // std::cout<<"-"<<temp - currentExtrema->numElements;
             temp = currentExtrema->numElements;
             this->octaves[i]->removeNoise(noiseThreshold);
             if(currentExtrema == nullptr) continue;
