@@ -370,7 +370,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
   // the initial linear error
   float* linearError = (float*) malloc(sizeof(float));
   *linearError = 1000000000.0; // just something to satisfy the first if statment
-  std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~>> " << std::to_string(*linearError) << std::endl;
+  std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~>> " << std::to_string(*linearError) << std::endl;
   float* linearError_partial = (float*) malloc(sizeof(float));
   // the cutoff
   // TODO this shold later remove points that are bad
