@@ -398,8 +398,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
   std::vector<float> errorTracker;
 
   int i = 1;
-  while(i < 500){
-  // while(*linearError > (100000.0)*matchSet->matches->numElements){//changed by jackson
+  //while(i < 500){
+  while(*linearError > (100000.0)*matchSet->matches->numElements){//changed by jackson
     // generate the bundle set
     bundleSet = generateBundles(matchSet,images);
     // do an initial triangulation
@@ -431,7 +431,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
     float h_foc = 0.00001;
     float h_fov = 0.00001;
     // the stepsize along the gradient
-    float step  = 0.001;
+    float step  = 0.00001;
 
     // calculate the descrete partial derivatives using forward difference
     for (int j = 0; j < partials.size(); j++){
@@ -875,7 +875,8 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, unsigned l
   pointcloud[globalID] = point;
 
   // add the linaer errors locally within the block before
-  float error = sqrtf(dotProduct(s1,s2)*dotProduct(s1,s2));
+  float error = dotProduct(s1,s2)*dotProduct(s1,s2);
+  if(error != 0.0f) error = sqrtf(error);
   atomicAdd(&localSum,error);
   __syncthreads();
   if (!threadIdx.x) atomicAdd(linearError,localSum);
@@ -924,7 +925,8 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* err
   pointcloud[globalID] = point;
 
   // add the linaer errors locally within the block before
-  float error = sqrtf(dotProduct(s1,s2)*dotProduct(s1,s2));
+  float error = dotProduct(s1,s2)*dotProduct(s1,s2);
+  if(error != 0.0f) error = sqrtf(error);
   errors[globalID] = error;
   //int i_error = error;
   atomicAdd(&localSum,error);
@@ -975,7 +977,8 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* lin
   pointcloud[globalID] = point;
 
   // add the linear errors locally within the block before
-  float error = sqrtf(dotProduct(s1,s2)*dotProduct(s1,s2));
+  float error = dotProduct(s1,s2)*dotProduct(s1,s2);
+  if(error != 0.0f) error = sqrtf(error);
   errors[globalID] = error;
   // only add the errors that we like
   float i_error;
@@ -1031,7 +1034,8 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   float3 point = (s1 + s2)/2.0;
 
   // add the linear errors locally within the block before
-  float error = sqrtf(dotProduct(s1,s2)*dotProduct(s1,s2));
+  float error = dotProduct(s1,s2)*dotProduct(s1,s2);
+  if(error != 0.0f) error = sqrtf(error);
   // only add errors that we like
   float i_error;
   if (error > *linearErrorCutoff) {
