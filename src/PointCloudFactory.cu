@@ -369,14 +369,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
 
   // the initial linear error
   float* linearError = (float*) malloc(sizeof(float));
-  *linearError = 1000000000.0; // just something to satisfy the first if statment
+  *linearError = FLT_MAX; // just something to satisfy the first if statment (changed by jackson)
   // std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~>> " << *linearError << std::endl;
   float* linearError_partial = (float*) malloc(sizeof(float));
   *linearError_partial = 0.0;
   // the cutoff
   // TODO this shold later remove points that are bad
   float* linearErrorCutoff = (float*) malloc(sizeof(float));
-  *linearErrorCutoff = 10000.0;
+  *linearErrorCutoff = 360000.0;//changed by jackson
   // make the temporary image struct
   std::vector<ssrlcv::Image*> partials;
   partials.push_back(images[0]);
@@ -398,8 +398,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
   std::vector<float> errorTracker;
 
   int i = 1;
-  while(i < 150){
-  // while(*linearError > 4000){
+  while(i < 500){
+  // while(*linearError > (100000.0)*matchSet->matches->numElements){//changed by jackson
     // generate the bundle set
     bundleSet = generateBundles(matchSet,images);
     // do an initial triangulation
@@ -407,7 +407,6 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
     points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
     // do this only once
     if (i == 1 ) ssrlcv::writePLY("out/rawPoints.ply",points);
-
     // write some errors for debug
     // for now only do this once
     if (i == 1) ssrlcv::writeCSV(errors->host, (int) errors->numElements, "individualLinearErrors" + std::to_string(i));
@@ -416,7 +415,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
     delete bundleSet.lines;
     delete bundleSet.bundles;
     delete errors;
-    // points->clear();
+    // delete points;
 
     // a nice printout for the humans
     std::cout << std::fixed;
@@ -604,15 +603,15 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
 
     // take a step down the hill!
     for (int j = 0; j < images.size(); j++){
-      images[j]->camera.cam_rot.x -= step * gradients[j].cam_rot.x;
-      images[j]->camera.cam_rot.y -= step * gradients[j].cam_rot.y;
-      images[j]->camera.cam_rot.z -= step * gradients[j].cam_rot.z;
-      images[j]->camera.cam_pos.x -= step * gradients[j].cam_pos.x;
-      images[j]->camera.cam_pos.y -= step * gradients[j].cam_pos.y;
-      images[j]->camera.cam_pos.z -= step * gradients[j].cam_pos.z;
-      images[j]->camera.foc       -= step * gradients[j].foc;
-      images[j]->camera.fov.x     -= step * gradients[j].fov.x;
-      images[j]->camera.fov.y     -= step * gradients[j].fov.y;
+      images[j]->camera.cam_rot.x += step * gradients[j].cam_rot.x;
+      images[j]->camera.cam_rot.y += step * gradients[j].cam_rot.y;
+      images[j]->camera.cam_rot.z += step * gradients[j].cam_rot.z;
+      images[j]->camera.cam_pos.x += step * gradients[j].cam_pos.x;
+      images[j]->camera.cam_pos.y += step * gradients[j].cam_pos.y;
+      images[j]->camera.cam_pos.z += step * gradients[j].cam_pos.z;
+      images[j]->camera.foc       += step * gradients[j].foc;
+      images[j]->camera.fov.x     += step * gradients[j].fov.x;
+      images[j]->camera.fov.y     += step * gradients[j].fov.y;
       // update dpix
       images[j]->camera.dpix.x = (images[j]->camera.foc * tanf(images[j]->camera.fov.x / 2.0f)) / (images[j]->camera.size.x / 2.0f );
       images[j]->camera.dpix.y = images[j]->camera.dpix.x;
@@ -945,7 +944,6 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* lin
   __shared__ float localSum;
   if (threadIdx.x == 0) localSum = 0;
   __syncthreads();
-
   // this method is from wikipedia, last seen janurary 2020
   // https://en.wikipedia.org/wiki/Skew_lines#Nearest_Points
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
@@ -982,8 +980,8 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* lin
   // only add the errors that we like
   float i_error;
   if (error > *linearErrorCutoff) {
-    pointcloud[globalID] = {1.0,1.0,1.0};
-    i_error = 0.0f;
+    pointcloud[globalID] = {1.0f,1.0f,1.0f};
+    i_error = *linearErrorCutoff;//changed by jackson
   } else {
     i_error = error;
   }
@@ -1037,8 +1035,8 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   // only add errors that we like
   float i_error;
   if (error > *linearErrorCutoff) {
-    point = {NULL,NULL,NULL};
-    i_error = 0.0f;
+    point = {1.0f,1.0f,1.0f};
+    i_error = *linearErrorCutoff;
   } else {
     i_error = error;
   }
