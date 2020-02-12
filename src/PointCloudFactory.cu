@@ -397,8 +397,12 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
 
   int i = 1;
 <<<<<<< HEAD
+<<<<<<< HEAD
   while(i < 10){
   // while(*linearError > 9000){
+=======
+  while(*linearError > 9001){
+>>>>>>> parent of 8f2a6b5... some filtering in error sum
 =======
   while(*linearError > 9001){
 >>>>>>> parent of 8f2a6b5... some filtering in error sum
@@ -429,15 +433,21 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
     // what the step sizes should be tho:
     // this is only for the "sensitivity" in those component directions
 <<<<<<< HEAD
+<<<<<<< HEAD
     float h_rot = 0.00001;
     float h_pos = 0.00001;
     float h_foc = 0.00001;
     float h_fov = 0.00001;
 =======
+=======
+>>>>>>> parent of 8f2a6b5... some filtering in error sum
     float h_rot = 0.00000001;
     float h_pos = 0.00000001;
     float h_foc = 0.00000001;
     float h_fov = 0.00000001;
+<<<<<<< HEAD
+>>>>>>> parent of 8f2a6b5... some filtering in error sum
+=======
 >>>>>>> parent of 8f2a6b5... some filtering in error sum
     // the stepsize along the gradient
     float step  = 0.01;
@@ -454,7 +464,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
 <<<<<<< HEAD
+<<<<<<< HEAD
       gradients[j].cam_rot.x = (*linearError - *linearError_partial) / (h_rot);
+=======
+      gradients[j].cam_rot.x = ((float) *linearError + (float) *linearError_partial) / (h_rot);
+>>>>>>> parent of 8f2a6b5... some filtering in error sum
 =======
       gradients[j].cam_rot.x = ((float) *linearError + (float) *linearError_partial) / (h_rot);
 >>>>>>> parent of 8f2a6b5... some filtering in error sum
@@ -469,7 +483,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
 <<<<<<< HEAD
+<<<<<<< HEAD
       gradients[j].cam_rot.y = (*linearError - *linearError_partial) / (h_rot);
+=======
+      gradients[j].cam_rot.y = ((float) *linearError + (float) *linearError_partial) / (h_rot);
+>>>>>>> parent of 8f2a6b5... some filtering in error sum
 =======
       gradients[j].cam_rot.y = ((float) *linearError + (float) *linearError_partial) / (h_rot);
 >>>>>>> parent of 8f2a6b5... some filtering in error sum
@@ -484,7 +502,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
 <<<<<<< HEAD
+<<<<<<< HEAD
       gradients[j].cam_rot.z = (*linearError - *linearError_partial) / (h_rot);
+=======
+      gradients[j].cam_rot.z = ((float) *linearError + (float) *linearError_partial) / (h_rot);
+>>>>>>> parent of 8f2a6b5... some filtering in error sum
 =======
       gradients[j].cam_rot.z = ((float) *linearError + (float) *linearError_partial) / (h_rot);
 >>>>>>> parent of 8f2a6b5... some filtering in error sum
@@ -501,7 +523,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
 <<<<<<< HEAD
+<<<<<<< HEAD
       gradients[j].cam_pos.x = (*linearError - *linearError_partial) / (h_pos);
+=======
+      gradients[j].cam_pos.x = ((float) *linearError + (float) *linearError_partial) / (h_pos);
+>>>>>>> parent of 8f2a6b5... some filtering in error sum
 =======
       gradients[j].cam_pos.x = ((float) *linearError + (float) *linearError_partial) / (h_pos);
 >>>>>>> parent of 8f2a6b5... some filtering in error sum
@@ -516,7 +542,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
 <<<<<<< HEAD
+<<<<<<< HEAD
       gradients[j].cam_pos.y = (*linearError - *linearError_partial) / (h_pos);
+=======
+      gradients[j].cam_pos.y = ((float) *linearError + (float) *linearError_partial) / (h_pos);
+>>>>>>> parent of 8f2a6b5... some filtering in error sum
 =======
       gradients[j].cam_pos.y = ((float) *linearError + (float) *linearError_partial) / (h_pos);
 >>>>>>> parent of 8f2a6b5... some filtering in error sum
@@ -531,7 +561,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
 <<<<<<< HEAD
+<<<<<<< HEAD
       gradients[j].cam_pos.z = (*linearError - *linearError_partial) / (h_pos);
+=======
+      gradients[j].cam_pos.z = ((float) *linearError + (float) *linearError_partial) / (h_pos);
+>>>>>>> parent of 8f2a6b5... some filtering in error sum
 =======
       gradients[j].cam_pos.z = ((float) *linearError + (float) *linearError_partial) / (h_pos);
 >>>>>>> parent of 8f2a6b5... some filtering in error sum
@@ -551,7 +585,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
 <<<<<<< HEAD
+<<<<<<< HEAD
       gradients[j].foc = (*linearError - *linearError_partial) / (h_foc);
+=======
+      gradients[j].foc = ((float) *linearError + (float) *linearError_partial) / (h_foc);
+>>>>>>> parent of 8f2a6b5... some filtering in error sum
 =======
       gradients[j].foc = ((float) *linearError + (float) *linearError_partial) / (h_foc);
 >>>>>>> parent of 8f2a6b5... some filtering in error sum
@@ -572,7 +610,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
 <<<<<<< HEAD
+<<<<<<< HEAD
       gradients[j].fov.x = (*linearError - *linearError_partial) / (h_fov);
+=======
+      gradients[j].fov.x = ((float) *linearError + (float) *linearError_partial) / (h_fov);
+>>>>>>> parent of 8f2a6b5... some filtering in error sum
 =======
       gradients[j].fov.x = ((float) *linearError + (float) *linearError_partial) / (h_fov);
 >>>>>>> parent of 8f2a6b5... some filtering in error sum
@@ -591,7 +633,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
 <<<<<<< HEAD
+<<<<<<< HEAD
       gradients[j].fov.y = (*linearError - *linearError_partial) / (h_fov);
+=======
+      gradients[j].fov.y = ((float) *linearError + (float) *linearError_partial) / (h_fov);
+>>>>>>> parent of 8f2a6b5... some filtering in error sum
 =======
       gradients[j].fov.y = ((float) *linearError + (float) *linearError_partial) / (h_fov);
 >>>>>>> parent of 8f2a6b5... some filtering in error sum
@@ -1022,6 +1068,7 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* lin
   float error = sqrtf(dotProduct(s1,s2));
   errors[globalID] = error;
 <<<<<<< HEAD
+<<<<<<< HEAD
   // only add the errors that we like
   float i_error;
   if (error > *linearErrorCutoff) {
@@ -1031,6 +1078,10 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* lin
   } else {
     i_error = error;
   }
+=======
+  if (error > *linearErrorCutoff) pointcloud[globalID] = {NULL,NULL,NULL};
+  int i_error = (int) error;
+>>>>>>> parent of 8f2a6b5... some filtering in error sum
 =======
   if (error > *linearErrorCutoff) pointcloud[globalID] = {NULL,NULL,NULL};
   int i_error = (int) error;
@@ -1083,6 +1134,7 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   // add the linear errors locally within the block before
   float error = sqrtf(dotProduct(s1,s2));
 <<<<<<< HEAD
+<<<<<<< HEAD
   // only add errors that we like
   float i_error;
   if (error > *linearErrorCutoff) {
@@ -1091,6 +1143,10 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   } else {
     i_error = error;
   }
+=======
+  if (error > *linearErrorCutoff) point = {NULL,NULL,NULL};
+  int i_error = (int) error;
+>>>>>>> parent of 8f2a6b5... some filtering in error sum
 =======
   if (error > *linearErrorCutoff) point = {NULL,NULL,NULL};
   int i_error = (int) error;
