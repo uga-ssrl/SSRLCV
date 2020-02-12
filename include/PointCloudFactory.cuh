@@ -64,7 +64,7 @@ namespace ssrlcv{
     * @param bundleSet a set of lines and bundles that should be triangulated
     * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
     */
-    ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bundleSet, unsigned long long int* linearError);
+    ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bundleSet, float* linearError);
 
     /**
     * The CPU method that sets up the GPU enabled two view tringulation.
@@ -72,7 +72,7 @@ namespace ssrlcv{
     * @param the individual linear errors (for use in debugging and histogram)
     * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
     */
-    ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bundleSet, Unity<float>* errors, unsigned long long int* linearError);
+    ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bundleSet, Unity<float>* errors, float* linearError);
 
     /**
     * The CPU method that sets up the GPU enabled two view tringulation.
@@ -81,7 +81,7 @@ namespace ssrlcv{
     * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
     * @param linearErrorCutoff is a value that all linear errors should be less than. points with larger errors are discarded.
     */
-    ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bundleSet, Unity<float>* errors, unsigned long long int* linearError, float* linearErrorCutoff);
+    ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bundleSet, Unity<float>* errors, float* linearError, float* linearErrorCutoff);
 
     /**
      * Same method as two view triangulation, but all that is desired fro this method is a calculation of the linearError
@@ -90,7 +90,7 @@ namespace ssrlcv{
      * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
      * @param linearErrorCutoff is a value that all linear errors should be less than. points with larger errors are discarded.
      */
-    void voidTwoViewTriangulate(BundleSet bundleSet, unsigned long long int* linearError, float* linearErrorCutof);
+    void voidTwoViewTriangulate(BundleSet bundleSet, float* linearError, float* linearErrorCutof);
 
     /**
      * A Naive bundle adjustment based on a two-view triangulation and a first order descrete gradient decent
@@ -114,13 +114,13 @@ namespace ssrlcv{
 
   __global__ void interpolateDepth(uint2 disparityMapSize, int influenceRadius, float* disparities, float* interpolated);
 
-  __global__ void computeTwoViewTriangulate(unsigned long long int* linearError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
+  __global__ void computeTwoViewTriangulate(float* linearError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 
-  __global__ void computeTwoViewTriangulate(unsigned long long int* linearError, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
+  __global__ void computeTwoViewTriangulate(float* linearError, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 
-  __global__ void computeTwoViewTriangulate(unsigned long long int* linearError, float* linearErrorCutoff, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
+  __global__ void computeTwoViewTriangulate(float* linearError, float* linearErrorCutoff, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 
-  __global__ void voidComputeTwoViewTriangulate(unsigned long long int* linearError, float* linearErrorCutoff, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles);
+  __global__ void voidComputeTwoViewTriangulate(float* linearError, float* linearErrorCutoff, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles);
 
   __global__ void two_view_reproject(int numMatches, float4* matches, float cam1C[3],
   	float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9],

@@ -66,12 +66,12 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
 * @param bundleSet a set of lines and bundles that should be triangulated
 * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
 */
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet bundleSet, unsigned long long int* linearError){
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet bundleSet, float* linearError){
 
   // to total error cacluation is stored in this guy
   *linearError = 0;
-  unsigned long long int* d_linearError;
-  size_t eSize = sizeof(unsigned long long int);
+  float* d_linearError;
+  size_t eSize = sizeof(float);
   CudaSafeCall(cudaMalloc((void**) &d_linearError,eSize));
   CudaSafeCall(cudaMemcpy(d_linearError,linearError,eSize,cudaMemcpyHostToDevice));
 
@@ -111,12 +111,12 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
 * @param the individual linear errors (for use in debugging and histogram)
 * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
 */
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet bundleSet, Unity<float>* errors, unsigned long long int* linearError){
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet bundleSet, Unity<float>* errors, float* linearError){
 
   // to total error cacluation is stored in this guy
   *linearError = 0;
-  unsigned long long int* d_linearError;
-  size_t eSize = sizeof(unsigned long long int);
+  float* d_linearError;
+  size_t eSize = sizeof(float);
   CudaSafeCall(cudaMalloc((void**) &d_linearError,eSize));
   CudaSafeCall(cudaMemcpy(d_linearError,linearError,eSize,cudaMemcpyHostToDevice));
 
@@ -161,12 +161,12 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
 * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
 * @param linearErrorCutoff is a value that all linear errors should be less than. points with larger errors are discarded.
 */
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet bundleSet, Unity<float>* errors, unsigned long long int* linearError, float* linearErrorCutoff){
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet bundleSet, Unity<float>* errors, float* linearError, float* linearErrorCutoff){
 
   // to total error cacluation is stored in this guy
   *linearError = 0;
-  unsigned long long int* d_linearError;
-  size_t eSize = sizeof(unsigned long long int);
+  float* d_linearError;
+  size_t eSize = sizeof(float);
   CudaSafeCall(cudaMalloc((void**) &d_linearError,eSize));
   CudaSafeCall(cudaMemcpy(d_linearError,linearError,eSize,cudaMemcpyHostToDevice));
   // the cutoff boi
@@ -218,11 +218,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
  * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
  * @param linearErrorCutoff is a value that all linear errors should be less than. points with larger errors are discarded.
  */
-void ssrlcv::PointCloudFactory::voidTwoViewTriangulate(BundleSet bundleSet, unsigned long long int* linearError, float* linearErrorCutoff){
+void ssrlcv::PointCloudFactory::voidTwoViewTriangulate(BundleSet bundleSet, float* linearError, float* linearErrorCutoff){
   // to total error cacluation is stored in this guy
   *linearError = 0;
-  unsigned long long int* d_linearError;
-  size_t eSize = sizeof(unsigned long long int);
+  float* d_linearError;
+  size_t eSize = sizeof(float);
   CudaSafeCall(cudaMalloc((void**) &d_linearError,eSize));
   CudaSafeCall(cudaMemcpy(d_linearError,linearError,eSize,cudaMemcpyHostToDevice));
   // the cutoff boi
@@ -368,9 +368,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
 ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
 
   // the initial linear error
-  unsigned long long int* linearError = (unsigned long long int*) malloc(sizeof(unsigned long long int));
-  *linearError = 100000; // just something to satisfy the first if statment
-  unsigned long long int* linearError_partial = (unsigned long long int*) malloc(sizeof(unsigned long long int));
+  float* linearError = (float*) malloc(sizeof(float));
+  *linearError = 1000000000.0; // just something to satisfy the first if statment
+  std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~>> " << std::to_string(*linearError) << std::endl;
+  float* linearError_partial = (float*) malloc(sizeof(float));
   // the cutoff
   // TODO this shold later remove points that are bad
   float* linearErrorCutoff = (float*) malloc(sizeof(float));
@@ -392,22 +393,23 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
   ssrlcv::Unity<float3>* points;
 
   // for printing out data about iterations and shit later
-  std::vector<unsigned long long int> errorTracker;
+  std::vector<float> errorTracker;
 
   int i = 1;
-  while(i < 1000){
-  // while(*linearError > 90000){
+  while(i < 10){
+  // while(*linearError > 9000){
     // generate the bundle set
     bundleSet = generateBundles(matchSet,images);
     // do an initial triangulation
     errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->numElements,ssrlcv::cpu);
-    *linearErrorCutoff = 620.0;
+    *linearErrorCutoff = 1000.0;
     points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
     // do this only once
     if (i == 1 ) ssrlcv::writePLY("out/rawPoints.ply",points);
 
     // write some errors for debug
-    //writeCSV(errors->host, (int) errors->numElements, "individualLinearErrors" + std::to_string(i));
+    // for now only do this once
+    if (i == 1) ssrlcv::writeCSV(errors->host, (int) errors->numElements, "individualLinearErrors" + std::to_string(i));
 
     // clear uneeded memory
     delete bundleSet.lines;
@@ -416,17 +418,18 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
     // points->clear();
 
     // a nice printout for the humans
-    std::cout << "[itr: " << i << "] linear error: " << *linearError << std::endl;
+    std::cout << "==============================================================" << std::endl;
+    std::cout << "\n[itr: " << i << "] linear error: " << *linearError << std::endl;
     errorTracker.push_back(*linearError);
 
     // what the step sizes should be tho:
     // this is only for the "sensitivity" in those component directions
-    float h_rot = 0.000001;
-    float h_pos = 0.000001;
-    float h_foc = 0.000001;
-    float h_fov = 0.000001;
+    float h_rot = 0.00001;
+    float h_pos = 0.00001;
+    float h_foc = 0.00001;
+    float h_fov = 0.00001;
     // the stepsize along the gradient
-    float step  = 0.001;
+    float step  = 0.01;
 
     // calculate the descrete partial derivatives using forward difference
     for (int j = 0; j < partials.size(); j++){
@@ -439,7 +442,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
-      gradients[j].cam_rot.x = ((float) *linearError - (float) *linearError_partial) / (h_rot);
+      gradients[j].cam_rot.x = (*linearError - *linearError_partial) / (h_rot);
       // reset
       partials[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x;
 
@@ -450,7 +453,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
-      gradients[j].cam_rot.y = ((float) *linearError - (float) *linearError_partial) / (h_rot);
+      gradients[j].cam_rot.y = (*linearError - *linearError_partial) / (h_rot);
       // reset
       partials[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y;
 
@@ -461,7 +464,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
-      gradients[j].cam_rot.z = ((float) *linearError - (float) *linearError_partial) / (h_rot);
+      gradients[j].cam_rot.z = (*linearError - *linearError_partial) / (h_rot);
       // reset
       partials[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z;
 
@@ -474,7 +477,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
-      gradients[j].cam_pos.x = ((float) *linearError - (float) *linearError_partial) / (h_pos);
+      gradients[j].cam_pos.x = (*linearError - *linearError_partial) / (h_pos);
       // reset
       partials[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x;
 
@@ -485,7 +488,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
-      gradients[j].cam_pos.y = ((float) *linearError - (float) *linearError_partial) / (h_pos);
+      gradients[j].cam_pos.y = (*linearError - *linearError_partial) / (h_pos);
       // reset
       partials[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y;
 
@@ -496,7 +499,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
-      gradients[j].cam_pos.z = ((float) *linearError - (float) *linearError_partial) / (h_pos);
+      gradients[j].cam_pos.z = (*linearError - *linearError_partial) / (h_pos);
       // reset
       partials[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z;
 
@@ -512,7 +515,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
-      gradients[j].foc = ((float) *linearError - (float) *linearError_partial) / (h_foc);
+      gradients[j].foc = (*linearError - *linearError_partial) / (h_foc);
       // reset
       partials[j]->camera.foc = images[j]->camera.foc;
       partials[j]->camera.dpix = images[j]->camera.dpix;
@@ -529,7 +532,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
-      gradients[j].fov.x = ((float) *linearError - (float) *linearError_partial) / (h_fov);
+      gradients[j].fov.x = (*linearError - *linearError_partial) / (h_fov);
       // reset
       partials[j]->camera.fov.x = images[j]->camera.fov.x;
       partials[j]->camera.dpix = images[j]->camera.dpix;
@@ -544,9 +547,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       voidTwoViewTriangulate(bundleSet_partial, linearError_partial,linearErrorCutoff);
       delete bundleSet_partial.lines;
       delete bundleSet_partial.bundles;
-      gradients[j].fov.y = ((float) *linearError - (float) *linearError_partial) / (h_fov);
+      gradients[j].fov.y = (*linearError - *linearError_partial) / (h_fov);
       // reset
-      partials[j]->camera.fov.y = images[0]->camera.fov.y;
+      partials[j]->camera.fov.y = images[j]->camera.fov.y;
       partials[j]->camera.dpix = images[j]->camera.dpix;
 
       // normalize the gradient now that all components are known
@@ -572,16 +575,20 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
       gradients[j].fov.y /= norm;
     }
 
-    if (false){
+    if (true){
       for (int j = 0; j < partials.size(); j++){
-        std::cout << "Gradient " << std::to_string(j+1) << " | rot: (";
+        std::cout << std::fixed;
+        std::cout << std::setprecision(12);
+        std::cout << "===============================================" << std::endl;
+        std::cout << "Gradient " << std::to_string(j+1) << " ::" << std::endl;
+        std::cout << "rot: (";
         std::cout << gradients[j].cam_rot.x << ",";
         std::cout << gradients[j].cam_rot.y << ",";
-        std::cout << gradients[j].cam_rot.z << ")\t";
+        std::cout << gradients[j].cam_rot.z << ")\t" << std::endl;
         std::cout << "pos: (";
         std::cout << gradients[j].cam_pos.x << ",";
         std::cout << gradients[j].cam_pos.y << ",";
-        std::cout << gradients[j].cam_pos.z << ")\t";
+        std::cout << gradients[j].cam_pos.z << ")\t" << std::endl;
         std::cout << "foc: ";
         std::cout << gradients[j].foc << "\t";
         std::cout << "fov: (";
@@ -616,13 +623,15 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
   std::cout << "Final Camera Parameters: " << std::endl;
   // take a step down the hill!
   for (int j = 0; j < images.size(); j++){
+    std::cout << std::fixed;
+    std::cout << std::setprecision(12);
     std::cout << "___________________________________" << std::endl;
     std::cout << "rot_x: " << images[j]->camera.cam_rot.x << "\t\t |" << std::endl;
     std::cout << "rot_y: " << images[j]->camera.cam_rot.y << "\t\t |" << std::endl;
     std::cout << "rot_z: " << images[j]->camera.cam_rot.z << "\t\t |" << std::endl;
     std::cout << "pos_x: " << images[j]->camera.cam_pos.x << "\t\t |" << std::endl;
     std::cout << "pos_y: " << images[j]->camera.cam_pos.y << "\t\t |" << std::endl;
-    std::cout << "pos_z: " << images[j]->camera.cam_pos.z << "\t\t\t |" << std::endl;
+    std::cout << "pos_z: " << images[j]->camera.cam_pos.z << "\t\t |" << std::endl;
     std::cout << "foc  : " << images[j]->camera.foc       << "\t\t |" << std::endl;
     std::cout << "fov_x: " << images[j]->camera.fov.x     << "\t\t |" << std::endl;
     std::cout << "fov_y: " << images[j]->camera.fov.y     << "\t\t |" << std::endl;
@@ -824,10 +833,10 @@ __global__ void ssrlcv::interpolateDepth(uint2 disparityMapSize, int influenceRa
 * Does a trigulation with skew lines to find their closest intercetion.
 * Generates a total LinearError, which is an analog for reprojection error
 */
-__global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linearError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
+__global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
   // get ready to do the stuff local memory space
   // this will later be added back to a global memory space
-  __shared__ unsigned long long int localSum;
+  __shared__ float localSum;
   if (threadIdx.x == 0) localSum = 0;
   __syncthreads();
 
@@ -873,10 +882,10 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linear
 * Generates a set of individual linear errors of debugging and analysis
 * Generates a total LinearError, which is an analog for reprojection error
 */
-__global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linearError, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
+__global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
   // get ready to do the stuff local memory space
   // this will later be added back to a global memory space
-  __shared__ unsigned long long int localSum;
+  __shared__ float localSum;
   if (threadIdx.x == 0) localSum = 0;
   __syncthreads();
 
@@ -913,8 +922,8 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linear
   // add the linaer errors locally within the block before
   float error = sqrtf(dotProduct(s1,s2));
   errors[globalID] = error;
-  int i_error = (int) error;
-  atomicAdd(&localSum,i_error);
+  //int i_error = error;
+  atomicAdd(&localSum,error);
   __syncthreads();
   if (!threadIdx.x) atomicAdd(linearError,localSum);
 }
@@ -925,10 +934,10 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linear
 * Generates a total LinearError, which is an analog for reprojection error
 * If a point's linear error is larger than the cutoff it is not returned in the pointcloud
 */
-__global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linearError, float* linearErrorCutoff, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
+__global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* linearErrorCutoff, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
   // get ready to do the stuff local memory space
   // this will later be added back to a global memory space
-  __shared__ unsigned long long int localSum;
+  __shared__ float localSum;
   if (threadIdx.x == 0) localSum = 0;
   __syncthreads();
 
@@ -966,13 +975,13 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linear
   float error = sqrtf(dotProduct(s1,s2));
   errors[globalID] = error;
   // only add the errors that we like
-  int i_error;
+  float i_error;
   if (error > *linearErrorCutoff) {
     point = {NULL,NULL,NULL};
     pointcloud[globalID] = {NULL,NULL,NULL};
-    i_error = 0;
+    i_error = 0.0f;
   } else {
-    i_error = (int) error;
+    i_error = error;
   }
   atomicAdd(&localSum,i_error);
   __syncthreads();
@@ -985,10 +994,10 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linear
 * Generates a total LinearError, which is an analog for reprojection error
 * this is purely used by the bundle adjustment to estimate errors and so on
 */
-__global__ void ssrlcv::voidComputeTwoViewTriangulate(unsigned long long int* linearError, float* linearErrorCutoff, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles){
+__global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float* linearErrorCutoff, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles){
   // get ready to do the stuff local memory space
   // this will later be added back to a global memory space
-  __shared__ unsigned long long int localSum;
+  __shared__ float localSum;
   if (threadIdx.x == 0) localSum = 0;
   __syncthreads();
 
@@ -1022,12 +1031,12 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(unsigned long long int* li
   // add the linear errors locally within the block before
   float error = sqrtf(dotProduct(s1,s2));
   // only add errors that we like
-  int i_error;
+  float i_error;
   if (error > *linearErrorCutoff) {
     point = {NULL,NULL,NULL};
-    i_error = 0;
+    i_error = 0.0f;
   } else {
-    i_error = (int) error;
+    i_error = error;
   }
   atomicAdd(&localSum,i_error);
   __syncthreads();
