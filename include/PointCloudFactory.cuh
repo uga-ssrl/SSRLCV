@@ -87,6 +87,12 @@ namespace ssrlcv{
     */
     ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bundleSet, Unity<float>* errors, unsigned long long int* linearError, float* linearErrorCutoff);
 
+    /**
+     * The CPU method that sets up the GPU enabled n view triangulation.
+     * @param bundleSet a set of lines and bundles to be triangulated
+     */
+    ssrlcv::Unity<float3>* nViewTriangulate(BundleSet bundleSet);
+
   };
 
   /**
@@ -122,9 +128,7 @@ namespace ssrlcv{
   	float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9],
   	float rotationTranspose1[9], float rotationTranspose2[9], float3* points);
 
-  /**
-  * \}
-  */
+  __global__ void computeNViewTriangulate(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 }
 
 
