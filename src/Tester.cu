@@ -117,7 +117,7 @@ int main(int argc, char *argv[]){
     images_vec[0]->camera.size = {2,2};
     images_vec[0]->camera.cam_pos = {1.0,0.0,0.0};
     images_vec[0]->camera.cam_rot = {M_PI/2.0,0.0,0.0};
-    images_vec[0]->camera.fov = {10.0 * (M_PI/180.0), 10.0 * (M_PI/180.0))}; // 10 degrees x and y fov
+    images_vec[0]->camera.fov = {10.0 * (M_PI/180.0), 10.0 * (M_PI/180.0)}; // 10 degrees x and y fov
     images_vec[0]->camera.foc = 0.25;
 
     images_vec[1]->id = 1;
@@ -209,15 +209,15 @@ int main(int argc, char *argv[]){
 
 
     // note that   *->host[#] is the memory location of the match information, that is sequential in RAM and counts up
-    matchSet.matches->host[0] = {5,7}; // here we say the number of matches and the starting index of those matches in the keypoints
+    matchSet.matches->host[3] = {5,7}; // here we say the number of matches and the starting index of those matches in the keypoints
                                        // that ends up looking like = {number keypoints in the match, where those keyPoints start}
                                        // for us we have 5 matches and the matches start at index 7
     // note that the *->host[#] is the memory location, that's sequential in RAM, so those always count up
     matchSet.keyPoints->host[7]  = {{0}, {1.0, 1.0}}; // { {image number}, {x-y match location} }
     matchSet.keyPoints->host[8]  = {{1}, {1.0, 1.0}};
-    matchSet.keyPoints->host[9]  = {{1}, {1.0, 1.0}};
-    matchSet.keyPoints->host[10] = {{1}, {1.0, 1.0}};
-    matchSet.keyPoints->host[11] = {{1}, {1.0, 1.0}};
+    matchSet.keyPoints->host[9]  = {{2}, {1.0, 1.0}};
+    matchSet.keyPoints->host[10] = {{3}, {1.0, 1.0}};
+    matchSet.keyPoints->host[11] = {{4}, {1.0, 1.0}};
 
     // now we can try to make lines
 
