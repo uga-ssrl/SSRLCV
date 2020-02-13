@@ -9,8 +9,6 @@
 #include "common_includes.h"
 #include "io_util.h"
 #include "Feature.cuh"
-#include "cuda_util.cuh"
-#include "Unity.cuh"
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 #include <thrust/device_vector.h>

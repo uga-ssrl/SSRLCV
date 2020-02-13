@@ -6,7 +6,6 @@
 
 #include "common_includes.h"
 #include "Image.cuh"
-#include "Unity.cuh"
 #include <thrust/sort.h>
 #include <thrust/pair.h>
 #include <thrust/unique.h>

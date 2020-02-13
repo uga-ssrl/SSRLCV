@@ -614,7 +614,7 @@ ssrlcv::Unity<float2>* ssrlcv::generatePixelGradients(uint2 imageSize, Unity<flo
 void ssrlcv::makeBinnable(uint2 &size, Unity<unsigned char>* pixels, int plannedDepth){
   MemoryState origin = pixels->getMemoryState();
   int numResize = (int)pow(2, plannedDepth);
-  int dimOffset[2] = {size.x%numResize,size.y%numResize};
+  int dimOffset[2] = {(int)size.x%numResize,(int)size.y%numResize};
   if(dimOffset[0] || dimOffset[1]){
     if(origin != gpu) pixels->setMemoryState(gpu);
     bool mustSizeUp = size.x%2 || size.y%2;
@@ -625,8 +625,8 @@ void ssrlcv::makeBinnable(uint2 &size, Unity<unsigned char>* pixels, int planned
       dimOffset[1] = size.y%numResize;
     }
     int2 border = {
-        dimOffset[0] ? (numResize-(size.x%numResize))/2 : 0,
-        dimOffset[1] ? (numResize-(size.y%numResize))/2 : 0
+        dimOffset[0] ? (numResize-((int)size.x%numResize))/2 : 0,
+        dimOffset[1] ? (numResize-((int)size.y%numResize))/2 : 0
     };
     uint2 newSize = {border.x*2 + size.x, border.y*2 + size.y};
     pixels->setData(addBufferBorder(size,pixels,border)->device,newSize.x*newSize.y,gpu);
@@ -642,7 +642,7 @@ void ssrlcv::makeBinnable(uint2 &size, Unity<unsigned char>* pixels, int planned
 void ssrlcv::makeBinnable(uint2 &size, Unity<float>* pixels, int plannedDepth){
   MemoryState origin = pixels->getMemoryState();
   int numResize = (int)pow(2, plannedDepth);
-  int dimOffset[2] = {size.x%numResize,size.y%numResize};
+  int dimOffset[2] = {(int)size.x%numResize,(int)size.y%numResize};
   if(dimOffset[0] || dimOffset[1]){
     if(origin != gpu) pixels->setMemoryState(gpu);
     bool mustSizeUp = size.x%2 || size.y%2;
@@ -653,8 +653,8 @@ void ssrlcv::makeBinnable(uint2 &size, Unity<float>* pixels, int plannedDepth){
       dimOffset[1] = size.y%numResize;
     }
     int2 border = {
-        dimOffset[0] ? (numResize-(size.x%numResize))/2 : 0,
-        dimOffset[1] ? (numResize-(size.y%numResize))/2 : 0
+        dimOffset[0] ? (numResize-((int)size.x%numResize))/2 : 0,
+        dimOffset[1] ? (numResize-((int)size.y%numResize))/2 : 0
     };
     uint2 newSize = {border.x*2 + size.x, border.y*2 + size.y};
     pixels->setData(addBufferBorder(size,pixels,border)->device,newSize.x*newSize.y,gpu);
@@ -819,9 +819,6 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<unsigned char>* pi
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
 
-  float2 minMax = {FLT_MAX,-FLT_MAX};
-  float* min = nullptr;
-
   if(symmetric){
     void (*fp)(uint2, unsigned char*, unsigned int, int2, float*, float*) = &convolveImage_symmetric;
     get2DGridBlock(imageSize,grid,block,fp);
@@ -897,16 +894,16 @@ __device__ __host__ __forceinline__ unsigned char ssrlcv::rgbaToBW(const uchar4 
 }
 __device__ __host__ __forceinline__ uchar3 ssrlcv::bwToRGB(const unsigned char &color){
   int colorTemp = (int) color*10;
-  return {(unsigned char)colorTemp/4,(unsigned char)colorTemp/2,(unsigned char)colorTemp/4};
+  return {(unsigned char)(colorTemp/4),(unsigned char)(colorTemp/2),(unsigned char)(colorTemp/4)};
 }
 __device__ __host__ __forceinline__ uchar3 ssrlcv::bwaToRGB(const uchar2 &color){
-  return {color.x,color.y,(color.x/3)*2 + (color.y/3)};
+  return {color.x,color.y,(unsigned char)((color.x/3)*2 + (color.y/3))};
 }
 __device__ __host__ __forceinline__ uchar3 ssrlcv::rgbaToRGB(const uchar4 &color){
   return {
-    (1-color.w)*color.x + color.w*color.x,
-    (1-color.w)*color.y + color.w*color.y,
-    (1-color.w)*color.z + color.w*color.z,
+    (unsigned char)((1-color.w)*color.x + color.w*color.x),
+    (unsigned char)((1-color.w)*color.y + color.w*color.y),
+    (unsigned char)((1-color.w)*color.z + color.w*color.z),
   };
 }
 
@@ -1164,7 +1161,7 @@ __global__ void ssrlcv::normalize(unsigned long numPixels, float* pixels, float2
 __global__ void ssrlcv::calculatePixelGradients(uint2 imageSize, unsigned char* pixels, int2* gradients){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < imageSize.x*imageSize.y){
-    int2 loc = {(int)globalID%imageSize.x,(int)globalID/imageSize.x};
+    int2 loc = {(int)(globalID%imageSize.x),(int)(globalID/imageSize.x)};
     int2 xContrib = {loc.x + 1,loc.x - 1};
     int2 yContrib = {loc.y + 1,loc.y - 1};
     if(xContrib.y == -1) xContrib = xContrib + 1;
@@ -1180,7 +1177,7 @@ __global__ void ssrlcv::calculatePixelGradients(uint2 imageSize, unsigned char* 
 __global__ void ssrlcv::calculatePixelGradients(uint2 imageSize, float* pixels, float2* gradients){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < imageSize.x*imageSize.y){
-    int2 loc = {(int)globalID%imageSize.x,(int)globalID/imageSize.x};
+    int2 loc = {(int)(globalID%imageSize.x),(int)(globalID/imageSize.x)};
     int2 xContrib = {loc.x + 1,loc.x - 1};
     int2 yContrib = {loc.y + 1,loc.y - 1};
     if(xContrib.y == -1) xContrib = xContrib + 1;

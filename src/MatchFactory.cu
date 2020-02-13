@@ -839,7 +839,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
       if(badMatch) adj->clear();
       else{
         std::vector<uint2> match;
-        match.push_back({i,f});
+        match.push_back({(unsigned int)i,(unsigned int)f});
         match.insert(match.end(),adjacencyList[i][f].begin(),adjacencyList[i][f].end());
         multiMatch_vec.push_back(match);
         for(auto m = adj->begin(); m != adj->end() - 1; ++m){
@@ -862,10 +862,10 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
   i = 0;
   int index = 0;
   for(auto m = multiMatch_vec.begin(); m != multiMatch_vec.end(); ++m){
-    matchSet.matches->host[i++] = {m->size(),index};
+    matchSet.matches->host[i++] = {(unsigned int)m->size(),index};
     index += m->size();
     for(auto kp = m->begin(); kp != m->end(); ++kp){
-      kp_vec.push_back({kp->x,features[kp->x]->host[kp->y].loc});
+      kp_vec.push_back({(int)kp->x,features[kp->x]->host[kp->y].loc});
     }
   }
   matchSet.keyPoints = new Unity<KeyPoint>(nullptr,kp_vec.size(),gpu);

@@ -8,15 +8,13 @@
 #define FEATUREFACTORY_CUH
 
 #include "common_includes.h"
-#include "cuda_util.cuh"
-#include "matrix_util.cuh"
 #include "Image.cuh"
 #include "Feature.cuh"
-#include "Unity.cuh"
 #include <thrust/device_ptr.h>
 #include <thrust/copy.h>
 #include <thrust/scan.h>
 #include <thrust/sort.h>
+#include <thrust/remove.h>
 #include "io_util.h"
 
 
