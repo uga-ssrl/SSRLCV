@@ -174,6 +174,8 @@ int main(int argc, char *argv[]){
 
     // now we need to fill in what our matches are
 
+
+
     // note that   *->host[#] is the memory location of the match information, that is sequential in RAM and counts up
     matchSet.matches->host[0] = {2,0}; // here we say the number of matches and the starting index of those matches in the keypoints
                                        // that ends up looking like = {number keypoints in the match, where those keyPoints start}
@@ -181,6 +183,8 @@ int main(int argc, char *argv[]){
     // note that the *->host[#] is the memory location, that's sequential in RAM, so those always count up
     matchSet.keyPoints->host[0] = {{0}, {1.0, 1.0}}; // { {image number}, {x-y match location} }
     matchSet.keyPoints->host[1] = {{1}, {1.0, 1.0}};
+
+
 
     // note that   *->host[#] is the memory location of the match information, that is sequential in RAM and counts up
     matchSet.matches->host[1] = {3,2}; // here we say the number of matches and the starting index of those matches in the keypoints
@@ -191,6 +195,8 @@ int main(int argc, char *argv[]){
     matchSet.keyPoints->host[3] = {{1}, {1.0, 1.0}};
     matchSet.keyPoints->host[4] = {{2}, {1.0, 1.0}};
 
+
+
     // note that   *->host[#] is the memory location of the match information, that is sequential in RAM and counts up
     matchSet.matches->host[2] = {2,5}; // here we say the number of matches and the starting index of those matches in the keypoints
                                        // that ends up looking like = {number keypoints in the match, where those keyPoints start}
@@ -199,6 +205,8 @@ int main(int argc, char *argv[]){
                                        // let's say we want to match the last 2 images this time, let's use image indexes 3 and 4
     matchSet.keyPoints->host[5] = {{3}, {1.0, 1.0}}; // { {image number}, {x-y match location} }
     matchSet.keyPoints->host[6] = {{4}, {1.0, 1.0}};
+
+
 
     // note that   *->host[#] is the memory location of the match information, that is sequential in RAM and counts up
     matchSet.matches->host[0] = {5,7}; // here we say the number of matches and the starting index of those matches in the keypoints
@@ -218,6 +226,8 @@ int main(int argc, char *argv[]){
 
     std::cout << "Bundles: " << std::endl;
     ssrlcv::BundleSet bundleSet = demPoints.generateBundles(&matchSet,images_vec);
+
+    // prints out generated lines in point vector format
     std::cout << "<lines start>" << std::endl;
     for(int i = 0; i < bundleSet.bundles->numElements; i ++){
       for (int j = bundleSet.bundles->host[i].index; j < bundleSet.bundles->host[i].index + bundleSet.bundles->host[i].numLines; j++){

@@ -228,7 +228,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
   pointcloud->clear(gpu);
   bundleSet.lines->clear(gpu);
   bundleSet.bundles->clear(gpu);
-  
+
   return pointcloud;
 }
 
@@ -669,7 +669,7 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linear
 }
 
 __global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
-  
+
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if (globalID > (pointnum-1)) return;
 
@@ -679,7 +679,7 @@ __global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::
   S[1] = {0,0,0};
   S[2] = {0,0,0};
   C = {0,0,0};
-  
+
   for(int i = 0; i < bundles[globalID].numLines; i++){
     ssrlcv::Bundle::Line L1 = lines[globalID+i]; //
     float3 tmp [3];
@@ -698,7 +698,7 @@ __global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::
     S[1].z += tmp[1].z;
     S[2].x += tmp[1].x;
     S[2].y += tmp[1].y;
-    S[2].z += tmp[1].z;   
+    S[2].z += tmp[1].z;
     //Adding tmp * pnt to C
     float3 vectmp;
     multiply(tmp, L1.pnt, vectmp);
@@ -706,7 +706,7 @@ __global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::
     C.y += vectmp.y;
     C.z += vectmp.z;
   }
-  
+
   float3 Inverse [3];
   /**
    * If all of the directional vectors are skew and not parallel, then I think S is nonsingular.
