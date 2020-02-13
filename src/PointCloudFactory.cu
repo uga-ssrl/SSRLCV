@@ -680,6 +680,19 @@ __global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::
   S[2] = {0,0,0};
   C = {0,0,0};
 
+  // to get the individual lines
+  // from bundles->device[globalID].index
+  // to bundles->device[globalID].index + bundles->device[globalID].numlines
+  // could do something like:
+  /*
+  only, you need to use printf in a CUDA kernel
+  you also want device instead of host
+
+  for (int j = bundleSet.bundles->host[i].index; j < bundleSet.bundles->host[i].index + bundleSet.bundles->host[i].numLines; j++){
+    std::cout << "(" << bundleSet.lines->host[j].pnt.x << "," << bundleSet.lines->host[j].pnt.y << "," << bundleSet.lines->host[j].pnt.z << ")    ";
+    std::cout << "<" << bundleSet.lines->host[j].vec.x << "," << bundleSet.lines->host[j].vec.y << "," << bundleSet.lines->host[j].vec.z << ">" << std::endl;
+  }
+  */
   for(int i = 0; i < bundles[globalID].numLines; i++){
     ssrlcv::Bundle::Line L1 = lines[globalID+i]; //
     float3 tmp [3];
