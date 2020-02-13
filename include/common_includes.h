@@ -14,6 +14,7 @@
 
 //util
 #include "cuda_util.cuh"
+#include "cuda_vec_util.cuh"
 #include "matrix_util.cuh"
 #include "Unity.cuh"
 

@@ -823,7 +823,7 @@ __device__ __forceinline__ float ssrlcv::edgeness(const float (&hessian)[2][2]){
 
 __global__ void ssrlcv::fillWindows(uint2 size, int parent, unsigned char* pixels, Feature<Window_3x3>* windows){
     unsigned long blockId = blockIdx.y* gridDim.x+ blockIdx.x;
-    uint2 loc = {blockId%(size.x-2) + 1,blockId/(size.x-2) + 1};
+    uint2 loc = {(unsigned int)(blockId%(size.x-2) + 1),(unsigned int)(blockId/(size.x-2) + 1)};
     if(loc.x < size.x - 1&& loc.y < size.y - 1){
         Feature<Window_3x3> window = Feature<Window_3x3>();
         window.descriptor.values[threadIdx.x][threadIdx.y] = pixels[(loc.y+threadIdx.y-1)*size.x + (loc.x+threadIdx.x-1)];
@@ -834,7 +834,7 @@ __global__ void ssrlcv::fillWindows(uint2 size, int parent, unsigned char* pixel
 }
 __global__ void ssrlcv::fillWindows(uint2 size, int parent, unsigned char* pixels, Feature<Window_9x9>* windows){
     unsigned long blockId = blockIdx.y*gridDim.x + blockIdx.x;
-    uint2 loc = {(blockId%(size.x-8)) + 4,(blockId/(size.x-8)) + 4};
+    uint2 loc = {(unsigned int)((blockId%(size.x-8)) + 4),(unsigned int)((blockId/(size.x-8)) + 4)};
     if(loc.x < size.x - 4 && loc.y < size.y - 4){
         Feature<Window_9x9> window = Feature<Window_9x9>();
         window.descriptor.values[threadIdx.x][threadIdx.y] = pixels[(loc.y+threadIdx.y-4)*size.x + (loc.x+threadIdx.x-4)];
@@ -845,7 +845,7 @@ __global__ void ssrlcv::fillWindows(uint2 size, int parent, unsigned char* pixel
 }
 __global__ void ssrlcv::fillWindows(uint2 size, int parent, unsigned char* pixels, Feature<Window_15x15>* windows){
     unsigned long blockId = blockIdx.y* gridDim.x+ blockIdx.x;
-    uint2 loc = {blockId%(size.x-14) + 7,blockId/(size.x-14) + 7};
+    uint2 loc = {(unsigned int)(blockId%(size.x-14) + 7),(unsigned int)(blockId/(size.x-14) + 7)};
     if(loc.x < size.x - 7 && loc.y < size.y - 7){
         Feature<Window_15x15> window = Feature<Window_15x15>();
         window.descriptor.values[threadIdx.x][threadIdx.y] = pixels[(loc.y+threadIdx.y-7)*size.x + (loc.x+threadIdx.x-7)];
@@ -856,7 +856,7 @@ __global__ void ssrlcv::fillWindows(uint2 size, int parent, unsigned char* pixel
 }
 __global__ void ssrlcv::fillWindows(uint2 size, int parent, unsigned char* pixels, Feature<Window_25x25>* windows){
     unsigned long blockId = blockIdx.y* gridDim.x+ blockIdx.x;
-    uint2 loc = {blockId%(size.x-24) + 12,blockId/(size.x-24) + 12};
+    uint2 loc = {(unsigned int)(blockId%(size.x-24) + 12),(unsigned int)(blockId/(size.x-24) + 12)};
     if(loc.x < size.x - 12 && loc.y < size.y - 12){
         Feature<Window_25x25> window = Feature<Window_25x25>();
         window.descriptor.values[threadIdx.x][threadIdx.y] = pixels[(loc.y+threadIdx.y-12)*size.x + (loc.x+threadIdx.x-12)];
@@ -867,7 +867,7 @@ __global__ void ssrlcv::fillWindows(uint2 size, int parent, unsigned char* pixel
 }
 __global__ void ssrlcv::fillWindows(uint2 size, int parent, unsigned char* pixels, Feature<Window_31x31>* windows){
     unsigned long blockId = blockIdx.y* gridDim.x+ blockIdx.x;
-    uint2 loc = {blockId%(size.x-30) + 15,blockId/(size.x-30) + 15};
+    uint2 loc = {(unsigned int)(blockId%(size.x-30) + 15),(unsigned int)(blockId/(size.x-30) + 15)};
     if(loc.x < size.x - 15 && loc.y < size.y - 15){
         Feature<Window_31x31> window = Feature<Window_31x31>();
         window.descriptor.values[threadIdx.x][threadIdx.y] = pixels[(loc.y+threadIdx.y-15)*size.x + (loc.x+threadIdx.x-15)];

@@ -5,10 +5,8 @@
 #define MESHFACTORY_CUH
 
 #include "common_includes.h"
-#include "cuda_util.cuh"
 #include "Image.cuh"
 #include "Octree.cuh"
-#include "Unity.cuh"
 #include <thrust/scan.h>
 #include <thrust/device_ptr.h>
 
