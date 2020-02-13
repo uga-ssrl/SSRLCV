@@ -13,8 +13,8 @@ ssrlcv::PointCloudFactory::PointCloudFactory(){
 ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
 
 
-  Unity<Bundle>* bundles = new Unity<Bundle>(nullptr,matchSet->matches->numElements,gpu);
-  Unity<Bundle::Line>* lines = new Unity<Bundle::Line>(nullptr,matchSet->keyPoints->numElements,gpu);
+  Unity<Bundle>* bundles = new Unity<Bundle>(nullptr,matchSet->matches->size(),gpu);
+  Unity<Bundle::Line>* lines = new Unity<Bundle::Line>(nullptr,matchSet->keyPoints->size(),gpu);
 
   std::cout << "starting bundle generation ..." << std::endl;
   MemoryState origin[2] = {matchSet->matches->getMemoryState(),matchSet->keyPoints->getMemoryState()};
@@ -35,11 +35,11 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(bundles->numElements,grid,block,generateBundle);
+  getFlatGridBlock(bundles->size(),grid,block,generateBundle);
 
   //in this kernel fill lines and bundles from keyPoints and matches
   std::cout << "Calling bundle generation kernel ..." << std::endl;
-  generateBundle<<<grid, block>>>(bundles->numElements,bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
+  generateBundle<<<grid, block>>>(bundles->size(),bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
   std::cout << "Returned from bundle generation kernel ... \n" << std::endl;
 
   cudaDeviceSynchronize();
@@ -76,15 +76,15 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   bundleSet.lines->transferMemoryTo(gpu);
   bundleSet.bundles->transferMemoryTo(gpu);
 
-  // Unity<float3>* pointcloud = new Unity<float3>(nullptr,2*bundleSet.bundles->numElements,gpu);
-  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->numElements,gpu);
+  // Unity<float3>* pointcloud = new Unity<float3>(nullptr,2*bundleSet.bundles->size(),gpu);
+  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(bundleSet.bundles->numElements,grid,block,generateBundle);
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
 
   std::cout << "Starting 2-view triangulation ..." << std::endl;
-  computeTwoViewTriangulate<<<grid,block>>>(d_linearError,bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  computeTwoViewTriangulate<<<grid,block>>>(d_linearError,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
   std::cout << "2-view Triangulation done ... \n" << std::endl;
 
   cudaDeviceSynchronize();
@@ -122,15 +122,15 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   bundleSet.bundles->transferMemoryTo(gpu);
   errors->transferMemoryTo(gpu);
 
-  // Unity<float3>* pointcloud = new Unity<float3>(nullptr,2*bundleSet.bundles->numElements,gpu);
-  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->numElements,gpu);
+  // Unity<float3>* pointcloud = new Unity<float3>(nullptr,2*bundleSet.bundles->size(),gpu);
+  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(bundleSet.bundles->numElements,grid,block,generateBundle);
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
 
   std::cout << "Starting 2-view triangulation ..." << std::endl;
-  computeTwoViewTriangulate<<<grid,block>>>(d_linearError,errors->device,bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  computeTwoViewTriangulate<<<grid,block>>>(d_linearError,errors->device,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
   std::cout << "2-view Triangulation done ... \n" << std::endl;
 
   cudaDeviceSynchronize();
@@ -178,15 +178,15 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   bundleSet.bundles->transferMemoryTo(gpu);
   errors->transferMemoryTo(gpu);
 
-  // Unity<float3>* pointcloud = new Unity<float3>(nullptr,2*bundleSet.bundles->numElements,gpu);
-  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->numElements,gpu);
+  // Unity<float3>* pointcloud = new Unity<float3>(nullptr,2*bundleSet.bundles->size(),gpu);
+  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(bundleSet.bundles->numElements,grid,block,generateBundle);
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
 
   std::cout << "Starting 2-view triangulation ..." << std::endl;
-  computeTwoViewTriangulate<<<grid,block>>>(d_linearError,d_linearErrorCutoff,errors->device,bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  computeTwoViewTriangulate<<<grid,block>>>(d_linearError,d_linearErrorCutoff,errors->device,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
   std::cout << "2-view Triangulation done ... \n" << std::endl;
 
   cudaDeviceSynchronize();
@@ -235,20 +235,20 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   // depth points
   float3 *points_device = nullptr;
 
-  cudaMalloc((void**) &points_device, matches->numElements*sizeof(float3));
+  cudaMalloc((void**) &points_device, matches->size()*sizeof(float3));
 
   //
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(unsigned int, Match*, float3*, float) = &computeStereo;
-  getFlatGridBlock(matches->numElements,grid,block,fp);
+  getFlatGridBlock(matches->size(),grid,block,fp);
   //
-  computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, 8.0);
+  computeStereo<<<grid, block>>>(matches->size(), matches->device, points_device, 8.0);
   // focal lenth / baseline
 
-  // computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, 64.0);
+  // computeStereo<<<grid, block>>>(matches->size(), matches->device, points_device, 64.0);
 
-  Unity<float3>* points = new Unity<float3>(points_device, matches->numElements,gpu);
+  Unity<float3>* points = new Unity<float3>(points_device, matches->size(),gpu);
   if(origin == cpu) matches->setMemoryState(cpu);
 
   return points;
@@ -271,17 +271,17 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   // depth points
   float3 *points_device = nullptr;
 
-  cudaMalloc((void**) &points_device, matches->numElements*sizeof(float3));
+  cudaMalloc((void**) &points_device, matches->size()*sizeof(float3));
 
   //
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(unsigned int, Match*, float3*, float) = &computeStereo;
-  getFlatGridBlock(matches->numElements,grid,block,fp);
+  getFlatGridBlock(matches->size(),grid,block,fp);
   //
-  computeStereo<<<grid, block>>>(matches->numElements, matches->device, points_device, scale);
+  computeStereo<<<grid, block>>>(matches->size(), matches->device, points_device, scale);
 
-  Unity<float3>* points = new Unity<float3>(points_device, matches->numElements,gpu);
+  Unity<float3>* points = new Unity<float3>(points_device, matches->size(),gpu);
   if(origin == cpu) matches->setMemoryState(cpu);
 
   return points;
@@ -293,14 +293,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
   if(origin == cpu) matches->transferMemoryTo(gpu);
 
 
-  Unity<float3>* points = new Unity<float3>(nullptr, matches->numElements,gpu);
+  Unity<float3>* points = new Unity<float3>(nullptr, matches->size(),gpu);
   //
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(unsigned int, Match*, float3*, float, float, float) = &computeStereo;
-  getFlatGridBlock(matches->numElements,grid,block,fp);
+  getFlatGridBlock(matches->size(),grid,block,fp);
   //
-  computeStereo<<<grid, block>>>(matches->numElements, matches->device, points->device, foc, baseline, doffset);
+  computeStereo<<<grid, block>>>(matches->size(), matches->device, points->device, foc, baseline, doffset);
 
   if(origin == cpu) matches->setMemoryState(cpu);
 
@@ -346,7 +346,7 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolati
   if(origin == gpu) points->transferMemoryTo(cpu);
   float3 min = {FLT_MAX,FLT_MAX,FLT_MAX};
   float3 max = {-FLT_MAX,-FLT_MAX,-FLT_MAX};
-  for(int i = 0; i < points->numElements; ++i){
+  for(int i = 0; i < points->size(); ++i){
     if(points->host[i].x < min.x) min.x = points->host[i].x;
     if(points->host[i].x > max.x) max.x = points->host[i].x;
     if(points->host[i].y < min.y) min.y = points->host[i].y;
@@ -360,7 +360,7 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolati
   for(int i = 0; i < imageDim.x*imageDim.y*3; ++i){
     disparityImage[i] = 0;
   }
-  for(int i = 0; i < points->numElements; ++i){
+  for(int i = 0; i < points->size(); ++i){
     float3 temp = points->host[i] - min;
     if(ceil(temp.x) != temp.x || ceil(temp.y) != temp.y){
       colors->host[((int)ceil(temp.y)*imageDim.x) + (int)ceil(temp.x)] += (1-ceil(temp.x)-temp.x)*(1-ceil(temp.y)-temp.y)*temp.z/(max.z-min.z);
@@ -386,7 +386,7 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolati
     interpolateDepth<<<grid,block>>>(imageDim,interpolationRadius,colors->device,interpolated);
     cudaDeviceSynchronize();
     CudaCheckError();
-    colors->setData(interpolated,colors->numElements,gpu);
+    colors->setData(interpolated,colors->size(),gpu);
     colors->setMemoryState(cpu);
   }
 

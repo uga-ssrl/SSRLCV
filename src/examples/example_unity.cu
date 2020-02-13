@@ -24,7 +24,7 @@ void add_100(ssrlcv::Unity<int>* i_nums){
   if(origin == ssrlcv::cpu || i_nums->getFore() == ssrlcv::cpu){
     i_nums->transferMemoryTo(ssrlcv::gpu);//this is making i_nums->state = i_nums->fore = ssrlcv::both
   }
-  add_100<<<i_nums->numElements,1>>>(i_nums->numElements,i_nums->device);
+  add_100<<<i_nums->size(),1>>>(i_nums->size(),i_nums->device);
   cudaDeviceSynchronize();//global threadfence
   CudaCheckError();//cuda error checker
   i_nums->setFore(ssrlcv::gpu);//tell Unity where the updated memory is
@@ -51,7 +51,7 @@ int main(int argc, char *argv[]){
     i_nums->transferMemoryTo(ssrlcv::gpu);
     
     //Now i_nums information is on gpu and cpu.
-    add_100<<<i_nums->numElements,1>>>(i_nums->numElements,i_nums->device);
+    add_100<<<i_nums->size(),1>>>(i_nums->size(),i_nums->device);
     
     //Now make sure Unity knows that I have changed values on the device because memory is also on the CPU.
     i_nums->setFore(ssrlcv::gpu);

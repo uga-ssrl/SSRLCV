@@ -63,7 +63,7 @@ int main(int argc, char *argv[]){
 
     distanceMatches->transferMemoryTo(ssrlcv::cpu);
     float maxDist = 0.0f;
-    for(int i = 0; i < distanceMatches->numElements; ++i){
+    for(int i = 0; i < distanceMatches->size(); ++i){
       if(maxDist < distanceMatches->host[i].distance) maxDist = distanceMatches->host[i].distance;
     }
     printf("max euclidean distance between features = %f\n",maxDist);
@@ -78,15 +78,15 @@ int main(int argc, char *argv[]){
     // Need to fill into to MatchSet boi
     std::cout << "Generating MatchSet ..." << std::endl;
     ssrlcv::MatchSet matchSet;
-    matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->numElements*2,ssrlcv::cpu);
-    matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->numElements,ssrlcv::cpu);
+    matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->size()*2,ssrlcv::cpu);
+    matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->size(),ssrlcv::cpu);
     matches->setMemoryState(ssrlcv::cpu);
-    for(int i = 0; i < matchSet.matches->numElements; i++){
+    for(int i = 0; i < matchSet.matches->size(); i++){
       matchSet.keyPoints->host[i*2] = matches->host[i].keyPoints[0];
       matchSet.keyPoints->host[i*2 + 1] = matches->host[i].keyPoints[1];
       matchSet.matches->host[i] = {2,i*2};
     }
-    std::cout << "Generated MatchSet ..." << std::endl << "Total Matches: " << matches->numElements << std::endl << std::endl;
+    std::cout << "Generated MatchSet ..." << std::endl << "Total Matches: " << matches->size() << std::endl << std::endl;
 
 
     /*

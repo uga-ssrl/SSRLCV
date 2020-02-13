@@ -77,7 +77,6 @@ inline void __cudaCheckError(const char *file, const int line) {
 /**
 * \}
 */
-
 namespace ssrlcv{
   /**
   * \defgroup unity
@@ -117,7 +116,7 @@ namespace ssrlcv{
         case unified:
           return "unified (currently unsupported)";
         default:
-          std::cerr<<"ERROR: unknown MemoryState when calling memoryStateToString()"<<std::endl;
+          std::clog<<"ERROR: unknown MemoryState when calling memoryStateToString()"<<std::endl;
           exit(-1);
       }
     }
@@ -194,12 +193,13 @@ namespace ssrlcv{
     * \note Users do not need to pay attention to this when state != both
     */
     MemoryState fore;
-  
+
+    unsigned long numElements;///< \brief number of elements in *device or *host
+
   public:
     
     T* device;///< \brief pointer to device memory (gpu)
     T* host;///< \brief pointer to host memory (cpu)
-    unsigned long numElements;///< \brief number of elements in *device or *host
 
     /**
     * \brief Default contructor 
@@ -229,10 +229,35 @@ namespace ssrlcv{
     */
     ~Unity();
     /**
-    * \brief This method will clear memory in a specified location.
+    * \brief Get the number of elements in the unity
+    * \details Used so that users cannot alter numElements and cause
+    * memory access issues.
+    */
+    unsigned long size();
+    /**
+    * \brief Resize Unity and keep data under specified index.
+    * \details This method will remove data that is positioned after past the number 
+    * of elements specified for resize. This will keep this->fore and this->state the same.
+    * \param resizeLength - numElements to keep
+    */
+    void resize(unsigned long resizeLength);
+    /**
+    * \brief Clear memory in a specified location.
+    * \details This method deletes memory in a specific location. Default argument is 
+    * both, which would effectively delete the contents of Unity and set this->numElments to 0.
     * \param state - location to clear (default = clearing both this->device and this->host)
     */
     void clear(MemoryState state = both);
+    /**
+    * \brief Convert elements in a specific location to T().
+    * \details This method will call the default constructor of T() for data 
+    * in a specific location. Default argument is both which would do so for both cpu and 
+    * gpu.
+    * \param state - location to zero out (default = zero out both this->device and this->host)
+    * \warning if this->state == both and location to be zero'd out is not also both, zero'd out location 
+    * becomes this->fore
+    */
+    void zeroOut(MemoryState state = both);
     /**
     * \brief Get current MemoryState.
     * \details This method should be used within user functions to ensure that data 
@@ -263,8 +288,7 @@ namespace ssrlcv{
     * transfer and utility functions will handle recently updated memory properly.
     * \param state MemoryState of recently updated data
     * \warning If this is not set properly, there is a risk of recent changes to data 
-    * in device or host being overwritten when using Unity memory transfers or state 
-    * changes
+    * in device or host transferMemoryTo or setMemoryTo;
     */
     void setFore(MemoryState state);
     /**
@@ -278,7 +302,7 @@ namespace ssrlcv{
     */
     void transferMemoryTo(MemoryState state);
     /**
-    * \brief Method to effectively reset Unity based on input data.
+    * \brief Reset Unity based on input data.
     * \details This method will erase all data in Unity and replace it with 
     * data provided to this method. This does the same as the primary constructor. 
     * \param data - must be of previous type (can use nullptr for blank array of length numElements)
@@ -287,9 +311,11 @@ namespace ssrlcv{
     */
     void setData(T* data, unsigned long numElements, MemoryState state);
     /**
-    * \brief This method will return a copy of this Unity<T>* with a specified memory state.
+    * \brief Return a copy of this Unity<T>* with a specified memory state.
     * \details This method will return a copy of this Unity with a new or the same 
-    * memory location. Due to this returning a Unity, destination can be both. 
+    * memory location. Due to this returning a Unity, destination can be both. This 
+    * will leave the current Unity untouches as in this->fore and this->state remain 
+    * the same and the copied Unity will have this->fore and this->state = destination.
     * \param destination - location of copied data (host,device,both)
     * \returns copy of data located in this
     */
@@ -317,91 +343,105 @@ namespace ssrlcv{
     if(copy == nullptr || copy->state == null){
       throw NullUnityException("attempt to use Unity<T> copy constructor with a null unity");
     }
-    if(this->state != cpu && this->state != gpu && this->state != both){
+    if(this->state <= 3){
+      this = copy->copy(copy->state);
+    }
+    else{
       throw IllegalUnityTransition("attempt to use Unity<T> copy constructor with unsupported memory state (supported states = both, cpu & gpu");
-    }
-    this->state = copy->state;
-    this->fore = copy->fore;
-    this->numElements = copy->numElements;
-    this->host = nullptr;
-    this->device = nullptr;
-    if(this->state == cpu || this->state == both){
-      this->host = new T[this->numElements];
-      std::memcpy(this->host,copy->host,this->numElements*sizeof(T));
-    }
-    if(this->state == gpu || this->state == both){
-      CudaSafeCall(cudaMalloc((void**)&this->device,this->numElements*sizeof(T)));
-      CudaSafeCall(cudaMemcpy(this->device,copy->device,this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
     }
   }
   template<typename T>
   Unity<T>::~Unity(){
     this->clear();
   }
-
+  template<typename T>
+  unsigned long Unity<T>::size(){
+    return this->numElements;
+  }
+  template<typename T> 
+  void Unity<T>::resize(unsigned long resizeLength){
+    if(this->state == null){
+      throw NullUnityException("cannot resize and empty Unity");
+    }
+    else if(this->numElements <= resizeLength || resizeLength == 0U){
+      throw IllegalUnityTransition("in Unity<T>::resize resizeLength must be > 0 and < this->numElements");
+    }
+    else if(this->state <= 3){
+      if(this->state == cpu || this->state == both){
+        T* replacement = new T[resizeLength]();
+        std::memcpy(replacement,this->host,resizeLength*sizeof(T));
+        delete[] this->host;
+        this->host = replacement;
+      }
+      if(this->state == gpu || this->state == both){
+        T* replacement  = nullptr;
+        CudaSafeCall(cudaMalloc((void**)&replacement,resizeLength*sizeof(T)));
+        CudaSafeCall(cudaMemcpy(replacement,this->device,resizeLength*sizeof(T),cudaMemcpyDeviceToDevice));
+        CudaSafeCall(cudaFree(this->device));
+        this->device = replacement;
+      }
+    }
+    else{
+      std::string error = "please implement resize for newly supported MemoryState = ";
+      error += memoryStateToString(this->state);
+      throw UnityException(error);
+    }
+  }
   template<typename T>
   void Unity<T>::clear(MemoryState state){
     if(state == null){
-      std::cerr<<"WARNING: Unity<T>::clear(ssrlcv::null) does nothing"<<std::endl;
+      std::clog<<"WARNING: Unity<T>::clear(ssrlcv::null) does nothing"<<std::endl;
       return;
     }
     else if(state != both && this->state != both && this->state != state){
-      std::cerr<<"WARNING: Attempt to clear null memory in location "
+      std::clog<<"WARNING: Attempt to clear null memory in location "
       <<memoryStateToString(state)<<"...action prevented"<<std::endl;
       return;
     }
-    switch(this->state){
-      case null:
-        std::cerr<<"WARNING: Attempt to clear null (empty) Unity...action prevented"<<std::endl;
-        return;
-      case cpu:
-        if(this->host != nullptr){
-          delete[] this->host;
-          this->host = nullptr;
-          this->state = null;
-          this->fore = null;
-        }
-        return;
-      case gpu:
-        if(this->device != nullptr){
-          CudaSafeCall(cudaFree(this->device));
-          this->device = nullptr;
-          this->state = null;
-          this->fore = null;
-        }
-        return;
-      case both:
-        if(state != both){
-          if(state == cpu && this->host != nullptr){
-            delete[] this->host;
-            this->host = nullptr;
-            this->state = gpu;
-            this->fore = gpu;
-          }
-          else if(state == gpu && this->device != nullptr){
-            CudaSafeCall(cudaFree(this->device));
-            this->device = nullptr;
-            this->state = cpu;
-            this->fore = cpu;
-          }
-          return;
-        }
-        else{
-          if(this->host != nullptr){
-            delete[] this->host;
-            this->host = nullptr;
-          }
-          if(this->device != nullptr){
-            CudaSafeCall(cudaFree(this->device));
-            this->device = nullptr;
-          }
-          this->numElements = 0;
-          this->state = null;
-          this->fore = null;
-        }
-        return;
-      default:
-        throw IllegalUnityTransition("unknown memory state in clear() (supported states = both, cpu & gpu)");
+    else if(this->state == null){
+      std::clog<<"WARNING: Attempt to clear null (empty) Unity...action prevented"<<std::endl;
+      return;
+    }
+    else if(this->state <= 3){//currently supported types
+      if(state == cpu || (state == both && this->host != nullptr)){
+        delete[] this->host;
+        this->host = nullptr;
+      }
+      if(state == gpu || (state == both && this->device != nullptr)){
+        CudaSafeCall(cudaFree(this->device));
+        this->device = nullptr;
+      }
+      this->fore = (state == both) ? null : (state == cpu) ? gpu : cpu;
+      this->state = (state == both) ? null : (state == cpu) ? gpu : cpu;
+    }
+    else{
+      throw IllegalUnityTransition("unknown memory state in clear() (supported states = both, cpu & gpu)");
+    }
+  }
+  template<typename T>
+  void Unity<T>::zeroOut(MemoryState state){
+    if(state == null){
+      throw NullUnityException("cannot zero out an empty unity with state null");
+    }
+    else if (state != both && state != this->state){
+      std::string error = "cannot zero out ";
+      error += (this->state == cpu) ? "device because state == cpu" : "this->host because state == gpu";
+      throw IllegalUnityTransition(error);
+    }
+    else{
+      if(state == cpu || (state == both && this->host != nullptr)){
+        delete[] this->host;
+        this->host = new T[this->numElements]();
+      }
+      if(state == gpu || (state == both && this->device != nullptr)){
+        T* zerod = (state == both && this->host != nullptr) ? this->host : new T[this->numElements]();
+        CudaSafeCall(cudaMemcpy(this->device,zerod,this->numElements*sizeof(T),cudaMemcpyHostToDevice));
+        if(state != both || this->host == nullptr) delete[] zerod;
+      }
+      if(this->state == both && state != both){
+        std::clog<<"WARNING: zero'd out memory location becoming fore, if this is not desired use Unity<T>::setFore(MemoryState state) after this call: "
+        <<"\n\tthis->state = both zero'd out location = "<<memoryStateToString(state)<<" = this->fore"<<std::endl;
+      }
     }
   }
   template<typename T>
@@ -411,7 +451,7 @@ namespace ssrlcv{
   template<typename T>
   void Unity<T>::setMemoryState(MemoryState state){
     if(state == this->state){
-      std::cerr<<"WARNING: hard setting of memory state to same memory state does nothing: "<<memoryStateToString(this->state)<<std::endl;
+      std::clog<<"WARNING: hard setting of memory state to same memory state does nothing: "<<memoryStateToString(this->state)<<std::endl;
       return;
     }
     else if(this->state == null){
@@ -430,36 +470,46 @@ namespace ssrlcv{
   }
   template<typename T>
   void Unity<T>::setData(T* data, unsigned long numElements, MemoryState state){
-    if(this->state != null) this->clear();
-    this->numElements = numElements;
-    if(numElements == 0){
+    if(state == null){
+      throw NullUnityException("cannot use null as state of T* data in Unity<T>::setData");
+    }
+    else if(numElements == 0){
       throw IllegalUnityTransition("cannot fill Unity with T* data, numElements = 0");
     }
-    else if(data == nullptr){
-      if(state == cpu || state == gpu){
-        this->host = new T[numElements]();
-        this->state = cpu;
-        this->fore = cpu;
-        if(state == gpu){
-          this->setMemoryState(gpu);//filled with default instantiated values from host 
-        }
-      }
-      else if(state == null || state > 3){//greater than three means pinned or unified
+    else if(data != nullptr && (data == this->host || data == this->device)){
+      throw UnityException("cannot use Unity<T>::setData where T* data is this->host or this->device");
+    }
+    if(this->state != null) this->clear();
+    this->numElements = numElements;
+    if(data == nullptr){
+      if(state == null || state > 3){//greater than three means pinned or unified
         throw IllegalUnityTransition("attempt to instantiate unkown MemoryState fron nullptr (supported states = both, cpu & gpu)");
       }
+      if(state == cpu || state == both){
+        this->host = new T[numElements]();
+      }
+      if(state == gpu || state == both){
+        CudaSafeCall(cudaMalloc((void**)&this->device,this->numElements*sizeof(T)));
+        this->zeroOut(gpu);
+      }
     }
-    else{
+    else if(state <= 2){
       if(state == cpu) this->host = data;
       else if(state == gpu) this->device = data;
-      else if(state == both){
-        throw IllegalUnityTransition("attempt to set data with location 'both' so input location cannot be determined");
+    }
+    else{
+      if(state == both){
+        throw IllegalUnityTransition("cannot use both as state of T* data, not enough information to use data pointer");
       }
       else{
-        throw IllegalUnityTransition("caught in Unity<T>::setData");
+        std::string error = "currently no support for Unity<T>::setData with T* data at MemoryState = ";
+        error += memoryStateToString(state);
+        throw IllegalUnityTransition(error);
       }
     }
-    this->state = state;//for insurance
-    this->fore = state;//for insurance
+    
+    this->state = state;
+    this->fore = state;
   }
   template<typename T> 
   MemoryState Unity<T>::getFore(){
@@ -471,7 +521,7 @@ namespace ssrlcv{
       throw NullUnityException("attempt to Unity<T>::setFore(MemoryState state) when this->state == null");
     }
     if(this->fore == state){
-      std::cerr<<"WARNING: Unity<T>::setFore(MemoryState state) when state == this->fore does nothing"<<std::endl;
+      std::clog<<"WARNING: Unity<T>::setFore(MemoryState state) when state == this->fore does nothing"<<std::endl;
       return;
     }
     if(this->state != both && this->state != state){
@@ -492,104 +542,66 @@ namespace ssrlcv{
     else if(state == null){
       throw IllegalUnityTransition("Cannot transfer unity memory to null");
     }
-    else if(this->state == state){
-      std::cerr<<"WARNING: transfering memory to same location does nothing: "<<memoryStateToString(state)<<std::endl;
-      return;
-    }
-    else if(state == both){
-      if(this->fore == cpu){
-        if(this->device == nullptr){
-          CudaSafeCall(cudaMalloc((void**)&this->device, sizeof(T)*this->numElements));
-        }
-        CudaSafeCall(cudaMemcpy(this->device,this->host, sizeof(T)*this->numElements, cudaMemcpyHostToDevice));
-      }
-      else if(this->fore == gpu){
-        if(this->host == nullptr){
-          this->host = new T[this->numElements];
-        }
-        CudaSafeCall(cudaMemcpy(this->host, this->device, sizeof(T)*this->numElements, cudaMemcpyDeviceToHost));
-      }
-    }
-    else{
+    if(state <= 3){
       if(this->fore == state){
-        std::cerr<<"WARNING: most updated memory location is being overwritten: "<<
-        "fore = "<<memoryStateToString(this->fore)<<std::endl;
-      }
-      if(state == gpu){
-        if(this->device == nullptr){
-          CudaSafeCall(cudaMalloc((void**)&this->device, sizeof(T)*this->numElements));
-        }
-        CudaSafeCall(cudaMemcpy(this->device, this->host, sizeof(T)*this->numElements, cudaMemcpyHostToDevice));
-      }
-      else if(state == cpu){
-        if(this->host == nullptr){
-          this->host = new T[this->numElements];
-        }
-        CudaSafeCall(cudaMemcpy(this->host, this->device, sizeof(T)*this->numElements, cudaMemcpyDeviceToHost));
+        std::clog<<"WARNING: transfering memory to location of fore does nothing: "<<memoryStateToString(state)<<std::endl;
+        return;
       }
       else{
-        throw IllegalUnityTransition("unknown memory state in transferMemoryTo() (supported states = both, cpu & gpu)");
-      }
+        if(this->state != both){
+          if(this->state == cpu && this->device == nullptr){
+            CudaSafeCall(cudaMalloc((void**)&this->device,this->numElements*sizeof(T)));
+          }
+          else if(this->state == gpu && this->host == nullptr){
+            this->host = new T[this->numElements]();
+          }
+          this->state = both;
+        }
+        if(this->fore == cpu){
+          CudaSafeCall(cudaMemcpy(this->device,this->host,this->numElements*sizeof(T),cudaMemcpyHostToDevice));
+        }
+        else if(this->fore == gpu){
+          CudaSafeCall(cudaMemcpy(this->host,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToHost));
+        }
+      } 
+      this->fore = both;
     }
-    this->state = both;
-    this->fore = both;
+    else{
+      throw IllegalUnityTransition("unsupported memory destination in Unity<T>::transferMemoryTo (supported states = both, cpu & gpu)");
+    }
   }
   template<typename T> 
   Unity<T>* Unity<T>::copy(MemoryState destination){
+    Unity<T>* copied = nullptr;
     if(destination == null){
       throw NullUnityException("cannot use null as destination for Unity<T>::copy()");
     }
-    else if(destination != gpu && destination != cpu && destination != both){
+    else if(destination <= 3){//this would be unsupported currently 
+      copied = new Unity<T>(nullptr,this->numElements,destination);
+      if(this->fore == both || this->fore == destination){
+        if(destination == cpu || destination == both){
+          std::memcpy(copied->host,this->host,this->numElements*sizeof(T));
+        }
+        if(destination == gpu || destination == both){
+          CudaSafeCall(cudaMemcpy(copied->device,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
+        } 
+      }
+      else{
+        if(this->fore == cpu){//cpu to gpu
+          CudaSafeCall(cudaMemcpy(copied->device,this->host,this->numElements*sizeof(T),cudaMemcpyHostToDevice));
+          copied->setFore(cpu);
+        }
+        else if(this->fore == gpu){//gpu to cpu
+          CudaSafeCall(cudaMemcpy(copied->host,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToHost));
+          copied->setFore(gpu);
+        }
+        if(destination == both) copied->transferMemoryTo(both);
+      }    
+    }
+    else{
       throw IllegalUnityTransition("unsupported memory destination in Unity<T>::copy (supported states = both, cpu & gpu)");
     }
-    Unity<T>* copied = nullptr;
-    if(destination != both){
-      copied = new Unity<T>(nullptr,this->numElements,destination);
-    }
-    if(this->state == destination){
-      if(destination == both && this->fore != both){
-        this->transferMemoryTo(both);
-        copied = new Unity<T>(nullptr,this->numElements,cpu);
-      }
-      if(destination == cpu || destination == both){
-        std::memcpy(copied->host,this->host,this->numElements*sizeof(T));
-      }
-      if(destination == both) copied->transferMemoryTo(gpu);
-      else{//then gpu
-        CudaSafeCall(cudaMemcpy(copied->device,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
-      }
-    }/**
-* \defgroup unity
-* \{
-*/
-
-    else{
-      if(this->state == both){
-        if(this->fore != both) this->transferMemoryTo(both);
-        if(destination == cpu){
-          std::memcpy(copied->host,this->host,this->numElements*sizeof(T));
-        }
-        else{
-          CudaSafeCall(cudaMemcpy(copied->device,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
-        }
-      }
-      else if(destination == both){
-        if(this->state == cpu){//then cpu to cpu
-          std::memcpy(copied->host,this->host,this->numElements*sizeof(T));
-          copied->transferMemoryTo(gpu);
-        }
-        else{//then gpu to gpu
-          CudaSafeCall(cudaMemcpy(copied->device,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
-          copied->transferMemoryTo(cpu);
-        }
-      }
-      else if(destination == cpu){//gpu to cpu
-        CudaSafeCall(cudaMemcpy(copied->host,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToHost));
-      }
-      else{//then cpu to gpu
-        CudaSafeCall(cudaMemcpy(copied->device,this->host,this->numElements*sizeof(T),cudaMemcpyHostToDevice));
-      }
-    }    
+    return copied;
   }
   /**
   * \}

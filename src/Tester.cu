@@ -28,14 +28,14 @@ std::vector<float4> checkEquivanlenceSIFT(std::vector<ssrlcv::Image*> images, st
     rotated_image = images[i];
     rotated_features = features[i];
     if(rotated_features->getMemoryState() != ssrlcv::cpu) rotated_features->setMemoryState(ssrlcv::cpu);
-    if(rotated_features->numElements != base_features->numElements){
+    if(rotated_features->size() != base_features->size()){
       std::cerr<<"ERROR: not the same number of features"<<std::endl;
       exit(-1);
     }
     float2 size = {(float)base->size.x/2.0f,(float)base->size.y/2.0f};
     int index = 0;
     float rotationError = 0.0f;
-    for(int f = 0; f < base_features->numElements; ++f){
+    for(int f = 0; f < base_features->size(); ++f){
       base_feature = &base_features->host[f];
       coord = base_feature->loc;
       coord = coord - size;
@@ -47,7 +47,7 @@ std::vector<float4> checkEquivanlenceSIFT(std::vector<ssrlcv::Image*> images, st
       newCoord.x -= 1;
       coord = coord + size;
       index = (newCoord.y-12)*(rotated_image->size.x-24) + newCoord.x - 12;
-      if(index >= rotated_features->numElements){
+      if(index >= rotated_features->size()){
         std::cerr<<"ERROR: rotation incorrect"<<std::endl;
         exit(-1);
       }
@@ -77,8 +77,8 @@ std::vector<float4> checkEquivanlenceSIFT(std::vector<ssrlcv::Image*> images, st
     }
   }
   printf("|rotation error = %f%|min distance = %f|max dist = %f|perfect matches = %f%|\n",
-    (float)thetasIncorrect*100.0f/base_features->numElements,
-    minMax.x,minMax.y,(float)perfectMatches*100.0f/base_features->numElements
+    (float)thetasIncorrect*100.0f/base_features->size(),
+    minMax.x,minMax.y,(float)perfectMatches*100.0f/base_features->size()
   );
   return correctness;
 }
@@ -138,7 +138,7 @@ int main(int argc, char *argv[]){
 
       distanceMatches->transferMemoryTo(ssrlcv::cpu);
       float maxDist = 0.0f;
-      for(int i = 0; i < distanceMatches->numElements; ++i){
+      for(int i = 0; i < distanceMatches->size(); ++i){
         if(maxDist < distanceMatches->host[i].distance) maxDist = distanceMatches->host[i].distance;
       }
       printf("max euclidean distance between features = %f\n",maxDist);
@@ -162,7 +162,7 @@ int main(int argc, char *argv[]){
       ssrlcv::MatchSet multiviewMatches = matchFactory.generateMatchesExaustive(images,allFeatures);
       if(multiviewMatches.matches->getMemoryState() != ssrlcv::cpu) multiviewMatches.matches->setMemoryState(ssrlcv::cpu);
       if(multiviewMatches.keyPoints->getMemoryState() != ssrlcv::cpu) multiviewMatches.keyPoints->setMemoryState(ssrlcv::cpu);
-      // for(int i = 0; i < multiviewMatches.matches->numElements; ++i){
+      // for(int i = 0; i < multiviewMatches.matches->size(); ++i){
       //   for(int j = multiviewMatches.matches->host[i].index; j < multiviewMatches.matches->host[i].numKeyPoints + multiviewMatches.matches->host[i].index; ++j){
       //     printf("{%u,{%f,%f}} ",multiviewMatches.keyPoints->host[j].parentId,multiviewMatches.keyPoints->host[j].loc.x,multiviewMatches.keyPoints->host[j].loc.y);
       //   }

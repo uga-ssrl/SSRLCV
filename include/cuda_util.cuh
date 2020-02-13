@@ -184,7 +184,7 @@ void sort(ssrlcv::Unity<T>* array){
   ssrlcv::MemoryState fore = array->getFore();
   if(origin == ssrlcv::cpu || fore == ssrlcv::cpu) array->transferMemoryTo(ssrlcv::gpu);
   thrust::device_ptr<T> array_ptr(array->device);
-  thrust::device_ptr<T> new_end = thrust::sort(array_ptr,array_ptr+array->numElements);
+  thrust::device_ptr<T> new_end = thrust::sort(array_ptr,array_ptr+array->size());
   CudaCheckError();
   array->setFore(ssrlcv::gpu);
   if(origin != ssrlcv::gpu) array->setMemoryState(origin);
@@ -203,7 +203,7 @@ void sort(ssrlcv::Unity<T>* array, bool (*compare)(const T&,const T&)){
   ssrlcv::MemoryState fore = array->getFore();
   if(origin == ssrlcv::cpu || fore == ssrlcv::cpu) array->transferMemoryTo(ssrlcv::gpu);
   thrust::device_ptr<T> array_ptr(array->device);
-  thrust::device_ptr<T> new_end = thrust::sort(array_ptr,array_ptr+array->numElements,compare);
+  thrust::device_ptr<T> new_end = thrust::sort(array_ptr,array_ptr+array->size(),compare);
   CudaCheckError();
   array->setFore(ssrlcv::gpu);
   if(origin != ssrlcv::gpu) array->setMemoryState(origin);
@@ -228,7 +228,7 @@ void remove(ssrlcv::Unity<T>* array, bool (*validate)(const T&)){
   ssrlcv::MemoryState fore = array->getFore();
   if(origin == ssrlcv::cpu || fore == ssrlcv::cpu) array->transferMemoryTo(ssrlcv::gpu);
   thrust::device_ptr<T> array_ptr(array->device);
-  thrust::device_ptr<T> new_end = thrust::remove_if(array_ptr,array_ptr+array->numElements,validate);
+  thrust::device_ptr<T> new_end = thrust::remove_if(array_ptr,array_ptr+array->size(),validate);
   CudaCheckError();
   unsigned long numElements = new_end - array_ptr;
   if(numElements == 0){
@@ -236,7 +236,7 @@ void remove(ssrlcv::Unity<T>* array, bool (*validate)(const T&)){
     delete array;
     return;
   }
-  else if(numElements != array->numElements){
+  else if(numElements != array->size()){
     T* array_device = nullptr;
     CudaSafeCall(cudaMalloc((void**)&array_device,numElements));
     CudaSafeCall(cudaMemcpy(array_device,array->device,numElements*sizeof(T),cudaMemcpyDeviceToDevice));

@@ -94,7 +94,7 @@ int main(int argc, char *argv[]){
 
     distanceMatches->transferMemoryTo(ssrlcv::cpu);
     float maxDist = 0.0f;
-    for(int i = 0; i < distanceMatches->numElements; ++i){
+    for(int i = 0; i < distanceMatches->size(); ++i){
       if(maxDist < distanceMatches->host[i].distance) maxDist = distanceMatches->host[i].distance;
     }
     printf("%f\n",maxDist);

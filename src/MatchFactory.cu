@@ -30,7 +30,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<uint2_pair>* matches
   if(origin != gpu) matches->setMemoryState(gpu);
   
   thrust::device_ptr<uint2_pair> needsValidating(matches->device);
-  thrust::device_ptr<uint2_pair> new_end = thrust::remove_if(needsValidating,needsValidating+matches->numElements,validate());
+  thrust::device_ptr<uint2_pair> new_end = thrust::remove_if(needsValidating,needsValidating+matches->size(),validate());
   cudaDeviceSynchronize();
   CudaCheckError();
   int numMatchesLeft = new_end - needsValidating;
@@ -42,7 +42,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<uint2_pair>* matches
   }
   
 
-  printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->numElements);
+  printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
 
   uint2_pair* validatedMatches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(uint2_pair)));
@@ -58,7 +58,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::Match>* matc
   if(origin != gpu) matches->setMemoryState(gpu);
   
   thrust::device_ptr<Match> needsValidating(matches->device);
-  thrust::device_ptr<Match> new_end = thrust::remove_if(needsValidating,needsValidating+matches->numElements,validate());
+  thrust::device_ptr<Match> new_end = thrust::remove_if(needsValidating,needsValidating+matches->size(),validate());
   cudaDeviceSynchronize();
   CudaCheckError();
   int numMatchesLeft = new_end - needsValidating;
@@ -70,7 +70,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::Match>* matc
   }
   
 
-  printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->numElements);
+  printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
 
   Match* validatedMatches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(Match)));
@@ -87,7 +87,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::DMatch>* mat
   
 
   thrust::device_ptr<DMatch> needsValidating(matches->device);
-  thrust::device_ptr<DMatch> new_end = thrust::remove_if(needsValidating,needsValidating+matches->numElements,validate());
+  thrust::device_ptr<DMatch> new_end = thrust::remove_if(needsValidating,needsValidating+matches->size(),validate());
   cudaDeviceSynchronize();
   CudaCheckError();
   int numMatchesLeft = new_end - needsValidating;
@@ -99,7 +99,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::DMatch>* mat
   }
   
 
-  printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->numElements);
+  printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
 
   DMatch* validatedMatches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(DMatch)));
@@ -116,7 +116,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::FeatureMatch
 
 
   thrust::device_ptr<FeatureMatch<T>> needsValidating(matches->device);
-  thrust::device_ptr<FeatureMatch<T>> new_end = thrust::remove_if(needsValidating,needsValidating+matches->numElements,validate());
+  thrust::device_ptr<FeatureMatch<T>> new_end = thrust::remove_if(needsValidating,needsValidating+matches->size(),validate());
   cudaDeviceSynchronize();
   CudaCheckError();
   int numMatchesLeft = new_end - needsValidating;
@@ -128,7 +128,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::FeatureMatch
   }
   
 
-  printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->numElements);
+  printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
 
   FeatureMatch<T>* validatedMatches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(FeatureMatch<T>)));
@@ -150,7 +150,7 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::DMatch>* match
 
 
   thrust::device_ptr<DMatch> needsCompacting(matches->device);
-  thrust::device_ptr<DMatch> end = thrust::remove_if(needsCompacting, needsCompacting + matches->numElements, match_dist_thresholder(threshold));
+  thrust::device_ptr<DMatch> end = thrust::remove_if(needsCompacting, needsCompacting + matches->size(), match_dist_thresholder(threshold));
   unsigned int numElementsBelowThreshold = end - needsCompacting;
   if(numElementsBelowThreshold == 0){
     delete matches;
@@ -158,7 +158,7 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::DMatch>* match
     return;
   }
 
-  printf("%lu matches have been refined to %u matches using a cutoff of %f\n",matches->numElements,numElementsBelowThreshold,threshold);
+  printf("%lu matches have been refined to %u matches using a cutoff of %f\n",matches->size(),numElementsBelowThreshold,threshold);
 
   DMatch* compactedMatches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&compactedMatches_device,numElementsBelowThreshold*sizeof(DMatch)));
@@ -178,7 +178,7 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T
   if(origin != gpu) matches->setMemoryState(gpu);
 
   thrust::device_ptr<FeatureMatch<T>> needsCompacting(matches->device);
-  thrust::device_ptr<FeatureMatch<T>> end = thrust::remove_if(needsCompacting, needsCompacting + matches->numElements, match_dist_thresholder(threshold));
+  thrust::device_ptr<FeatureMatch<T>> end = thrust::remove_if(needsCompacting, needsCompacting + matches->size(), match_dist_thresholder(threshold));
   unsigned int numElementsBelowThreshold = end - needsCompacting;
   if(numElementsBelowThreshold == 0){
     delete matches;
@@ -186,7 +186,7 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T
     return;
   }
 
-  printf("%lu matches have been refined to %u matches using a cutoff of %f\n",matches->numElements,numElementsBelowThreshold,threshold);
+  printf("%lu matches have been refined to %u matches using a cutoff of %f\n",matches->size(),numElementsBelowThreshold,threshold);
 
   FeatureMatch<T>* compactedMatches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&compactedMatches_device,numElementsBelowThreshold*sizeof(FeatureMatch<T>)));
@@ -200,12 +200,12 @@ template<typename T>
 void ssrlcv::MatchFactory<T>::sortMatches(Unity<DMatch>* matches){
   if(matches->getFore() == gpu || matches->getFore() == both){
     thrust::device_ptr<DMatch> toSort(matches->device);
-    thrust::sort(toSort, toSort + matches->numElements,match_dist_comparator());
+    thrust::sort(toSort, toSort + matches->size(),match_dist_comparator());
     matches->setFore(gpu);
     if(matches->getMemoryState() == both) matches->transferMemoryTo(cpu);
   }
   else if(matches->getFore() == cpu){
-    unsigned long len = matches->numElements;
+    unsigned long len = matches->size();
     // insertion sort
     // each match element is accessed with allMatches->host[]
     unsigned long i = 0;
@@ -232,12 +232,12 @@ template<typename T>
 void ssrlcv::MatchFactory<T>::sortMatches(Unity<FeatureMatch<T>>* matches){
   if(matches->getFore() == gpu || matches->getFore() == both){
     thrust::device_ptr<FeatureMatch<T>> toSort(matches->device);
-    thrust::sort(toSort, toSort + matches->numElements,match_dist_comparator());
+    thrust::sort(toSort, toSort + matches->size(),match_dist_comparator());
     matches->setFore(gpu);
     if(matches->getMemoryState() == both) matches->transferMemoryTo(cpu);
   }
   else if(matches->getFore() == cpu){
-    unsigned long len = matches->numElements;
+    unsigned long len = matches->size();
     // insertion sort
     // each match element is accessed with allMatches->host[]
     unsigned long i = 0;
@@ -265,48 +265,48 @@ template<typename T>
 ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::getRawMatches(Unity<DMatch>* matches){
   if(matches->getMemoryState() == gpu || matches->getFore() == gpu){
     Match* rawMatches_device = nullptr;
-    CudaSafeCall(cudaMalloc((void**)&rawMatches_device, matches->numElements*sizeof(Match)));
+    CudaSafeCall(cudaMalloc((void**)&rawMatches_device, matches->size()*sizeof(Match)));
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     void (*fp)(unsigned long, Match*, DMatch*) = &convertMatchToRaw;
-    getFlatGridBlock(matches->numElements,grid,block,fp);
-    convertMatchToRaw<<<grid,block>>>(matches->numElements,rawMatches_device,matches->device);
+    getFlatGridBlock(matches->size(),grid,block,fp);
+    convertMatchToRaw<<<grid,block>>>(matches->size(),rawMatches_device,matches->device);
     cudaDeviceSynchronize();
     CudaCheckError();
-    return new Unity<Match>(rawMatches_device,matches->numElements,gpu);
+    return new Unity<Match>(rawMatches_device,matches->size(),gpu);
   }
   else{
-    Match* rawMatches_host = new Match[matches->numElements];
-    for(int i = 0; i < matches->numElements; ++i){
+    Match* rawMatches_host = new Match[matches->size()];
+    for(int i = 0; i < matches->size(); ++i){
       for(int f = 0; f < 2; ++f){
         rawMatches_host[i] = Match(matches->host[i]);
       }
     }
-    return new Unity<Match>(rawMatches_host, matches->numElements, cpu);
+    return new Unity<Match>(rawMatches_host, matches->size(), cpu);
   }
 }
 template<typename T>
 ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::getRawMatches(Unity<FeatureMatch<T>>* matches){
   if(matches->getMemoryState() == gpu || matches->getFore() == gpu){
     Match* rawMatches_device = nullptr;
-    CudaSafeCall(cudaMalloc((void**)&rawMatches_device, matches->numElements*sizeof(Match)));
+    CudaSafeCall(cudaMalloc((void**)&rawMatches_device, matches->size()*sizeof(Match)));
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     void (*fp)(unsigned long, Match*, FeatureMatch<T>*) = &convertMatchToRaw;
-    getFlatGridBlock(matches->numElements,grid,block,fp);
-    convertMatchToRaw<T><<<grid,block>>>(matches->numElements,rawMatches_device,matches->device);
+    getFlatGridBlock(matches->size(),grid,block,fp);
+    convertMatchToRaw<T><<<grid,block>>>(matches->size(),rawMatches_device,matches->device);
     cudaDeviceSynchronize();
     CudaCheckError();
-    return new Unity<Match>(rawMatches_device,matches->numElements,gpu);
+    return new Unity<Match>(rawMatches_device,matches->size(),gpu);
   }
   else{
-    Match* rawMatches_host = new Match[matches->numElements];
-    for(int i = 0; i < matches->numElements; ++i){
+    Match* rawMatches_host = new Match[matches->size()];
+    for(int i = 0; i < matches->size(); ++i){
       for(int f = 0; f < 2; ++f){
         rawMatches_host[i] = Match(matches->host[i]);
       }
     }
-    return new Unity<Match>(rawMatches_host, matches->numElements, cpu);
+    return new Unity<Match>(rawMatches_host, matches->size(), cpu);
   }
 }
 
@@ -317,17 +317,17 @@ ssrlcv::Unity<float>* ssrlcv::MatchFactory<T>::getSeedDistances(Unity<Feature<T>
   if(this->seedFeatures->getMemoryState() != gpu) this->seedFeatures->setMemoryState(gpu);
   if(origin != gpu) features->setMemoryState(gpu);
 
-  unsigned int numPossibleMatches = features->numElements;
+  unsigned int numPossibleMatches = features->size();
 
   Unity<float>* matchDistances = new Unity<float>(nullptr, numPossibleMatches,gpu);
 
   dim3 grid = {1,1,1};
   dim3 block = {32,1,1};//IMPROVE
-  getGrid(matchDistances->numElements,grid);
+  getGrid(matchDistances->size(),grid);
 
   clock_t timer = clock();
 
-  getSeedMatchDistances<T><<<grid, block>>>(features->numElements,features->device,this->seedFeatures->numElements,
+  getSeedMatchDistances<T><<<grid, block>>>(features->size(),features->device,this->seedFeatures->size(),
     this->seedFeatures->device,matchDistances->device);
 
   cudaDeviceSynchronize();
@@ -347,7 +347,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatches(Image* qu
   if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
   if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
 
-  unsigned int numPossibleMatches = queryFeatures->numElements;
+  unsigned int numPossibleMatches = queryFeatures->size();
 
   Match* matches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(Match)));
@@ -355,23 +355,23 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatches(Image* qu
 
   dim3 grid = {1,1,1};
   dim3 block = {32,1,1};//IMPROVE
-  getGrid(matches->numElements,grid);
+  getGrid(matches->size(),grid);
 
   clock_t timer = clock();
 
   if(seedDistances == nullptr){
-    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device,this->absoluteThreshold);
+    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device,
+    target->id, targetFeatures->size(), targetFeatures->device, matches->device,this->absoluteThreshold);
   }
-  else if(seedDistances->numElements != queryFeatures->numElements){
+  else if(seedDistances->size() != queryFeatures->size()){
     std::cerr<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<std::endl;
     exit(-1);
   }
   else{
     MemoryState seedOrigin = seedDistances->getMemoryState();
     if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
-    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device,seedDistances->device,
+    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device,
+    target->id, targetFeatures->size(), targetFeatures->device, matches->device,seedDistances->device,
     this->relativeThreshold,this->absoluteThreshold);
     if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin);
   }
@@ -395,7 +395,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatchesConstraine
   if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
   if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
 
-  unsigned int numPossibleMatches = queryFeatures->numElements;
+  unsigned int numPossibleMatches = queryFeatures->size();
 
   Match* matches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(Match)));
@@ -404,7 +404,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatchesConstraine
 
   dim3 grid = {1,1,1};
   dim3 block = {32,1,1};//IMPROVE
-  getGrid(matches->numElements,grid);
+  getGrid(matches->size(),grid);
 
   float* fundamental_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&fundamental_device,9*sizeof(float)));
@@ -413,18 +413,18 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatchesConstraine
   clock_t timer = clock();
 
   if(seedDistances == nullptr){
-    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon,fundamental_device,this->absoluteThreshold);
+    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device,
+    target->id, targetFeatures->size(), targetFeatures->device, matches->device, epsilon,fundamental_device,this->absoluteThreshold);
   }
-  else if(seedDistances->numElements != queryFeatures->numElements){
+  else if(seedDistances->size() != queryFeatures->size()){
     std::cerr<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<std::endl;
     exit(-1);
   }
   else{
     MemoryState seedOrigin = seedDistances->getMemoryState();
     if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
-    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device,epsilon,fundamental_device,seedDistances->device,
+    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device,
+    target->id, targetFeatures->size(), targetFeatures->device, matches->device,epsilon,fundamental_device,seedDistances->device,
     this->relativeThreshold,this->absoluteThreshold);
     if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin);
   }
@@ -452,29 +452,29 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatches(
   if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
   if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
 
-  unsigned int numPossibleMatches = queryFeatures->numElements;
+  unsigned int numPossibleMatches = queryFeatures->size();
 
   Unity<DMatch>* matches = new Unity<DMatch>(nullptr, numPossibleMatches, gpu);
 
   dim3 grid = {1,1,1};
   dim3 block = {32,1,1};//IMPROVE
-  getGrid(matches->numElements,grid);
+  getGrid(matches->size(),grid);
 
   clock_t timer = clock();
 
   if(seedDistances == nullptr){
-    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device,this->absoluteThreshold);
+    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device,
+    target->id, targetFeatures->size(), targetFeatures->device, matches->device,this->absoluteThreshold);
   }
-  else if(seedDistances->numElements != queryFeatures->numElements){
+  else if(seedDistances->size() != queryFeatures->size()){
     std::cerr<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<std::endl;
     exit(-1);
   }
   else{
     MemoryState seedOrigin = seedDistances->getMemoryState();
     if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
-    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device,seedDistances->device,
+    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device,
+    target->id, targetFeatures->size(), targetFeatures->device, matches->device,seedDistances->device,
     this->relativeThreshold,this->absoluteThreshold);
     if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin);
   }
@@ -497,7 +497,7 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatchesC
   if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
   if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
 
-  unsigned int numPossibleMatches = queryFeatures->numElements;
+  unsigned int numPossibleMatches = queryFeatures->size();
 
   DMatch* matches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(DMatch)));
@@ -506,7 +506,7 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatchesC
 
   dim3 grid = {1,1,1};
   dim3 block = {32,1,1};//IMPROVE
-  getGrid(matches->numElements,grid);
+  getGrid(matches->size(),grid);
 
   float* fundamental_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&fundamental_device,9*sizeof(float)));
@@ -515,18 +515,18 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatchesC
   clock_t timer = clock();
 
   if(seedDistances == nullptr){
-    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device,this->absoluteThreshold);
+    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device,
+    target->id, targetFeatures->size(), targetFeatures->device, matches->device, epsilon, fundamental_device,this->absoluteThreshold);
   }
-  else if(seedDistances->numElements != queryFeatures->numElements){
+  else if(seedDistances->size() != queryFeatures->size()){
     std::cerr<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<std::endl;
     exit(-1);
   }
   else{
     MemoryState seedOrigin = seedDistances->getMemoryState();
     if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
-    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device,seedDistances->device,
+    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device,
+    target->id, targetFeatures->size(), targetFeatures->device, matches->device, epsilon, fundamental_device,seedDistances->device,
     this->relativeThreshold,this->absoluteThreshold);
     if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin);
   }
@@ -555,7 +555,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, Unity<
   if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
   if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
 
-  unsigned int numPossibleMatches = queryFeatures->numElements;
+  unsigned int numPossibleMatches = queryFeatures->size();
 
   FeatureMatch<T>* matches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(FeatureMatch<T>)));
@@ -564,23 +564,23 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, Unity<
 
   dim3 grid = {1,1,1};
   dim3 block = {32,1,1};//IMPROVE
-  getGrid(matches->numElements,grid);
+  getGrid(matches->size(),grid);
 
   clock_t timer = clock();
 
   if(seedDistances == nullptr){
-    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device,this->absoluteThreshold);
+    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device,
+    target->id, targetFeatures->size(), targetFeatures->device, matches->device,this->absoluteThreshold);
   }
-  else if(seedDistances->numElements != queryFeatures->numElements){
+  else if(seedDistances->size() != queryFeatures->size()){
     std::cerr<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<std::endl;
     exit(-1);
   }
   else{
     MemoryState seedOrigin = seedDistances->getMemoryState();
     if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
-    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device,seedDistances->device,
+    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device,
+    target->id, targetFeatures->size(), targetFeatures->device, matches->device,seedDistances->device,
     this->relativeThreshold,this->absoluteThreshold);
     if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin);
   }
@@ -601,7 +601,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
   if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
   if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
 
-  unsigned int numPossibleMatches = queryFeatures->numElements;
+  unsigned int numPossibleMatches = queryFeatures->size();
 
   FeatureMatch<T>* matches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(FeatureMatch<T>)));
@@ -610,7 +610,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
 
   dim3 grid = {1,1,1};
   dim3 block = {32,1,1};//IMPROVE
-  getGrid(matches->numElements,grid);
+  getGrid(matches->size(),grid);
 
   float* fundamental_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&fundamental_device,9*sizeof(float)));
@@ -619,18 +619,18 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
   clock_t timer = clock();
 
   if(seedDistances == nullptr){
-    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device,this->absoluteThreshold);
+    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device,
+    target->id, targetFeatures->size(), targetFeatures->device, matches->device, epsilon, fundamental_device,this->absoluteThreshold);
   }
-  else if(seedDistances->numElements != queryFeatures->numElements){
+  else if(seedDistances->size() != queryFeatures->size()){
     std::cerr<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<std::endl;
     exit(-1);
   }
   else{
     MemoryState seedOrigin = seedDistances->getMemoryState();
     if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
-    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon, fundamental_device,seedDistances->device,
+    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device,
+    target->id, targetFeatures->size(), targetFeatures->device, matches->device, epsilon, fundamental_device,seedDistances->device,
     this->relativeThreshold,this->absoluteThreshold);
     if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin);
   }
@@ -659,7 +659,7 @@ ssrlcv::Unity<ssrlcv::uint2_pair>* ssrlcv::MatchFactory<T>::generateMatchesIndex
   if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
   if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
 
-  unsigned int numPossibleMatches = queryFeatures->numElements;
+  unsigned int numPossibleMatches = queryFeatures->size();
 
   uint2_pair* matches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(uint2_pair)));
@@ -667,23 +667,23 @@ ssrlcv::Unity<ssrlcv::uint2_pair>* ssrlcv::MatchFactory<T>::generateMatchesIndex
 
   dim3 grid = {1,1,1};
   dim3 block = {32,1,1};//IMPROVE
-  getGrid(matches->numElements,grid);
+  getGrid(matches->size(),grid);
 
   clock_t timer = clock();
 
   if(seedDistances == nullptr){
-    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device,this->absoluteThreshold);
+    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device,
+    target->id, targetFeatures->size(), targetFeatures->device, matches->device,this->absoluteThreshold);
   }
-  else if(seedDistances->numElements != queryFeatures->numElements){
+  else if(seedDistances->size() != queryFeatures->size()){
     std::cerr<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<std::endl;
     exit(-1);
   }
   else{
     MemoryState seedOrigin = seedDistances->getMemoryState();
     if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
-    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device,seedDistances->device,
+    matchFeaturesBruteForce<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device,
+    target->id, targetFeatures->size(), targetFeatures->device, matches->device,seedDistances->device,
     this->relativeThreshold,this->absoluteThreshold);
     if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin);
   }
@@ -707,7 +707,7 @@ ssrlcv::Unity<ssrlcv::uint2_pair>* ssrlcv::MatchFactory<T>::generateMatchesConst
   if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
   if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
 
-  unsigned int numPossibleMatches = queryFeatures->numElements;
+  unsigned int numPossibleMatches = queryFeatures->size();
 
   uint2_pair* matches_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(uint2_pair)));
@@ -716,7 +716,7 @@ ssrlcv::Unity<ssrlcv::uint2_pair>* ssrlcv::MatchFactory<T>::generateMatchesConst
 
   dim3 grid = {1,1,1};
   dim3 block = {32,1,1};//IMPROVE
-  getGrid(matches->numElements,grid);
+  getGrid(matches->size(),grid);
 
   float* fundamental_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&fundamental_device,9*sizeof(float)));
@@ -725,18 +725,18 @@ ssrlcv::Unity<ssrlcv::uint2_pair>* ssrlcv::MatchFactory<T>::generateMatchesConst
   clock_t timer = clock();
 
   if(seedDistances == nullptr){
-    matchFeaturesConstrained<<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device, epsilon,fundamental_device,this->absoluteThreshold);
+    matchFeaturesConstrained<<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device,
+    target->id, targetFeatures->size(), targetFeatures->device, matches->device, epsilon,fundamental_device,this->absoluteThreshold);
   }
-  else if(seedDistances->numElements != queryFeatures->numElements){
+  else if(seedDistances->size() != queryFeatures->size()){
     std::cerr<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<std::endl;
     exit(-1);
   }
   else{
     MemoryState seedOrigin = seedDistances->getMemoryState();
     if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
-    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->numElements, queryFeatures->device,
-    target->id, targetFeatures->numElements, targetFeatures->device, matches->device,epsilon,fundamental_device,seedDistances->device,
+    matchFeaturesConstrained<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device,
+    target->id, targetFeatures->size(), targetFeatures->device, matches->device,epsilon,fundamental_device,seedDistances->device,
     this->relativeThreshold,this->absoluteThreshold);
     if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin);
   }
@@ -780,7 +780,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
       if(ordered && estimatedOverlap > 0.0f && ++i*(1-estimatedOverlap) > 1.0f) continue; //based off linear images
       //now match
       matchIndices.push_back(this->generateMatchesIndexOnly(*query,*features_query,*target,*features_target,seedDistances));
-      totalMatches += matchIndices[i++]->numElements;
+      totalMatches += matchIndices[i++]->size();
     }
   }
   if(seedDistances != nullptr) delete seedDistances;
@@ -794,16 +794,16 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
   std::vector<uint2>** adjacencyList = new std::vector<uint2>*[images.size() - 1];
 
   i = 0;
-  adjacencyList[0] = new std::vector<uint2>[features[0]->numElements];
+  adjacencyList[0] = new std::vector<uint2>[features[0]->size()];
   std::cout<<"building adjacency list"<<std::endl;
   for(auto m = matchIndices.begin(); m != matchIndices.end(); ++m){
     Unity<uint2_pair>* currentMatches = *m;
     if(currentMatches->getMemoryState() != cpu) currentMatches->setMemoryState(cpu);
     if(currentMatches->host[0].a.x != i){
       i++;
-      adjacencyList[i] = new std::vector<uint2>[features[i]->numElements];
+      adjacencyList[i] = new std::vector<uint2>[features[i]->size()];
     }
-    for(int p = 0; p < currentMatches->numElements; ++p){
+    for(int p = 0; p < currentMatches->size(); ++p){
       uint2_pair* currentPair = &currentMatches->host[p];
       adjacencyList[currentPair->a.x][currentPair->a.y].push_back(currentPair->b); 
     }
@@ -815,7 +815,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
   for(i = 0; i < images.size() - 2; ++i){
     origin[i] = features[i]->getMemoryState();
     if(origin[i] != cpu) features[i]->setMemoryState(cpu);
-    for(int f = 0; f < features[i]->numElements; ++f){
+    for(int f = 0; f < features[i]->size(); ++f){
       std::vector<uint2>* adj = &adjacencyList[i][f];
       if(!adj->size()) continue;
       badMatch = false;
@@ -951,7 +951,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, U
   if(origin[1] != gpu) targetPixels->setMemoryState(origin[1]);
 
   thrust::device_ptr<Match> needsValidating(matches->device);
-  thrust::device_ptr<Match> new_end = thrust::remove_if(needsValidating,needsValidating+matches->numElements,validate());
+  thrust::device_ptr<Match> new_end = thrust::remove_if(needsValidating,needsValidating+matches->size(),validate());
   cudaDeviceSynchronize();
   CudaCheckError();
   int numMatchesLeft = new_end - needsValidating;
@@ -961,7 +961,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, U
     matches = nullptr;
   }
   else{
-    printf("%d valid matches found out of %d original matches\n",numMatchesLeft,matches->numElements);
+    printf("%d valid matches found out of %d original matches\n",numMatchesLeft,matches->size());
     Match* validatedMatches_device = nullptr;
     CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(Match)));
     CudaSafeCall(cudaMemcpy(validatedMatches_device,matches->device,numMatchesLeft*sizeof(Match),cudaMemcpyDeviceToDevice));
@@ -979,7 +979,7 @@ void ssrlcv::writeMatchFile(Unity<Match>* matches, std::string pathToFile, bool 
   if(binary){
     std::ofstream matchstream(pathToFile,std::ios_base::binary);
     if(matchstream.is_open()){
-      for(int i = 0; i < matches->numElements; ++i){
+      for(int i = 0; i < matches->size(); ++i){
         matchstream.write((char*)&matches->host[i].keyPoints[0].loc,2*sizeof(float));
         matchstream.write((char*)&matches->host[i].keyPoints[1].loc,2*sizeof(float));
       }
@@ -993,7 +993,7 @@ void ssrlcv::writeMatchFile(Unity<Match>* matches, std::string pathToFile, bool 
     std::ofstream matchstream(pathToFile);
     if(matchstream.is_open()){
       std::string line;
-      for(int i = 0; i < matches->numElements; ++i){
+      for(int i = 0; i < matches->size(); ++i){
         line = std::to_string(matches->host[i].keyPoints[0].loc.x) + ",";
         line += std::to_string(matches->host[i].keyPoints[0].loc.y) + ",";
         line += std::to_string(matches->host[i].keyPoints[1].loc.x) + ",";
@@ -1020,7 +1020,7 @@ void ssrlcv::writeMatchFile(MatchSet multiview_matches, std::string pathToFile, 
   std::ofstream matchstream(pathToFile);
   if(matchstream.is_open()){
     std::string line;
-    for(int i = 0; i < matches->numElements; ++i){
+    for(int i = 0; i < matches->size(); ++i){
       line = std::to_string(matches->host[i].numKeyPoints) + ",";
       for(int kp = matches->host[i].index; kp < matches->host[i].index + matches->host[i].numKeyPoints; ++kp){
         line += std::to_string(keyPoints->host[kp].parentId) + ",";

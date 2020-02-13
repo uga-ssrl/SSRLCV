@@ -79,7 +79,7 @@ ssrlcv::Octree::Octree(int numPoints, float3* points, int depth, bool createVEF)
   printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
   printf("bounding box width = %f\n", this->width);
   printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
-  printf("number of points = %lu\n\n", this->points->numElements);
+  printf("number of points = %lu\n\n", this->points->size());
 
   this->createFinestNodes();
   this->fillInCoarserDepths();
@@ -130,7 +130,7 @@ ssrlcv::Octree::Octree(int numPoints, float3* points, float deepestWidth, bool c
   printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
   printf("bounding box width = %f\n", this->width);
   printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
-  printf("number of points = %lu\n\n", this->points->numElements);
+  printf("number of points = %lu\n\n", this->points->size());
 
   this->depth = 0;
   float finestWidth = this->width;
@@ -169,7 +169,7 @@ ssrlcv::Octree::Octree(Unity<float3>* points, int depth, bool createVEF){
   }
   float3* points_host = this->points->host;
 
-  for(int i = 0; i < points->numElements; ++i){
+  for(int i = 0; i < points->size(); ++i){
     if(this->min.x > points_host[i].x) this->min.x = points_host[i].x;
     else if(this->max.x < points_host[i].x) this->max.x = points_host[i].x;
     if(this->min.y > points_host[i].y) this->min.y = points_host[i].y;
@@ -199,7 +199,7 @@ ssrlcv::Octree::Octree(Unity<float3>* points, int depth, bool createVEF){
   printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
   printf("bounding box width = %f\n", this->width);
   printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
-  printf("number of points = %lu\n\n", this->points->numElements);
+  printf("number of points = %lu\n\n", this->points->size());
 
   this->depth = depth;
   if(this->depth >= 10){
@@ -230,7 +230,7 @@ ssrlcv::Octree::Octree(Unity<float3>* points, float deepestWidth, bool createVEF
   if(this->points->getMemoryState() == gpu) this->points->transferMemoryTo(cpu);
   float3* points_host = this->points->host;
 
-  for(int i = 0; i < points->numElements; ++i){
+  for(int i = 0; i < points->size(); ++i){
     if(this->min.x > points_host[i].x) this->min.x = points_host[i].x;
     else if(this->max.x < points_host[i].x) this->max.x = points_host[i].x;
     if(this->min.y > points_host[i].y) this->min.y = points_host[i].y;
@@ -259,7 +259,7 @@ ssrlcv::Octree::Octree(Unity<float3>* points, float deepestWidth, bool createVEF
   printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
   printf("bounding box width = %f\n", this->width);
   printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
-  printf("number of points = %lu\n\n", this->points->numElements);
+  printf("number of points = %lu\n\n", this->points->size());
 
   this->depth = 0;
   float finestWidth = this->width;
@@ -341,80 +341,80 @@ __device__ __host__ ssrlcv::Octree::Node::Node(){
 //TODO make sure that thrust usage is GPU
 void ssrlcv::Octree::createFinestNodes(){
   this->points->transferMemoryTo(both);
-  int* finestNodeKeys = new int[this->points->numElements]();
-  float3* finestNodeCenters = new float3[this->points->numElements]();
+  int* finestNodeKeys = new int[this->points->size()]();
+  float3* finestNodeCenters = new float3[this->points->size()]();
 
   int* finestNodeKeys_device;
   float3* finestNodeCenters_device;
-  CudaSafeCall(cudaMalloc((void**)&finestNodeKeys_device, this->points->numElements*sizeof(int)));
-  CudaSafeCall(cudaMalloc((void**)&finestNodeCenters_device, this->points->numElements*sizeof(float3)));
+  CudaSafeCall(cudaMalloc((void**)&finestNodeKeys_device, this->points->size()*sizeof(int)));
+  CudaSafeCall(cudaMalloc((void**)&finestNodeCenters_device, this->points->size()*sizeof(float3)));
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  if(this->points->numElements < 65535) grid.x = (unsigned int) this->points->numElements;
+  if(this->points->size() < 65535) grid.x = (unsigned int) this->points->size();
   else{
     grid.x = 65535;
-    while(grid.x*block.x < this->points->numElements){
+    while(grid.x*block.x < this->points->size()){
       ++block.x;
     }
-    while(grid.x*block.x > this->points->numElements){
+    while(grid.x*block.x > this->points->size()){
       --grid.x;
-      if(grid.x*block.x < this->points->numElements){
-        ++grid.x;//to ensure that numThreads > this->points->numElements
+      if(grid.x*block.x < this->points->size()){
+        ++grid.x;//to ensure that numThreads > this->points->size()
         break;
       }
     }
   }
 
 
-  getNodeKeys<<<grid,block>>>(this->points->device, finestNodeCenters_device, finestNodeKeys_device, this->center, this->width, this->points->numElements, this->depth);
+  getNodeKeys<<<grid,block>>>(this->points->device, finestNodeCenters_device, finestNodeKeys_device, this->center, this->width, this->points->size(), this->depth);
   CudaCheckError();
 
   thrust::device_ptr<int> kys(finestNodeKeys_device);
   thrust::device_ptr<float3> cnts(finestNodeCenters_device);
 
-  thrust::device_vector<float3> sortedCnts(this->points->numElements);
+  thrust::device_vector<float3> sortedCnts(this->points->size());
 
   thrust::counting_iterator<unsigned int> iter(0);
-  thrust::device_vector<unsigned int> indices(this->points->numElements);
-  thrust::copy(iter, iter + this->points->numElements, indices.begin());
+  thrust::device_vector<unsigned int> indices(this->points->size());
+  thrust::copy(iter, iter + this->points->size(), indices.begin());
 
-  unsigned int* nodePointIndex = new unsigned int[this->points->numElements]();
-  CudaSafeCall(cudaMemcpy(nodePointIndex, thrust::raw_pointer_cast(indices.data()), this->points->numElements*sizeof(unsigned int),cudaMemcpyDeviceToHost));
+  unsigned int* nodePointIndex = new unsigned int[this->points->size()]();
+  CudaSafeCall(cudaMemcpy(nodePointIndex, thrust::raw_pointer_cast(indices.data()), this->points->size()*sizeof(unsigned int),cudaMemcpyDeviceToHost));
 
-  thrust::sort_by_key(kys, kys + this->points->numElements, indices.begin());
-  CudaSafeCall(cudaMemcpy(finestNodeKeys, finestNodeKeys_device, this->points->numElements*sizeof(int),cudaMemcpyDeviceToHost));
+  thrust::sort_by_key(kys, kys + this->points->size(), indices.begin());
+  CudaSafeCall(cudaMemcpy(finestNodeKeys, finestNodeKeys_device, this->points->size()*sizeof(int),cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaFree(finestNodeKeys_device));
 
 
   thrust::device_ptr<float3> pnts(this->points->device);
-  thrust::device_vector<float3> sortedPnts(this->points->numElements);
+  thrust::device_vector<float3> sortedPnts(this->points->size());
   thrust::gather(indices.begin(), indices.end(), pnts, sortedPnts.begin());
-  CudaSafeCall(cudaMemcpy(this->points->host, thrust::raw_pointer_cast(sortedPnts.data()), this->points->numElements*sizeof(float3),cudaMemcpyDeviceToHost));
+  CudaSafeCall(cudaMemcpy(this->points->host, thrust::raw_pointer_cast(sortedPnts.data()), this->points->size()*sizeof(float3),cudaMemcpyDeviceToHost));
 
   this->points->clear(gpu);
 
   thrust::gather(indices.begin(), indices.end(), cnts, sortedCnts.begin());
 
-  CudaSafeCall(cudaMemcpy(finestNodeCenters, thrust::raw_pointer_cast(sortedCnts.data()), this->points->numElements*sizeof(float3),cudaMemcpyDeviceToHost));
+  CudaSafeCall(cudaMemcpy(finestNodeCenters, thrust::raw_pointer_cast(sortedCnts.data()), this->points->size()*sizeof(float3),cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaFree(finestNodeCenters_device));
 
-  if(this->normals != nullptr && this->normals->getMemoryState() != null && this->normals->numElements != 0){
+  if(this->normals != nullptr && this->normals->getMemoryState() != null && this->normals->size() != 0){
     this->normals->transferMemoryTo(both);
     thrust::device_ptr<float3> nmls(this->normals->device);
-    thrust::device_vector<float3> sortedNmls(this->points->numElements);
+    thrust::device_vector<float3> sortedNmls(this->points->size());
     thrust::gather(indices.begin(), indices.end(), nmls, sortedNmls.begin());
-    CudaSafeCall(cudaMemcpy(this->normals->host, thrust::raw_pointer_cast(sortedNmls.data()), this->points->numElements*sizeof(float3),cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaMemcpy(this->normals->host, thrust::raw_pointer_cast(sortedNmls.data()), this->points->size()*sizeof(float3),cudaMemcpyDeviceToHost));
     this->normals->clear(gpu);
   }
 
   thrust::pair<int*, unsigned int*> new_end;//the last value of these node arrays
   //there shouldbe better way to do this
-  new_end = thrust::unique_by_key(finestNodeKeys, finestNodeKeys + this->points->numElements, nodePointIndex);
+  new_end = thrust::unique_by_key(finestNodeKeys, finestNodeKeys + this->points->size(), nodePointIndex);
 
   bool foundFirst = false;
   int numUniqueNodes = 0;
-  while(numUniqueNodes != this->points->numElements){
+  while(numUniqueNodes != this->points->size()){
     if(finestNodeKeys[numUniqueNodes] == *new_end.first){
       if(foundFirst) break;
       else foundFirst = true;
@@ -436,7 +436,7 @@ void ssrlcv::Octree::createFinestNodes(){
       currentNode.numPoints = nodePointIndex[i + 1] - nodePointIndex[i];
     }
     else{
-      currentNode.numPoints = this->points->numElements - nodePointIndex[i];
+      currentNode.numPoints = this->points->size() - nodePointIndex[i];
 
     }
 
@@ -458,9 +458,9 @@ void ssrlcv::Octree::fillInCoarserDepths(){
   if(this->nodes->getMemoryState() == cpu){
     this->nodes->transferMemoryTo(gpu);
   }
-  int numUniqueNodes = this->nodes->numElements;
-  CudaSafeCall(cudaMalloc((void**)&uniqueNodes_device, this->nodes->numElements*sizeof(Node)));
-  CudaSafeCall(cudaMemcpy(uniqueNodes_device, this->nodes->device, this->nodes->numElements*sizeof(Node), cudaMemcpyDeviceToDevice));
+  int numUniqueNodes = this->nodes->size();
+  CudaSafeCall(cudaMalloc((void**)&uniqueNodes_device, this->nodes->size()*sizeof(Node)));
+  CudaSafeCall(cudaMemcpy(uniqueNodes_device, this->nodes->device, this->nodes->size()*sizeof(Node), cudaMemcpyDeviceToDevice));
   delete this->nodes;
   this->nodes = nullptr;
   unsigned int totalNodes = 0;
@@ -472,7 +472,7 @@ void ssrlcv::Octree::fillInCoarserDepths(){
 
   unsigned int* nodeDepthIndex_host = new unsigned int[this->depth + 1]();
   unsigned int* pointNodeIndex_device;
-  CudaSafeCall(cudaMalloc((void**)&pointNodeIndex_device, this->points->numElements*sizeof(unsigned int)));
+  CudaSafeCall(cudaMalloc((void**)&pointNodeIndex_device, this->points->size()*sizeof(unsigned int)));
 
   for(int d = this->depth; d >= 0; --d){
     dim3 grid = {1,1,1};
@@ -559,7 +559,7 @@ void ssrlcv::Octree::fillInCoarserDepths(){
   }
   delete[] nodeArray2D;
   printf("TOTAL NODES = %d\n\n",totalNodes);
-  this->pointNodeIndex = new Unity<unsigned int>(pointNodeIndex_device, this->points->numElements, gpu);
+  this->pointNodeIndex = new Unity<unsigned int>(pointNodeIndex_device, this->points->size(), gpu);
   this->nodes = new Unity<Node>(nodeArray_device, totalNodes, gpu);
   this->nodeDepthIndex = new Unity<unsigned int>(nodeDepthIndex_host, this->depth + 1, cpu);
 }
@@ -1150,7 +1150,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
   }
   unsigned int* nodeDepthIndex_host = (unsigned int*) this->nodeDepthIndex->host;
 
-  for(int i = 0; i < this->nodes->numElements; ++i){
+  for(int i = 0; i < this->nodes->size(); ++i){
     currentNumNeighbors = 0;
     if(minPossibleNeighbors < minNeighForNorms){
       ++currentDepth;
@@ -1181,13 +1181,13 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
   std::cout<<"Continuing with "<<maxNeighbors<<" maxNeighborsAllowed"<<std::endl;
   std::cout<<"Continuing with "<<maxPointsInOneNode<<" maxPointsInOneNode"<<std::endl;
 
-  uint size = this->points->numElements*maxNeighbors*3;
+  uint size = this->points->size()*maxNeighbors*3;
   float* cMatrix_device;
   int* neighborIndices_device;
   int* numRealNeighbors_device;
-  int* numRealNeighbors = new int[this->points->numElements];
+  int* numRealNeighbors = new int[this->points->size()];
 
-  for(int i = 0; i < this->points->numElements; ++i){
+  for(int i = 0; i < this->points->size(); ++i){
     numRealNeighbors[i] = 0;
   }
   int* temp = new int[size/3];
@@ -1195,10 +1195,10 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
     temp[i] = -1;
   }
 
-  CudaSafeCall(cudaMalloc((void**)&numRealNeighbors_device, this->points->numElements*sizeof(int)));
+  CudaSafeCall(cudaMalloc((void**)&numRealNeighbors_device, this->points->size()*sizeof(int)));
   CudaSafeCall(cudaMalloc((void**)&cMatrix_device, size*sizeof(float)));
   CudaSafeCall(cudaMalloc((void**)&neighborIndices_device, (size/3)*sizeof(int)));
-  CudaSafeCall(cudaMemcpy(numRealNeighbors_device, numRealNeighbors, this->points->numElements*sizeof(int), cudaMemcpyHostToDevice));
+  CudaSafeCall(cudaMemcpy(numRealNeighbors_device, numRealNeighbors, this->points->size()*sizeof(int), cudaMemcpyHostToDevice));
   CudaSafeCall(cudaMemcpy(neighborIndices_device, temp, (size/3)*sizeof(int), cudaMemcpyHostToDevice));
   delete[] temp;
 
@@ -1229,10 +1229,10 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
 
 
   CudaCheckError();
-  CudaSafeCall(cudaMemcpy(numRealNeighbors, numRealNeighbors_device, this->points->numElements*sizeof(int), cudaMemcpyDeviceToHost));
+  CudaSafeCall(cudaMemcpy(numRealNeighbors, numRealNeighbors_device, this->points->size()*sizeof(int), cudaMemcpyDeviceToHost));
 
   float3* normals_device;
-  CudaSafeCall(cudaMalloc((void**)&normals_device, this->points->numElements*sizeof(float3)));
+  CudaSafeCall(cudaMalloc((void**)&normals_device, this->points->size()*sizeof(float3)));
 
   cusolverDnHandle_t cusolverH = nullptr;
   cublasHandle_t cublasH = nullptr;
@@ -1253,7 +1253,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
   int lwork = 0;
 
   //TODO changed this to gesvdjBatched (this will enable doing multiple svds at once)
-  for(int p = 0; p < this->points->numElements; ++p){
+  for(int p = 0; p < this->points->size(); ++p){
     m = numRealNeighbors[p];
     lwork = 0;
     if(m < minNeighForNorms){
@@ -1304,7 +1304,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
   CudaSafeCall(cudaFree(cMatrix_device));
 
   if(this->normals != nullptr) delete this->normals;
-  this->normals = new Unity<float3>(normals_device, this->points->numElements, gpu);
+  this->normals = new Unity<float3>(normals_device, this->points->size(), gpu);
   this->normals->transferMemoryTo(points_origin);
   this->points->transferMemoryTo(points_origin);
   this->nodes->transferMemoryTo(node_origin);
@@ -1340,7 +1340,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
   }
   unsigned int* nodeDepthIndex_host = (unsigned int*) this->nodeDepthIndex->host;
 
-  for(int i = 0; i < this->nodes->numElements; ++i){
+  for(int i = 0; i < this->nodes->size(); ++i){
     currentNumNeighbors = 0;
     if(minPossibleNeighbors < minNeighForNorms){
       ++currentDepth;
@@ -1376,13 +1376,13 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
     exit(-1);
   }
 
-  uint size = this->points->numElements*maxNeighbors*3;
+  uint size = this->points->size()*maxNeighbors*3;
   float* cMatrix_device;
   int* neighborIndices_device;
   int* numRealNeighbors_device;
-  int* numRealNeighbors = new int[this->points->numElements];
+  int* numRealNeighbors = new int[this->points->size()];
 
-  for(int i = 0; i < this->points->numElements; ++i){
+  for(int i = 0; i < this->points->size(); ++i){
     numRealNeighbors[i] = 0;
   }
   int* temp = new int[size/3];
@@ -1390,10 +1390,10 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
     temp[i] = -1;
   }
 
-  CudaSafeCall(cudaMalloc((void**)&numRealNeighbors_device, this->points->numElements*sizeof(int)));
+  CudaSafeCall(cudaMalloc((void**)&numRealNeighbors_device, this->points->size()*sizeof(int)));
   CudaSafeCall(cudaMalloc((void**)&cMatrix_device, size*sizeof(float)));
   CudaSafeCall(cudaMalloc((void**)&neighborIndices_device, (size/3)*sizeof(int)));
-  CudaSafeCall(cudaMemcpy(numRealNeighbors_device, numRealNeighbors, this->points->numElements*sizeof(int), cudaMemcpyHostToDevice));
+  CudaSafeCall(cudaMemcpy(numRealNeighbors_device, numRealNeighbors, this->points->size()*sizeof(int), cudaMemcpyHostToDevice));
   CudaSafeCall(cudaMemcpy(neighborIndices_device, temp, (size/3)*sizeof(int), cudaMemcpyHostToDevice));
   delete[] temp;
 
@@ -1424,10 +1424,10 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
     this->nodes->device, this->points->device, cMatrix_device, neighborIndices_device, numRealNeighbors_device);
 
   CudaCheckError();
-  CudaSafeCall(cudaMemcpy(numRealNeighbors, numRealNeighbors_device, this->points->numElements*sizeof(int), cudaMemcpyDeviceToHost));
+  CudaSafeCall(cudaMemcpy(numRealNeighbors, numRealNeighbors_device, this->points->size()*sizeof(int), cudaMemcpyDeviceToHost));
 
   float3* normals_device;
-  CudaSafeCall(cudaMalloc((void**)&normals_device, this->points->numElements*sizeof(float3)));
+  CudaSafeCall(cudaMalloc((void**)&normals_device, this->points->size()*sizeof(float3)));
 
   cusolverDnHandle_t cusolverH = nullptr;
   cublasHandle_t cublasH = nullptr;
@@ -1448,7 +1448,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
   int lwork = 0;
 
   //TODO changed this to gesvdjBatched (this will enable doing multiple svds at once)
-  for(int p = 0; p < this->points->numElements; ++p){
+  for(int p = 0; p < this->points->size(); ++p){
     m = numRealNeighbors[p];
     lwork = 0;
     if(m < minNeighForNorms){
@@ -1499,7 +1499,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
   CudaSafeCall(cudaFree(cMatrix_device));
 
   if(this->normals != nullptr) delete this->normals;
-  this->normals = new Unity<float3>(normals_device, this->points->numElements, gpu);
+  this->normals = new Unity<float3>(normals_device, this->points->size(), gpu);
   this->normals->transferMemoryTo(points_origin);
   this->points->transferMemoryTo(points_origin);
   this->nodes->transferMemoryTo(node_origin);
@@ -1518,7 +1518,7 @@ void ssrlcv::Octree::writeVertexPLY(bool binary){
     this->vertices->transferMemoryTo(cpu);
   }
   std::vector<float3> vertices_data;
-  for(int i = 0; i < this->vertices->numElements; ++i){
+  for(int i = 0; i < this->vertices->size(); ++i){
     vertices_data.push_back(this->vertices->host[i].coord);
   }
   this->vertices->transferMemoryTo(origin);
@@ -1554,14 +1554,14 @@ void ssrlcv::Octree::writeEdgePLY(bool binary){
     this->vertices->transferMemoryTo(cpu);
   }
   std::vector<float3> vertices_data;
-  for(int i = 0; i < this->vertices->numElements; ++i){
+  for(int i = 0; i < this->vertices->size(); ++i){
     vertices_data.push_back(this->vertices->host[i].coord);
   }
   this->vertices->transferMemoryTo(origin[0]);
   if(origin[1] != cpu && this->edges->getFore() != cpu){
     this->edges->transferMemoryTo(cpu);
   }
-  for(int i = 0; i < this->edges->numElements; ++i){
+  for(int i = 0; i < this->edges->size(); ++i){
     edges_data.push_back({this->edges->host[i].v1,this->edges->host[i].v2});
   }
   this->edges->transferMemoryTo(origin[1]);
@@ -1599,7 +1599,7 @@ void ssrlcv::Octree::writeCenterPLY(bool binary){
   }
 
   std::vector<float3> vertices_data;
-  for(int i = 0; i < this->nodes->numElements; ++i){
+  for(int i = 0; i < this->nodes->size(); ++i){
     vertices_data.push_back(this->nodes->host[i].center);
   }
   this->nodes->transferMemoryTo(origin);
@@ -1641,8 +1641,8 @@ void ssrlcv::Octree::writeNormalPLY(bool binary){
 
   tinyply::PlyFile ply;
   ply.get_comments().push_back("SSRL Test");
-  ply.add_properties_to_element("vertex",{"x","y","z"},tinyply::Type::FLOAT32, this->points->numElements, reinterpret_cast<uint8_t*>(this->points->host), tinyply::Type::INVALID, 0);
-  ply.add_properties_to_element("vertex",{"nx","ny","nz"},tinyply::Type::FLOAT32, this->normals->numElements, reinterpret_cast<uint8_t*>(this->normals->host), tinyply::Type::INVALID, 0);
+  ply.add_properties_to_element("vertex",{"x","y","z"},tinyply::Type::FLOAT32, this->points->size(), reinterpret_cast<uint8_t*>(this->points->host), tinyply::Type::INVALID, 0);
+  ply.add_properties_to_element("vertex",{"nx","ny","nz"},tinyply::Type::FLOAT32, this->normals->size(), reinterpret_cast<uint8_t*>(this->normals->host), tinyply::Type::INVALID, 0);
 
   std::filebuf fb_binary;
   if(this->name.length() == 0) this->name = this->pathToFile.substr(this->pathToFile.find_last_of("/") + 1,this->pathToFile.length() - 4);
@@ -1675,7 +1675,7 @@ void ssrlcv::Octree::writeDepthPLY(int d, bool binary){
     this->vertices->transferMemoryTo(cpu);
   }
   std::vector<float3> vertices_data;
-  for(int i = 0; i < this->vertices->numElements; ++i){
+  for(int i = 0; i < this->vertices->size(); ++i){
     vertices_data.push_back(this->vertices->host[i].coord);
   }
   this->vertices->transferMemoryTo(origin[0]);
@@ -1683,7 +1683,7 @@ void ssrlcv::Octree::writeDepthPLY(int d, bool binary){
   if(origin[1] != cpu && this->edges->getFore() != cpu){
     this->edges->transferMemoryTo(cpu);
   }
-  for(int i = 0; i < this->edges->numElements; ++i){
+  for(int i = 0; i < this->edges->size(); ++i){
     edges_data.push_back({this->edges->host[i].v1,this->edges->host[i].v2});
   }
   this->edges->transferMemoryTo(origin[1]);
@@ -1708,7 +1708,7 @@ void ssrlcv::Octree::writeDepthPLY(int d, bool binary){
 
   tinyply::PlyFile ply;
   std::vector<uint4> faces_data;
-  int verticesToWrite = (depth != 0) ? this->vertexDepthIndex->host[this->depth - d + 1] : this->vertices->numElements;
+  int verticesToWrite = (depth != 0) ? this->vertexDepthIndex->host[this->depth - d + 1] : this->vertices->size();
   int facesToWrite = (depth != 0) ? this->faceDepthIndex->host[this->depth - d + 1] - this->faceDepthIndex->host[this->depth - d] : 6;
   int faceStartingIndex = this->faceDepthIndex->host[this->depth - d];
   this->vertexDepthIndex->transferMemoryTo(origin[2]);
@@ -1750,7 +1750,7 @@ void ssrlcv::Octree::writeDepthPLY(int d, bool binary){
 
 void ssrlcv::Octree::checkForGeneralNodeErrors(){
   MemoryState origin;
-  if(this->nodes != nullptr && this->nodes->getMemoryState() != null && this->nodes->numElements != 0){
+  if(this->nodes != nullptr && this->nodes->getMemoryState() != null && this->nodes->size() != 0){
     origin = this->nodes->getMemoryState();
     this->nodes->transferMemoryTo(cpu);
   }
@@ -1778,7 +1778,7 @@ void ssrlcv::Octree::checkForGeneralNodeErrors(){
   int numCentersOUTSIDE = 0;
   Node* nodes_host = this->nodes->host;
 
-  for(int i = 0; i < this->nodes->numElements; ++i){
+  for(int i = 0; i < this->nodes->size(); ++i){
     if(nodes_host[i].depth < 0){
       numFuckedNodes++;
     }
@@ -1813,8 +1813,8 @@ void ssrlcv::Octree::checkForGeneralNodeErrors(){
       //   std::cout<<this->numFinestUniqueNodes<<", NUM FULL FINEST NODES SHOULD BE "<<this->nodeDepthIndex[1]<<std::endl;
       //   exit(-1);
       // }
-      if(nodes_host[i].numPoints != this->points->numElements){
-        std::cout<<"DEPTH 0 DOES NOT CONTAIN ALL POINTS "<<nodes_host[i].numPoints<<","<<this->points->numElements<<std::endl;
+      if(nodes_host[i].numPoints != this->points->size()){
+        std::cout<<"DEPTH 0 DOES NOT CONTAIN ALL POINTS "<<nodes_host[i].numPoints<<","<<this->points->size()<<std::endl;
         exit(-1);
       }
     }
@@ -1903,7 +1903,7 @@ void ssrlcv::Octree::checkForGeneralNodeErrors(){
   if(error) exit(-1);
   else std::cout<<"NO ERRORS DETECTED IN OCTREE"<<std::endl;
   std::cout<<"NODES WITHOUT POINTS = "<<noPoints<<std::endl;
-  std::cout<<"NODES WITH POINTS = "<<this->nodes->numElements - noPoints<<std::endl<<std::endl;
+  std::cout<<"NODES WITH POINTS = "<<this->nodes->size() - noPoints<<std::endl<<std::endl;
 
   printf("octree checkForErrors took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
   this->nodes->transferMemoryTo(origin);
