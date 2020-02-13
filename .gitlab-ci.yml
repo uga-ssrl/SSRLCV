@@ -1,48 +1,6 @@
-# stages:
-#   - build
-#   - cube_reproject
-#   - evaluate
-#
-# before_script:
-#   - export PATH=/usr/local/cuda-9.0/bin${PATH:+:${PATH}}
-#   - export PATH=$PATH:/usr/local/cuda-9.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
-#   - export CUDA_HOME=/usr/local/cuda
-#
-# compile:
-#   stage: build
-#   script:
-#     - make -j4
-#     - echo "make"
-#
-# # Perform unit tests
-# unit_tests:
-#   stage: cube_reproject
-#   script:
-#     - bash util/CI/unit_test01.sh
-#     - bash util/CI/unit_test02.sh
-
 stages:
-# - build
-#  - test
   - documentation
 
-compile:
-  stage: build
-  script:
-    - make -j4
-  artifacts:
-    paths:
-    - ./bin/
-    - ./obj/
-    - ./util/CI/bin/cu
-    - ./util/CI/bin/cpp
-
-test:
-  stage: test
-  script:
-  - make -j4 test
-  dependencies:
-  - compile
 
 pages:
   stage: documentation
