@@ -22,8 +22,8 @@
 #     - bash util/CI/unit_test02.sh
 
 stages:
-  - build
-  - test
+# - build
+#  - test
   - documentation
 
 compile:
