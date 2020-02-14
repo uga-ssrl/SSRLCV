@@ -114,7 +114,10 @@ int main(int argc, char *argv[]){
     std::vector<std::string> imagePaths = ((ssrlcv::img_dir_arg*)args["dir"])->paths;
     int numImages = (int) imagePaths.size();
     std::cout<<"found "<<numImages<<" in directory given"<<std::endl;
-
+    if(numImages < 2){
+      std::cerr<<"ERROR: this exectuable needs atleast 2 images other than seed"<<std::endl;
+      exit(0);
+    }
     std::vector<ssrlcv::Image*> images;
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
     for(int i = 0; i < numImages; ++i){
