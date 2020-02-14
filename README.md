@@ -53,6 +53,14 @@ make clean
 * index.html will be available in doc/doxygen/documentation/html and will allow traversal of the documentation
 
 ## Running
+| Flag              | Command Line Argument          | Details                      |
+|:-----------------:|:------------------------------:|:----------------------------:|
+| -i or --image     | `<path/to/single/image>`       | absolute or relative         |
+| -d or --directory | `<path/to/directory/of/images>`| absolute or relative         |
+| -s or --seed      | `<path/to/seed/image>`         | absolute or relative         |
+| -np or --noparams |             N/A                | signify no use of params.csv |
+
+
 ### Full Pipeline
 
 There is no full pipeline main setup so far. There are separate pipelines compiled in the `/bin` directory. To learn about the popeline,
