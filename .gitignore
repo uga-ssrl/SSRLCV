@@ -46,3 +46,5 @@ project.*
 .vscode/
 
 src/Tester.cu
+
+*.out

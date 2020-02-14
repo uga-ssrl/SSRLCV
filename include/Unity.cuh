@@ -481,6 +481,8 @@ namespace ssrlcv{
     }
     if(this->state != null) this->clear();
     this->numElements = numElements;
+    this->state = state;
+    this->fore = state;
     if(data == nullptr){
       if(state == null || state > 3){//greater than three means pinned or unified
         throw IllegalUnityTransition("attempt to instantiate unkown MemoryState fron nullptr (supported states = both, cpu & gpu)");
@@ -507,9 +509,6 @@ namespace ssrlcv{
         throw IllegalUnityTransition(error);
       }
     }
-    
-    this->state = state;
-    this->fore = state;
   }
   template<typename T> 
   MemoryState Unity<T>::getFore(){
