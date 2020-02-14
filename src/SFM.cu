@@ -39,6 +39,10 @@ int main(int argc, char *argv[]){
     std::vector<std::string> imagePaths = ((ssrlcv::img_dir_arg*)args["dir"])->paths;
     int numImages = (int) imagePaths.size();
     std::cout<<"found "<<numImages<<" in directory given"<<std::endl;
+    if(numImages != 2){
+      std::cerr<<"ERROR this executable only accepts 2 images other than seed currently"<<std::endl;
+      exit(0);
+    }
 
     std::vector<ssrlcv::Image*> images;
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
@@ -70,6 +74,7 @@ int main(int argc, char *argv[]){
     if(distanceMatches->getMemoryState() != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
     ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
     delete distanceMatches;
+
     std::string delimiter = "/";
     std::string matchFile = imagePaths[0].substr(0,imagePaths[0].rfind(delimiter)) + "/matches.txt";
     ssrlcv::writeMatchFile(matches, matchFile);

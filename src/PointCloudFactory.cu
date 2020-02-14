@@ -418,7 +418,7 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolati
 
 __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
-  if (globalID > numBundles) return;
+  if (globalID >= numBundles) return;
   MultiMatch match = matches[globalID];
   float3* kp = new float3[match.numKeyPoints]();
   int end =  (int) match.numKeyPoints + match.index;
