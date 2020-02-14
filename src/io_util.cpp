@@ -13,6 +13,13 @@ std::map<std::string, std::string> ssrlcv::cl_args = {
   {"--noparams","noparams"}  // to disable the requirement of a params.csv or params.bcp file
 };
 
+void ssrlcv::toLower(std::string &str){
+  std::locale loc;
+  for (std::string::size_type i = 0; i < str.length(); ++i){
+    std::tolower(str[i], loc);
+  }
+}
+
 bool ssrlcv::fileExists(std::string fileName){
     std::ifstream infile(fileName);
     return infile.good();
@@ -453,6 +460,26 @@ void ssrlcv::writeJPEG(const char* filePath, unsigned char* image, const unsigne
 
   fclose(outfile);
   std::cout<<filePath<<" has been written"<<std::endl;
+}
+
+unsigned char* ssrlcv::readImage(const char *filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth){
+  std::string str_filePath = filePath;
+  std::string fileType = getFileExtension(str_filePath);
+  unsigned char* pixels = nullptr;
+  toLower(fileType);
+  if (fileType == "png"){
+    pixels = readPNG(filePath,height,width,colorDepth);
+  }
+  else if (fileType == "jpg" || fileType == "jpeg"){
+    pixels = readJPEG(filePath,height,width,colorDepth);
+  }
+  else if(fileType == "tif" || fileType == "tiff"){
+    pixels = readTIFF(filePath,height,width,colorDepth);
+  }
+  else{
+    throw UnsupportedImageException(str_filePath);
+  }
+  return pixels;
 }
 
 //
