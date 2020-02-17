@@ -673,6 +673,7 @@ __global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if (globalID > (pointnum-1)) return;
 
+  //Initializing Variables
   float3 S [3];
   float3 C;
   S[0] = {0,0,0};
@@ -680,21 +681,9 @@ __global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::
   S[2] = {0,0,0};
   C = {0,0,0};
 
-  // to get the individual lines
-  // from bundles->device[globalID].index
-  // to bundles->device[globalID].index + bundles->device[globalID].numlines
-  // could do something like:
-  /*
-  only, you need to use printf in a CUDA kernel
-  you also want device instead of host
-
-  for (int j = bundleSet.bundles->host[i].index; j < bundleSet.bundles->host[i].index + bundleSet.bundles->host[i].numLines; j++){
-    std::cout << "(" << bundleSet.lines->host[j].pnt.x << "," << bundleSet.lines->host[j].pnt.y << "," << bundleSet.lines->host[j].pnt.z << ")    ";
-    std::cout << "<" << bundleSet.lines->host[j].vec.x << "," << bundleSet.lines->host[j].vec.y << "," << bundleSet.lines->host[j].vec.z << ">" << std::endl;
-  }
-  */
-  for(int i = 0; i < bundles[globalID].numLines; i++){
-    ssrlcv::Bundle::Line L1 = lines[globalID+i]; //
+  //Iterating through the Lines in a Bundle
+  for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+    ssrlcv::Bundle::Line L1 = lines[i];
     float3 tmp [3];
     normalize(L1.vec);
     matrixProduct(L1.vec, tmp);
@@ -703,29 +692,21 @@ __global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::
     tmp[1].y -= 1;
     tmp[2].z -= 1;
     //Adding tmp to S
-    S[0].x += tmp[0].x;
-    S[0].y += tmp[0].y;
-    S[0].z += tmp[0].z;
-    S[1].x += tmp[1].x;
-    S[1].y += tmp[1].y;
-    S[1].z += tmp[1].z;
-    S[2].x += tmp[1].x;
-    S[2].y += tmp[1].y;
-    S[2].z += tmp[1].z;
+    S[0] = S[0] + tmp[0];
+    S[1] = S[1] + tmp[1];
+    S[2] = S[2] + tmp[2];
     //Adding tmp * pnt to C
     float3 vectmp;
     multiply(tmp, L1.pnt, vectmp);
-    C.x += vectmp.x;
-    C.y += vectmp.y;
-    C.z += vectmp.z;
+    C = C + vectmp;
   }
 
-  float3 Inverse [3];
   /**
    * If all of the directional vectors are skew and not parallel, then I think S is nonsingular.
    * However, I will look into this some more. This may have to use a pseudo-inverse matrix if that
    * is not the case.
    */
+  float3 Inverse [3];  
   if(inverse(S, Inverse)){
     float3 point;
     multiply(Inverse, C, point);
