@@ -210,6 +210,28 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   return pointcloud;
 }
 
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bundleSet){
+  bundleSet.lines->transferMemoryTo(gpu);
+  bundleSet.bundles->transferMemoryTo(gpu);
+
+  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->numElements,gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(bundleSet.bundles->numElements,grid,block,generateBundle);
+
+  std::cout << "Starting n-view triangulation ..." << std::endl;
+  computeNViewTriangulate<<<grid,block>>>(bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  std::cout << "n-view Triangulation done ... \n" << std::endl;
+
+  pointcloud->transferMemoryTo(cpu);
+  pointcloud->clear(gpu);
+  bundleSet.lines->clear(gpu);
+  bundleSet.bundles->clear(gpu);
+
+  return pointcloud;
+}
+
 /**
 * Preforms a Stereo Disparity with the correct scalar, calcualated form camera
 * parameters
@@ -646,58 +668,48 @@ __global__ void ssrlcv::computeTwoViewTriangulate(unsigned long long int* linear
   if (!threadIdx.x) atomicAdd(linearError,localSum);
 }
 
+__global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
 
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (pointnum-1)) return;
 
+  //Initializing Variables
+  float3 S [3];
+  float3 C;
+  S[0] = {0,0,0};
+  S[1] = {0,0,0};
+  S[2] = {0,0,0};
+  C = {0,0,0};
 
+  //Iterating through the Lines in a Bundle
+  for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+    ssrlcv::Bundle::Line L1 = lines[i];
+    float3 tmp [3];
+    normalize(L1.vec);
+    matrixProduct(L1.vec, tmp);
+    //Subtracting the 3x3 Identity Matrix from tmp
+    tmp[0].x -= 1;
+    tmp[1].y -= 1;
+    tmp[2].z -= 1;
+    //Adding tmp to S
+    S[0] = S[0] + tmp[0];
+    S[1] = S[1] + tmp[1];
+    S[2] = S[2] + tmp[2];
+    //Adding tmp * pnt to C
+    float3 vectmp;
+    multiply(tmp, L1.pnt, vectmp);
+    C = C + vectmp;
+  }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// yee
+  /**
+   * If all of the directional vectors are skew and not parallel, then I think S is nonsingular.
+   * However, I will look into this some more. This may have to use a pseudo-inverse matrix if that
+   * is not the case.
+   */
+  float3 Inverse [3];  
+  if(inverse(S, Inverse)){
+    float3 point;
+    multiply(Inverse, C, point);
+    pointcloud[globalID] = point;
+  }
+}

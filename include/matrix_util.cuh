@@ -25,6 +25,14 @@ namespace ssrlcv{
   __device__ __host__ void transpose(const float (&M)[3][3], float (&M_out)[3][3]);
   __device__ __host__ void transpose(const float (&M)[2][2], float (&M_out)[2][2]);
 
+  /**
+   * \brief Multiplies a 3x1 vector by its transpose producing a 3x3 matrix.
+   * \details Multiplies a 3x1 vector by its transpose producing a 3x3 matrix.
+   * \param M vector
+   * \param M_out the resulting matrix product
+   */
+  __device__ __host__ void matrixProduct(const float3 (&M), float3(&M_out)[3]);
+
   __device__ __host__ float determinant(const float (&M)[2][2]);
   __device__ __host__ float trace(const float(&M)[2][2]);
   __device__ __host__ float trace(const float(&M)[3][3]);

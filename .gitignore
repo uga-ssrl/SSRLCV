@@ -44,7 +44,3 @@ doc/paper/*.~
 
 project.*
 .vscode/
-
-src/Tester.cu
-
-*.out

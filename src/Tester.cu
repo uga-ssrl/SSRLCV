@@ -83,10 +83,8 @@ std::vector<float4> checkEquivanlenceSIFT(std::vector<ssrlcv::Image*> images, st
   return correctness;
 }
 
-
 int main(int argc, char *argv[]){
   try{
-
     //CUDA INITIALIZATION
     cuInit(0);
     clock_t totalTimer = clock();
@@ -185,70 +183,11 @@ int main(int argc, char *argv[]){
     return 0;
   }
   catch (const std::exception &e){
-      std::cerr << "Caught exception: " << e.what() << '\n';
-      std::exit(1);
+    std::cerr << "Caught exception: " << e.what() << '\n';
+    std::exit(1);
   }
   catch (...){
-      std::cerr << "Caught unknown exception\n";
-      std::exit(1);
+    std::cerr << "Caught unknown exception\n";
+    std::exit(1);
   }
-
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// yeet
