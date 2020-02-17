@@ -144,7 +144,7 @@ ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int
   this->camera.size = this->size;
   this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
-  for(int i = 0; i < this->pixels->numElements; ++i){
+  for(int i = 0; i < this->pixels->size(); ++i){
     std::cout<<this->pixels->host[i]<<std::endl;
   }
   if(convertColorDepthTo == 1){
@@ -219,13 +219,13 @@ ssrlcv::Unity<unsigned char>* ssrlcv::addBufferBorder(uint2 size, ssrlcv::Unity<
     std::cerr<<"ERROR border causes negative dimensions"<<std::endl;
     exit(-1);
   }
-  if(pixels->numElements%((int)size.x*size.y) != 0){
-    std::cerr<<"ERROR color depth cannot be determined due to pixels->numElements%(size.x*size.y) != 0"<<std::endl;
+  if(pixels->size()%((int)size.x*size.y) != 0){
+    std::cerr<<"ERROR color depth cannot be determined due to pixels->size()%(size.x*size.y) != 0"<<std::endl;
   }
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
   uint2 newSize = {size.x + (border.x*2),size.y + (border.y*2)};
-  int colorDepth = pixels->numElements/((int)size.x*size.y);
+  int colorDepth = pixels->size()/((int)size.x*size.y);
   Unity<unsigned char>* bufferedPixels = new Unity<unsigned char>(nullptr,newSize.x*newSize.y*colorDepth,gpu);
   for(int y = border.y; y < (int)size.y + border.y; ++y){
     CudaSafeCall(cudaMemcpy(bufferedPixels->device + (y*newSize.x) + border.x,pixels->device + (y*size.x),size.x*sizeof(unsigned char),cudaMemcpyDeviceToDevice));
@@ -245,14 +245,14 @@ ssrlcv::Unity<float>* ssrlcv::addBufferBorder(uint2 size, ssrlcv::Unity<float>* 
     std::cerr<<"ERROR border causes negative dimensions"<<std::endl;
     exit(-1);
   }
-  if(pixels->numElements%((int)size.x*size.y) != 0){
-    std::cerr<<"ERROR color depth cannot be determined due to pixels->numElements%(size.x*size.y) != 0"<<std::endl;
+  if(pixels->size()%((int)size.x*size.y) != 0){
+    std::cerr<<"ERROR color depth cannot be determined due to pixels->size()%(size.x*size.y) != 0"<<std::endl;
   }
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
 
   uint2 newSize = {size.x + (border.x*2),size.y + (border.y*2)};
-  int colorDepth = pixels->numElements/((int)size.x*size.y);
+  int colorDepth = pixels->size()/((int)size.x*size.y);
   Unity<float>* bufferedPixels = new Unity<float>(nullptr,newSize.x*newSize.y*colorDepth,gpu);
   for(int y = 0; y < (int)size.y; ++y){
     CudaSafeCall(cudaMemcpy(bufferedPixels->device + ((y+border.y)*newSize.x) + border.x,pixels->device + (y*size.x),size.x*sizeof(float),cudaMemcpyDeviceToDevice));
@@ -270,9 +270,9 @@ ssrlcv::Unity<unsigned char>* ssrlcv::convertImageToChar(Unity<float>* pixels){
   normalizeImage(pixels);
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(pixels->numElements,grid,block,convertToCharImage);
-  Unity<unsigned char>* castPixels = new Unity<unsigned char>(nullptr,pixels->numElements,gpu);
-  convertToCharImage<<<grid,block>>>(pixels->numElements,castPixels->device,pixels->device);
+  getFlatGridBlock(pixels->size(),grid,block,convertToCharImage);
+  Unity<unsigned char>* castPixels = new Unity<unsigned char>(nullptr,pixels->size(),gpu);
+  convertToCharImage<<<grid,block>>>(pixels->size(),castPixels->device,pixels->device);
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -287,9 +287,9 @@ ssrlcv::Unity<float>* ssrlcv::convertImageToFlt(Unity<unsigned char>* pixels){
   if(origin != gpu) pixels->setMemoryState(gpu);
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(pixels->numElements,grid,block,convertToFltImage);
-  Unity<float>* castPixels = new Unity<float>(nullptr,pixels->numElements,gpu);
-  convertToFltImage<<<grid,block>>>(pixels->numElements,pixels->device,castPixels->device);
+  getFlatGridBlock(pixels->size(),grid,block,convertToFltImage);
+  Unity<float>* castPixels = new Unity<float>(nullptr,pixels->size(),gpu);
+  convertToFltImage<<<grid,block>>>(pixels->size(),pixels->device,castPixels->device);
   cudaDeviceSynchronize();
   CudaCheckError();
   if(origin != gpu){
@@ -305,15 +305,15 @@ void ssrlcv::normalizeImage(Unity<float>* pixels){
   MemoryState origin = pixels->getMemoryState();
   float2 minMax = {FLT_MAX,-FLT_MAX};
   if(pixels->getFore() != both) pixels->setMemoryState(both);
-  for(int i = 0; i < pixels->numElements; ++i){
+  for(int i = 0; i < pixels->size(); ++i){
       if(minMax.x > pixels->host[i]) minMax.x = pixels->host[i];
       if(minMax.y < pixels->host[i]) minMax.y = pixels->host[i];
   }
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(unsigned long, float*, float2) = &normalize;
-  getFlatGridBlock(pixels->numElements,grid,block,fp);
-  normalize<<<grid,block>>>(pixels->numElements,pixels->device,minMax);
+  getFlatGridBlock(pixels->size(),grid,block,fp);
+  normalize<<<grid,block>>>(pixels->size(),pixels->device,minMax);
   cudaDeviceSynchronize();
   CudaCheckError();
   pixels->setFore(gpu);
@@ -325,8 +325,8 @@ void ssrlcv::normalizeImage(Unity<float>* pixels, float2 minMax){
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(unsigned long, float*, float2) = &normalize;
-  getFlatGridBlock(pixels->numElements,grid,block,fp);
-  normalize<<<grid,block>>>(pixels->numElements,pixels->device,minMax);
+  getFlatGridBlock(pixels->size(),grid,block,fp);
+  normalize<<<grid,block>>>(pixels->size(),pixels->device,minMax);
   pixels->setFore(gpu);
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -343,7 +343,7 @@ void ssrlcv::convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth){
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
 
-  unsigned int numPixels = (pixels->numElements/colorDepth);
+  unsigned int numPixels = (pixels->size()/colorDepth);
 
   unsigned char* bwPixels_device;
   CudaSafeCall(cudaMalloc((void**)&bwPixels_device, numPixels*sizeof(unsigned char)));
@@ -368,7 +368,7 @@ void ssrlcv::convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth)
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
 
-  unsigned int numPixels = (pixels->numElements/colorDepth);
+  unsigned int numPixels = (pixels->size()/colorDepth);
 
   unsigned char* rgbPixels_device;
   CudaSafeCall(cudaMalloc((void**)&rgbPixels_device, numPixels*3*sizeof(unsigned char)));
@@ -581,57 +581,57 @@ ssrlcv::Unity<int2>* ssrlcv::generatePixelGradients(uint2 imageSize, Unity<unsig
   if(origin != gpu) pixels->setMemoryState(gpu);
 
   int2* gradients_device = nullptr;
-  CudaSafeCall(cudaMalloc((void**)&gradients_device,pixels->numElements*sizeof(int2)));
+  CudaSafeCall(cudaMalloc((void**)&gradients_device,pixels->size()*sizeof(int2)));
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2,unsigned char*,int2*) = &calculatePixelGradients;
-  getFlatGridBlock(pixels->numElements,grid,block,fp);
+  getFlatGridBlock(pixels->size(),grid,block,fp);
   calculatePixelGradients<<<grid,block>>>(imageSize,pixels->device,gradients_device);
   CudaCheckError();
 
   if(origin != gpu) pixels->setMemoryState(origin);
 
-  return new Unity<int2>(gradients_device,pixels->numElements,gpu);
+  return new Unity<int2>(gradients_device,pixels->size(),gpu);
 }
 ssrlcv::Unity<float2>* ssrlcv::generatePixelGradients(uint2 imageSize, Unity<float>* pixels){
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
 
   float2* gradients_device = nullptr;
-  CudaSafeCall(cudaMalloc((void**)&gradients_device,pixels->numElements*sizeof(float2)));
+  CudaSafeCall(cudaMalloc((void**)&gradients_device,pixels->size()*sizeof(float2)));
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2,float*,float2*) = &calculatePixelGradients;
-  getFlatGridBlock(pixels->numElements,grid,block,fp);
+  getFlatGridBlock(pixels->size(),grid,block,fp);
   calculatePixelGradients<<<grid,block>>>(imageSize,pixels->device,gradients_device);
   CudaCheckError();
 
   if(origin == cpu) pixels->setMemoryState(cpu);
 
-  return new Unity<float2>(gradients_device,pixels->numElements,gpu);
+  return new Unity<float2>(gradients_device,pixels->size(),gpu);
 }
 
 void ssrlcv::makeBinnable(uint2 &size, Unity<unsigned char>* pixels, int plannedDepth){
   MemoryState origin = pixels->getMemoryState();
   int numResize = (int)pow(2, plannedDepth);
-  int dimOffset[2] = {size.x%numResize,size.y%numResize};
+  int dimOffset[2] = {(int)size.x%numResize,(int)size.y%numResize};
   if(dimOffset[0] || dimOffset[1]){
     if(origin != gpu) pixels->setMemoryState(gpu);
     bool mustSizeUp = size.x%2 || size.y%2;
     if(mustSizeUp){
-      pixels->setData(upsample(size,pixels)->device,pixels->numElements*4,gpu);
+      pixels->setData(upsample(size,pixels)->device,pixels->size()*4,gpu);
       size = size*2;numResize *= 2;
       dimOffset[0] = size.x%numResize;
       dimOffset[1] = size.y%numResize;
     }
     int2 border = {
-        dimOffset[0] ? (numResize-(size.x%numResize))/2 : 0,
-        dimOffset[1] ? (numResize-(size.y%numResize))/2 : 0
+        dimOffset[0] ? (numResize-((int)size.x%numResize))/2 : 0,
+        dimOffset[1] ? (numResize-((int)size.y%numResize))/2 : 0
     };
     uint2 newSize = {border.x*2 + size.x, border.y*2 + size.y};
     pixels->setData(addBufferBorder(size,pixels,border)->device,newSize.x*newSize.y,gpu);
     size = newSize;
-    pixels->setData(bin(size,pixels)->device,pixels->numElements/4,gpu);
+    pixels->setData(bin(size,pixels)->device,pixels->size()/4,gpu);
     size = size/2;
     if(origin != gpu) pixels->setMemoryState(origin);
   }
@@ -642,25 +642,25 @@ void ssrlcv::makeBinnable(uint2 &size, Unity<unsigned char>* pixels, int planned
 void ssrlcv::makeBinnable(uint2 &size, Unity<float>* pixels, int plannedDepth){
   MemoryState origin = pixels->getMemoryState();
   int numResize = (int)pow(2, plannedDepth);
-  int dimOffset[2] = {size.x%numResize,size.y%numResize};
+  int dimOffset[2] = {(int)size.x%numResize,(int)size.y%numResize};
   if(dimOffset[0] || dimOffset[1]){
     if(origin != gpu) pixels->setMemoryState(gpu);
     bool mustSizeUp = size.x%2 || size.y%2;
     if(mustSizeUp){
-      pixels->setData(upsample(size,pixels)->device,pixels->numElements*4,gpu);
+      pixels->setData(upsample(size,pixels)->device,pixels->size()*4,gpu);
       size = size*2;numResize *= 2;
       dimOffset[0] = size.x%numResize;
       dimOffset[1] = size.y%numResize;
     }
     int2 border = {
-        dimOffset[0] ? (numResize-(size.x%numResize))/2 : 0,
-        dimOffset[1] ? (numResize-(size.y%numResize))/2 : 0
+        dimOffset[0] ? (numResize-((int)size.x%numResize))/2 : 0,
+        dimOffset[1] ? (numResize-((int)size.y%numResize))/2 : 0
     };
     uint2 newSize = {border.x*2 + size.x, border.y*2 + size.y};
     pixels->setData(addBufferBorder(size,pixels,border)->device,newSize.x*newSize.y,gpu);
     size = newSize;
     if(mustSizeUp){
-        pixels->setData(bin(size,pixels)->device,pixels->numElements/4,gpu);
+        pixels->setData(bin(size,pixels)->device,pixels->size()/4,gpu);
         size = size/2;
     }
     if(origin != gpu) pixels->setMemoryState(origin);
@@ -673,12 +673,12 @@ void ssrlcv::makeBinnable(uint2 &size, Unity<float>* pixels, int plannedDepth){
 ssrlcv::Unity<unsigned char>* ssrlcv::bin(uint2 imageSize, Unity<unsigned char>* pixels){
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
-  Unity<unsigned char>* binnedImage = new Unity<unsigned char>(nullptr, pixels->numElements/4, gpu);
+  Unity<unsigned char>* binnedImage = new Unity<unsigned char>(nullptr, pixels->size()/4, gpu);
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2, unsigned int, unsigned char*, unsigned char*) = &binImage;
   get2DGridBlock(imageSize/2,grid,block,fp);
-  int colorDepth = pixels->numElements/((int)imageSize.x*imageSize.y);
+  int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
   binImage<<<grid,block>>>(imageSize,colorDepth,pixels->device,binnedImage->device);
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -693,12 +693,12 @@ ssrlcv::Unity<float>* ssrlcv::bin(uint2 imageSize, Unity<float>* pixels){
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
 
-  Unity<float>* binnedImage = new Unity<float>(nullptr, pixels->numElements/4, gpu);
+  Unity<float>* binnedImage = new Unity<float>(nullptr, pixels->size()/4, gpu);
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2, unsigned int, float*, float*) = &binImage;
   get2DGridBlock(imageSize/2,grid,block,fp);
-  int colorDepth = pixels->numElements/((int)imageSize.x*imageSize.y);
+  int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
   binImage<<<grid,block>>>(imageSize,colorDepth,pixels->device,binnedImage->device);
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -717,8 +717,8 @@ ssrlcv::Unity<unsigned char>* ssrlcv::upsample(uint2 imageSize, Unity<unsigned c
   dim3 block = {1,1,1};
   void (*fp)(uint2, unsigned int, unsigned char*, unsigned char*) = &upsampleImage;
   get2DGridBlock(imageSize*2,grid,block,fp);
-  Unity<unsigned char>* upsampledImage = new Unity<unsigned char>(nullptr, pixels->numElements*4, gpu);
-  int colorDepth = pixels->numElements/((int)imageSize.x*imageSize.y);
+  Unity<unsigned char>* upsampledImage = new Unity<unsigned char>(nullptr, pixels->size()*4, gpu);
+  int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
   upsampleImage<<<grid,block>>>(imageSize,colorDepth,pixels->device,upsampledImage->device);
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -738,8 +738,8 @@ ssrlcv::Unity<float>* ssrlcv::upsample(uint2 imageSize, Unity<float>* pixels){
   dim3 block = {1,1,1};
   void (*fp)(uint2, unsigned int, float*, float*) = &upsampleImage;
   get2DGridBlock(imageSize*2,grid,block,fp);
-  int colorDepth = pixels->numElements/((int)imageSize.x*imageSize.y);
-  Unity<float>* upsampledImage = new Unity<float>(nullptr, pixels->numElements*4, gpu);
+  int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
+  Unity<float>* upsampledImage = new Unity<float>(nullptr, pixels->size()*4, gpu);
   upsampleImage<<<grid,block>>>(imageSize,colorDepth,pixels->device,upsampledImage->device);
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -761,13 +761,13 @@ ssrlcv::Unity<unsigned char>* ssrlcv::scaleImage(uint2 imageSize, Unity<unsigned
   dim3 block = {1,1,1};
   void (*fp)(uint2, unsigned int, unsigned char*, unsigned char*, float) = &bilinearInterpolation;
   get2DGridBlock((imageSize/outputPixelWidth) + 1, grid,block,fp);
-  int colorDepth = pixels->numElements/((int)imageSize.x*imageSize.y);
-  CudaSafeCall(cudaMalloc((void**)&sampledImage_device,pixels->numElements*4*sizeof(unsigned char)));
+  int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
+  CudaSafeCall(cudaMalloc((void**)&sampledImage_device,pixels->size()*4*sizeof(unsigned char)));
   bilinearInterpolation<<<grid,block>>>(imageSize,colorDepth,pixels->device,sampledImage_device,outputPixelWidth);
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  Unity<unsigned char>* sampledImage = new Unity<unsigned char>(sampledImage_device, pixels->numElements/(outputPixelWidth*outputPixelWidth), gpu);
+  Unity<unsigned char>* sampledImage = new Unity<unsigned char>(sampledImage_device, pixels->size()/(outputPixelWidth*outputPixelWidth), gpu);
 
   if(origin != gpu){
     pixels->setMemoryState(origin);
@@ -786,13 +786,13 @@ ssrlcv::Unity<float>* ssrlcv::scaleImage(uint2 imageSize, Unity<float>* pixels, 
   dim3 block = {1,1,1};
   void (*fp)(uint2, unsigned int, float*, float*, float) = &bilinearInterpolation;
   get2DGridBlock((imageSize/outputPixelWidth) + 1, grid,block,fp);
-  int colorDepth = pixels->numElements/((int)imageSize.x*imageSize.y);
-  CudaSafeCall(cudaMalloc((void**)&sampledImage_device,pixels->numElements*4*sizeof(float)));
+  int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
+  CudaSafeCall(cudaMalloc((void**)&sampledImage_device,pixels->size()*4*sizeof(float)));
   bilinearInterpolation<<<grid,block>>>(imageSize,colorDepth,pixels->device,sampledImage_device,outputPixelWidth);
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  Unity<float>* sampledImage = new Unity<float>(sampledImage_device, pixels->numElements/(outputPixelWidth*outputPixelWidth), gpu);
+  Unity<float>* sampledImage = new Unity<float>(sampledImage_device, pixels->size()/(outputPixelWidth*outputPixelWidth), gpu);
 
   if(origin != gpu){
     pixels->setMemoryState(origin);
@@ -810,17 +810,14 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<unsigned char>* pi
   }
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
-  int colorDepth = pixels->numElements/((int)imageSize.x*imageSize.y);
-  Unity<float>* convolvedImage = new Unity<float>(nullptr,pixels->numElements,gpu);
+  int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
+  Unity<float>* convolvedImage = new Unity<float>(nullptr,pixels->size(),gpu);
   float* kernel_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&kernel_device,kernelSize.x*kernelSize.y*sizeof(float)));
   CudaSafeCall(cudaMemcpy(kernel_device,kernel,kernelSize.x*kernelSize.y*sizeof(float),cudaMemcpyHostToDevice));
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-
-  float2 minMax = {FLT_MAX,-FLT_MAX};
-  float* min = nullptr;
 
   if(symmetric){
     void (*fp)(uint2, unsigned char*, unsigned int, int2, float*, float*) = &convolveImage_symmetric;
@@ -850,8 +847,8 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<float>* pixels, in
   }
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
-  int colorDepth = pixels->numElements/((int)imageSize.x*imageSize.y);
-  Unity<float>* convolvedImage = new Unity<float>(nullptr,pixels->numElements,gpu);
+  int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
+  Unity<float>* convolvedImage = new Unity<float>(nullptr,pixels->size(),gpu);
   float* kernel_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&kernel_device,kernelSize.x*kernelSize.y*sizeof(float)));
   CudaSafeCall(cudaMemcpy(kernel_device,kernel,kernelSize.x*kernelSize.y*sizeof(float),cudaMemcpyHostToDevice));
@@ -897,16 +894,16 @@ __device__ __host__ __forceinline__ unsigned char ssrlcv::rgbaToBW(const uchar4 
 }
 __device__ __host__ __forceinline__ uchar3 ssrlcv::bwToRGB(const unsigned char &color){
   int colorTemp = (int) color*10;
-  return {(unsigned char)colorTemp/4,(unsigned char)colorTemp/2,(unsigned char)colorTemp/4};
+  return {(unsigned char)(colorTemp/4),(unsigned char)(colorTemp/2),(unsigned char)(colorTemp/4)};
 }
 __device__ __host__ __forceinline__ uchar3 ssrlcv::bwaToRGB(const uchar2 &color){
-  return {color.x,color.y,(color.x/3)*2 + (color.y/3)};
+  return {color.x,color.y,(unsigned char)((color.x/3)*2 + (color.y/3))};
 }
 __device__ __host__ __forceinline__ uchar3 ssrlcv::rgbaToRGB(const uchar4 &color){
   return {
-    (1-color.w)*color.x + color.w*color.x,
-    (1-color.w)*color.y + color.w*color.y,
-    (1-color.w)*color.z + color.w*color.z,
+    (unsigned char)((1-color.w)*color.x + color.w*color.x),
+    (unsigned char)((1-color.w)*color.y + color.w*color.y),
+    (unsigned char)((1-color.w)*color.z + color.w*color.z),
   };
 }
 
@@ -1164,7 +1161,7 @@ __global__ void ssrlcv::normalize(unsigned long numPixels, float* pixels, float2
 __global__ void ssrlcv::calculatePixelGradients(uint2 imageSize, unsigned char* pixels, int2* gradients){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < imageSize.x*imageSize.y){
-    int2 loc = {(int)globalID%imageSize.x,(int)globalID/imageSize.x};
+    int2 loc = {(int)(globalID%imageSize.x),(int)(globalID/imageSize.x)};
     int2 xContrib = {loc.x + 1,loc.x - 1};
     int2 yContrib = {loc.y + 1,loc.y - 1};
     if(xContrib.y == -1) xContrib = xContrib + 1;
@@ -1180,7 +1177,7 @@ __global__ void ssrlcv::calculatePixelGradients(uint2 imageSize, unsigned char* 
 __global__ void ssrlcv::calculatePixelGradients(uint2 imageSize, float* pixels, float2* gradients){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < imageSize.x*imageSize.y){
-    int2 loc = {(int)globalID%imageSize.x,(int)globalID/imageSize.x};
+    int2 loc = {(int)(globalID%imageSize.x),(int)(globalID/imageSize.x)};
     int2 xContrib = {loc.x + 1,loc.x - 1};
     int2 yContrib = {loc.y + 1,loc.y - 1};
     if(xContrib.y == -1) xContrib = xContrib + 1;

@@ -19,7 +19,7 @@ void ssrlcv::MeshFactory::computeVertexImplicitJAX(int focusDepth){
   clock_t timer;
   timer = clock();
 
-  float* easyVertexImplicit = new float[this->octree->nodes->numElements];
+  float* easyVertexImplicit = new float[this->octree->nodes->size()];
   int numConsideredVertices = -1;
   MemoryState origin[5] = {
     this->octree->vertexDepthIndex->getMemoryState(),
@@ -29,7 +29,7 @@ void ssrlcv::MeshFactory::computeVertexImplicitJAX(int focusDepth){
     this->octree->nodes->getMemoryState()
   };
   if(focusDepth == 0){
-    numConsideredVertices = this->octree->vertices->numElements;
+    numConsideredVertices = this->octree->vertices->size();
   }
   else{
     if(origin[0] != cpu && this->octree->vertexDepthIndex->getFore() != cpu){
@@ -110,23 +110,23 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
     this->octree->nodeDepthIndex->transferMemoryTo(cpu);
   }
   int* vertexNumbersDevice;
-  CudaSafeCall(cudaMalloc((void**)&vertexNumbersDevice, this->octree->edges->numElements*sizeof(int)));
+  CudaSafeCall(cudaMalloc((void**)&vertexNumbersDevice, this->octree->edges->size()*sizeof(int)));
   dim3 gridEdge = {1,1,1};
   dim3 blockEdge = {1,1,1};
-  if(this->octree->edges->numElements < 65535) gridEdge.x = (unsigned int) this->octree->edges->numElements;
+  if(this->octree->edges->size() < 65535) gridEdge.x = (unsigned int) this->octree->edges->size();
   else{
     gridEdge.x = 65535;
-    while(gridEdge.x*blockEdge.x < this->octree->edges->numElements){
+    while(gridEdge.x*blockEdge.x < this->octree->edges->size()){
       ++blockEdge.x;
     }
-    while(gridEdge.x*blockEdge.x > this->octree->edges->numElements){
+    while(gridEdge.x*blockEdge.x > this->octree->edges->size()){
       --gridEdge.x;
     }
-    if(gridEdge.x*blockEdge.x < this->octree->edges->numElements){
+    if(gridEdge.x*blockEdge.x < this->octree->edges->size()){
       ++gridEdge.x;
     }
   }
-  calcVertexNumbers<<<gridEdge,blockEdge>>>(this->octree->edges->numElements, 0, this->octree->edges->device, this->vertexImplicitDevice, vertexNumbersDevice);
+  calcVertexNumbers<<<gridEdge,blockEdge>>>(this->octree->edges->size(), 0, this->octree->edges->device, this->vertexImplicitDevice, vertexNumbersDevice);
   cudaDeviceSynchronize();
   CudaCheckError();
   CudaSafeCall(cudaFree(this->vertexImplicitDevice));
@@ -136,8 +136,8 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
 
   int* triangleNumbersDevice;
   int* cubeCategoryDevice;
-  CudaSafeCall(cudaMalloc((void**)&triangleNumbersDevice, this->octree->nodes->numElements*sizeof(int)));
-  CudaSafeCall(cudaMalloc((void**)&cubeCategoryDevice, this->octree->nodes->numElements*sizeof(int)));
+  CudaSafeCall(cudaMalloc((void**)&triangleNumbersDevice, this->octree->nodes->size()*sizeof(int)));
+  CudaSafeCall(cudaMalloc((void**)&cubeCategoryDevice, this->octree->nodes->size()*sizeof(int)));
 
   categorizeCubesRecursively<<<1,8>>>(this->octree->nodeDepthIndex->host[this->octree->depth - 1], this->octree->edges->device, this->octree->nodes->device, vertexNumbersDevice, cubeCategoryDevice, triangleNumbersDevice);
   cudaDeviceSynchronize();
@@ -150,45 +150,45 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
 
   dim3 gridEdge2 = {1,1,1};
   dim3 blockEdge2 = {4,1,1};
-  if(this->octree->edges->numElements < 65535) gridEdge2.x = (unsigned int) this->octree->edges->numElements;
+  if(this->octree->edges->size() < 65535) gridEdge2.x = (unsigned int) this->octree->edges->size();
   else{
     gridEdge2.x = 65535;
-    while(gridEdge2.x*gridEdge2.y < this->octree->edges->numElements){
+    while(gridEdge2.x*gridEdge2.y < this->octree->edges->size()){
       ++gridEdge2.y;
     }
-    while(gridEdge2.x*gridEdge2.y > this->octree->edges->numElements){
+    while(gridEdge2.x*gridEdge2.y > this->octree->edges->size()){
       --gridEdge2.x;
     }
-    if(gridEdge2.x*gridEdge2.y < this->octree->edges->numElements){
+    if(gridEdge2.x*gridEdge2.y < this->octree->edges->size()){
       ++gridEdge2.x;
     }
   }
 
-  minimizeVertices<<<gridEdge2, blockEdge2>>>(this->octree->edges->numElements, this->octree->edges->device, this->octree->nodes->device, cubeCategoryDevice, vertexNumbersDevice);
+  minimizeVertices<<<gridEdge2, blockEdge2>>>(this->octree->edges->size(), this->octree->edges->device, this->octree->nodes->device, cubeCategoryDevice, vertexNumbersDevice);
   cudaDeviceSynchronize();
   CudaCheckError();
 
   int* vertexAddressesDevice;
-  CudaSafeCall(cudaMalloc((void**)&vertexAddressesDevice, this->octree->edges->numElements*sizeof(int)));
+  CudaSafeCall(cudaMalloc((void**)&vertexAddressesDevice, this->octree->edges->size()*sizeof(int)));
   thrust::device_ptr<int> vN(vertexNumbersDevice);
   thrust::device_ptr<int> vA(vertexAddressesDevice);
-  thrust::inclusive_scan(vN, vN + this->octree->edges->numElements, vA);
+  thrust::inclusive_scan(vN, vN + this->octree->edges->size(), vA);
   cudaDeviceSynchronize();
 
   int* triangleAddressesDevice;
-  CudaSafeCall(cudaMalloc((void**)&triangleAddressesDevice, this->octree->nodes->numElements*sizeof(int)));
+  CudaSafeCall(cudaMalloc((void**)&triangleAddressesDevice, this->octree->nodes->size()*sizeof(int)));
   thrust::device_ptr<int> tN(triangleNumbersDevice);
   thrust::device_ptr<int> tA(triangleAddressesDevice);
-  thrust::inclusive_scan(tN, tN + this->octree->nodes->numElements, tA);
+  thrust::inclusive_scan(tN, tN + this->octree->nodes->size(), tA);
   cudaDeviceSynchronize();
 
   this->numSurfaceVertices = 0;
   this->numSurfaceTriangles = 0;
 
-  CudaSafeCall(cudaMemcpy(&this->numSurfaceVertices, vertexAddressesDevice + (this->octree->edges->numElements - 1), sizeof(int), cudaMemcpyDeviceToHost));
-  CudaSafeCall(cudaMemcpy(&this->numSurfaceTriangles, triangleAddressesDevice + (this->octree->nodes->numElements - 1), sizeof(int), cudaMemcpyDeviceToHost));
+  CudaSafeCall(cudaMemcpy(&this->numSurfaceVertices, vertexAddressesDevice + (this->octree->edges->size() - 1), sizeof(int), cudaMemcpyDeviceToHost));
+  CudaSafeCall(cudaMemcpy(&this->numSurfaceTriangles, triangleAddressesDevice + (this->octree->nodes->size() - 1), sizeof(int), cudaMemcpyDeviceToHost));
 
-  printf("%d vertices and %d triangles from %d finestNodes\n",this->numSurfaceVertices, this->numSurfaceTriangles, this->octree->nodes->numElements);
+  printf("%d vertices and %d triangles from %d finestNodes\n",this->numSurfaceVertices, this->numSurfaceTriangles, this->octree->nodes->size());
   CudaSafeCall(cudaFree(triangleNumbersDevice));
 
   float3* surfaceVerticesDevice;
@@ -199,7 +199,7 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   }
 
   /* generate vertices */
-  generateSurfaceVertices<<<gridEdge,blockEdge>>>(this->octree->edges->numElements, 0, this->octree->edges->device, this->octree->vertices->device, vertexNumbersDevice, vertexAddressesDevice, surfaceVerticesDevice);
+  generateSurfaceVertices<<<gridEdge,blockEdge>>>(this->octree->edges->size(), 0, this->octree->edges->device, this->octree->vertices->device, vertexNumbersDevice, vertexAddressesDevice, surfaceVerticesDevice);
   CudaCheckError();
   this->surfaceVertices = new float3[this->numSurfaceVertices];
   CudaSafeCall(cudaMemcpy(this->surfaceVertices, surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3),cudaMemcpyDeviceToHost));
@@ -221,20 +221,20 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   //grid is already numFinestNodes
   dim3 grid = {1,1,1};
   dim3 block = {5,1,1};
-  if(this->octree->nodes->numElements < 65535) grid.x = (unsigned int) this->octree->nodes->numElements;
+  if(this->octree->nodes->size() < 65535) grid.x = (unsigned int) this->octree->nodes->size();
   else{
     grid.x = 65535;
-    while(grid.x*grid.y < this->octree->nodes->numElements){
+    while(grid.x*grid.y < this->octree->nodes->size()){
       ++grid.y;
     }
-    while(grid.x*grid.y > this->octree->nodes->numElements){
+    while(grid.x*grid.y > this->octree->nodes->size()){
       --grid.x;
     }
-    if(grid.x*grid.y < this->octree->nodes->numElements){
+    if(grid.x*grid.y < this->octree->nodes->size()){
       ++grid.x;
     }
   }
-  generateSurfaceTriangles<<<grid,block>>>(this->octree->nodes->numElements, 0, 0, this->octree->nodes->device, vertexAddressesDevice, triangleAddressesDevice, cubeCategoryDevice, surfaceTrianglesDevice);
+  generateSurfaceTriangles<<<grid,block>>>(this->octree->nodes->size(), 0, 0, this->octree->nodes->device, vertexAddressesDevice, triangleAddressesDevice, cubeCategoryDevice, surfaceTrianglesDevice);
   CudaCheckError();
 
   this->surfaceTriangles = new int3[this->numSurfaceTriangles];

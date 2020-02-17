@@ -68,7 +68,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
       
       for(int b = 0; b < dog->depth.y; ++b){
         if(b + 1 == dog->depth.y){
-          numKeyPointsInBlur = currentOctave->extrema->numElements - currentOctave->extremaBlurIndices[b];
+          numKeyPointsInBlur = currentOctave->extrema->size() - currentOctave->extremaBlurIndices[b];
         }
         else{
           numKeyPointsInBlur = currentOctave->extremaBlurIndices[b+1] - currentOctave->extremaBlurIndices[b];
@@ -95,7 +95,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     unsigned int numKeyPoints = 0;
     for(int o = 0; o < dog->depth.x; ++o){
       if(dog->octaves[o]->extrema == nullptr) continue;
-      numKeyPoints += dog->octaves[o]->extrema->numElements;
+      numKeyPoints += dog->octaves[o]->extrema->size();
     }
     if(numKeyPoints == 0){
       std::cerr<<"ERROR: something went wrong and there are 0 keypoints"<<std::endl;
@@ -115,7 +115,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
       //extrema should already be on gpu from last loop
       for(int b = 0; b < dog->depth.y; ++b){
         if(b + 1 == dog->depth.y){
-          numKeyPointsInBlur = currentOctave->extrema->numElements - currentOctave->extremaBlurIndices[b];
+          numKeyPointsInBlur = currentOctave->extrema->size() - currentOctave->extremaBlurIndices[b];
         }
         else{
           numKeyPointsInBlur = currentOctave->extremaBlurIndices[b+1] - currentOctave->extremaBlurIndices[b];
@@ -152,14 +152,14 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
   clock_t timer = clock();
 
   int* thetaNumbers_device = nullptr;
-  CudaSafeCall(cudaMalloc((void**)&thetaNumbers_device,keyPoints->numElements*maxOrientations*sizeof(int)));
+  CudaSafeCall(cudaMalloc((void**)&thetaNumbers_device,keyPoints->size()*maxOrientations*sizeof(int)));
   float* thetas_device = nullptr;
-  CudaSafeCall(cudaMalloc((void**)&thetas_device,keyPoints->numElements*maxOrientations*sizeof(float)));
-  float* thetas_host = new float[keyPoints->numElements*maxOrientations];
-  for(int i = 0; i < keyPoints->numElements*maxOrientations; ++i){
+  CudaSafeCall(cudaMalloc((void**)&thetas_device,keyPoints->size()*maxOrientations*sizeof(float)));
+  float* thetas_host = new float[keyPoints->size()*maxOrientations];
+  for(int i = 0; i < keyPoints->size()*maxOrientations; ++i){
     thetas_host[i] = -1.0f;
   }
-  CudaSafeCall(cudaMemcpy(thetas_device,thetas_host,keyPoints->numElements*maxOrientations*sizeof(float),cudaMemcpyHostToDevice));
+  CudaSafeCall(cudaMemcpy(thetas_device,thetas_host,keyPoints->size()*maxOrientations*sizeof(float),cudaMemcpyHostToDevice));
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
@@ -169,9 +169,9 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     const float2*, int*, const unsigned int, const float,
     float*) = &computeThetas;
 
-  getFlatGridBlock(keyPoints->numElements,grid,block,fp);
+  getFlatGridBlock(keyPoints->size(),grid,block,fp);
 
-  computeThetas<<<grid,block>>>(keyPoints->numElements,imageSize.x,pixelWidth,
+  computeThetas<<<grid,block>>>(keyPoints->size(),imageSize.x,pixelWidth,
     this->orientationContribWidth,ceil(3.0f*this->orientationContribWidth/pixelWidth),
     keyPoints->device, gradients->device, thetaNumbers_device, maxOrientations,
     orientationThreshold,thetas_device);
@@ -182,11 +182,11 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
   timer = clock();
 
   thrust::device_ptr<int> tN(thetaNumbers_device);
-  thrust::device_ptr<int> end = thrust::remove(tN, tN + keyPoints->numElements*maxOrientations, -1);
+  thrust::device_ptr<int> end = thrust::remove(tN, tN + keyPoints->size()*maxOrientations, -1);
   int numFeatures = end - tN;
 
   thrust::device_ptr<float> t(thetas_device);
-  thrust::device_ptr<float> new_end = thrust::remove(t, t + keyPoints->numElements*maxOrientations, -FLT_MAX);
+  thrust::device_ptr<float> new_end = thrust::remove(t, t + keyPoints->size()*maxOrientations, -FLT_MAX);
 
   printf("theta compaction done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
   timer = clock();

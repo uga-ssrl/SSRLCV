@@ -52,6 +52,7 @@ _BASE_OBJS  = io_util.cpp.o
 _BASE_OBJS += io_fmt_ply.cu.o
 _BASE_OBJS += io_fmt_anatomy.cu.o
 _BASE_OBJS += tinyply.cpp.o
+_BASE_OBJS += cuda_vec_util.cu.o
 _BASE_OBJS += cuda_util.cu.o
 _BASE_OBJS += Feature.cu.o
 _BASE_OBJS += Image.cu.o

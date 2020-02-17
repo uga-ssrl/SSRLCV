@@ -8,7 +8,6 @@
 #include "common_includes.h"
 #include "Image.cuh"
 #include "Feature.cuh"
-#include "Unity.cuh"
 #include <thrust/device_ptr.h>
 #include <thrust/copy.h>
 #include <thrust/scan.h>
@@ -57,14 +56,6 @@ namespace ssrlcv{
     bool invalid;
     KeyPoint keyPoints[2];
   };
-  struct validate{
-    __host__ __device__ bool operator()(const Match &m){
-      return m.invalid;
-    }
-    __host__ __device__ bool operator()(const uint2_pair &m){
-      return m.a.x == m.b.x && m.a.y == m.b.y;
-    }
-  };
   /**
   * \brief derived Match struct with distance
   * \note distance is squared here to prevent use of sqrtf
@@ -81,6 +72,14 @@ namespace ssrlcv{
   };
 
   namespace{
+    struct validate{
+      __host__ __device__ bool operator()(const Match &m){
+        return m.invalid;
+      }
+      __host__ __device__ bool operator()(const uint2_pair &m){
+        return m.a.x == m.b.x && m.a.y == m.b.y;
+      }
+    };
     struct match_above_cutoff{
       __host__ __device__
       bool operator()(DMatch m){

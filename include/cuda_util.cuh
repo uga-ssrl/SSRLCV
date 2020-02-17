@@ -13,6 +13,11 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <cuda.h>
+#include <thrust/device_ptr.h>
+#include <thrust/sort.h>
+#include <thrust/remove.h>
+#include "Unity.cuh"
+
 #include <cusolverDn.h>
 #include <stdio.h>
 #include <cuda_occupancy.h>
@@ -20,8 +25,10 @@
 #include <map>
 #include <string>
 
+
 /**
 * \ingroup cuda_util
+* \defgroup nvidia_gpu_compatibility
 * \{
 */
 
@@ -57,8 +64,8 @@ void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (
     dynamicSharedMem,
     numElements
   );
-  block = {blockSize,1,1}; 
-  unsigned long gridSize = (numElements + (unsigned long)blockSize - 1) / (unsigned long)blockSize;
+  block = {(unsigned int)blockSize,1,1}; 
+  unsigned int gridSize = (numElements + (unsigned int)blockSize - 1) / (unsigned int)blockSize;
   if(gridSize > prop.maxGridSize[0]){
     if(gridSize >= 65535L*65535L*65535L){
       grid = {65535,65535,65535};
@@ -111,10 +118,10 @@ void get2DGridBlock(uint2 size, dim3 &grid, dim3 &block,  void (*kernel)(Types..
     dynamicSharedMem,
     size.x*size.y
   );
-  block = {sqrt(blockSize),1,1}; 
+  block = {(unsigned int)sqrt(blockSize),1,1}; 
   block.y = block.x;
-  grid = {(size.x + (unsigned long)block.x - 1) / (unsigned long)block.x,
-    (size.y + (unsigned long)block.y - 1) / (unsigned long)block.y,
+  grid = {(size.x + block.x - 1) / block.x,
+    (size.y + block.y - 1) / block.y,
     1
   };
   
@@ -159,16 +166,85 @@ __host__ void cusolverCheckError(cusolverStatus_t cusolver_status);
 */
 void printDeviceProperties();
 
-//TODO do this for all vector types and related type operations
-/*
-u&char1,2,3,4
-u&short1,2,3,4
-u&int1,2,3,4
-u&long1,2,3,4
-u&longlong1,2,3,4
-float1,2,3,4
-double1,2,3,4
+/**
+* \}
 */
+
+/**
+* \ingroup cuda_util
+* \see Unity
+* \brief universal sort method for unity if < operator is overloader
+*/
+template<typename T>
+void sort(ssrlcv::Unity<T>* array){
+  if(array == nullptr){
+    throw ssrlcv::UnityException("passed array == nullptr in sort(Unity<T>* array)");
+  }
+  ssrlcv::MemoryState origin = array->getMemoryState();
+  ssrlcv::MemoryState fore = array->getFore();
+  if(origin == ssrlcv::cpu || fore == ssrlcv::cpu) array->transferMemoryTo(ssrlcv::gpu);
+  thrust::device_ptr<T> array_ptr(array->device);
+  thrust::device_ptr<T> new_end = thrust::sort(array_ptr,array_ptr+array->size());
+  CudaCheckError();
+  array->setFore(ssrlcv::gpu);
+  if(origin != ssrlcv::gpu) array->setMemoryState(origin);
+}
+/**
+* \ingroup cuda_util
+* \see Unity
+* \brief universal sort method for unity if < operator is overloader
+*/
+template<typename T>
+void sort(ssrlcv::Unity<T>* array, bool (*compare)(const T&,const T&)){
+  if(array == nullptr){
+    throw ssrlcv::UnityException("passed array == nullptr in sort(Unity<T>* array)");
+  }
+  ssrlcv::MemoryState origin = array->getMemoryState();
+  ssrlcv::MemoryState fore = array->getFore();
+  if(origin == ssrlcv::cpu || fore == ssrlcv::cpu) array->transferMemoryTo(ssrlcv::gpu);
+  thrust::device_ptr<T> array_ptr(array->device);
+  thrust::device_ptr<T> new_end = thrust::sort(array_ptr,array_ptr+array->size(),compare);
+  CudaCheckError();
+  array->setFore(ssrlcv::gpu);
+  if(origin != ssrlcv::gpu) array->setMemoryState(origin);
+}
+namespace{
+  template<typename T> 
+  __host__ __device__ bool check_if_valid(const T &var){
+    return var.invalid;
+  } 
+}
+
+
+/**
+* \brief remove elements of a unity
+*/
+template<typename T>
+void remove(ssrlcv::Unity<T>* array, bool (*validate)(const T&)){
+  if(array == nullptr){
+    throw ssrlcv::UnityException("passed array == nullptr in remove(Unity<T>* array)");
+  }
+  ssrlcv::MemoryState origin = array->getMemoryState();
+  ssrlcv::MemoryState fore = array->getFore();
+  if(origin == ssrlcv::cpu || fore == ssrlcv::cpu) array->transferMemoryTo(ssrlcv::gpu);
+  thrust::device_ptr<T> array_ptr(array->device);
+  thrust::device_ptr<T> new_end = thrust::remove_if(array_ptr,array_ptr+array->size(),validate);
+  CudaCheckError();
+  unsigned long numElements = new_end - array_ptr;
+  if(numElements == 0){
+    std::clog<<"remove(Unity<T>, bool(*validate)(const T&)) led to all elements being removed (array deleted)"<<std::endl;
+    delete array;
+    return;
+  }
+  else if(numElements != array->size()){
+    T* array_device = nullptr;
+    CudaSafeCall(cudaMalloc((void**)&array_device,numElements));
+    CudaSafeCall(cudaMemcpy(array_device,array->device,numElements*sizeof(T),cudaMemcpyDeviceToDevice));
+    array->setData(array_device,numElements,ssrlcv::gpu);
+  }
+  if(origin != ssrlcv::gpu) array->setMemoryState(origin);
+}
+
 /**
 * \brief struct for use in thrust::compaction methods
 * \details When calling a thrust::compaction method using 
@@ -214,213 +290,6 @@ struct is_not_neg{
 };
 
 __device__ __host__ void printBits(size_t const size, void const * const ptr);
-__device__ void orderInt3(int3 &toOrder);
-__device__ __host__ float3 operator+(const float3 &a, const float3 &b);
-__device__ __host__ float3 operator-(const float3 &a, const float3 &b);
-__device__ __host__ float3 operator/(const float3 &a, const float3 &b);
-__device__ __host__ float3 operator*(const float3 &a, const float3 &b);
-__device__ __host__ float dotProduct(const float3 &a, const float3 &b);
-__device__ __host__ float3 operator+(const float3 &a, const float &b);
-__device__ __host__ float3 operator-(const float3 &a, const float &b);
-__device__ __host__ float3 operator/(const float3 &a, const float &b);
-__device__ __host__ float3 operator*(const float3 &a, const float &b);
-__device__ __host__ float3 operator+(const float &a, const float3 &b);
-__device__ __host__ float3 operator-(const float &a, const float3 &b);
-__device__ __host__ float3 operator/(const float &a, const float3 &b);
-__device__ __host__ float3 operator*(const float &a, const float3 &b);
-
-__device__ __host__ float2 operator+(const float2 &a, const float2 &b);
-__device__ __host__ float2 operator-(const float2 &a, const float2 &b);
-__device__ __host__ float2 operator/(const float2 &a, const float2 &b);
-__device__ __host__ float2 operator*(const float2 &a, const float2 &b);
-__device__ __host__ float dotProduct(const float2 &a, const float2 &b);
-__device__ __host__ float2 operator+(const float2 &a, const float &b);
-__device__ __host__ float2 operator-(const float2 &a, const float &b);
-__device__ __host__ float2 operator/(const float2 &a, const float &b);
-__device__ __host__ float2 operator*(const float2 &a, const float &b);
-__device__ __host__ float2 operator+(const float &a, const float2 &b);
-__device__ __host__ float2 operator-(const float &a, const float2 &b);
-__device__ __host__ float2 operator/(const float &a, const float2 &b);
-__device__ __host__ float2 operator*(const float &a, const float2 &b);
-
-__device__ __host__ float2 operator+(const float2 &a, const int2 &b);
-__device__ __host__ float2 operator-(const float2 &a, const int2 &b);
-__device__ __host__ float2 operator/(const float2 &a, const int2 &b);
-__device__ __host__ float2 operator*(const float2 &a, const int2 &b);
-__device__ __host__ float2 operator+(const int2 &a, const float2 &b);
-__device__ __host__ float2 operator-(const int2 &a, const float2 &b);
-__device__ __host__ float2 operator/(const int2 &a, const float2 &b);
-__device__ __host__ float2 operator*(const int2 &a, const float2 &b);
-
-__device__ __host__ int2 operator+(const int2 &a, const int2 &b);
-__device__ __host__ int2 operator-(const int2 &a, const int2 &b);
-__device__ __host__ float2 operator/(const float2 &a, const int2 &b);
-__device__ __host__ int2 operator*(const int2 &a, const int2 &b);
-__device__ __host__ int dotProduct(const int2 &a, const int2 &b);
-__device__ __host__ float2 operator/(const int2 &a, const float &b);
-
-__device__ __host__ uint2 operator+(const uint2 &a, const uint2 &b);
-__device__ __host__ uint2 operator-(const uint2 &a, const uint2 &b);
-__device__ __host__ uint2 operator*(const uint2 &a, const uint2 &b);
-__device__ __host__ uint2 operator/(const uint2 &a, const uint2 &b);
-__device__ __host__ uint2 operator+(const uint2 &a, const int &b);
-__device__ __host__ uint2 operator-(const uint2 &a, const int &b);
-__device__ __host__ uint2 operator*(const uint2 &a, const int &b);
-__device__ __host__ uint2 operator/(const uint2 &a, const int &b);
-__device__ __host__ int2 operator+(const int2 &a, const uint2 &b);
-__device__ __host__ int2 operator-(const int2 &a, const uint2 &b);
-__device__ __host__ int2 operator*(const int2 &a, const uint2 &b);
-__device__ __host__ int2 operator/(const int2 &a, const uint2 &b);
-__device__ __host__ int2 operator+(const uint2 &a, const int2 &b);
-__device__ __host__ int2 operator-(const uint2 &a, const int2 &b);
-__device__ __host__ int2 operator*(const uint2 &a, const int2 &b);
-__device__ __host__ int2 operator/(const uint2 &a, const int2 &b);
-
-__device__ __host__ float2 operator+(const int2 &a, const float &b);
-__device__ __host__ float2 operator-(const int2 &a, const float &b);
-__device__ __host__ float2 operator/(const float2 &a, const float &b);
-__device__ __host__ float2 operator*(const int2 &a, const float &b);
-__device__ __host__ float2 operator/(const int2 &a, const float &b);
-
-__device__ __host__ int2 operator+(const int2 &a, const int &b);
-__device__ __host__ int2 operator-(const int2 &a, const int &b);
-
-__device__ __host__ ulong2 operator+(const ulong2 &a, const int2 &b);
-__device__ __host__ ulong2 operator-(const ulong2 &a, const int2 &b);
-__device__ __host__ ulong2 operator/(const ulong2 &a, const int2 &b);
-__device__ __host__ ulong2 operator*(const ulong2 &a, const int2 &b);
-__device__ __host__ ulong2 operator/(const ulong2 &a, const int2 &b);
-
-__device__ __host__ ulong2 operator+(const int2 &a, const ulong2 &b);
-__device__ __host__ ulong2 operator-(const int2 &a, const ulong2 &b);
-__device__ __host__ ulong2 operator/(const int2 &a, const ulong2 &b);
-__device__ __host__ ulong2 operator*(const int2 &a, const ulong2 &b);
-__device__ __host__ ulong2 operator/(const int2 &a, const ulong2 &b);
-
-__device__ __host__ bool operator>(const float2 &a, const float &b);
-__device__ __host__ bool operator<(const float2 &a, const float &b);
-__device__ __host__ bool operator>(const float2 &a, const int2 &b);
-__device__ __host__ bool operator<(const float2 &a, const int2 &b);
-
-
-__device__ __host__ bool operator==(const float2 &a, const float2 &b);
-__device__ __host__ bool operator==(const float3 &a, const float3 &b);
-__device__ __host__ bool operator==(const float4 &a, const float4 &b);
-__device__ __host__ bool operator==(const double2 &a, const double2 &b);
-__device__ __host__ bool operator==(const double3 &a, const double3 &b);
-__device__ __host__ bool operator==(const double4 &a, const double4 &b);
-__device__ __host__ bool operator==(const int2 &a, const int2 &b);
-__device__ __host__ bool operator==(const int3 &a, const int3 &b);
-__device__ __host__ bool operator==(const int4 &a, const int4 &b);
-__device__ __host__ bool operator==(const long2 &a, const long2 &b);
-__device__ __host__ bool operator==(const long3 &a, const long3 &b);
-__device__ __host__ bool operator==(const long4 &a, const long4 &b);
-__device__ __host__ bool operator==(const uint2 &a, const uint2 &b);
-__device__ __host__ bool operator==(const uint3 &a, const uint3 &b);
-__device__ __host__ bool operator==(const uint4 &a, const uint4 &b);
-__device__ __host__ bool operator==(const ulong2 &a, const ulong2 &b);
-__device__ __host__ bool operator==(const ulong3 &a, const ulong3 &b);
-__device__ __host__ bool operator==(const ulong4 &a, const ulong4 &b);
-
-__device__ __host__ bool operator!=(const float2 &a, const float2 &b);
-__device__ __host__ bool operator!=(const float3 &a, const float3 &b);
-__device__ __host__ bool operator!=(const float4 &a, const float4 &b);
-__device__ __host__ bool operator!=(const double2 &a, const double2 &b);
-__device__ __host__ bool operator!=(const double3 &a, const double3 &b);
-__device__ __host__ bool operator!=(const double4 &a, const double4 &b);
-__device__ __host__ bool operator!=(const int2 &a, const int2 &b);
-__device__ __host__ bool operator!=(const int3 &a, const int3 &b);
-__device__ __host__ bool operator!=(const int4 &a, const int4 &b);
-__device__ __host__ bool operator!=(const long2 &a, const long2 &b);
-__device__ __host__ bool operator!=(const long3 &a, const long3 &b);
-__device__ __host__ bool operator!=(const long4 &a, const long4 &b);
-__device__ __host__ bool operator!=(const uint2 &a, const uint2 &b);
-__device__ __host__ bool operator!=(const uint3 &a, const uint3 &b);
-__device__ __host__ bool operator!=(const uint4 &a, const uint4 &b);
-__device__ __host__ bool operator!=(const ulong2 &a, const ulong2 &b);
-__device__ __host__ bool operator!=(const ulong3 &a, const ulong3 &b);
-__device__ __host__ bool operator!=(const ulong4 &a, const ulong4 &b);
-
-__device__ __host__ bool operator<(const float2 &a, const float2 &b);
-__device__ __host__ bool operator<(const float3 &a, const float3 &b);
-__device__ __host__ bool operator<(const float4 &a, const float4 &b);
-__device__ __host__ bool operator>(const float2 &a, const float2 &b);
-__device__ __host__ bool operator>(const float3 &a, const float3 &b);
-__device__ __host__ bool operator>(const float4 &a, const float4 &b);
-__device__ __host__ bool operator<(const double2 &a, const double2 &b);
-__device__ __host__ bool operator<(const double3 &a, const double3 &b);
-__device__ __host__ bool operator<(const double4 &a, const double4 &b);
-__device__ __host__ bool operator>(const double2 &a, const double2 &b);
-__device__ __host__ bool operator>(const double3 &a, const double3 &b);
-__device__ __host__ bool operator>(const double4 &a, const double4 &b);
-__device__ __host__ bool operator<(const long2 &a, const long2 &b);
-__device__ __host__ bool operator<(const long3 &a, const long3 &b);
-__device__ __host__ bool operator<(const long4 &a, const long4 &b);
-__device__ __host__ bool operator>(const long2 &a, const long2 &b);
-__device__ __host__ bool operator>(const long3 &a, const long3 &b);
-__device__ __host__ bool operator>(const long4 &a, const long4 &b);
-__device__ __host__ bool operator<(const ulong2 &a, const ulong2 &b);
-__device__ __host__ bool operator<(const ulong3 &a, const ulong3 &b);
-__device__ __host__ bool operator<(const ulong4 &a, const ulong4 &b);
-__device__ __host__ bool operator>(const ulong2 &a, const ulong2 &b);
-__device__ __host__ bool operator>(const ulong3 &a, const ulong3 &b);
-__device__ __host__ bool operator>(const ulong4 &a, const ulong4 &b);
-__device__ __host__ bool operator<(const int2 &a, const int2 &b);
-__device__ __host__ bool operator<(const int3 &a, const int3 &b);
-__device__ __host__ bool operator<(const int4 &a, const int4 &b);
-__device__ __host__ bool operator>(const int2 &a, const int2 &b);
-__device__ __host__ bool operator>(const int3 &a, const int3 &b);
-__device__ __host__ bool operator>(const int4 &a, const int4 &b);
-__device__ __host__ bool operator<(const uint2 &a, const uint2 &b);
-__device__ __host__ bool operator<(const uint3 &a, const uint3 &b);
-__device__ __host__ bool operator<(const uint4 &a, const uint4 &b);
-__device__ __host__ bool operator>(const uint2 &a, const uint2 &b);
-__device__ __host__ bool operator>(const uint3 &a, const uint3 &b);
-__device__ __host__ bool operator>(const uint4 &a, const uint4 &b);
-
-
-
-__device__ __host__ bool operator<=(const float2 &a, const float2 &b);
-__device__ __host__ bool operator<=(const float3 &a, const float3 &b);
-__device__ __host__ bool operator<=(const float4 &a, const float4 &b);
-__device__ __host__ bool operator>=(const float2 &a, const float2 &b);
-__device__ __host__ bool operator>=(const float3 &a, const float3 &b);
-__device__ __host__ bool operator>=(const float4 &a, const float4 &b);
-__device__ __host__ bool operator<=(const double2 &a, const double2 &b);
-__device__ __host__ bool operator<=(const double3 &a, const double3 &b);
-__device__ __host__ bool operator<=(const double4 &a, const double4 &b);
-__device__ __host__ bool operator>=(const double2 &a, const double2 &b);
-__device__ __host__ bool operator>=(const double3 &a, const double3 &b);
-__device__ __host__ bool operator>=(const double4 &a, const double4 &b);
-__device__ __host__ bool operator<=(const long2 &a, const long2 &b);
-__device__ __host__ bool operator<=(const long3 &a, const long3 &b);
-__device__ __host__ bool operator<=(const long4 &a, const long4 &b);
-__device__ __host__ bool operator>=(const long2 &a, const long2 &b);
-__device__ __host__ bool operator>=(const long3 &a, const long3 &b);
-__device__ __host__ bool operator>=(const long4 &a, const long4 &b);
-__device__ __host__ bool operator<=(const ulong2 &a, const ulong2 &b);
-__device__ __host__ bool operator<=(const ulong3 &a, const ulong3 &b);
-__device__ __host__ bool operator<=(const ulong4 &a, const ulong4 &b);
-__device__ __host__ bool operator>=(const ulong2 &a, const ulong2 &b);
-__device__ __host__ bool operator>=(const ulong3 &a, const ulong3 &b);
-__device__ __host__ bool operator>=(const ulong4 &a, const ulong4 &b);
-__device__ __host__ bool operator<=(const int2 &a, const int2 &b);
-__device__ __host__ bool operator<=(const int3 &a, const int3 &b);
-__device__ __host__ bool operator<=(const int4 &a, const int4 &b);
-__device__ __host__ bool operator>=(const int2 &a, const int2 &b);
-__device__ __host__ bool operator>=(const int3 &a, const int3 &b);
-__device__ __host__ bool operator>=(const int4 &a, const int4 &b);
-__device__ __host__ bool operator<=(const uint2 &a, const uint2 &b);
-__device__ __host__ bool operator<=(const uint3 &a, const uint3 &b);
-__device__ __host__ bool operator<=(const uint4 &a, const uint4 &b);
-__device__ __host__ bool operator>=(const uint2 &a, const uint2 &b);
-__device__ __host__ bool operator>=(const uint3 &a, const uint3 &b);
-__device__ __host__ bool operator>=(const uint4 &a, const uint4 &b);
-
-
-
-
-
 
 
 /*
@@ -477,8 +346,6 @@ __device__ __forceinline__ unsigned long getGlobalIdx_3D_3D(){
 }
 */
 
-/**
-* \}
-*/
+
 
 #endif /* CUDA_UTIL_CUH */

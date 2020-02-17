@@ -137,7 +137,7 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(){
   unsigned int* nodeDataIndex_device = nullptr;
 
   unsigned long numLeafNodes = 0;
-  numLeafNodes = this->data->numElements;
+  numLeafNodes = this->data->size();
   CudaSafeCall(cudaMalloc((void**)&leafNodeKeys_device, numLeafNodes*sizeof(int)));
   CudaSafeCall(cudaMalloc((void**)&leafNodeCenters_device, numLeafNodes*sizeof(float2)));
   dim3 grid = {1,1,1};
@@ -161,36 +161,36 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(){
 
 
   thrust::counting_iterator<unsigned int> iter(0);
-  thrust::device_vector<unsigned int> indices(this->data->numElements);
-  thrust::copy(iter, iter + this->data->numElements, indices.begin());
+  thrust::device_vector<unsigned int> indices(this->data->size());
+  thrust::copy(iter, iter + this->data->size(), indices.begin());
   CudaSafeCall(cudaMalloc((void**)&nodeDataIndex_device, numLeafNodes*sizeof(unsigned int)));
   CudaSafeCall(cudaMemcpy(nodeDataIndex_device, thrust::raw_pointer_cast(indices.data()), numLeafNodes*sizeof(unsigned int),cudaMemcpyDeviceToDevice));
 
   thrust::device_ptr<int> kys(leafNodeKeys_device);
-  thrust::sort_by_key(kys, kys + this->data->numElements, indices.begin());
+  thrust::sort_by_key(kys, kys + this->data->size(), indices.begin());
 
   thrust::device_ptr<float2> cnts(leafNodeCenters_device);
-  thrust::device_vector<float2> sortedCnts(this->data->numElements);
+  thrust::device_vector<float2> sortedCnts(this->data->size());
   thrust::gather(indices.begin(), indices.end(), cnts, sortedCnts.begin());
-  CudaSafeCall(cudaMemcpy(leafNodeCenters_device, thrust::raw_pointer_cast(sortedCnts.data()), this->data->numElements*sizeof(float2),cudaMemcpyDeviceToDevice));
+  CudaSafeCall(cudaMemcpy(leafNodeCenters_device, thrust::raw_pointer_cast(sortedCnts.data()), this->data->size()*sizeof(float2),cudaMemcpyDeviceToDevice));
 
   if(this->data->getFore() != gpu){
     this->data->transferMemoryTo(gpu);
   }
 
   thrust::device_ptr<T> dataSorter(this->data->device);
-  thrust::device_vector<T> sortedData(this->data->numElements);
+  thrust::device_vector<T> sortedData(this->data->size());
   thrust::gather(indices.begin(), indices.end(), dataSorter, sortedData.begin());
   T* data_device = nullptr;
-  CudaSafeCall(cudaMalloc((void**)&data_device,this->data->numElements*sizeof(T)));
-  CudaSafeCall(cudaMemcpy(data_device,thrust::raw_pointer_cast(sortedData.data()), this->data->numElements*sizeof(T), cudaMemcpyDeviceToDevice));
-  this->data->setData(data_device, this->data->numElements, gpu);
+  CudaSafeCall(cudaMalloc((void**)&data_device,this->data->size()*sizeof(T)));
+  CudaSafeCall(cudaMemcpy(data_device,thrust::raw_pointer_cast(sortedData.data()), this->data->size()*sizeof(T), cudaMemcpyDeviceToDevice));
+  this->data->setData(data_device, this->data->size(), gpu);
   this->data->transferMemoryTo(cpu);
   this->data->clear(gpu);
 
   thrust::pair<thrust::device_ptr<int>, thrust::device_ptr<unsigned int>> new_end;//the last value of these node array
   thrust::device_ptr<unsigned int> compactNodeDataIndex(nodeDataIndex_device);
-  new_end = thrust::unique_by_key(kys,kys + this->data->numElements, compactNodeDataIndex);
+  new_end = thrust::unique_by_key(kys,kys + this->data->size(), compactNodeDataIndex);
   numLeafNodes = thrust::get<0>(new_end) - kys;
 
   Node* leafNodes_device = nullptr;
@@ -200,7 +200,7 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(){
   block = {1,1,1};
   getFlatGridBlock(numLeafNodes,grid,block,fillLeafNodes<T>);
 
-  fillLeafNodes<T><<<grid,block>>>(this->data->numElements, numLeafNodes,leafNodes_device,leafNodeKeys_device,leafNodeCenters_device,nodeDataIndex_device,this->depth);
+  fillLeafNodes<T><<<grid,block>>>(this->data->size(), numLeafNodes,leafNodes_device,leafNodeKeys_device,leafNodeCenters_device,nodeDataIndex_device,this->depth);
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -229,9 +229,9 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
   if(this->nodes->getMemoryState() == cpu){
     this->nodes->transferMemoryTo(gpu);
   }
-  int numUniqueNodes = this->nodes->numElements;
-  CudaSafeCall(cudaMalloc((void**)&uniqueNodes_device, this->nodes->numElements*sizeof(Node)));
-  CudaSafeCall(cudaMemcpy(uniqueNodes_device, this->nodes->device, this->nodes->numElements*sizeof(Node), cudaMemcpyDeviceToDevice));
+  int numUniqueNodes = this->nodes->size();
+  CudaSafeCall(cudaMalloc((void**)&uniqueNodes_device, this->nodes->size()*sizeof(Node)));
+  CudaSafeCall(cudaMemcpy(uniqueNodes_device, this->nodes->device, this->nodes->size()*sizeof(Node), cudaMemcpyDeviceToDevice));
   delete this->nodes;
   this->nodes = nullptr;
   unsigned int totalNodes = 0;
@@ -308,8 +308,8 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
   delete[] nodes2D;
 
   unsigned int* dataNodeIndex_device = nullptr;
-  CudaSafeCall(cudaMalloc((void**)&dataNodeIndex_device, this->data->numElements*sizeof(unsigned int)));
-  this->dataNodeIndex = new Unity<unsigned int>(dataNodeIndex_device, this->data->numElements, gpu);
+  CudaSafeCall(cudaMalloc((void**)&dataNodeIndex_device, this->data->size()*sizeof(unsigned int)));
+  this->dataNodeIndex = new Unity<unsigned int>(dataNodeIndex_device, this->data->size(), gpu);
 
   unsigned int numNodesAtDepth = 1;
   unsigned int depthStartingIndex = 0;
@@ -409,7 +409,7 @@ void ssrlcv::Quadtree<T>::generateVertices(){
     grid.y = 1;
     block.x = 4;
     if(i == this->depth){//WARNING MAY CAUSE ISSUE
-      numNodesAtDepth = this->nodes->numElements - this->nodeDepthIndex->host[this->depth];
+      numNodesAtDepth = this->nodes->size() - this->nodeDepthIndex->host[this->depth];
     }
     else{
       numNodesAtDepth = this->nodeDepthIndex->host[i + 1] - this->nodeDepthIndex->host[i];
@@ -616,7 +616,7 @@ void ssrlcv::Quadtree<T>::setNodeFlags(ssrlcv::Unity<bool>* hashMap, bool requir
   }
   unsigned int numNodes = 0;
   if(depthRange.x == 0){
-    numNodes = this->nodes->numElements - nodeDepthIndex;
+    numNodes = this->nodes->size() - nodeDepthIndex;
   }
   else{
     numNodes = this->nodeDepthIndex->host[this->depth - (depthRange.x - 1)] - nodeDepthIndex;
@@ -661,7 +661,7 @@ void ssrlcv::Quadtree<T>::setNodeFlags(float2 flagBorder, bool requireFullNeighb
   }
   unsigned int numNodes = 0;
   if(depthRange.x == 0){
-    numNodes = this->nodes->numElements - nodeDepthIndex;
+    numNodes = this->nodes->size() - nodeDepthIndex;
   }
   else{
     numNodes = this->nodeDepthIndex->host[this->depth - (depthRange.x - 1)] - nodeDepthIndex;
@@ -696,7 +696,7 @@ void ssrlcv::Quadtree<T>::writePLY(){
   std::cout<<"writing "<<newFile<<std::endl;
   std::ofstream plystream(newFile);
   if (plystream.is_open()) {
-    int verticesToWrite = this->nodes->numElements;
+    int verticesToWrite = this->nodes->size();
     this->nodes->transferMemoryTo(cpu);
     std::ostringstream stringBuffer = std::ostringstream("");
     stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
@@ -733,7 +733,7 @@ void ssrlcv::Quadtree<unsigned char>::writePLY(){
 std::string newFile = "out/test_"+ std::to_string(rand())+ ".ply";
 std::ofstream plystream(newFile);
 if (plystream.is_open()) {
-  int verticesToWrite = this->nodes->numElements;
+  int verticesToWrite = this->nodes->size();
   this->nodes->transferMemoryTo(cpu);
   this->data->transferMemoryTo(cpu);
   std::ostringstream stringBuffer = std::ostringstream("");
@@ -788,7 +788,7 @@ void ssrlcv::Quadtree<unsigned int>::writePLY(ssrlcv::Unity<unsigned char>* pixe
   std::string newFile = "out/test_"+ std::to_string(rand())+ ".ply";
   std::ofstream plystream(newFile);
   if (plystream.is_open()) {
-    int verticesToWrite = this->nodes->numElements;
+    int verticesToWrite = this->nodes->size();
     this->nodes->transferMemoryTo(cpu);
     pixels->transferMemoryTo(cpu);
     this->data->transferMemoryTo(cpu);

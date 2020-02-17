@@ -5,7 +5,6 @@
 #define OCTREE_CUH
 
 #include "common_includes.h"
-#include "cuda_util.cuh"
 #include <thrust/sort.h>
 #include <thrust/pair.h>
 #include <thrust/unique.h>
@@ -17,7 +16,6 @@
 #include <thrust/copy.h>
 #include <cublas_v2.h>
 #include <cusolverDn.h>
-#include "Unity.cuh"
 
 #include "tinyply.h"
 

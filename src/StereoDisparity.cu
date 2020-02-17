@@ -24,6 +24,10 @@ int main(int argc, char *argv[]){
     std::vector<std::string> imagePaths = ssrlcv::findFiles(path);
 
     int numImages = (int) imagePaths.size();
+    if(numImages != 2){
+      std::cerr<<"ERROR: this executable only accepts 2 images other than seed"<<std::endl;
+      exit(0);
+    }
 
     ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1.5f,6.0f);
     ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,250.0f*250.0f);
@@ -94,7 +98,7 @@ int main(int argc, char *argv[]){
 
     distanceMatches->transferMemoryTo(ssrlcv::cpu);
     float maxDist = 0.0f;
-    for(int i = 0; i < distanceMatches->numElements; ++i){
+    for(int i = 0; i < distanceMatches->size(); ++i){
       if(maxDist < distanceMatches->host[i].distance) maxDist = distanceMatches->host[i].distance;
     }
     printf("%f\n",maxDist);
