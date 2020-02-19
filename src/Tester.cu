@@ -5,6 +5,7 @@
 #include "MatchFactory.cuh"
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
+#include "CNN.h"
 
 //TODO fix gaussian operators - currently creating very low values
 
@@ -86,7 +87,14 @@ std::vector<float4> checkEquivanlenceSIFT(std::vector<ssrlcv::Image*> images, st
 
 int main(int argc, char *argv[]){
   try{
+    std::string base38Cloud = "/media/jackson/JAX_1TB/datasets/segmentation/clouds/38-Cloud/";
+    std::string r = base38Cloud + "train_red";
+    std::string g = base38Cloud + "train_green";
+    std::string b = base38Cloud + "train_blue";
+    std::string bw = base38Cloud + "train_bw";
+    ssrlcv::combineRGBImagesToBW(r,g,b,bw);
 
+    exit(0);
     //CUDA INITIALIZATION
     cuInit(0);
     clock_t totalTimer = clock();

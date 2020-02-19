@@ -7,6 +7,8 @@
 #define CNN_H
 
 #include "common_includes.h"
+#include "Image.cuh"
+#include "io_util.h"
 
 namespace ssrlcv{
   /**
@@ -16,6 +18,8 @@ namespace ssrlcv{
    * \returns path of hashed file??? maybe of hash
    */
   std::string segmentClouds(std::string pathToFile);
+
+  void combineRGBImagesToBW(std::string r_folder, std::string g_folder, std::string b_folder, std::string bw_folder);
 }
 
 

@@ -462,13 +462,13 @@ namespace ssrlcv{
   */
   __device__ __host__ __forceinline__ int getSymmetrizedCoord(int i, unsigned int l);
 
-  __device__ __host__ __forceinline__ unsigned char bwaToBW(const uchar2 &color);
-  __device__ __host__ __forceinline__ unsigned char rgbToBW(const uchar3 &color);
-  __device__ __host__ __forceinline__ unsigned char rgbaToBW(const uchar4 &color);
+  __device__ __host__ unsigned char bwaToBW(const uchar2 &color);
+  __device__ __host__ unsigned char rgbToBW(const uchar3 &color);
+  __device__ __host__ unsigned char rgbaToBW(const uchar4 &color);
   
-  __device__ __host__ __forceinline__ uchar3 bwToRGB(const unsigned char &color);
-  __device__ __host__ __forceinline__ uchar3 bwaToRGB(const uchar2 &color);
-  __device__ __host__ __forceinline__ uchar3 rgbaToRGB(const uchar4 &color);
+  __device__ __host__ uchar3 bwToRGB(const unsigned char &color);
+  __device__ __host__ uchar3 bwaToRGB(const uchar2 &color);
+  __device__ __host__ uchar3 rgbaToRGB(const uchar4 &color);
 
   /**
   * \}

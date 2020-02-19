@@ -1,3 +1,0 @@
-[submodule "src/scripts/segmentation/Pytorch-UNet.git"]
-	path = src/scripts/segmentation/Pytorch-UNet.git
-	url = https://github.com/milesial/Pytorch-UNet.git

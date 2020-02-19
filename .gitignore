@@ -48,3 +48,10 @@ project.*
 src/Tester.cu
 
 *.out
+
+src/scripts/segmentation/Pytorch-UNet/runs/*
+src/scripts/segmentation/Pytorch-UNet/checkpoints/*
+src/scripts/segmentation/Pytorch-UNet/*/__pycache__
+src/scripts/segmentation/Pytorch-UNet/data/*
+src/scripts/recognition/PyTorch-YOLOv3/data/*
+

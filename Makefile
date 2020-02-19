@@ -66,7 +66,8 @@ _BASE_OBJS += Octree.cu.o
 _BASE_OBJS += MeshFactory.cu.o
 _SFM_OBJS = SFM.cu.o
 _SD_OBJS = StereoDisparity.cu.o
-_T_OBJS = Tester.cu.o
+_T_OBJS = CNN.cpp.o
+_T_OBJS += Tester.cu.o
 
 BASE_OBJS = $(patsubst %, $(OBJDIR)/%, $(_BASE_OBJS))
 SFM_OBJS = $(patsubst %, $(OBJDIR)/%, $(_SFM_OBJS))
