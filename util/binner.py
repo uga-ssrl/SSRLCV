@@ -8,8 +8,8 @@ bin_dir = '/media/firesauce/JAX_1TB/datasets/need_binning/ship_airbus_1.5m/binne
 def bin_in_folder():
 	for filename in os.listdir(img_dir):
 		img = cv2.imread(os.path.join(img_dir,filename))
-		cv2.resize(img,(192,192))
-		cv2.imwrite(os.path.join(bin_dir,filename),img)
+		resized = cv2.resize(img,(192,192))
+		cv2.imwrite(os.path.join(bin_dir,filename),resized)
 
 
 if __name__ == '__main__':
