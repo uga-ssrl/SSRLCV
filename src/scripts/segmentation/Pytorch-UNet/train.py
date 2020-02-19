@@ -18,8 +18,8 @@ from torch.utils.data import DataLoader, random_split
 
 #import segmentation_models_pytorch
 
-dir_img = '/media/jackson/JAX_1TB/datasets/segmentation/clouds/38-Cloud/train/train_rgb/'
-dir_mask = '/media/jackson/JAX_1TB/datasets/segmentation/clouds/38-Cloud/train/train_rgb_gt/'
+dir_img = '/media/firesauce/JAX_1TB/datasets/clouds/38-Cloud/train_rgb/'
+dir_mask = '/media/firesauce/JAX_1TB/datasets/clouds/38-Cloud/train_rgb_gt/'
 dir_checkpoint = 'checkpoints/'
 
 
@@ -157,7 +157,7 @@ if __name__ == '__main__':
         )
         logging.info(f'Model loaded from {args.load}')
     net.to(device=device)
-    
+
     # faster convolutions, but more memory
     # cudnn.benchmark = True
 
