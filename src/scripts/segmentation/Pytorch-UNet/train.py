@@ -18,8 +18,8 @@ from torch.utils.data import DataLoader, random_split
 
 #import segmentation_models_pytorch
 
-dir_img = '/media/firesauce/JAX_1TB/datasets/clouds/38-Cloud/train_rgb/'
-dir_mask = '/media/firesauce/JAX_1TB/datasets/clouds/38-Cloud/train_rgb_gt/'
+dir_img = '/media/firesauce/JAX_1TB/datasets/clouds/l8cloudmasks/data/'
+dir_mask = '/media/firesauce/JAX_1TB/datasets/clouds/l8cloudmasks/qmask/'
 dir_checkpoint = 'checkpoints/'
 
 

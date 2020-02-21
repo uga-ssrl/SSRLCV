@@ -103,7 +103,7 @@ if __name__ == "__main__":
     in_files = args.input
     out_files = get_output_filenames(args)
 
-    net = UNet(n_channels=1, n_classes=1)
+    net = UNet(n_channels=1, n_classes=1,bilinear=False)
 
     logging.info("Loading model {}".format(args.model))
 
@@ -118,6 +118,9 @@ if __name__ == "__main__":
         logging.info("\nPredicting image {} ...".format(fn))
 
         cvimg = cv2.imread(fn,-1)
+        width,height,channels = cvimg.shape
+        if channels == 3:
+            cvimg = cv2.cvtColor(cvimg,cv2.COLOR_BGR2GRAY)
         img = Image.fromarray(cvimg)
         mask = predict_img(net=net,
                            full_img=img,
