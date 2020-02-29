@@ -16,11 +16,10 @@ from torch.utils.tensorboard import SummaryWriter
 from utils.dataset import BasicDataset
 from torch.utils.data import DataLoader, random_split
 
-#import segmentation_models_pytorch
-
-dir_img = '/media/firesauce/JAX_1TB/datasets/clouds/l8cloudmasks/data/'
-dir_mask = '/media/firesauce/JAX_1TB/datasets/clouds/l8cloudmasks/qmask/'
+dir_img = ''
+dir_mask = ''
 dir_checkpoint = 'checkpoints/'
+
 
 
 def train_net(net,
@@ -37,7 +36,7 @@ def train_net(net,
     n_train = len(dataset) - n_val
     train, val = random_split(dataset, [n_train, n_val])
     train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
-    val_loader = DataLoader(val, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
+    val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
 
     writer = SummaryWriter(comment=f'LR_{lr}_BS_{batch_size}_SCALE_{img_scale}')
     global_step = 0
@@ -117,6 +116,10 @@ def train_net(net,
 def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('-i','--images',metavar='I',type=str,required=True,
+                        help='Directory with training images',dest='images')
+    parser.add_argument('-m','--masks',metavar='M',type=str,required=True,
+                        help='Directory with masks for training images',dest='masks')
     parser.add_argument('-e', '--epochs', metavar='E', type=int, default=5,
                         help='Number of epochs', dest='epochs')
     parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=1,
@@ -136,6 +139,8 @@ def get_args():
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     args = get_args()
+    dir_img = args.images
+    dir_mask = args.masks
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
 
@@ -145,16 +150,15 @@ if __name__ == '__main__':
     #   - For 1 class and background, use n_classes=1
     #   - For 2 classes, use n_classes=1
     #   - For N > 2 classes, use n_classes=N
-    net = UNet(n_channels=1, n_classes=1,bilinear=False)
+    net = UNet(n_channels=1, n_classes=1,bilinear=True)
     logging.info(f'Network:\n'
                  f'\t{net.n_channels} input channels\n'
                  f'\t{net.n_classes} output channels (classes)\n'
                  f'\t{"Bilinear" if net.bilinear else "Dilated conv"} upscaling')
 
     if args.load:
-        net.load_state_dict(
-            torch.load(args.load, map_location=device)
-        )
+        state_dict = torch.load(args.load,map_location=device)
+        net.load_state_dict(state_dict)
         logging.info(f'Model loaded from {args.load}')
     net.to(device=device)
 

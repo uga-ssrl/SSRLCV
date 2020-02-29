@@ -1,0 +1,12 @@
+The datasets for the first training session only have the following classes in them:
+
+bridge
+baseball_feild
+track_feild
+plane
+harbor
+ship
+storage_tank
+
+The rest of the classes will be coming from the directory labeled dataset and will be trained 
+with a model that works well for the above classes.

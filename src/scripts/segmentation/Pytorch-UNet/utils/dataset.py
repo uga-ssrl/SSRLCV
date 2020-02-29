@@ -1,5 +1,6 @@
 from os.path import splitext
 from os import listdir
+from os import remove
 import numpy as np
 from glob import glob
 import torch
@@ -50,15 +51,15 @@ class BasicDataset(Dataset):
             f'Either no mask or multiple masks found for the ID {idx}: {mask_file}'
         assert len(img_file) == 1, \
             f'Either no image or multiple images found for the ID {idx}: {img_file}'
-        cvmask = cv2.imread(mask_file[0],0)
-        cvimg = cv2.imread(img_file[0],0)
-        mask =  Image.fromarray(cvmask)
-        img = Image.fromarray(cvimg)
+        #cvmask = cv2.imread(mask_file[0],0)
+        #cvimg = cv2.imread(img_file[0],0)
+        #mask =  Image.fromarray(cvmask)
+        #img = Image.fromarray(cvimg)
 
-        # mask = Image.open(mask_file[0])
-        # img = Image.open(img_file[0])
-        # mask.convert('1')
-        # img.convert('1')
+        mask = Image.open(mask_file[0])
+        img = Image.open(img_file[0])
+        #mask.convert('1')
+        #img.convert('1')
 
         assert img.size == mask.size, \
             f'Image and mask {idx} should be the same size, but are {img.size} and {mask.size}'
