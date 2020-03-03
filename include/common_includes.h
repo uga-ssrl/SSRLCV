@@ -14,6 +14,7 @@
 
 //util
 #include "cuda_util.cuh"
+#include "cuda_vec_util.cuh"
 #include "matrix_util.cuh"
 #include "Unity.cuh"
 
@@ -21,6 +22,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <algorithm>
+#include <iterator>
 #include <fstream>
 #include <cmath>
 #include <sstream>
@@ -75,5 +77,11 @@ namespace ssrlcv{
         undefined
     } Direction;
 }
+
+/**
+ * \defgroup cuda_kernels
+ * \defgroup cuda_util
+ * \defgroup trees
+ */
 
 #endif /* COMMON_INCLUDES_H */

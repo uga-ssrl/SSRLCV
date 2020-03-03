@@ -231,6 +231,7 @@ __global__ void computeDivergenceCoarse(int depthOfOctree, Node* nodeArray, int2
   }
 }
 
+//use of lookup table here seems odd due to the assumption that laplacian values are computed for nodes in the same depth
 __global__ void computeLd(int depthOfOctree, Node* nodeArray, int numNodes, int depthIndex, float* laplacianValues, int* laplacianIndices, float* fLUT, float* fPrimePrimeLUT){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodes){
@@ -509,9 +510,9 @@ void Poisson::computeLUTs(){
       offsetj = pow2j - 1;
       for(int k = offseti; k < offseti + pow2i; ++k){
         for(int l = offsetj; l < offsetj + pow2j; ++l){
-          f[k][l] = dotProduct(blender(centers[l],centers[k],this->octree->width/pow2i),blender(centers[k],centers[l],this->octree->width/pow2j));
-          ff[k][l] = dotProduct(blender(centers[l],centers[k],this->octree->width/pow2i),blenderPrime(centers[k],centers[l],this->octree->width/pow2j));
-          fff[k][l] = dotProduct(blender(centers[l],centers[k],this->octree->width/pow2i),blenderPrimePrime(centers[k],centers[l],this->octree->width/pow2j));
+          f[k][l] = dotProduct(blender(centers[k],centers[l],this->octree->width/pow2i),blender(centers[l],centers[k],this->octree->width/pow2j));
+          ff[k][l] = dotProduct(blender(centers[k],centers[l],this->octree->width/pow2i),blenderPrime(centers[l],centers[k],this->octree->width/pow2j));
+          fff[k][l] = dotProduct(blender(centers[k],centers[l],this->octree->width/pow2i),blenderPrimePrime(centers[l],centers[k],this->octree->width/pow2j));
           // if(f[k][l] == 0.0f && !(f[k][l] == 0.0f && ff[k][l] == 0.0f && fff[k][l] == 0.0f)){
           //   printf("%d,%d -> %.9f,%.9f,%.9f\n",k,l,f[k][l],ff[k][l],fff[k][l]);
           // }

@@ -6,7 +6,6 @@
 
 #include "common_includes.h"
 #include "Image.cuh"
-#include "Unity.cuh"
 #include <thrust/sort.h>
 #include <thrust/pair.h>
 #include <thrust/unique.h>
@@ -18,11 +17,11 @@
 #include <thrust/copy.h>
 
 namespace ssrlcv{
-
   /**
    * \brief simple struct for holding float2 as location and
    * data of anytype.
    * \todo find better place for this struct
+   * \ingroup cuda_util
   */
   template<typename D>
   struct LocalizedData{
@@ -38,6 +37,7 @@ namespace ssrlcv{
   /**
   * \brief Class that can hold the following classes:
   * float2, LocalizedData<T>, unsigned int, unsigned char
+  * \ingroup trees
   */
   template<typename T>
   class Quadtree{
@@ -170,6 +170,10 @@ namespace ssrlcv{
 
 
   };
+
+  /**
+  * \}
+  */
 
   namespace{
     struct is_flagged{

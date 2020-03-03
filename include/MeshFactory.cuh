@@ -5,14 +5,15 @@
 #define MESHFACTORY_CUH
 
 #include "common_includes.h"
-#include "cuda_util.cuh"
 #include "Image.cuh"
 #include "Octree.cuh"
-#include "Unity.cuh"
 #include <thrust/scan.h>
 #include <thrust/device_ptr.h>
 
 namespace ssrlcv{
+  /**
+  * \defgroup meshing
+  */
   /**
   * \brief Factory for generating meshes from PointClouds.
   */
@@ -69,6 +70,13 @@ namespace ssrlcv{
   __device__ __host__ float3 blenderPrime(const float3 &a, const float3 &b, const float &bw);
   __device__ __host__ float3 blenderPrimePrime(const float3 &a, const float3 &b, const float &bw);
 
+  /**
+  * \ingroup meshing
+  * \ingroup cuda_kernels
+  * \defgroup meshing_kernels
+  * \{
+  */
+
   __global__ void vertexImplicitFromNormals(int numVertices, Octree::Vertex* vertexArray, Octree::Node* nodeArray, float3* normals, float3* points, float* vertexImplicit);
   __global__ void calcVertexNumbers(int numEdges, int depthIndex, Octree::Edge* edgeArray, float* vertexImplicit, int* vertexNumbers);
 
@@ -81,7 +89,9 @@ namespace ssrlcv{
   __global__ void determineCubeCategories(int numNodes, int nodeIndex, int edgeIndex, Octree::Node* nodeArray, int* vertexNumbers, int* cubeCategory, int* triangleNumbers);
   __global__ void generateSurfaceVertices(int numEdges, int depthIndex, Octree::Edge* edgeArray, Octree::Vertex* vertexArray, int* vertexNumbers, int* vertexAddresses, float3* surfaceVertices);
   __global__ void generateSurfaceTriangles(int numNodes, int nodeIndex, int edgeIndex, Octree::Node* nodeArray, int* vertexAddresses, int* triangleAddresses, int* cubeCategory, int3* surfaceTriangles);
-
+  /**
+  * \}
+  */
 }
 
 

@@ -1,4 +1,5 @@
-/** \file MatchFactory.cuh
+/** 
+* \file MatchFactory.cuh
 * \brief this file contains all feature matching methods
 */
 #ifndef MATCHFACTORY_CUH
@@ -7,12 +8,20 @@
 #include "common_includes.h"
 #include "Image.cuh"
 #include "Feature.cuh"
-#include "Unity.cuh"
 #include <thrust/device_ptr.h>
 #include <thrust/copy.h>
 #include <thrust/scan.h>
 
 namespace ssrlcv{
+  /**
+  * \defgroup matching
+  * \{
+  */
+
+  struct uint2_pair{
+    uint2 a;
+    uint2 b;
+  };
 
   //TODO differentiate distance methods and pass function pointers to matching kernels
 
@@ -47,11 +56,6 @@ namespace ssrlcv{
     bool invalid;
     KeyPoint keyPoints[2];
   };
-  struct validate{
-    __host__ __device__ bool operator()(const Match &m){
-      return m.invalid;
-    }
-  };
   /**
   * \brief derived Match struct with distance
   * \note distance is squared here to prevent use of sqrtf
@@ -68,6 +72,14 @@ namespace ssrlcv{
   };
 
   namespace{
+    struct validate{
+      __host__ __device__ bool operator()(const Match &m){
+        return m.invalid;
+      }
+      __host__ __device__ bool operator()(const uint2_pair &m){
+        return m.a.x == m.b.x && m.a.y == m.b.y;
+      }
+    };
     struct match_above_cutoff{
       __host__ __device__
       bool operator()(DMatch m){
@@ -102,7 +114,6 @@ namespace ssrlcv{
   * \see Window15x15
   * \see Window25x25
   * \see Window31x31
-
   */
   template<typename T>
   class MatchFactory{
@@ -115,12 +126,10 @@ namespace ssrlcv{
     MatchFactory(float relativeThreshold, float absoluteThreshold);
     void setSeedFeatures(Unity<Feature<T>>* seedFeatures);//implement
 
-    //NOTE nothing for nview is implemented
-    //TODO consider making it so features are computed if they arent instead of throwing errors with image parameters
-
     void validateMatches(Unity<Match>* matches);
     void validateMatches(Unity<DMatch>* matches);
     void validateMatches(Unity<FeatureMatch<T>>* matches);
+    void validateMatches(Unity<uint2_pair>* matches);
 
     void refineMatches(Unity<DMatch>* matches, float threshold);
     void refineMatches(Unity<FeatureMatch<T>>* matches, float threshold);
@@ -166,36 +175,52 @@ namespace ssrlcv{
     */
     Unity<FeatureMatch<T>>* generateFeatureMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
 
-    /**
-    * \brief interpolates Matches between multiple images
-    * \todo implement
-    */
-    MatchSet* getMultiViewMatches(std::vector<Image*> images, Unity<Match>* matches);
-    /**
-    * \brief interpolates Matches between multiple images
-    * \todo implement
-    */
-    MatchSet* getMultiViewMatches(std::vector<Image*> images, Unity<DMatch>* matches);
-    /**
-    * \brief interpolates Matches between multiple images
-    * \todo implement
-    */
-    MatchSet* getMultiViewMatches(std::vector<Image*> images, Unity<FeatureMatch<T>>* matches);
+    //todo also add int3 to include distance
+    Unity<uint2_pair>* generateMatchesIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances = nullptr);
+    Unity<uint2_pair>* generateMatchesConstrainedIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
 
+    //estimated overlap is a fraction
+    /**
+    * \brief Match a set of images 
+    * \details 
+    */
+    MatchSet generateMatchesExaustive(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
+    MatchSet generateMatchesBBF(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
+    MatchSet generateMatchesKDTree(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
 
     
+
   };
+
   Unity<Match>* generateDiparityMatches(uint2 querySize, Unity<unsigned char>* queryPixels, uint2 targetSize, Unity<unsigned char>* targetPixels, 
     float fundamental[3][3], unsigned int maxDisparity, unsigned int windowSize = 3, Direction direction = undefined);
 
+  /**
+  * \defgroup match_io
+  * \{
+  */
   void writeMatchFile(Unity<Match>* matches, std::string pathToFile, bool binary = false);
+  void writeMatchFile(MatchSet multiview_matches, std::string pathToFile, bool binary = false);
   Unity<Match>* readMatchFile(std::string pathToFile);
+  /** \} */
 
   /* CUDA variable, method and kernel defintions */
 
+
+  /**
+  * \ingroup cuda_util 
+  * \{
+  */
   __host__ __device__ __forceinline__ float sum(const float3 &a);
   __host__ __device__ __forceinline__ float square(const float &a);
   __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
+  /** \} */
+
+  /**
+  * \ingroup cuda_kernels
+  * \defgroup matching_kernels
+  * \{
+  */
 
   template<typename T>
   __global__ void getSeedMatchDistances(unsigned long numFeaturesQuery, Feature<T>* featuresQuery, unsigned long numSeedFeatures,
@@ -258,11 +283,36 @@ namespace ssrlcv{
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
     Feature<T>* featuresTarget, FeatureMatch<T>* matches, float epsilon, float* fundamental, float* seedDistances, 
     float relativeThreshold, float absoluteThreshold);
- 
+
+
+  template<typename T>
+  __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, uint2_pair* matches, float absoluteThreshold);
+  template<typename T>
+  __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, uint2_pair* matches, float epsilon, float* fundamental, float absoluteThreshold);
+  template<typename T>
+  __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, uint2_pair* matches, float* seedDistances, float relativeThreshold, float absoluteThreshold);
+  template<typename T>
+  __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, uint2_pair* matches, float epsilon, float* fundamental, float* seedDistances, 
+    float relativeThreshold, float absoluteThreshold);
+
   //utility kernels
+
+  __global__ void checkOverlap();
+
   __global__ void convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::DMatch* matches);
   template<typename T>
   __global__ void convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::FeatureMatch<T>* matches);
+  
+  /** /} */
+  /** /} */
 
 }
 

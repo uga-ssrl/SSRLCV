@@ -11,6 +11,11 @@
 
 namespace ssrlcv{
   /**
+  * \defgroup features
+  * \ingroup feature_detection
+  * \{
+  */
+  /**
   * \brief The base feature struct that can contain any descriptor type.
   * \tparam Type of the descriptor 
   * \note it is advised to implement a D.distProtocol(D) method for 
@@ -25,7 +30,9 @@ namespace ssrlcv{
     __device__ __host__ Feature(float2 loc);
     __device__ __host__ Feature(float2 loc, D descriptor);
   };
-
+  /** 
+  * \}
+  */
   template<typename D>
   __device__ __host__ Feature<D>::Feature(){
     this->loc = {-1.0f,-1.0f};
@@ -40,6 +47,11 @@ namespace ssrlcv{
     this->parent = -1;
   }
 
+  /**
+  * \ingroup features
+  * \defgroup feature_descriptors
+  * \{
+  */
   /**
   * \brief Descriptor for unsigned char[128] SIFT feature descriptor.
   * \details This descriptor includes all the information generated during 
@@ -68,9 +80,11 @@ namespace ssrlcv{
     * \see MatchFactory
     */
     __device__ __host__ float distProtocol(const SIFT_Descriptor& b, const float &bestMatch);
+    /**
+    * \brief Prints sigma, theta and 128D vector of SIFT_Descriptor
+    */
     __device__ __host__ void print();//not recommended to execute on the gpu with more than one feature
   };
-  void printSIFTFeature(ssrlcv::Feature<ssrlcv::SIFT_Descriptor> feature);
 
   struct Window_3x3{
     unsigned char values[3][3];
@@ -107,6 +121,9 @@ namespace ssrlcv{
     //distance here is sum of absolute differences
     __device__ __host__ float distProtocol(const Window_31x31& b, const float &bestMatch);
   };
+  /** 
+  * \} 
+  */
 }
 
 

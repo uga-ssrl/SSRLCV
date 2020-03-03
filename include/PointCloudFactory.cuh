@@ -12,6 +12,10 @@
 
 
 namespace ssrlcv{
+  /**
+  * \defgroup pointcloud
+  * \{
+  */
 
    /**
     * \brief A structure to define a line my a vector and a point in R3
@@ -100,11 +104,28 @@ namespace ssrlcv{
      */
     ssrlcv::Unity<float3>* BundleAdjustTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images);
 
+    /**
+     * The CPU method that sets up the GPU enabled n view triangulation.
+     * @param bundleSet a set of lines and bundles to be triangulated
+     */
+    ssrlcv::Unity<float3>* nViewTriangulate(BundleSet bundleSet);
+
   };
+
+  /**
+  * \}
+  */
 
   uchar3 heatMap(float value);
 
   void writeDisparityImage(Unity<float3>* points, unsigned int interpolationRadius, std::string pathToFile);
+
+  /**
+  * \ingroup pointcloud
+  * \ingroup cuda_kernels
+  * \defgroup pointcloud_kernels
+  * \{
+  */
 
   __global__ void generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras);
 
@@ -126,6 +147,7 @@ namespace ssrlcv{
   	float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9],
   	float rotationTranspose1[9], float rotationTranspose2[9], float3* points);
 
+  __global__ void computeNViewTriangulate(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 }
 
 

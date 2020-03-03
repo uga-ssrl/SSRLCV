@@ -8,21 +8,23 @@
 #define FEATUREFACTORY_CUH
 
 #include "common_includes.h"
-#include "cuda_util.cuh"
-#include "matrix_util.cuh"
 #include "Image.cuh"
 #include "Feature.cuh"
-#include "Unity.cuh"
 #include <thrust/device_ptr.h>
 #include <thrust/copy.h>
 #include <thrust/scan.h>
 #include <thrust/sort.h>
+#include <thrust/remove.h>
 #include "io_util.h"
 
 
 #define SIFTBORDER 12
 
 namespace ssrlcv{
+  /**
+  * \defgroup feature_detection
+  * \{
+  */
 
   /**
   * \brief Parent factory for generating a Feature array from an Image
@@ -37,6 +39,11 @@ namespace ssrlcv{
   public:
 
     /**
+    * \ingroup feature_detection
+    * \defgroup scalespace
+    * \{
+    */
+    /**
     * \brief A scale space holding a heirarchy of octaves and blurs.
     * \details 
     * \todo Allow for other kernels (not just gaussians) to be passed in for convolution. 
@@ -50,7 +57,9 @@ namespace ssrlcv{
       */
       void convertToDOG();  
     public:
-
+      /**
+      * \ingroup scalespace
+      */
       struct SSKeyPoint{
         int octave;
         int blur;
@@ -73,8 +82,13 @@ namespace ssrlcv{
       /**
       * \brief this represents an iterative convolutional sample of a ScaleSpace
       * \todo implement
+      * \ingroup scalespace
       */
       struct Octave{
+        /**
+        * \brief 
+        * \ingroup scalespace
+        */
         struct Blur{
           uint2 size;
           float sigma;
@@ -82,8 +96,8 @@ namespace ssrlcv{
           Unity<float2>* gradients;
           Blur();
           Blur(float sigma, int2 kernelSize, Unity<float>* pixels, uint2 size, float pixelWidth);
-          void computeGradients();
           ~Blur();
+          void computeGradients();
         };
 
 
@@ -95,7 +109,6 @@ namespace ssrlcv{
         int* extremaBlurIndices;
 
         Octave();
-        //may want to remove kernelSize as it is static in anatomy
         Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<float>* pixels, uint2 size, float pixelWidth, int keepPixelsAfterBlur);      
         void searchForExtrema();
         void discardExtrema();
@@ -140,6 +153,9 @@ namespace ssrlcv{
       ~ScaleSpace();
     };
     typedef ScaleSpace DOG;
+    /**
+    * \}
+    */
 
     /**
     * \brief Constructor
@@ -192,8 +208,16 @@ namespace ssrlcv{
 
   };
 
+  /**
+  * \}
+  */
+
   /*
   CUDA variables, methods and kernels
+  */
+  /**
+  * \ingroup cuda_util
+  * \{
   */
   extern __constant__ float pi;
   __device__ __forceinline__ float getMagnitude(const int2 &vector);
@@ -202,7 +226,16 @@ namespace ssrlcv{
   __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
   __device__ __forceinline__ float atomicMaxFloat (float * addr, float value);
   __device__ __forceinline__ float edgeness(const float (&hessian)[2][2]);
+  /**
+  * \}
+  */
 
+  /**
+  * \ingroup feature_detection
+  * \ingroup cuda_kernels
+  * \defgroup feature_detection_kernels
+  * \{
+  */
 
   __global__ void fillWindows(uint2 size, int parent, unsigned char* pixels, Feature<Window_3x3>* windows);
   __global__ void fillWindows(uint2 size, int parent, unsigned char* pixels, Feature<Window_9x9>* windows);
@@ -227,6 +260,10 @@ namespace ssrlcv{
   int* thetaNumbers, unsigned int maxOrientations, float orientationThreshold, float* thetas);
 
   __global__ void expandKeyPoints(unsigned int numKeyPoints, FeatureFactory::ScaleSpace::SSKeyPoint* keyPointsIn, FeatureFactory::ScaleSpace::SSKeyPoint* keyPointsOut, int* thetaAddresses, float* thetas);
+
+  /** 
+  * \}
+  */
 }
 
 

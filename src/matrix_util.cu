@@ -151,6 +151,19 @@ __device__ __host__ void ssrlcv::transpose(const float (&M)[2][2], float (&M_out
     }
   }
 }
+
+__device__ __host__ void ssrlcv::matrixProduct(const float3 (&M), float3(&M_out)[3]){
+  M_out[0].x = M.x * M.x;
+  M_out[0].y = M.x * M.y;
+  M_out[0].z = M.x * M.z;
+  M_out[1].x = M.y * M.x;
+  M_out[1].y = M.y * M.y;
+  M_out[1].z = M.y * M.z;
+  M_out[2].x = M.z * M.x;
+  M_out[2].y = M.z * M.y;
+  M_out[2].z = M.z * M.z;
+}
+
 __device__ __host__ float ssrlcv::determinant(const float (&M)[2][2]){
   return (M[0][0]*M[1][1]) - (M[0][1]*M[1][0]);
 }

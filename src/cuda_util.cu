@@ -1,10 +1,13 @@
 #include "cuda_util.cuh"
 
+/*
+NVIDIA GPU COMPATIBILITY
+*/
 void getGrid(unsigned long numElements, dim3 &grid, int device){
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
     
-  grid = {prop.maxGridSize[0],prop.maxGridSize[1],prop.maxGridSize[2]};
+  grid = {(unsigned int)prop.maxGridSize[0],(unsigned int)prop.maxGridSize[1],(unsigned int)prop.maxGridSize[2]};
   if(numElements < grid.x){
     grid.x = numElements;
     grid.y = 1;
@@ -23,8 +26,6 @@ void getGrid(unsigned long numElements, dim3 &grid, int device){
     }
   }
 }
-
-
 void checkDims(dim3 grid, dim3 block, int device){
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
@@ -57,7 +58,6 @@ void checkDims(dim3 grid, dim3 block, int device){
     //maybe make macro like CudaSafeCall()
   }
 }
-
 __host__ void cusolverCheckError(cusolverStatus_t cusolver_status){
   switch (cusolver_status){
       case CUSOLVER_STATUS_SUCCESS:
@@ -93,7 +93,6 @@ __host__ void cusolverCheckError(cusolverStatus_t cusolver_status){
           exit(-1);
   }
 }
-
 //prints tx2 info relevant to cuda devlopment
 //citation: this method comes from the nvidia formums, and has been modified slightly
 void printDeviceProperties(){
@@ -209,7 +208,9 @@ void printDeviceProperties(){
   std::cout<<"\n----------------END OF DEVICE PROPERTIES----------------\n"<<std::endl;
 }
 
-
+/*
+SIMPLE CUDA METHODS
+*/
 __device__ __host__ void printBits(size_t const size, void const * const ptr){
   unsigned char *b = (unsigned char*) ptr;
   unsigned char byte;
@@ -223,267 +224,3 @@ __device__ __host__ void printBits(size_t const size, void const * const ptr){
   }
   printf("\n");
 }
-
-//xorswap
-__device__ void orderInt3(int3 &toOrder){
-  if(toOrder.x > toOrder.y){
-    toOrder.x ^= toOrder.y;
-    toOrder.y ^= toOrder.x;
-    toOrder.x ^= toOrder.y;
-  }
-  if(toOrder.x > toOrder.z){
-    toOrder.x ^= toOrder.z;
-    toOrder.z ^= toOrder.x;
-    toOrder.x ^= toOrder.z;
-  }
-  if(toOrder.y > toOrder.z){
-    toOrder.y ^= toOrder.z;
-    toOrder.z ^= toOrder.y;
-    toOrder.y ^= toOrder.z;
-  }
-}
-
-__device__ __host__ float3 operator+(const float3 &a, const float3 &b) {
-  return {a.x+b.x, a.y+b.y, a.z+b.z};
-}
-__device__ __host__ float3 operator-(const float3 &a, const float3 &b) {
-  return {a.x-b.x, a.y-b.y, a.z-b.z};
-}
-__device__ __host__ float3 operator/(const float3 &a, const float3 &b) {
-  return {a.x/b.x, a.y/b.y, a.z/b.z};
-}
-__device__ __host__ float3 operator*(const float3 &a, const float3 &b) {
-  return {a.x*b.x, a.y*b.y, a.z*b.z};
-}
-__device__ __host__ float dotProduct(const float3 &a, const float3 &b){
-  return (a.x*b.x) + (a.y*b.y) + (a.z*b.z);
-}
-__device__ __host__ float3 operator+(const float3 &a, const float &b){
-  return {a.x+b, a.y+b, a.z+b};
-}
-__device__ __host__ float3 operator-(const float3 &a, const float &b){
-  return {a.x-b, a.y-b, a.z-b};
-}
-__device__ __host__ float3 operator/(const float3 &a, const float &b){
-  return {a.x/b, a.y/b, a.z/b};
-}
-__device__ __host__ float3 operator*(const float3 &a, const float &b){
-  return {a.x*b, a.y*b, a.z*b};
-}
-__device__ __host__ float3 operator+(const float &a, const float3 &b) {
-  return {a+b.x, a+b.y, a+b.z};
-}
-__device__ __host__ float3 operator-(const float &a, const float3 &b) {
-  return {a-b.x, a-b.y, a-b.z};
-}
-__device__ __host__ float3 operator/(const float &a, const float3 &b) {
-  return {a/b.x, a/b.y, a/b.z};
-}
-__device__ __host__ float3 operator*(const float &a, const float3 &b) {
-  return {a*b.x, a*b.y, a*b.z};
-}
-__device__ __host__ bool operator==(const float3 &a, const float3 &b){
-  return (a.x==b.x)&&(a.y==b.y)&&(a.z==b.z);
-}
-
-__device__ __host__ float2 operator+(const float2 &a, const float2 &b){
-  return {a.x + b.x, a.y + b.y};
-}
-__device__ __host__ float2 operator-(const float2 &a, const float2 &b){
-  return {a.x - b.x, a.y - b.y};
-}
-__device__ __host__ float2 operator/(const float2 &a, const float2 &b){
-  return {a.x / b.x, a.y / b.y};
-}
-__device__ __host__ float2 operator*(const float2 &a, const float2 &b){
-  return {a.x * b.x, a.y * b.y};
-}
-__device__ __host__ float dotProduct(const float2 &a, const float2 &b){
-  return (a.x*b.x) + (a.y*b.y);
-}
-__device__ __host__ float2 operator+(const float2 &a, const float &b){
-  return {a.x + b, a.y + b};
-}
-__device__ __host__ float2 operator-(const float2 &a, const float &b){
-  return {a.x - b, a.y - b};
-}
-__device__ __host__ float2 operator/(const float2 &a, const float &b){
-  return {a.x / b, a.y / b};
-}
-__device__ __host__ float2 operator*(const float2 &a, const float &b){
-  return {a.x * b, a.y * b};
-}
-__device__ __host__ float2 operator+(const float &a, const float2 &b){
-  return {a + b.x, a + b.y};
-}
-__device__ __host__ float2 operator-(const float &a, const float2 &b){
-  return {a - b.x, a - b.y};
-}
-__device__ __host__ float2 operator/(const float &a, const float2 &b){
-  return {a / b.x, a / b.y};
-}
-__device__ __host__ float2 operator*(const float &a, const float2 &b){
-  return {a * b.x, a * b.y};
-}
-__device__ __host__ bool operator==(const float2 &a, const float2 &b){
-  return a.x == b.x && a.y == b.y;
-}
-
-__device__ __host__ float2 operator+(const float2 &a, const int2 &b){
-  return {a.x + ((float) b.x), a.y + ((float) b.y)};
-}
-__device__ __host__ float2 operator-(const float2 &a, const int2 &b){
-  return {a.x - ((float) b.x), a.y - ((float) b.y)};
-}
-__device__ __host__ float2 operator/(const float2 &a, const int2 &b){
-  return {a.x / ((float) b.x), a.y / ((float) b.y)};
-}
-__device__ __host__ float2 operator*(const float2 &a, const int2 &b){
-  return {a.x * ((float) b.x), a.y * ((float) b.y)};
-}
-__device__ __host__ float2 operator+(const int2 &a, const float2 &b){
-  return {((float) a.x) + b.x, ((float) a.y) + b.y};
-}
-__device__ __host__ float2 operator-(const int2 &a, const float2 &b){
-  return {((float) a.x) - b.x, ((float) a.y) - b.y};
-}
-__device__ __host__ float2 operator/(const int2 &a, const float2 &b){
-  return {((float) a.x) / b.x, ((float) a.y) / b.y};
-}
-__device__ __host__ float2 operator*(const int2 &a, const float2 &b){
-  return {(float) a.x * b.x, ((float) a.y) * b.y};
-}
-
-__device__ __host__ int2 operator+(const int2 &a, const int2 &b){
-  return {a.x + b.x, a.y + b.y};
-}
-__device__ __host__ int2 operator-(const int2 &a, const int2 &b){
-  return {a.x - b.x, a.y - b.y};
-}
-__device__ __host__ float2 operator/(const int2 &a, const int2 &b){
-  return {((float) a.x) / ((float) b.x), ((float) a.y) / ((float) b.y)};
-}
-__device__ __host__ int2 operator*(const int2 &a, const int2 &b){
-  return {a.x * b.x, a.y * b.y};
-}
-__device__ __host__ int dotProduct(const int2 &a, const int2 &b){
-  return (a.x*b.x) + (a.y*b.y);
-}
-__device__ __host__ float2 operator/(const int2 &a, const float &b){
-  return {((float)a.x)/b, ((float)a.y)/b};
-}
-__device__ __host__ float2 operator+(const int2 &a, const float &b){
-  return {((float)a.x) + b, ((float)a.y) + b};
-}
-__device__ __host__ float2 operator-(const int2 &a, const float &b){
-  return {((float)a.x) - b, ((float)a.y) - b};
-}
-__device__ __host__ int2 operator+(const int2 &a, const int &b){
-  return {a.x + b,a.y + b};
-}
-__device__ __host__ int2 operator-(const int2 &a, const int &b){
-  return {a.x - b,a.y - b};
-}
-
-__device__ __host__ uint2 operator+(const uint2 &a, const uint2 &b){
-  return {a.x + b.x, a.y + b.y};
-}
-__device__ __host__ uint2 operator-(const uint2 &a, const uint2 &b){
-  return {a.x - b.x, a.y - b.y};
-}
-__device__ __host__ uint2 operator*(const uint2 &a, const uint2 &b){
-  return {a.x * b.x, a.y * b.y};
-}
-__device__ __host__ uint2 operator/(const uint2 &a, const uint2 &b){
-  return {a.x / b.x, a.y / b.y};
-}
-__device__ __host__ uint2 operator+(const uint2 &a, const int &b){
-  return {a.x + b, a.y + b};
-}
-__device__ __host__ uint2 operator-(const uint2 &a, const int &b){
-  return {a.x - b, a.y - b};
-}
-__device__ __host__ uint2 operator*(const uint2 &a, const int &b){
-  return {a.x * b, a.y * b};
-}
-__device__ __host__ uint2 operator/(const uint2 &a, const int &b){
-  return {a.x / b, a.y / b};
-}
-__device__ __host__ int2 operator+(const int2 &a, const uint2 &b){
-  return {a.x + b.x, a.y + b.y};
-}
-__device__ __host__ int2 operator-(const int2 &a, const uint2 &b){
-  return {a.x - b.x, a.y - b.y};
-}
-__device__ __host__ int2 operator*(const int2 &a, const uint2 &b){
-  return {a.x * b.x, a.y * b.y};
-}
-__device__ __host__ int2 operator/(const int2 &a, const uint2 &b){
-  return {a.x / b.x, a.y / b.y};
-}
-__device__ __host__ int2 operator+(const uint2 &a, const int2 &b){
-  return {a.x + b.x, a.y + b.y};
-}
-__device__ __host__ int2 operator-(const uint2 &a, const int2 &b){
-  return {a.x - b.x, a.y - b.y};
-}
-__device__ __host__ int2 operator*(const uint2 &a, const int2 &b){
-  return {a.x * b.x, a.y * b.y};
-}
-__device__ __host__ int2 operator/(const uint2 &a, const int2 &b){
-  return {a.x / b.x, a.y / b.y};
-}
-
-
-
-
-
-__device__ __host__ ulong2 operator+(const ulong2 &a, const int2 &b){
-  return {a.x + (unsigned long)b.x, a.y + (unsigned long)b.y};
-}
-__device__ __host__ ulong2 operator-(const ulong2 &a, const int2 &b){
-  return  {a.x - (unsigned long)b.x, a.y - (unsigned long)b.y};
-}
-__device__ __host__ ulong2 operator*(const ulong2 &a, const int2 &b){
-  return  {a.x * (unsigned long)b.x, a.y * (unsigned long)b.y};
-}
-
-__device__ __host__ ulong2 operator+(const int2 &a, const ulong2 &b){
-  return {(unsigned long)a.x + b.x, (unsigned long)a.y + b.y};
-}
-__device__ __host__ ulong2 operator-(const int2 &a, const ulong2 &b){
-  return {(unsigned long)a.x - b.x, (unsigned long)a.y - b.y};
-}
-__device__ __host__ ulong2 operator*(const int2 &a, const ulong2 &b){
-  return {(unsigned long)a.x * b.x, (unsigned long)a.y * b.y};
-}
-
-__device__ __host__ float2 operator*(const int2 &a, const float &b){
-  return {((float)a.x) * b, ((float)a.y) * b};
-}
-
-__device__ __host__ bool operator>(const float2 &a, const float &b){
-  return (a.x > b) && (a.y > b);
-}
-
-__device__ __host__ bool operator<(const float2 &a, const float &b){
-  return (a.x < b) && (a.y < b);
-}
-
-__device__ __host__ bool operator>(const float2 &a, const float2 &b){
-  return (a.x > b.x) && (a.y > b.y);
-}
-
-__device__ __host__ bool operator<(const float2 &a, const float2 &b){
-  return (a.x < b.x) && (a.y < b.y);
-}
-
-__device__ __host__ bool operator>(const float2 &a, const int2 &b){
-  return (a.x > b.x) && (a.y > b.y);
-}
-
-__device__ __host__ bool operator<(const float2 &a, const int2 &b){
-  return (a.x < b.x) && (a.y < b.y);
-}
-
-
