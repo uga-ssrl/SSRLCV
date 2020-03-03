@@ -41,7 +41,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
 
   //in this kernel fill lines and bundles from keyPoints and matches
   // std::cout << "Calling bundle generation kernel ..." << std::endl;
-  generateBundle<<<grid, block>>>(bundles->numElements,bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
+  generateBundle<<<grid, block>>>(bundles->size(),bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
   // std::cout << "Returned from bundle generation kernel ... \n" << std::endl;
 
   cudaDeviceSynchronize();
@@ -86,7 +86,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
 
   // std::cout << "Starting 2-view triangulation ..." << std::endl;
-  computeTwoViewTriangulate<<<grid,block>>>(d_linearError,bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  computeTwoViewTriangulate<<<grid,block>>>(d_linearError,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
   // std::cout << "2-view Triangulation done ... \n" << std::endl;
 
   cudaDeviceSynchronize();
@@ -132,7 +132,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
 
   // std::cout << "Starting 2-view triangulation ..." << std::endl;
-  computeTwoViewTriangulate<<<grid,block>>>(d_linearError,errors->device,bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  computeTwoViewTriangulate<<<grid,block>>>(d_linearError,errors->device,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
   // std::cout << "2-view Triangulation done ... \n" << std::endl;
 
   cudaDeviceSynchronize();
@@ -188,7 +188,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
 
   // std::cout << "Starting 2-view triangulation ..." << std::endl;
-  computeTwoViewTriangulate<<<grid,block>>>(d_linearError,d_linearErrorCutoff,errors->device,bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  computeTwoViewTriangulate<<<grid,block>>>(d_linearError,d_linearErrorCutoff,errors->device,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
   // std::cout << "2-view Triangulation done ... \n" << std::endl;
 
   cudaDeviceSynchronize();
@@ -222,9 +222,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
   dim3 block = {1,1,1};
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
 
+  /*
   std::cout << "Starting n-view triangulation ..." << std::endl;
   computeNViewTriangulate<<<grid,block>>>(bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
   std::cout << "n-view Triangulation done ... \n" << std::endl;
+  */
 
   pointcloud->transferMemoryTo(cpu);
   pointcloud->clear(gpu);
@@ -258,13 +260,13 @@ void ssrlcv::PointCloudFactory::voidTwoViewTriangulate(BundleSet bundleSet, floa
   bundleSet.bundles->transferMemoryTo(gpu);
 
   // Unity<float3>* pointcloud = new Unity<float3>(nullptr,2*bundleSet.bundles->numElements,gpu);
-  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->numElements,gpu);
+  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(bundleSet.bundles->numElements,grid,block,generateBundle);
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
 
-  voidComputeTwoViewTriangulate<<<grid,block>>>(d_linearError,d_linearErrorCutoff,bundleSet.bundles->numElements,bundleSet.lines->device,bundleSet.bundles->device);
+  voidComputeTwoViewTriangulate<<<grid,block>>>(d_linearError,d_linearErrorCutoff,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device);
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -425,13 +427,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
     // generate the bundle set
     bundleSet = generateBundles(matchSet,images);
     // do an initial triangulation
-    errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->numElements,ssrlcv::cpu);
+    errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
     points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
     // do this only once
     if (i == 1 ) ssrlcv::writePLY("out/rawPoints.ply",points);
     // write some errors for debug
     // for now only do this once
-    if (i == 1) ssrlcv::writeCSV(errors->host, (int) errors->numElements, "individualLinearErrors" + std::to_string(i));
+    if (i == 1) ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualLinearErrors" + std::to_string(i));
 
     // clear uneeded memory
     delete bundleSet.lines;
@@ -1027,7 +1029,7 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   __shared__ float localSum;
   if (threadIdx.x == 0) localSum = 0;
   __syncthreads();
-
+  
   // this method is from wikipedia, last seen janurary 2020
   // https://en.wikipedia.org/wiki/Skew_lines#Nearest_Points
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
@@ -1037,15 +1039,15 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   // ne guys are made just for easy of writing
   ssrlcv::Bundle::Line L1 = lines[bundles[globalID].index];
   ssrlcv::Bundle::Line L2 = lines[bundles[globalID].index+1];
-
+  
   // calculate the normals
   float3 n2 = crossProduct(L2.vec,crossProduct(L1.vec,L2.vec));
   float3 n1 = crossProduct(L1.vec,crossProduct(L1.vec,L2.vec));
-
+  
   // calculate the numerators
   float numer1 = dotProduct((L2.pnt - L1.pnt),n2);
   float numer2 = dotProduct((L1.pnt - L2.pnt),n1);
-
+  
   // calculate the denominators
   float denom1 = dotProduct(L1.vec,n2);
   float denom2 = dotProduct(L2.vec,n1);
@@ -1070,7 +1072,7 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   __syncthreads();
   if (!threadIdx.x) atomicAdd(linearError,localSum);
 }
-
+  /*
   //Initializing Variables
   float3 S [3];
   float3 C;
@@ -1098,12 +1100,13 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
     multiply(tmp, L1.pnt, vectmp);
     C = C + vectmp;
   }
-
+  */
   /**
    * If all of the directional vectors are skew and not parallel, then I think S is nonsingular.
    * However, I will look into this some more. This may have to use a pseudo-inverse matrix if that
    * is not the case.
    */
+  /*
   float3 Inverse [3];  
   if(inverse(S, Inverse)){
     float3 point;
@@ -1111,3 +1114,4 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
     pointcloud[globalID] = point;
   }
 }
+*/
