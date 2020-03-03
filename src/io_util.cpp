@@ -474,6 +474,19 @@ void ssrlcv::writeCSV(float* values, int num, std::string filename){
   outfile.close();
 }
 
+/*
+ * Takes in a c++ vector and prints it all on one line of a csv
+ * @param v a vector of float guys
+ * @param filename a string representing the desired filename of the csv output
+ */
+void ssrlcv::writeCSV(std::vector<float> v, std::string filename){
+  std::ofstream outfile;
+  outfile.open("out/" + filename + ".csv");
+  for (int i = 0; i < v.size(); i++) outfile << v[i] << ",";
+  outfile.close();
+}
+
+
 //
 // Binary files - Gitlab #58
 //
@@ -624,4 +637,4 @@ void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
 
 
 
-// yee 
+// yee

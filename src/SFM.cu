@@ -100,7 +100,7 @@ int main(int argc, char *argv[]){
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
 
     // bunlde adjustment loop would be here. images_vec woudl be modified to minimize the boi
-    unsigned long long int* linearError = (unsigned long long int*)malloc(sizeof(unsigned long long int));
+    float* linearError = (float*)malloc(sizeof(float));
     ssrlcv::BundleSet bundleSet = demPoints.generateBundles(&matchSet,images);
 
     // the version that will be used normally

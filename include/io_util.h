@@ -21,8 +21,8 @@ namespace ssrlcv{
   */
   /**
    * \brief Map for command line flag and argument type association.
-   * \details This map is filled out in io_util.cpp and contains all 
-   * possible command line argument flags and the associated argument identifier. 
+   * \details This map is filled out in io_util.cpp and contains all
+   * possible command line argument flags and the associated argument identifier.
    * This map is primarily purposed to help parsArgs() method.
    * \see parseArgs
    */
@@ -39,8 +39,8 @@ bool fileExists(std::string fileName);
 
 /**
    * \brief Determines if a directory path exists.
-   * \details This method takes in an aboslute path 
-   * to a directory and returns true if it exists. 
+   * \details This method takes in an aboslute path
+   * to a directory and returns true if it exists.
    * \param dirPath - the aboslute path to the directory
    * \returns true if the path is a directory, false otherwise
    */
@@ -48,11 +48,11 @@ bool directoryExists(std::string dirPath);
 
 /**
    * \brief Extracts the file extension from a file path.
-   * \details This method simply takes the string that comes 
+   * \details This method simply takes the string that comes
    * after the last occurance of a '.'
-   * \param path - the path to a file, could be absolute or relative 
+   * \param path - the path to a file, could be absolute or relative
    * \returns a string containing the file extension\
-   * \todo add a fileExists() check to this 
+   * \todo add a fileExists() check to this
    */
 std::string getFileExtension(std::string path);
 
@@ -79,7 +79,7 @@ struct arg
 {};
 
   /**
-   * \brief arg containing an image path 
+   * \brief arg containing an image path
    */
   struct img_arg : public arg{
     std::string path;
@@ -93,14 +93,14 @@ struct arg
     img_dir_arg(char* path);
   };
   /**
-   * \brief arg containing a floating point value 
+   * \brief arg containing a floating point value
    */
   struct flt_arg : public arg{
     float val;
     flt_arg(char* val);
   };
   /**
-   * \brief arg containing an integer value 
+   * \brief arg containing an integer value
    */
   struct int_arg : public arg{
     int val;
@@ -113,8 +113,8 @@ struct arg
 
   /**
    * \brief Parses command line arguments into a map that can be easily processed in main().
-   * \details 
-   * \returns a map of string argument type identifiers and the argument  
+   * \details
+   * \returns a map of string argument type identifiers and the argument
    */
   std::map<std::string, arg*> parseArgs(int numArgs, char* args[]);
 
@@ -231,6 +231,13 @@ struct arg
    * \param filename a string representing the desired filename of the csv output
    */
   void writeCSV(float* values, int num, std::string filename);
+
+  /*
+   * Takes in a c++ vector and prints it all on one line of a csv
+   * @param v a vector of float guys
+   * @param filename a string representing the desired filename of the csv output
+   */
+  void writeCSV(std::vector<float> v, std::string filename);
 
   //
   // Binary files - Gitlab #58
