@@ -71,6 +71,7 @@ std::string getFolderFromFilePath(std::string path);
 std::string getFileFromFilePath(std::string path);
 
 void getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths);
+void getFilePaths(std::string dirPath, std::vector<std::string> &paths, std::string extension = "all");
 
 /**
    * \brief Base arg struct for arg parsing purposes. 

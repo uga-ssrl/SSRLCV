@@ -78,6 +78,31 @@ void ssrlcv::getImagePaths(std::string dirPath, std::vector<std::string> &imageP
   std::sort(imagePaths.begin(),imagePaths.end());
   closedir(dir);
 }
+void ssrlcv::getFilePaths(std::string dirPath, std::vector<std::string> &paths, std::string extension)
+{
+  DIR *dir;
+  if (dirPath.back() != '/')
+    dirPath += "/";
+  if (nullptr == (dir = opendir(dirPath.c_str())))
+  {
+    printf("Error : Failed to open input directory %s\n", dirPath.c_str());
+    exit(-1);
+  }
+  struct dirent *in_file;
+  std::string extension;
+  while ((in_file = readdir(dir)) != nullptr)
+  {
+    std::string currentFileName = in_file->d_name;
+    if (extension != "all" && extension != getFileExtension(currentFileName))
+    {
+      continue;
+    }
+    currentFileName = dirPath + currentFileName;
+    paths.push_back(currentFileName);
+  }
+  std::sort(paths.begin(), paths.end());
+  closedir(dir);
+}
 //will be removed soon
 std::vector<std::string> ssrlcv::findFiles(std::string path){
   std::vector<std::string> imagePaths;

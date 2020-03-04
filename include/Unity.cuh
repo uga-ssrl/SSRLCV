@@ -198,6 +198,9 @@ namespace ssrlcv{
   * \brief This data structure is designed to hold an array of any data 
   * type utilized in cuda processing. 
   * \todo implement pinned and unified memory methods for this class
+  * \todo make sure to flesh out docs for new methods
+  * \todo add identifier variable of some sort
+  * \todo change getMemoryState to state() and getFore to fore()
   */
   template<typename T>
   class Unity{
@@ -247,6 +250,12 @@ namespace ssrlcv{
     * \param copy Unity<T>* to be copied
     */
     Unity(Unity<T>* copy);
+    
+    /**
+    * \brief Checkpoint constructor
+    * \param path path to .uty file 
+    */
+    Unity(std::string path);
 
     /**
     * \brief Destructor
@@ -367,10 +376,9 @@ namespace ssrlcv{
     void sort(bool (*comparator)(const T&,const T&), MemoryState destination = nc);
 
     /**
-    * \brief handles signals and will write this Unity to a file
+    * \brief write this Unity to a file
     */
-    void writeCheckpoint(int id, std::string dirPath = "./");
-    void setFromCheckpoint(std::string pathToFile);
+    void checkpoint(int id, std::string dirPath = "./");
 
     /**
     * \brief Print information about the Unity.
@@ -405,6 +413,47 @@ namespace ssrlcv{
     else{
       throw IllegalUnityTransition("attempt to use Unity<T> copy constructor with unsupported memory state (supported states = both, cpu & gpu");
     }
+  }
+  template<typename T>
+  Unity<T>::Unity(std::string path){
+    std::ifstream checkpoint(pathToFile, ios::in, ios::binary);
+    if(!checkpoint){
+      pathToFile = "cannot open for read: " + pathToFile;
+      throw CheckpointException(pathToFile);
+    }
+    //read header
+    checkpoint.read((char*)&this->numElements,sizeof(unsigned long));
+    const std::type_info& treader = typeid(T);
+    size_t in_hash = 0;
+    checkpoint.read((char*)&in_hash,sizeof(size_t));
+    if(in_hash != treader.hash_code()){
+      throw CheckpointException("hash_codes of type T do not match up in Unity checkpoint reader");
+    }
+    size_t name_size = 0;
+    checkpoint.read((char*)&name_size,sizeof(size_t));
+    std::string name = std::string(name_size,' ');
+    checkpoint.read((char*)&name,sizeof(name_size));
+    std::string equate = treader.name();
+    if(equate != name){
+      throw CheckpointException("names of type T do not match up in Unity checkpoint reader");
+    }
+    MemoryState last_origin = null;
+    checkpoint.read((char*)&last_origin,sizeof(MemoryState));
+    if(last_origin == null){
+      throw CheckpointException("last_origin in Unity checkpoint header shows null");
+    }
+    this->setData(nullptr,this->numElements,cpu);
+    for(unsigned long i = 0; i < this->numElements; ++i){
+      checkpoint.read((char*)&this->host[i],sizeof(T)));
+    }
+    if(checkpoint.good()){
+      std::cout<<pathToFile<<" checkpoint successfully read in"<<std::endl;
+    }
+    else{
+      throw CheckpointException("could not successfully read Unity<T> checkpoint");
+    }
+    if(this->state != last_origin) this->setMemoryState(last_origin);
+    checkpoint.close();
   }
   template<typename T>
   Unity<T>::~Unity(){
@@ -778,7 +827,7 @@ namespace ssrlcv{
   }
 
   template<typename T>
-  void Unity<T>::writeCheckpoint(int id, std::string dirPath){
+  void Unity<T>::checkpoint(int id, std::string dirPath){
     if(this->state == null){
       throw NullUnityException("cannot write a checkpoint with a null Unity<T>");
     }
@@ -812,62 +861,10 @@ namespace ssrlcv{
     if(this->state != origin) this->setMemoryState(origin);
     checkpoint.close();
   }
-  //could maybe move this outside of Unity 
-  template<typename T>//TODO make a constructor that just calls this, this is essentiall just set data
-  void Unity<T>::setFromCheckpoint(std::string pathToFile){
-    std::ifstream checkpoint(pathToFile, ios::in, ios::binary);
-    if(!checkpoint){
-      pathToFile = "cannot open for read: " + pathToFile;
-      throw CheckpointException(pathToFile);
-    }
-    //read header
-    checkpoint.read((char*)&this->numElements,sizeof(unsigned long));
-    const std::type_info& treader = typeid(T);
-    size_t in_hash = 0;
-    checkpoint.read((char*)&in_hash,sizeof(size_t));
-    if(in_hash != treader.hash_code()){
-      throw CheckpointException("hash_codes of type T do not match up in Unity checkpoint reader");
-    }
-    size_t name_size = 0;
-    checkpoint.read((char*)&name_size,sizeof(size_t));
-    char* name = (char*) malloc(name_size);
-    checkpoint.read((char*)&name,sizeof(name_size));
-    std::string equate = treader.name();
-    if(!equate.compare(name)){
-      throw CheckpointException("names of type T do not match up in Unity checkpoint reader");
-    }
-    free(name);
-    MemoryState last_origin = null;
-    checkpoint.read((char*)&last_origin,sizeof(MemoryState));
-    if(last_origin == null){
-      throw CheckpointException("last_origin in Unity checkpoint header shows null");
-    }
-    this->setData(nullptr,this->numElements,cpu);
-    for(unsigned long i = 0; i < this->numElements; ++i){
-      checkpoint.read((char*)&this->host[i],sizeof(T)));
-    }
-    if(checkpoint.good()){
-      std::cout<<pathToFile<<" checkpoint successfully read in"<<std::endl;
-    }
-    else{
-      throw CheckpointException("could not successfully read Unity<T> checkpoint");
-    }
-    if(this->state != last_origin) this->setMemoryState(last_origin);
-    checkpoint.close();
-  }
 
   //if you want human readable typenames as file names implement specialization here
   //TODO add specialization example
   
-  //This does not work as it is not a static member function and requires this
-  // template<typename T>
-  // void Unity<T>::signalHandler(int signal){
-  //   std::cout<<"Interrupted with signal ("<<signal<<")"<<std::endl;
-  //   std::cout<<"Writting singular Unity<"<<typeid(T).name()<<"> checkpoint"<<std::endl;
-  //   this->writeCheckpoint(0);
-  //   exit(signal);
-  // }
-
   /*
   new methods untested stop here
   */
