@@ -17,9 +17,9 @@ namespace ssrlcv{
   * \{
   */
 
-   /**
-    * \brief A structure to define a line my a vector and a point in R3
-    */
+  /**
+   * \brief A structure to aid in indexing lines and vectors in R3, additionally contains a bit for help removing bad indexes
+   */
   struct Bundle{
     /**
      * \brief A line in R3 point vector format
@@ -32,14 +32,18 @@ namespace ssrlcv{
     unsigned int numLines;
     // the index of a single line
     int index;
+    // if the bundle is invald, then it should be removed in a bundle adjustment
+    bool invalid;
   };
 
+  
+  /*
+   * \brief a set of lines in point vector format, and indexes (stored as bundles) that represent bundled lines for reprojection
+   */
   struct BundleSet{
     Unity<Bundle::Line>* lines;
     Unity<Bundle>* bundles;
   };
-
-
 
   /**
   * \brief This class contains methods to generate point clouds from a set of Match structs.
@@ -86,6 +90,16 @@ namespace ssrlcv{
     * @param linearErrorCutoff is a value that all linear errors should be less than. points with larger errors are discarded.
     */
     ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bundleSet, Unity<float>* errors, float* linearError, float* linearErrorCutoff);
+
+    /**
+    * The CPU method that sets up the GPU enabled two view tringulation.
+    * This method uses the extra bit in the float3 data structure as a "filter" bit which can be used to remove bad points
+    * @param bundleSet a set of lines and bundles that should be triangulated
+    * @param the individual linear errors (for use in debugging and histogram)
+    * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
+    * @param linearErrorCutoff is a value that all linear errors should be less than. points with larger errors are discarded.
+    */
+    ssrlcv::Unity<float3_b>* twoViewTriangulate_b(BundleSet bundleSet, Unity<float>* errors, float* linearError, float* linearErrorCutoff);
 
     /**
      * Same method as two view triangulation, but all that is desired fro this method is a calculation of the linearError
@@ -140,6 +154,8 @@ namespace ssrlcv{
   __global__ void computeTwoViewTriangulate(float* linearError, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 
   __global__ void computeTwoViewTriangulate(float* linearError, float* linearErrorCutoff, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
+
+  __global__ void computeTwoViewTriangulate_b(float* linearError, float* linearErrorCutoff, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3_b* pointcloud);
 
   __global__ void voidComputeTwoViewTriangulate(float* linearError, float* linearErrorCutoff, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles);
 
