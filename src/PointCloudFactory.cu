@@ -192,29 +192,27 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   computeTwoViewTriangulate<<<grid,block>>>(d_linearError,d_linearErrorCutoff,errors->device,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
   // std::cout << "2-view Triangulation done ... \n" << std::endl;
 
-  //pointcloud->setFore(gpu);
+  // tell which data is most up to date
+  bundleSet.lines->setFore(gpu);
+  bundleSet.bundles->setFore(gpu);
   errors->setFore(gpu);
-
+  
   cudaDeviceSynchronize();
   CudaCheckError();
 
+  // return to find invalid bundles
+  bundleSet.lines->transferMemoryTo(cpu);
+  bundleSet.bundles->transferMemoryTo(cpu);
+  bundleSet.lines->clear(gpu);
+  bundleSet.bundles->clear(gpu);
+  
   // transfer the poitns back to the CPU
   pointcloud->transferMemoryTo(cpu);
   pointcloud->clear(gpu);
   // transfer the individual linear errors back to the CPU
   errors->transferMemoryTo(cpu);
   errors->clear(gpu);
-  // temp
 
-  //for(int i = 0; i < errors->size(); i++){
-  //  std::cout << errors->host[i] << "\t";
-  //}
-
-  std::cout << std::endl;
-  // end temp
-  // clear the other boiz
-  bundleSet.lines->clear(gpu);
-  bundleSet.bundles->clear(gpu);
   // copy back the total error that occured
   CudaSafeCall(cudaMemcpy(linearError,d_linearError,eSize,cudaMemcpyDeviceToHost));
   cudaFree(d_linearError);
@@ -493,10 +491,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
   // the boiz in the loop
   ssrlcv::BundleSet bundleSet;
   ssrlcv::BundleSet bundleSet_partial;
+  ssrlcv::MatchSet  tempMatchSet;
+  tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,1,ssrlcv::cpu);
+  tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,1,ssrlcv::cpu);
   ssrlcv::Unity<float>*    errors;
   ssrlcv::Unity<float3>*   points;
   ssrlcv::Unity<float3_b>* points_b;
-
+  
   // for printing out data about iterations and shit later
   std::vector<float> errorTracker;
 
@@ -511,8 +512,30 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
     // for filtering
     points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
     
-    // convert the float3_b's back to float3
-
+    // count the number of bad bundles
+    int bad_bundles = 0;
+    for (int k = 0; k < bundleSet.bundles->size();k++){
+      if (bundleSet.bundles->host[k].invalid){
+	bad_bundles++;
+      }
+    }
+    std::cout << "bad bundles: " << bad_bundles << std::endl;
+    // Need to generated and adjustment match set
+    // make a temporary match set
+    delete tempMatchSet.keyPoints;
+    delete tempMatchSet.matches;
+    tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matchSet->matches->size()*2,ssrlcv::cpu);
+    tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+    // fill in the boiz
+    for (int k = 0; k < tempMatchSet.keyPoints->size(); k++){
+      
+    }
+    for (int k =0; k < tempMatchSet.matches->size(); k++){
+      
+    }
+    // resize the standard matchSet
+    // this is much easier because of the 2 view assumption
+    
     // do this only once
     if (i == 1) ssrlcv::writePLY("out/rawPoints.ply",points);
     // write some errors for debug
