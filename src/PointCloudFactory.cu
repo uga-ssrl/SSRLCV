@@ -497,9 +497,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // the boiz in the loop
   ssrlcv::BundleSet bundleSet;
   ssrlcv::BundleSet bundleSet_partial;
-  ssrlcv::MatchSet* tempMatchSet;
-  tempMatchSet->keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,1,ssrlcv::cpu);
-  tempMatchSet->matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,1,ssrlcv::cpu);
+  ssrlcv::MatchSet tempMatchSet;
+  tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,1,ssrlcv::cpu);
+  tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,1,ssrlcv::cpu);
   ssrlcv::Unity<float>*    errors;
   ssrlcv::Unity<float3>*   points;
   ssrlcv::Unity<float3_b>* points_b;
@@ -523,7 +523,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     int bad_bundles = 0;
     for (int k = 0; k < bundleSet.bundles->size(); k++){
       if (bundleSet.bundles->host[k].invalid){
-	bad_bundles++;
+	       bad_bundles++;
       }
     }
     if (bad_bundles) std::cout << "Detected " << bad_bundles << " bad bundles to remove" << std::endl;
