@@ -18,10 +18,13 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   Unity<Bundle::Line>* lines = new Unity<Bundle::Line>(nullptr,matchSet->keyPoints->size(),gpu);
 
   // std::cout << "starting bundle generation ..." << std::endl;
-  MemoryState origin[2] = {matchSet->matches->getMemoryState(),matchSet->keyPoints->getMemoryState()};
-  if(origin[0] == cpu) matchSet->matches->transferMemoryTo(gpu);
-  if(origin[1] == cpu) matchSet->keyPoints->transferMemoryTo(gpu);
+  //MemoryState origin[2] = {matchSet->matches->getMemoryState(),matchSet->keyPoints->getMemoryState()};
+  //if(origin[0] == cpu) matchSet->matches->transferMemoryTo(gpu);
+  //if(origin[1] == cpu) matchSet->keyPoints->transferMemoryTo(gpu);
   // std::cout << "set the matches ... " << std::endl;
+  matchSet->matches->transferMemoryTo(gpu);
+  matchSet->keyPoints->transferMemoryTo(gpu);
+  
   // the cameras
   size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
   // fill the cam boi
@@ -48,16 +51,21 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  // call the boi
+  // transfer and clear the match set information
+  matchSet->matches->setFore(gpu);
+  matchSet->keyPoints->setFore(gpu);
+  matchSet->matches->transferMemoryTo(cpu);
+  matchSet->keyPoints->transferMemoryTo(cpu);
+  matchSet->matches->clear(gpu);
+  matchSet->keyPoints->clear(gpu);
+  
+  // transfer and clear the cpu information
   bundles->transferMemoryTo(cpu);
   bundles->clear(gpu);
   lines->transferMemoryTo(cpu);
   lines->clear(gpu);
 
   BundleSet bundleSet = {lines,bundles};
-
-  if(origin[0] == cpu) matchSet->matches->setMemoryState(cpu);
-  if(origin[1] == cpu) matchSet->keyPoints->setMemoryState(cpu);
 
   return bundleSet;
 }
@@ -469,7 +477,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
   // the initial linear error
   float* linearError = (float*) malloc(sizeof(float));
-  *linearError = FLT_MAX; // just something to satisfy the first if statment
+  *linearError = 100; // just something to satisfy the first if statment
   float* linearError_partial = (float*) malloc(sizeof(float));
   *linearError_partial = 0.0;
   // the cutoff
@@ -500,7 +508,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   std::vector<float> errorTracker;
 
   int i = 1;
-  while(i < 300){
+  while(i < 5){
   // while(*linearError > (100000.0)*matchSet->matches->numElements){
     // generate the bundle set
     bundleSet = generateBundles(matchSet,images);
@@ -557,6 +565,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     std::cout << "\tgood bundles:          " << bundleSet.bundles->size() - bad_bundles << std::endl;
     std::cout << "\tsize of old matches:   " << tempMatchSet.matches->size() << std::endl;
     std::cout << "\tsize of new matches:   " << matchSet->matches->size() << std::endl;
+    std::cout << "\tk_adjust:              " << k_adjust << std::endl;
     std::cout << "\tsize of old keyPoints: " << tempMatchSet.keyPoints->size() << std::endl;
     std::cout << "\tsize of new keyPoints: " << matchSet->keyPoints->size() << std::endl;
     
