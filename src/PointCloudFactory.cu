@@ -465,18 +465,16 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>*
  * @param a group of images, used only for their stored camera parameters
  * @return a bundle adjusted point cloud
  */
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
 
   // the initial linear error
   float* linearError = (float*) malloc(sizeof(float));
-  *linearError = FLT_MAX; // just something to satisfy the first if statment (changed by jackson)
-  // std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~>> " << *linearError << std::endl;
+  *linearError = FLT_MAX; // just something to satisfy the first if statment
   float* linearError_partial = (float*) malloc(sizeof(float));
   *linearError_partial = 0.0;
   // the cutoff
-  // TODO this shold later remove points that are bad
   float* linearErrorCutoff = (float*) malloc(sizeof(float));
-  *linearErrorCutoff = 360000.0;//changed by jackson
+  *linearErrorCutoff = 8000.0;
   // make the temporary image struct
   std::vector<ssrlcv::Image*> partials;
   partials.push_back(images[0]);
@@ -503,7 +501,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
 
   int i = 1;
   while(i < 300){
-  // while(*linearError > (100000.0)*matchSet->matches->numElements){//changed by jackson
+  // while(*linearError > (100000.0)*matchSet->matches->numElements){
     // generate the bundle set
     bundleSet = generateBundles(matchSet,images);
     // do an initial triangulation
@@ -514,12 +512,12 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
     
     // count the number of bad bundles
     int bad_bundles = 0;
-    for (int k = 0; k < bundleSet.bundles->size();k++){
+    for (int k = 0; k < bundleSet.bundles->size(); k++){
       if (bundleSet.bundles->host[k].invalid){
 	bad_bundles++;
       }
     }
-    std::cout << "bad bundles: " << bad_bundles << std::endl;
+    if (bad_bundles) std::cout << "Detected " << bad_bundles << " bad bundles to remove" << std::endl;
     // Need to generated and adjustment match set
     // make a temporary match set
     delete tempMatchSet.keyPoints;
@@ -528,13 +526,38 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
     tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
     // fill in the boiz
     for (int k = 0; k < tempMatchSet.keyPoints->size(); k++){
-      
+      tempMatchSet.keyPoints->host[k] = matchSet->keyPoints->host[k];
     }
-    for (int k =0; k < tempMatchSet.matches->size(); k++){
-      
+    for (int k = 0; k < tempMatchSet.matches->size(); k++){
+      tempMatchSet.matches->host[k] = matchSet->matches->host[k];
     }
     // resize the standard matchSet
+    size_t new_kp_size = 2*(matchSet->matches->size() - bad_bundles);
+    size_t new_mt_size = matchSet->matches->size() - bad_bundles;
+    delete matchSet->keyPoints;
+    delete matchSet->matches;
+    matchSet->keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,new_kp_size,ssrlcv::cpu);
+    matchSet->matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,new_mt_size,ssrlcv::cpu);
     // this is much easier because of the 2 view assumption
+    // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
+    int k_adjust = 0;
+    if (bad_bundles){
+      for (int k = 0; k < bundleSet.bundles->size(); k++){
+	if (!bundleSet.bundles->host[k].invalid){
+	  matchSet->keyPoints->host[2*k_adjust]     = tempMatchSet.keyPoints->host[2*k];
+	  matchSet->keyPoints->host[2*k_adjust + 1] = tempMatchSet.keyPoints->host[2*k + 1];
+	  matchSet->matches->host[k_adjust]         = tempMatchSet.matches->host[k];
+	  k_adjust++;
+	}
+      }
+    }
+
+    std::cout << "\tsize of bundles:       " << bundleSet.bundles->size() << std::endl;
+    std::cout << "\tgood bundles:          " << bundleSet.bundles->size() - bad_bundles << std::endl;
+    std::cout << "\tsize of old matches:   " << tempMatchSet.matches->size() << std::endl;
+    std::cout << "\tsize of new matches:   " << matchSet->matches->size() << std::endl;
+    std::cout << "\tsize of old keyPoints: " << tempMatchSet.keyPoints->size() << std::endl;
+    std::cout << "\tsize of new keyPoints: " << matchSet->keyPoints->size() << std::endl;
     
     // do this only once
     if (i == 1) ssrlcv::writePLY("out/rawPoints.ply",points);
