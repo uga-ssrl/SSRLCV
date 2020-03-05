@@ -482,7 +482,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   *linearError_partial = 0.0;
   // the cutoff
   float* linearErrorCutoff = (float*) malloc(sizeof(float));
-  *linearErrorCutoff = 8000.0;
+  *linearErrorCutoff = 360000.0;
   // make the temporary image struct
   std::vector<ssrlcv::Image*> partials;
   partials.push_back(images[0]);
@@ -529,16 +529,16 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     if (bad_bundles) std::cout << "Detected " << bad_bundles << " bad bundles to remove" << std::endl;
     // Need to generated and adjustment match set
     // make a temporary match set
-    delete tempMatchSet->keyPoints;
-    delete tempMatchSet->matches;
-    tempMatchSet->keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matchSet->matches->size()*2,ssrlcv::cpu);
-    tempMatchSet->matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+    delete tempMatchSet.keyPoints;
+    delete tempMatchSet.matches;
+    tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matchSet->matches->size()*2,ssrlcv::cpu);
+    tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
     // fill in the boiz
-    for (int k = 0; k < tempMatchSet->keyPoints->size(); k++){
-      tempMatchSet->keyPoints->host[k] = matchSet->keyPoints->host[k];
+    for (int k = 0; k < tempMatchSet.keyPoints->size(); k++){
+      tempMatchSet.keyPoints->host[k] = matchSet->keyPoints->host[k];
     }
-    for (int k = 0; k < tempMatchSet->matches->size(); k++){
-      tempMatchSet->matches->host[k] = matchSet->matches->host[k];
+    for (int k = 0; k < tempMatchSet.matches->size(); k++){
+      tempMatchSet.matches->host[k] = matchSet->matches->host[k];
     }
     // resize the standard matchSet
     size_t new_kp_size = 2*(matchSet->matches->size() - bad_bundles);
@@ -553,9 +553,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     if (bad_bundles){
       for (int k = 0; k < bundleSet.bundles->size(); k++){
 	if (!bundleSet.bundles->host[k].invalid){
-	  matchSet->keyPoints->host[2*k_adjust]     = tempMatchSet->keyPoints->host[2*k];
-	  matchSet->keyPoints->host[2*k_adjust + 1] = tempMatchSet->keyPoints->host[2*k + 1];
-	  matchSet->matches->host[k_adjust]         = tempMatchSet->matches->host[k];
+	  matchSet->keyPoints->host[2*k_adjust]     = tempMatchSet.keyPoints->host[2*k];
+	  matchSet->keyPoints->host[2*k_adjust + 1] = tempMatchSet.keyPoints->host[2*k + 1];
+	  matchSet->matches->host[k_adjust]         = tempMatchSet.matches->host[k];
 	  k_adjust++;
 	}
       }
@@ -563,10 +563,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     std::cout << "\tsize of bundles:       " << bundleSet.bundles->size() << std::endl;
     std::cout << "\tgood bundles:          " << bundleSet.bundles->size() - bad_bundles << std::endl;
-    std::cout << "\tsize of old matches:   " << tempMatchSet->matches->size() << std::endl;
+    std::cout << "\tsize of old matches:   " << tempMatchSet.matches->size() << std::endl;
     std::cout << "\tsize of new matches:   " << matchSet->matches->size() << std::endl;
     std::cout << "\tk_adjust:              " << k_adjust << std::endl;
-    std::cout << "\tsize of old keyPoints: " << tempMatchSet->keyPoints->size() << std::endl;
+    std::cout << "\tsize of old keyPoints: " << tempMatchSet.keyPoints->size() << std::endl;
     std::cout << "\tsize of new keyPoints: " << matchSet->keyPoints->size() << std::endl;
 
     // do this only once
@@ -1140,7 +1140,7 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* lin
   // fill in the value for the point cloud
   pointcloud[globalID] = point;
 
-  float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
+  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));
 
   errors[globalID] = error;
   // only add the errors that we like
@@ -1264,7 +1264,7 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   float3 point = (s1 + s2)/2.0;
 
   // add the linear errors locally within the block before
-  float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
+  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));
   //float error = dotProduct(s1,s2)*dotProduct(s1,s2);
   //if(error != 0.0f) error = sqrtf(error);
   // only add errors that we like
