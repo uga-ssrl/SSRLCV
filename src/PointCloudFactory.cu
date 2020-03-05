@@ -1,3 +1,4 @@
+
 #include "PointCloudFactory.cuh"
 
 ssrlcv::PointCloudFactory::PointCloudFactory(){
@@ -191,6 +192,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   computeTwoViewTriangulate<<<grid,block>>>(d_linearError,d_linearErrorCutoff,errors->device,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
   // std::cout << "2-view Triangulation done ... \n" << std::endl;
 
+  //pointcloud->setFore(gpu);
+  errors->setFore(gpu);
+
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -200,6 +204,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   // transfer the individual linear errors back to the CPU
   errors->transferMemoryTo(cpu);
   errors->clear(gpu);
+  // temp
+
+  //for(int i = 0; i < errors->size(); i++){
+  //  std::cout << errors->host[i] << "\t";
+  //}
+
+  std::cout << std::endl;
+  // end temp
   // clear the other boiz
   bundleSet.lines->clear(gpu);
   bundleSet.bundles->clear(gpu);
@@ -212,6 +224,72 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   return pointcloud;
 }
 
+/**
+* The CPU method that sets up the GPU enabled two view tringulation.
+* This method uses the extra bit in the float3 data structure as a "filter" bit which can be used to remove bad points
+* @param bundleSet a set of lines and bundles that should be triangulated
+* @param the individual linear errors (for use in debugging and histogram)
+* @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
+* @param linearErrorCutoff is a value that all linear errors should be less than. points with larger errors are discarded.
+*/
+ssrlcv::Unity<float3_b>* ssrlcv::PointCloudFactory::twoViewTriangulate_b(BundleSet bundleSet, Unity<float>* errors, float* linearError, float* linearErrorCutoff){
+
+    // to total error cacluation is stored in this guy
+    *linearError = 0;
+    float* d_linearError;
+    size_t eSize = sizeof(float);
+    CudaSafeCall(cudaMalloc((void**) &d_linearError,eSize));
+    CudaSafeCall(cudaMemcpy(d_linearError,linearError,eSize,cudaMemcpyHostToDevice));
+    // the cutoff boi
+    // *linearErrorCutoff = 10000.0;
+    float* d_linearErrorCutoff;
+    size_t cutSize = sizeof(float);
+    CudaSafeCall(cudaMalloc((void**) &d_linearErrorCutoff,cutSize));
+    CudaSafeCall(cudaMemcpy(d_linearErrorCutoff,linearErrorCutoff,cutSize,cudaMemcpyHostToDevice));
+
+    bundleSet.lines->transferMemoryTo(gpu);
+    bundleSet.bundles->transferMemoryTo(gpu);
+    errors->transferMemoryTo(gpu);
+
+    Unity<float3_b>* pointcloud_b = new Unity<float3_b>(nullptr,bundleSet.bundles->size(),gpu);
+
+    dim3 grid = {1,1,1};
+    dim3 block = {1,1,1};
+    getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
+
+    // std::cout << "Starting 2-view triangulation ..." << std::endl;
+    computeTwoViewTriangulate_b<<<grid,block>>>(d_linearError,d_linearErrorCutoff,errors->device,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud_b->device);
+    // std::cout << "2-view Triangulation done ... \n" << std::endl;
+
+    pointcloud_b->setFore(gpu);
+    errors->setFore(gpu);
+
+    cudaDeviceSynchronize();
+    CudaCheckError();
+
+    // transfer the poitns back to the CPU
+    pointcloud_b->transferMemoryTo(cpu);
+    pointcloud_b->clear(gpu);
+    // transfer the individual linear errors back to the CPU
+    errors->transferMemoryTo(cpu);
+    errors->clear(gpu);
+    // temp
+
+    std::cout << std::endl;
+    // end temp
+    // clear the other boiz
+    bundleSet.lines->clear(gpu);
+    bundleSet.bundles->clear(gpu);
+    // copy back the total error that occured
+    CudaSafeCall(cudaMemcpy(linearError,d_linearError,eSize,cudaMemcpyDeviceToHost));
+    cudaFree(d_linearError);
+    // free the cutoff, it's not needed on the cpu again tho
+    cudaFree(d_linearErrorCutoff);
+
+    return pointcloud_b;
+}
+
+//TODO put this in the right place, in the same order as the header file
 ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bundleSet){
   bundleSet.lines->transferMemoryTo(gpu);
   bundleSet.bundles->transferMemoryTo(gpu);
@@ -415,22 +493,28 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(MatchSet* 
   // the boiz in the loop
   ssrlcv::BundleSet bundleSet;
   ssrlcv::BundleSet bundleSet_partial;
-  ssrlcv::Unity<float>* errors;
-  ssrlcv::Unity<float3>* points;
+  ssrlcv::Unity<float>*    errors;
+  ssrlcv::Unity<float3>*   points;
+  ssrlcv::Unity<float3_b>* points_b;
 
   // for printing out data about iterations and shit later
   std::vector<float> errorTracker;
 
   int i = 1;
-  while(i < 2000){
+  while(i < 300){
   // while(*linearError > (100000.0)*matchSet->matches->numElements){//changed by jackson
     // generate the bundle set
     bundleSet = generateBundles(matchSet,images);
     // do an initial triangulation
     errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+
+    // for filtering
     points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+    
+    // convert the float3_b's back to float3
+
     // do this only once
-    if (i == 1 ) ssrlcv::writePLY("out/rawPoints.ply",points);
+    if (i == 1) ssrlcv::writePLY("out/rawPoints.ply",points);
     // write some errors for debug
     // for now only do this once
     if (i == 1) ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualLinearErrors" + std::to_string(i));
@@ -786,7 +870,7 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
   float3* kp = new float3[match.numKeyPoints]();
   int end =  (int) match.numKeyPoints + match.index;
   KeyPoint currentKP = {-1,{0.0f,0.0f}};
-  bundles[globalID] = {match.numKeyPoints,match.index};
+  bundles[globalID] = {match.numKeyPoints,match.index,false};
   for (int i = match.index, k= 0; i < end; i++,k++){
     // the current keypoint to transform
     currentKP = keyPoints[i];
@@ -1000,18 +1084,84 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* lin
   // fill in the value for the point cloud
   pointcloud[globalID] = point;
 
-  // add the linear errors locally within the block before
-  float error = dotProduct(s1,s2)*dotProduct(s1,s2);
-  if(error != 0.0f) error = sqrtf(error);
+  float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
+
   errors[globalID] = error;
   // only add the errors that we like
   float i_error;
+
   if (error > *linearErrorCutoff) {
-    pointcloud[globalID] = {1.0f,1.0f,1.0f};
-    i_error = *linearErrorCutoff;//changed by jackson
+    i_error = error;
+    // flag the bundle as bad!
+    bundles[globalID].invalid = true;
   } else {
     i_error = error;
   }
+
+  atomicAdd(&localSum,i_error);
+  __syncthreads();
+  if (!threadIdx.x) atomicAdd(linearError,localSum);
+}
+
+/**
+* Does a trigulation with skew lines to find their closest intercetion.
+* Generates a set of individual linear errors of debugging and analysis
+* Generates a total LinearError, which is an analog for reprojection error
+* If a point's linear error is larger than the cutoff it is not returned in the pointcloud
+*/
+__global__ void ssrlcv::computeTwoViewTriangulate_b(float* linearError, float* linearErrorCutoff, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3_b* pointcloud_b){
+  // get ready to do the stuff local memory space
+  // this will later be added back to a global memory space
+  __shared__ float localSum;
+  if (threadIdx.x == 0) localSum = 0;
+  __syncthreads();
+  // this method is from wikipedia, last seen janurary 2020
+  // https://en.wikipedia.org/wiki/Skew_lines#Nearest_Points
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  // if (globalID > (1)) return;
+  if (globalID > (pointnum-1)) return;
+  // we can assume that each line, so we don't need to get the numlines
+  // ne guys are made just for easy of writing
+  ssrlcv::Bundle::Line L1 = lines[bundles[globalID].index];
+  ssrlcv::Bundle::Line L2 = lines[bundles[globalID].index+1];
+
+  // calculate the normals
+  float3 n2 = crossProduct(L2.vec,crossProduct(L1.vec,L2.vec));
+  float3 n1 = crossProduct(L1.vec,crossProduct(L1.vec,L2.vec));
+
+  // calculate the numerators
+  float numer1 = dotProduct((L2.pnt - L1.pnt),n2);
+  float numer2 = dotProduct((L1.pnt - L2.pnt),n1);
+
+  // calculate the denominators
+  float denom1 = dotProduct(L1.vec,n2);
+  float denom2 = dotProduct(L2.vec,n1);
+
+  // get the S points
+  float3 s1 = L1.pnt + (numer1/denom1) * L1.vec;
+  float3 s2 = L2.pnt + (numer2/denom2) * L2.vec;
+  float3 point = (s1 + s2)/2.0;
+
+  // fill in the value for the point cloud
+  float3_b point_b;
+  point_b.x = point.x;
+  point_b.y = point.y;
+  point_b.z = point.z;
+  point_b.invalid = false;
+  pointcloud_b[globalID] = point_b;
+
+  // Euclidean distance
+  float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
+  errors[globalID] = error;
+
+  float i_error;
+  if (error > *linearErrorCutoff) {
+    pointcloud_b[globalID].invalid = true; // this means we should filter it out next time
+    i_error = error;
+  } else {
+    i_error = error;
+  }
+
   atomicAdd(&localSum,i_error);
   __syncthreads();
   if (!threadIdx.x) atomicAdd(linearError,localSum);
@@ -1029,7 +1179,7 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   __shared__ float localSum;
   if (threadIdx.x == 0) localSum = 0;
   __syncthreads();
-  
+
   // this method is from wikipedia, last seen janurary 2020
   // https://en.wikipedia.org/wiki/Skew_lines#Nearest_Points
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
@@ -1039,15 +1189,15 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   // ne guys are made just for easy of writing
   ssrlcv::Bundle::Line L1 = lines[bundles[globalID].index];
   ssrlcv::Bundle::Line L2 = lines[bundles[globalID].index+1];
-  
+
   // calculate the normals
   float3 n2 = crossProduct(L2.vec,crossProduct(L1.vec,L2.vec));
   float3 n1 = crossProduct(L1.vec,crossProduct(L1.vec,L2.vec));
-  
+
   // calculate the numerators
   float numer1 = dotProduct((L2.pnt - L1.pnt),n2);
   float numer2 = dotProduct((L1.pnt - L2.pnt),n1);
-  
+
   // calculate the denominators
   float denom1 = dotProduct(L1.vec,n2);
   float denom2 = dotProduct(L2.vec,n1);
@@ -1058,13 +1208,17 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   float3 point = (s1 + s2)/2.0;
 
   // add the linear errors locally within the block before
-  float error = dotProduct(s1,s2)*dotProduct(s1,s2);
-  if(error != 0.0f) error = sqrtf(error);
+  float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
+  //float error = dotProduct(s1,s2)*dotProduct(s1,s2);
+  //if(error != 0.0f) error = sqrtf(error);
   // only add errors that we like
   float i_error;
+  // filtering should only occur at the start of each adjustment step 
+  // TODO clean this up
   if (error > *linearErrorCutoff) {
-    point = {1.0f,1.0f,1.0f};
-    i_error = *linearErrorCutoff;
+    //point = {1.0f,1.0f,1.0f};
+    //i_error = *linearErrorCutoff;
+    i_error = error;
   } else {
     i_error = error;
   }
@@ -1072,46 +1226,3 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   __syncthreads();
   if (!threadIdx.x) atomicAdd(linearError,localSum);
 }
-  /*
-  //Initializing Variables
-  float3 S [3];
-  float3 C;
-  S[0] = {0,0,0};
-  S[1] = {0,0,0};
-  S[2] = {0,0,0};
-  C = {0,0,0};
-
-  //Iterating through the Lines in a Bundle
-  for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
-    ssrlcv::Bundle::Line L1 = lines[i];
-    float3 tmp [3];
-    normalize(L1.vec);
-    matrixProduct(L1.vec, tmp);
-    //Subtracting the 3x3 Identity Matrix from tmp
-    tmp[0].x -= 1;
-    tmp[1].y -= 1;
-    tmp[2].z -= 1;
-    //Adding tmp to S
-    S[0] = S[0] + tmp[0];
-    S[1] = S[1] + tmp[1];
-    S[2] = S[2] + tmp[2];
-    //Adding tmp * pnt to C
-    float3 vectmp;
-    multiply(tmp, L1.pnt, vectmp);
-    C = C + vectmp;
-  }
-  */
-  /**
-   * If all of the directional vectors are skew and not parallel, then I think S is nonsingular.
-   * However, I will look into this some more. This may have to use a pseudo-inverse matrix if that
-   * is not the case.
-   */
-  /*
-  float3 Inverse [3];  
-  if(inverse(S, Inverse)){
-    float3 point;
-    multiply(Inverse, C, point);
-    pointcloud[globalID] = point;
-  }
-}
-*/
