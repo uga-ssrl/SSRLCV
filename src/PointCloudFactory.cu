@@ -482,7 +482,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   *linearError_partial = 0.0;
   // the cutoff
   float* linearErrorCutoff = (float*) malloc(sizeof(float));
-  *linearErrorCutoff = 360000.0;
+  *linearErrorCutoff = 10000.0;
   // make the temporary image struct
   std::vector<ssrlcv::Image*> partials;
   partials.push_back(images[0]);
@@ -741,7 +741,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       gradients[j].foc /= norm;
       gradients[j].fov.x /= norm;
       gradients[j].fov.y /= norm;
-    }
+    } // end generate gradients
 
     if (false){
       for (int j = 0; j < partials.size(); j++){
@@ -784,7 +784,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // yahboi
     i++;
 
-  }
+  } // end main bundle adjustment loop
 
   // write linearError chagnes to a CSV
   writeCSV(errorTracker, "totalErrorOverIterations");
