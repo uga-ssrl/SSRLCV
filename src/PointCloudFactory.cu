@@ -92,7 +92,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,computeTwoViewTriangulate);
 
   // std::cout << "Starting 2-view triangulation ..." << std::endl;
   computeTwoViewTriangulate<<<grid,block>>>(d_linearError,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
@@ -138,7 +138,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,computeTwoViewTriangulate);
 
   // std::cout << "Starting 2-view triangulation ..." << std::endl;
   computeTwoViewTriangulate<<<grid,block>>>(d_linearError,errors->device,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
@@ -194,7 +194,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,computeTwoViewTriangulate);
 
   // std::cout << "Starting 2-view triangulation ..." << std::endl;
   computeTwoViewTriangulate<<<grid,block>>>(d_linearError,d_linearErrorCutoff,errors->device,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
@@ -261,7 +261,7 @@ ssrlcv::Unity<float3_b>* ssrlcv::PointCloudFactory::twoViewTriangulate_b(BundleS
 
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
-    getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
+    getFlatGridBlock(bundleSet.bundles->size(),grid,block,computeTwoViewTriangulate_b);
 
     // std::cout << "Starting 2-view triangulation ..." << std::endl;
     computeTwoViewTriangulate_b<<<grid,block>>>(d_linearError,d_linearErrorCutoff,errors->device,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud_b->device);
@@ -348,7 +348,7 @@ void ssrlcv::PointCloudFactory::voidTwoViewTriangulate(BundleSet bundleSet, floa
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,voidComputeTwoViewTriangulate);
 
   voidComputeTwoViewTriangulate<<<grid,block>>>(d_linearError,d_linearErrorCutoff,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device);
 
