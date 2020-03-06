@@ -771,22 +771,22 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // take a step down the hill!
     for (int j = 0; j < images.size(); j++){
-      images[j]->camera.cam_rot.x -= step * gradients[j].cam_rot.x;
-      images[j]->camera.cam_rot.y -= step * gradients[j].cam_rot.y;
-      images[j]->camera.cam_rot.z -= step * gradients[j].cam_rot.z;
-      images[j]->camera.cam_pos.x -= step * gradients[j].cam_pos.x;
-      images[j]->camera.cam_pos.y -= step * gradients[j].cam_pos.y;
-      images[j]->camera.cam_pos.z -= step * gradients[j].cam_pos.z;
-      images[j]->camera.foc       -= step * gradients[j].foc;
-      images[j]->camera.fov.x     -= step * gradients[j].fov.x;
-      images[j]->camera.fov.y     -= step * gradients[j].fov.y;
+      images[j]->camera.cam_rot.x += step * gradients[j].cam_rot.x;
+      images[j]->camera.cam_rot.y += step * gradients[j].cam_rot.y;
+      images[j]->camera.cam_rot.z += step * gradients[j].cam_rot.z;
+      images[j]->camera.cam_pos.x += step * gradients[j].cam_pos.x;
+      images[j]->camera.cam_pos.y += step * gradients[j].cam_pos.y;
+      images[j]->camera.cam_pos.z += step * gradients[j].cam_pos.z;
+      images[j]->camera.foc       += step * gradients[j].foc;
+      images[j]->camera.fov.x     += step * gradients[j].fov.x;
+      images[j]->camera.fov.y     += step * gradients[j].fov.y;
       // update dpix
       images[j]->camera.dpix.x = (images[j]->camera.foc * tanf(images[j]->camera.fov.x / 2.0f)) / (images[j]->camera.size.x / 2.0f );
       images[j]->camera.dpix.y = images[j]->camera.dpix.x;
     }
 
     // temp update of linearCutoof
-    *linearErrorCutoff += 200;
+    *linearErrorCutoff = 6000;
     // yahboi
     i++;
 
