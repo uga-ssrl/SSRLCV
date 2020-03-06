@@ -553,17 +553,17 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // this is much easier because of the 2 view assumption
     // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
     int k_adjust = 0;
-    if (bad_bundles){
-      for (int k = 0; k < bundleSet.bundles->size(); k++){
-      	if (!bundleSet.bundles->host[k].invalid){
-      	  matchSet->keyPoints->host[2*k_adjust]     = tempMatchSet.keyPoints->host[2*k];
-      	  matchSet->keyPoints->host[2*k_adjust + 1] = tempMatchSet.keyPoints->host[2*k + 1];
-      	  // matchSet->matches->host[k_adjust]         = tempMatchSet.matches->host[k];
-          matchSet->matches->host[k_adjust]         = {2,2*k_adjust};
-      	  k_adjust++;
-      	}
-      }
+    // if (bad_bundles){
+    for (int k = 0; k < bundleSet.bundles->size(); k++){
+    	if (!bundleSet.bundles->host[k].invalid){
+    	  matchSet->keyPoints->host[2*k_adjust]     = tempMatchSet.keyPoints->host[2*k];
+    	  matchSet->keyPoints->host[2*k_adjust + 1] = tempMatchSet.keyPoints->host[2*k + 1];
+    	  // matchSet->matches->host[k_adjust]         = tempMatchSet.matches->host[k];
+        matchSet->matches->host[k_adjust]         = {2,2*k_adjust};
+    	  k_adjust++;
+    	}
     }
+    // }
 
     std::cout << "\tsize of bundles:       " << bundleSet.bundles->size() << std::endl;
     std::cout << "\tgood bundles:          " << bundleSet.bundles->size() - bad_bundles << std::endl;
