@@ -552,12 +552,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     int k_adjust = 0;
     if (bad_bundles){
       for (int k = 0; k < bundleSet.bundles->size(); k++){
-	if (!bundleSet.bundles->host[k].invalid){
-	  matchSet->keyPoints->host[2*k_adjust]     = tempMatchSet.keyPoints->host[2*k];
-	  matchSet->keyPoints->host[2*k_adjust + 1] = tempMatchSet.keyPoints->host[2*k + 1];
-	  matchSet->matches->host[k_adjust]         = tempMatchSet.matches->host[k];
-	  k_adjust++;
-	}
+      	if (!bundleSet.bundles->host[k].invalid){
+      	  matchSet->keyPoints->host[2*k_adjust]     = tempMatchSet.keyPoints->host[2*k];
+      	  matchSet->keyPoints->host[2*k_adjust + 1] = tempMatchSet.keyPoints->host[2*k + 1];
+      	  // matchSet->matches->host[k_adjust]         = tempMatchSet.matches->host[k];
+          matchSet->matches->host[k_adjust]         = {2,2*k_adjust};
+      	  k_adjust++;
+      	}
       }
     }
 
