@@ -61,63 +61,28 @@ due to the way that signals work in C++ global variables are required for
 signal handlers to access variables
 */
 
-
-
-ssrlcv::Unity<int> i_nums;
-
 void sigintHandler(int signal){
     std::cout<<"Interrupted by signal ("<<signal<<")"<<std::endl;
-    std::cout<<"Writing checkpoint for Unity<int>"<<std::endl;
-    i_nums.checkpoint(0,"./");//will write i_nums data and state information
-    //exit(signal);//usually you would want to exit after an interrupt
-    //if you do not want to exit do this
-    //reset handler 
-    //signal(SIGINT, sigintHandler);//will handle signals 
-    //fflush(stdout);
+    exit(signal);
 }
 
 
 int main(int argc, char *argv[]){
   try{
-    signal(SIGINT, sigintHandler);//will handle signals 
-
-    i_nums = ssrlcv::Unity<int>(nullptr,100,ssrlcv::cpu);
+    ssrlcv::Unity<int> i_nums = ssrlcv::Unity<int>(nullptr,100,ssrlcv::cpu);
 
     for(int i = 0; i < 100; ++i){
       i_nums.host[i] = i;
     } 
-    //no need to setFore as state == cpu so fore == cpu
     i_nums.transferMemoryTo(ssrlcv::gpu);
 
-    /*
-    now when interrupted i_nums should be checkpointed with 
-    data and state information so that Unity<T>(std::string path)
-    can reinstantiate from the checkpoint
-    */
-    while(1){
-        std::cout<<"Waiting for interrupt..."<<std::endl;
-        sleep(1);
-    }
-
-    ssrlcv::Unity<int> i_nums_cpt;
+    i_nums.checkpoint(0,"./");//will write i_nums data and state information
 
     bool successfull = false;
-    std::vector<std::string> checkpointList;
-    ssrlcv::getFilePaths("./",checkpointList,".uty");
 
-    for(auto file = checkpointList.begin(); file != checkpointList.end(); ++file){
-        try{
-            ssrlcv::Unity<int> tmp = ssrlcv::Unity<int>(*file);
-            i_nums_cpt = tmp;
-            successfull = true;
-        }
-        catch (const ssrlcv::CheckpointException &e){} 
-    }
-    if(!successfull){
-        std::cout<<"could not find or read a checkpoint"<<std::endl;
-        std::cout<<"checkpointing unity test failed"<<std::endl;
-        exit(-1);
-    }
+    std::cout<<"trying to read data"<<std::endl;
+    ssrlcv::Unity<int> i_nums_cpt = ssrlcv::Unity<int>("0_i.uty");
+    std::cout<<"now equating data"<<std::endl;
 
     if(printTest(&i_nums,&i_nums_cpt)){
         std::cout<<"TEST PASSED"<<std::endl;
@@ -128,15 +93,19 @@ int main(int argc, char *argv[]){
 
     return 0;
   }
+  catch (const ssrlcv::CheckpointException &e){
+    std::cout<<"could not find or read a checkpoint"<<std::endl;
+    std::cout<<"checkpointing unity test failed"<<std::endl;
+    exit(-1);
+  }
   catch (const std::exception &e){
-      std::cerr << "Caught exception: " << e.what() << '\n';
-      std::exit(1);
+    std::cerr << "Caught exception: " << e.what() << '\n';
+    std::exit(1);
   }
   catch (...){
-      std::cerr << "Caught unknown exception\n";
-      std::exit(1);
+    std::cerr << "Caught unknown exception\n";
+    std::exit(1);
   }
-
 }
 
 
