@@ -74,16 +74,16 @@ int main(int argc, char *argv[]){
     for(int i = 0; i < 100; ++i){
       i_nums.host[i] = i;
     } 
-    i_nums.transferMemoryTo(ssrlcv::gpu);
+    i_nums.transferMemoryTo(ssrlcv::gpu);//check if checkpointing can handle reoriginating to both cpu and gpu with data
 
     i_nums.checkpoint(0,"./");//will write i_nums data and state information
 
     bool successfull = false;
 
-    std::cout<<"trying to read data"<<std::endl;
+    std::cout<<"reading checkpoint"<<std::endl;
     ssrlcv::Unity<int> i_nums_cpt = ssrlcv::Unity<int>("0_i.uty");
-    std::cout<<"now equating data"<<std::endl;
 
+    std::cout<<"equating checkpoint data"<<std::endl;
     if(printTest(&i_nums,&i_nums_cpt)){
         std::cout<<"TEST PASSED"<<std::endl;
     }
@@ -93,18 +93,13 @@ int main(int argc, char *argv[]){
 
     return 0;
   }
-  catch (const ssrlcv::CheckpointException &e){
-    std::cout<<"could not find or read a checkpoint"<<std::endl;
-    std::cout<<"checkpointing unity test failed"<<std::endl;
-    exit(-1);
-  }
   catch (const std::exception &e){
     std::cerr << "Caught exception: " << e.what() << '\n';
-    std::exit(1);
+    std::exit(2);
   }
   catch (...){
     std::cerr << "Caught unknown exception\n";
-    std::exit(1);
+    std::exit(3);
   }
 }
 

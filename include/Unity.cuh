@@ -21,6 +21,7 @@
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
 #include <stdio.h>
+#include <cstdio>
 #include <string>
 #include <cstring>
 #include <iostream> 
@@ -188,7 +189,7 @@ namespace ssrlcv{
     CheckpointException(){
       msg = "Error in writing checkpoint";
     }
-    CheckpointException(std::string msg) : msg("Error in writing checkpoint: " + msg){}
+    CheckpointException(std::string msg) : msg("Checkpoint Error: " + msg){}
     virtual const char* what() const throw(){
       return msg.c_str();
     }
@@ -416,44 +417,62 @@ namespace ssrlcv{
   }
   template<typename T>
   Unity<T>::Unity(std::string path){
-    std::ifstream checkpoint(path, std::ios::in | std::ios::binary);
-    if(!checkpoint){
+    this->host = nullptr;
+    this->device = nullptr;
+    this->state = null;
+    this->fore = null;
+    this->numElements = 0;
+
+    std::ifstream cp(path.c_str(), std::ifstream::binary);
+    char eol;
+
+    if(cp.is_open()){
+      const std::type_info& t_info = typeid(T);
+
+      std::string name_str;
+      getline(cp,name_str);
+      if(name_str != std::string(t_info.name())){
+        throw CheckpointException("names of type T do not match up in Unity checkpoint reader");
+      }
+      
+      size_t hash_code;
+      cp.read((char*)&hash_code,sizeof(size_t));
+      cp.read(&eol,1);
+        
+      if(hash_code != t_info.hash_code()){
+        throw CheckpointException("hash_codes of type T do not match up in Unity checkpoint reader");
+      }
+
+      MemoryState origin;
+      cp.read((char*)&origin,sizeof(MemoryState));
+      cp.read((char*)&this->numElements,sizeof(unsigned long));
+      cp.read(&eol,1);
+
+      if(origin == null){
+        throw CheckpointException("read origin in Unity checkpoint header shows null");
+      }
+
+      this->host = new T[this->numElements]();
+      this->state = cpu;
+      this->fore = cpu;
+      for(unsigned long i = 0; i < this->numElements; ++i){
+        cp.read((char*)&this->host[i],sizeof(T));
+      }
+      if(this->state != origin) this->setMemoryState(origin);
+
+      cp.close();
+      if(cp.good()){
+        std::cout<<"Unity created from checkpoint "<<path<<std::endl;
+      }
+      else{
+        path = "could not successfully read checkpoint " + path;
+        throw CheckpointException(path);
+      }
+    }
+    else{
       path = "cannot open for read: " + path;
       throw CheckpointException(path);
     }
-    //read header
-    checkpoint.read((char*)&this->numElements,sizeof(unsigned long));
-    const std::type_info& treader = typeid(T);
-    size_t in_hash = 0;
-    checkpoint.read((char*)&in_hash,sizeof(size_t));
-    if(in_hash != treader.hash_code()){
-      throw CheckpointException("hash_codes of type T do not match up in Unity checkpoint reader");
-    }
-    size_t name_size = 0;
-    checkpoint.read((char*)&name_size,sizeof(size_t));
-    std::string name = std::string(name_size,' ');
-    checkpoint.read((char*)&name,sizeof(name_size));
-    std::string equate = treader.name();
-    if(equate != name){
-      throw CheckpointException("names of type T do not match up in Unity checkpoint reader");
-    }
-    MemoryState last_origin = null;
-    checkpoint.read((char*)&last_origin,sizeof(MemoryState));
-    if(last_origin == null){
-      throw CheckpointException("last_origin in Unity checkpoint header shows null");
-    }
-    this->setData(nullptr,this->numElements,cpu);
-    for(unsigned long i = 0; i < this->numElements; ++i){
-      checkpoint.read((char*)&this->host[i],sizeof(T));
-    }
-    if(checkpoint.good()){
-      std::cout<<path<<" checkpoint successfully read in"<<std::endl;
-    }
-    else{
-      throw CheckpointException("could not successfully read Unity<T> checkpoint");
-    }
-    if(this->state != last_origin) this->setMemoryState(last_origin);
-    checkpoint.close();
   }
   template<typename T>
   Unity<T>::~Unity(){
@@ -831,35 +850,49 @@ namespace ssrlcv{
     if(this->state == null){
       throw NullUnityException("cannot write a checkpoint with a null Unity<T>");
     }
+
     const std::type_info& ti = typeid(T);
+    size_t hash_code = ti.hash_code();
+    const char* name = ti.name();
+
+    char eol = '\n';
+
     std::string pathToFile = dirPath + std::to_string(id) + "_";
-    pathToFile += ti.name();
+    pathToFile += name;
     pathToFile += ".uty";
-    std::ofstream checkpoint(pathToFile, std::ios::out | std::ios::binary);
-    if(!checkpoint){
-      pathToFile = "cannot open for write: " + pathToFile;
-      throw CheckpointException(pathToFile);
-    }
+    std::ofstream cp(pathToFile.c_str(), std::ofstream::binary);
+
     MemoryState origin = this->state;
     if(this->fore == gpu) this->transferMemoryTo(cpu);
-    //write header 
-    //write hashcode or unique identifier
-    checkpoint.write((char*)&this->numElements,sizeof(unsigned long));
-    checkpoint.write((char*)ti.hash_code(),sizeof(size_t));
-    checkpoint.write((char*)strlen(ti.name()),sizeof(size_t));
-    checkpoint.write((char*)ti.name(),sizeof(strlen(ti.name())));
-    checkpoint.write((char*)&origin,sizeof(MemoryState));
-    for(unsigned long i = 0; i < this->numElements; ++i){
-      checkpoint.write((char*)&this->host[i],sizeof(T));
-    }
-    if(checkpoint.good()){
-      std::cout<<"check point for Unity<T> written: "<<id<<" type = "<<ti.name()<<std::endl;
+    
+    if(cp.is_open()){
+      //header
+      cp.write(name,strlen(name));
+      cp.write(&eol,sizeof(char));
+      cp.write((char*)&hash_code,sizeof(size_t));
+      cp.write(&eol,sizeof(char));
+      cp.write((char*)&origin,sizeof(MemoryState));
+      cp.write((char*)&this->numElements,sizeof(unsigned long));
+      cp.write(&eol,sizeof(char));
+      //body
+
+      for(unsigned long i = 0; i < this->numElements; ++i){
+        cp.write((char*)&this->host[i],sizeof(T));
+      }
+      cp.close();
+      if(cp.good()){
+        std::cout<<"checkpoint "<<pathToFile<<" successfully written"<<std::endl;
+      }
+      else{
+        pathToFile = "could not write Unity<T> checkpoint: " + pathToFile;
+        throw CheckpointException(pathToFile);
+      }
+      if(this->state != origin) this->setMemoryState(origin);
     }
     else{
-      throw CheckpointException("could not successfully write Unity<T> checkpoint");
+      pathToFile = "could not open for writing: " + pathToFile;
+      throw CheckpointException(pathToFile);
     }
-    if(this->state != origin) this->setMemoryState(origin);
-    checkpoint.close();
   }
 
   //if you want human readable typenames as file names implement specialization here
