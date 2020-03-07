@@ -416,10 +416,10 @@ namespace ssrlcv{
   }
   template<typename T>
   Unity<T>::Unity(std::string path){
-    std::ifstream checkpoint(pathToFile, ios::in, ios::binary);
+    std::ifstream checkpoint(path, std::ios::in | std::ios::binary);
     if(!checkpoint){
-      pathToFile = "cannot open for read: " + pathToFile;
-      throw CheckpointException(pathToFile);
+      path = "cannot open for read: " + path;
+      throw CheckpointException(path);
     }
     //read header
     checkpoint.read((char*)&this->numElements,sizeof(unsigned long));
@@ -444,10 +444,10 @@ namespace ssrlcv{
     }
     this->setData(nullptr,this->numElements,cpu);
     for(unsigned long i = 0; i < this->numElements; ++i){
-      checkpoint.read((char*)&this->host[i],sizeof(T)));
+      checkpoint.read((char*)&this->host[i],sizeof(T));
     }
     if(checkpoint.good()){
-      std::cout<<pathToFile<<" checkpoint successfully read in"<<std::endl;
+      std::cout<<path<<" checkpoint successfully read in"<<std::endl;
     }
     else{
       throw CheckpointException("could not successfully read Unity<T> checkpoint");
@@ -751,7 +751,7 @@ namespace ssrlcv{
       thrust::device_ptr<T> out_ptr(copied->device);
       thrust::device_ptr<T> new_end = thrust::copy_if(in_ptr,in_ptr+this->numElements,out_ptr,predicate);
       CudaCheckError();
-      unsigned long compressedSize = new_end - data_ptr;
+      unsigned long compressedSize = new_end - out_ptr;
       copied->resize(compressedSize);
       if(tmp_device != nullptr) CudaSafeCall(cudaFree(tmp_device));
     }
@@ -823,7 +823,7 @@ namespace ssrlcv{
     thrust::device_ptr<T> new_end = thrust::sort(data_ptr,data_ptr+this->numElements,comparator);
     CudaCheckError();
     this->fore = gpu;
-    if(origin != this->state) array->setMemoryState(origin);
+    if(origin != this->state) this->setMemoryState(origin);
   }
 
   template<typename T>
@@ -835,7 +835,7 @@ namespace ssrlcv{
     std::string pathToFile = dirPath + std::to_string(id) + "_";
     pathToFile += ti.name();
     pathToFile += ".uty";
-    std::ofstream checkpoint(pathToFile, ios::out, ios::binary);
+    std::ofstream checkpoint(pathToFile, std::ios::out | std::ios::binary);
     if(!checkpoint){
       pathToFile = "cannot open for write: " + pathToFile;
       throw CheckpointException(pathToFile);
@@ -845,9 +845,9 @@ namespace ssrlcv{
     //write header 
     //write hashcode or unique identifier
     checkpoint.write((char*)&this->numElements,sizeof(unsigned long));
-    checkpoint.write((char*)&ti.hash_code(),sizeof(size_t));
-    checkpoint.write((char*)&strlen(ti.name()),sizeof(size_t));
-    checkpoint.write((char*)&ti.name(),sizeof(strlen(ti.name())));
+    checkpoint.write((char*)ti.hash_code(),sizeof(size_t));
+    checkpoint.write((char*)strlen(ti.name()),sizeof(size_t));
+    checkpoint.write((char*)ti.name(),sizeof(strlen(ti.name())));
     checkpoint.write((char*)&origin,sizeof(MemoryState));
     for(unsigned long i = 0; i < this->numElements; ++i){
       checkpoint.write((char*)&this->host[i],sizeof(T));

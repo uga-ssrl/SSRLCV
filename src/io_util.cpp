@@ -89,7 +89,6 @@ void ssrlcv::getFilePaths(std::string dirPath, std::vector<std::string> &paths, 
     exit(-1);
   }
   struct dirent *in_file;
-  std::string extension;
   while ((in_file = readdir(dir)) != nullptr)
   {
     std::string currentFileName = in_file->d_name;

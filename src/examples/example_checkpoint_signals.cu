@@ -9,10 +9,11 @@
 * \see Unity
 * \todo add signal examples for SIGABRT, SIGFPE, SIGILL, SIGSEGV, SIGTERM
 */
-#include "../../common_includes.h"
-#include "../../io_util.h"
+#include "../../include/common_includes.h"
+#include "../../include/io_util.h"
 #include <csignal>
-#include <type_info>
+#include <typeinfo>
+#include <unistd.h>
 
 /*
 UTILITY
@@ -71,9 +72,10 @@ void sigintHandler(int signal){
     //exit(signal);//usually you would want to exit after an interrupt
     //if you do not want to exit do this
     //reset handler 
-    signal(SIGINT,sigintHandler);
-    fflush(stdout);
+    //signal(SIGINT, sigintHandler);//will handle signals 
+    //fflush(stdout);
 }
+
 
 int main(int argc, char *argv[]){
   try{
@@ -97,7 +99,6 @@ int main(int argc, char *argv[]){
         sleep(1);
     }
 
-    const std::type_info& i_nums_type = typeid(int);
     ssrlcv::Unity<int> i_nums_cpt;
 
     bool successfull = false;
@@ -110,7 +111,7 @@ int main(int argc, char *argv[]){
             i_nums_cpt = tmp;
             successfull = true;
         }
-        catch (const ssrlcv::CheckpointException &e) continue;
+        catch (const ssrlcv::CheckpointException &e){} 
     }
     if(!successfull){
         std::cout<<"could not find or read a checkpoint"<<std::endl;
@@ -118,7 +119,7 @@ int main(int argc, char *argv[]){
         exit(-1);
     }
 
-    if(printTest(i_nums,i_nums_cpt)){
+    if(printTest(&i_nums,&i_nums_cpt)){
         std::cout<<"TEST PASSED"<<std::endl;
     }
     else{
