@@ -7,7 +7,7 @@
 * \example 
 * \see Unity
 */
-#include "../../common_includes.h"
+#include "../../include/common_includes.h"
 
 /*
 NOTE: This example kernel is VERY simple compared to most 
@@ -20,22 +20,38 @@ __global__ void add_100(int numElements, int* data){
   }
 }
 
-void add_100(jax::Unity<int>* i_nums){
+
+__device__ bool i_greater(const int& a, const int& b){
+  return a > b;
+}
+__device__ ssrlcv::Unity<int>::comp_ptr greater_device = i_greater;
+
+__device__ bool less70(const int& a){
+  return a < 70;
+}
+__device__ ssrlcv::Unity<int>::pred_ptr less70_device = less70;
+
+__device__ bool greq70(const int& a){
+  return a >= 70;
+}
+__device__ ssrlcv::Unity<int>::pred_ptr greq70_device = greq70;
+
+void add_100(ssrlcv::Unity<int>* i_nums){
   //check where the data is 
-  jax::MemoryState origin = i_nums->getMemoryState();
+  ssrlcv::MemoryState origin = i_nums->getMemoryState();
   //make sure i_nums.device has the most up to date memory
-  if(origin == jax::cpu || i_nums->getFore() == jax::cpu){
-    i_nums->transferMemoryTo(jax::gpu);//this is making i_nums.state = i_nums.fore = jax::both
+  if(origin == ssrlcv::cpu || i_nums->getFore() == ssrlcv::cpu){
+    i_nums->transferMemoryTo(ssrlcv::gpu);//this is making i_nums.state = i_nums.fore = ssrlcv::both
   }
   add_100<<<i_nums->size(),1>>>(i_nums->size(),i_nums->device);
   cudaDeviceSynchronize();//global threadfence
   CudaCheckError();//cuda error checker
-  i_nums->setFore(jax::gpu);//tell Unity where the updated memory is
-  if(origin == jax::cpu){
-    i_nums->setMemoryState(jax::cpu);//returning i_nums with state = cpu
+  i_nums->setFore(ssrlcv::gpu);//tell Unity where the updated memory is
+  if(origin == ssrlcv::cpu){
+    i_nums->setMemoryState(ssrlcv::cpu);//returning i_nums with state = cpu
   }
-  else if(origin == jax::both){
-    i_nums->transferMemoryTo(jax::cpu);//just make sure i_nums.fore = both
+  else if(origin == ssrlcv::both){
+    i_nums->transferMemoryTo(ssrlcv::cpu);//just make sure i_nums.fore = both
   }
   //else origin was on the gpu so no need to do anything
 }
@@ -58,7 +74,7 @@ int main(int argc, char *argv[]){
     Instantiate a Unity of a certain length from a nullptr.
     */
     std::cout<<"test proper fore usage, Unity<T>::transferMemoryTo and Unity<T>::setMemoryState\n";
-    jax::Unity<int> i_nums = jax::Unity<int>(nullptr,100,jax::cpu);
+    ssrlcv::Unity<int> i_nums = ssrlcv::Unity<int>(nullptr,100,ssrlcv::cpu);
     std::vector<int> truth;
     /*
     Fill host with information.
@@ -71,8 +87,8 @@ int main(int argc, char *argv[]){
     /*
     Transfer to gpu.
     */      
-    i_nums.transferMemoryTo(jax::gpu);
-    std::cout<<"\tafter i_nums.transferMemoryTo(jax::gpu) ";
+    i_nums.transferMemoryTo(ssrlcv::gpu);
+    std::cout<<"\tafter i_nums.transferMemoryTo(ssrlcv::gpu) ";
     i_nums.printInfo();
     add_100<<<i_nums.size(),1>>>(i_nums.size(),i_nums.device);
     
@@ -80,8 +96,8 @@ int main(int argc, char *argv[]){
     Now make sure Unity knows that I have changed values on 
     the device because memory is also on the CPU.
     */
-    i_nums.setFore(jax::gpu);
-    std::cout<<"\tafter i_nums.setFore(jax::gpu) ";
+    i_nums.setFore(ssrlcv::gpu);
+    std::cout<<"\tafter i_nums.setFore(ssrlcv::gpu) ";
     i_nums.printInfo();
     
     /*
@@ -89,9 +105,9 @@ int main(int argc, char *argv[]){
     NOTE: due to not calling cudaDeviceSynchronize() 
     this is the threadfence as it uses cudaMemcpy.
     */
-    i_nums.setMemoryState(jax::cpu);
+    i_nums.setMemoryState(ssrlcv::cpu);
     CudaCheckError();//cuda error checker
-    std::cout<<"\tafter i_nums.setMemoryState(jax::cpu) ";
+    std::cout<<"\tafter i_nums.setMemoryState(ssrlcv::cpu) ";
     i_nums.printInfo();
     std::cout<<"\t";
     /*
@@ -113,9 +129,7 @@ int main(int argc, char *argv[]){
       if(i < 100) truth[i] = -i;
       else truth.push_back(-i);
     }
-    i_nums.setData(replacement,1000,jax::cpu);
-    std::cout<<"\tafter i_nums.setData(replacement,1000,jax::cpu) ";
-    i_nums.printInfo();
+    i_nums.setData(replacement,1000,ssrlcv::cpu);
     std::cout<<"\t";
     fullpass += printTest<int>(i_nums.size(),i_nums.host,replacement);
 
@@ -133,8 +147,8 @@ int main(int argc, char *argv[]){
     10 elements are kept. 
     */
     std::cout<<"testing Unity<T>::resize\n\t";
-    i_nums.transferMemoryTo(jax::gpu);//Transfer to gpu, setting i_nums.state & fore to both
-    std::cout<<"after i_nums.transferMemoryTo(jax::gpu) ";
+    i_nums.transferMemoryTo(ssrlcv::gpu);//Transfer to gpu, setting i_nums.state & fore to both
+    std::cout<<"after i_nums.transferMemoryTo(ssrlcv::gpu) ";
     i_nums.printInfo();
     std::cout<<"\t";
     i_nums.resize(10);
@@ -148,8 +162,8 @@ int main(int argc, char *argv[]){
     without deleting device or host. 
     */
     std::cout<<"testing Unity<T>::zeroOut\n\t";
-    i_nums.zeroOut(jax::cpu);
-    std::cout<<"after i_nums.zeroOut(jax::cpu) ";
+    i_nums.zeroOut(ssrlcv::cpu);
+    std::cout<<"after i_nums.zeroOut(ssrlcv::cpu) ";
     i_nums.printInfo();
     truth.clear();
     for(int i = 0; i < 10; ++i){
@@ -171,11 +185,11 @@ int main(int argc, char *argv[]){
     or setMemoryStateTo(both).
     */
     std::cout<<"testing result of improper fore tracking with Unity<T>::transferMemoryTo\n\t";
-    i_nums.setFore(jax::gpu);
-    std::cout<<"after i_nums.setFore(jax::gpu) ";
+    i_nums.setFore(ssrlcv::gpu);
+    std::cout<<"after i_nums.setFore(ssrlcv::gpu) ";
     i_nums.printInfo();
-    i_nums.transferMemoryTo(jax::cpu);
-    std::cout<<"\tafter i_nums.transferMemoryTo(jax::cpu) ";
+    i_nums.transferMemoryTo(ssrlcv::cpu);
+    std::cout<<"\tafter i_nums.transferMemoryTo(ssrlcv::cpu) ";
     i_nums.printInfo();
     std::cout<<"\t";
     for(int i = 0; i < 10; ++i){
@@ -188,8 +202,8 @@ int main(int argc, char *argv[]){
     */
     std::cout<<"testing result of improper fore tracking with Unity<T>::setMemoryState\n\t";
 
-    i_nums.zeroOut(jax::gpu);//now gpu = fore as Unity sets it when zeroOut is called
-    std::cout<<"after i_nums.zeroOut(jax::gpu) ";
+    i_nums.zeroOut(ssrlcv::gpu);//now gpu = fore as Unity sets it when zeroOut is called
+    std::cout<<"after i_nums.zeroOut(ssrlcv::gpu) ";
     i_nums.printInfo();
     for(int i = 0; i < i_nums.size(); ++i){
       i_nums.host[i] = i;
@@ -201,22 +215,51 @@ int main(int argc, char *argv[]){
     NOTE: if you try and transfer memory to the same state as fore 
     nothing will happen and a warning will be logged.
     */
-    i_nums.transferMemoryTo(jax::gpu);//example of transfer doing nothing due to fore being set to gpu
-    std::cout<<"\tafter i_nums.transferMemoryTo(jax::gpu) ";
+    i_nums.transferMemoryTo(ssrlcv::gpu);//example of transfer doing nothing due to fore being set to gpu
+    std::cout<<"\tafter i_nums.transferMemoryTo(ssrlcv::gpu) ";
     i_nums.printInfo();
-    i_nums.setMemoryState(jax::cpu);//as gpu is fore this will transfer gpu to cpu before deleting i_nums.device
-    std::cout<<"\tafter i_nums.setMemoryState(jax::cpu) ";
+    i_nums.setMemoryState(ssrlcv::cpu);//as gpu is fore this will transfer gpu to cpu before deleting i_nums.device
+    std::cout<<"\tafter i_nums.setMemoryState(ssrlcv::cpu) ";
     i_nums.printInfo();
     std::cout<<"\t";
     fullpass += printTest<int>(i_nums.size(),i_nums.host,&truth[0]);
 
+    i_nums.resize(100);
+    truth.clear();
+    for(int i = 0; i < 100; ++i){
+      i_nums.host[i] = i;
+      truth.push_back(99-i);
+    }
 
-    /*
-    If i_nums was a pointer allocated with new, you would have to delete i_nums.
-    Here destructor takes care of it.  
-    */
+    std::cout<<"testing result sorting with custom greater than\n\t";
+    ssrlcv::Unity<int>::comp_ptr greater_host;
+    cudaMemcpyFromSymbol(&greater_host, greater_device, sizeof(ssrlcv::Unity<int>::comp_ptr));
+    i_nums.sort(greater_host);// Tmust have overloaded > operator
+    fullpass += printTest<int>(i_nums.size(),i_nums.host,&truth[0]);
 
-    if(fullpass == 6){
+
+    truth.clear();
+    for(int i = 0; i < 70; ++i){
+      truth.push_back(i);
+    }
+    std::cout<<"testing copy if\n\t";
+    ssrlcv::Unity<int>::pred_ptr less70_host;
+    cudaMemcpyFromSymbol(&less70_host, less70_device, sizeof(ssrlcv::Unity<int>::pred_ptr));
+    ssrlcv::Unity<int> i_nums_keep = i_nums.copy(less70_host);
+    i_nums_keep.sort();
+    fullpass += printTest<int>(i_nums_keep.size(),i_nums_keep.host,&truth[0]);
+
+    std::cout<<"testing remove if\n\t"<<std::endl;
+    ssrlcv::Unity<int>::pred_ptr greq70_host;
+    cudaMemcpyFromSymbol(&greq70_host, greq70_device, sizeof(ssrlcv::Unity<int>::pred_ptr));
+    i_nums.remove(greq70_host);
+    i_nums.sort();
+    for(int i = 0; i < i_nums.size(); ++i){
+      std::cout<<i_nums.host[i]<<" "<<i_nums_keep.host[i]<<std::endl;
+    }
+    fullpass += printTest<int>(i_nums.size(),i_nums.host,i_nums_keep.host);
+
+    if(fullpass == 9){
       std::cout<<"ALL TESTS PASSED"<<std::endl;
     }
 

@@ -14,10 +14,20 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <cuda.h>
+#include <cuda_occupancy.h>
+#include <thrust/device_ptr.h>
+#include <thrust/sort.h>
+#include <thrust/remove.h>
+#include <thrust/copy.h>
+#include <thrust/execution_policy.h>
 #include <stdio.h>
+#include <cstdio>
 #include <string>
 #include <cstring>
 #include <iostream> 
+#include <fstream>
+#include <csignal>
+#include <typeinfo>
 
 #define CUDA_ERROR_CHECK
 #define CudaSafeCall( err ) __cudaSafeCall( err, __FILE__, __LINE__ )
@@ -94,7 +104,8 @@ namespace ssrlcv{
     gpu = 2,///< device != nullptr, host = nullptr
     both = 3,///< device != nullptr, host != nullptr
     pinned = 4,///< not supported yet
-    unified = 5///< not supported yet
+    unified = 5,///< not supported yet
+    nc = 10///< utilized for default parameters and stands for no change (fore preservation)
   } MemoryState;
 
   /**
@@ -114,6 +125,8 @@ namespace ssrlcv{
         return "pinned";
       case unified:
         return "unified";
+      case nc:
+        return "no change (this should only be used to help with data manipulation methods)";
       default:
         std::clog<<"ERROR: unknown MemoryState when calling memoryStateToString()"<<std::endl;
         exit(-1);
@@ -167,12 +180,30 @@ namespace ssrlcv{
     }
   };
   /**
+  * \brief Exception thrown checkpoint file io error.
+  * \details 
+  * \ingroup error_util
+  */
+  struct CheckpointException : public UnityException{
+    std::string msg;
+    CheckpointException(){
+      msg = "Error in writing checkpoint";
+    }
+    CheckpointException(std::string msg) : msg("Checkpoint Error: " + msg){}
+    virtual const char* what() const throw(){
+      return msg.c_str();
+    }
+  };
+  /**
   * \class Unity
   * \brief This data structure is designed to hold an array of any data 
   * type utilized in cuda processing. 
   * \todo implement pinned and unified memory methods for this class
+  * \todo make sure to flesh out docs for new methods
+  * \todo add identifier variable of some sort
+  * \todo change getMemoryState to state() and getFore to fore()
   */
-  template<typename T>
+  template<class T>
   class Unity{
   private:
     /**
@@ -196,7 +227,9 @@ namespace ssrlcv{
     unsigned long numElements;///< \brief number of elements in *device or *host
 
   public:
-    
+    typedef bool (*comp_ptr)(const T& a, const T& b);
+    typedef bool (*pred_ptr)(const T& a);
+
     T* device;///< \brief pointer to device memory (gpu)
     T* host;///< \brief pointer to host memory (cpu)
 
@@ -216,10 +249,16 @@ namespace ssrlcv{
     Unity(T* data, unsigned long numElements, MemoryState state);
 
     /**
-    * \brief Copy constructor (this becomes a copy of argument)
+    * \brief Copy constructor (this becomes an exact copy of the argument)
     * \param copy Unity<T>* to be copied
     */
     Unity(Unity<T>* copy);
+    
+    /**
+    * \brief Checkpoint constructor
+    * \param path path to .uty file 
+    */
+    Unity(std::string path);
 
     /**
     * \brief Destructor
@@ -309,16 +348,72 @@ namespace ssrlcv{
     * \param state - location of new data (must be cpu or gpu)
     */
     void setData(T* data, unsigned long numElements, MemoryState state);
+
+
+
     /**
     * \brief Return a copy of this Unity<T>* with a specified memory state.
     * \details This method will return a copy of this Unity with a new or the same 
     * memory location. Due to this returning a Unity, destination can be both. This 
     * will leave the current Unity untouches as in this->fore and this->state remain 
     * the same and the copied Unity will have this->fore and this->state = destination.
-    * \param destination - location of copied data (host,device,both)
+    * \param destination - location of copied data (host,device,both) - default nc which means absolute copy
     * \returns copy of data located in this
     */
-    Unity<T>* copy(MemoryState destination);
+    Unity<T> copy(MemoryState destination = nc);
+
+    /**
+    * \brief Return a copy of this Unity<T>* with a specified memory state.
+    * \details This method will return a copy of this Unity with a new or the same 
+    * memory location. Due to this returning a Unity, destination can be both. This 
+    * will leave the current Unity untouches as in this->fore and this->state remain 
+    * the same and the copied Unity will have this->fore and this->state = destination.
+    * \param predicate - predicate for copy_if
+    * \param destination - location of copied data (host,device,both) - optional 
+    * \returns copy of data located in this
+    */
+    Unity<T> copy(bool (*predicate)(const T&), MemoryState destination = nc);
+    /**
+    * \brief remove elements of a unity
+    * \details This will remove elements of a unity based on a predicate. 
+    * for details on how to create a usable device function pointer, see 
+    * example.
+    * \param predicate - predicate for remove if
+    * \param destination - location where data will be after alteration - optional
+    * \see example_unity.cu
+    * \note nc here means that the fore will default to origin
+    */
+    void remove(bool (*predicate)(const T&), MemoryState destination = nc);
+
+    /**
+    * \brief sort a unity based on overloaded < and > operators
+    * \details uses thrust::stable_sort
+    * \param greater - indicate if sort is descending instead of ascending - optional 
+    * \param destination - location where data will be after alteration - optional
+    * \see example_unity.cu
+    * \note nc here means that the fore will default to origin
+    */
+    void sort(bool greater = false, MemoryState destination = nc);
+    /**
+    * \brief sort a unity based on overloaded < and > operators
+    * \details Uses thrust::stable_sort but utilizes a custom comparator 
+    * function pointer. For details in creating that function pointer properly see 
+    * example.
+    * \param comparator - indicate if sort is descending instead of ascending - optional 
+    * \param destination - location where data will be after alteration - optional
+    * \see example_unity.cu
+    * \note nc here means that the fore will default to origin
+    */
+    void sort(comp_ptr comparator, MemoryState destination = nc);
+
+    /**
+    * \brief write this Unity to a file
+    * \details Binary file writer for unity. Will write 
+    * type details as well as data from cpu in binary format. 
+    * \param id 
+    * \param dirPath - location to write to - optional 
+    */
+    void checkpoint(int id, std::string dirPath = "./");
 
     /**
     * \brief Print information about the Unity.
@@ -348,10 +443,69 @@ namespace ssrlcv{
       throw NullUnityException("attempt to use Unity<T> copy constructor with a null unity");
     }
     if(this->state <= 3){
-      this = copy->copy(copy->state);
+      this = copy->copy();
     }
     else{
       throw IllegalUnityTransition("attempt to use Unity<T> copy constructor with unsupported memory state (supported states = both, cpu & gpu");
+    }
+  }
+  template<typename T>
+  Unity<T>::Unity(std::string path){
+    this->host = nullptr;
+    this->device = nullptr;
+    this->state = null;
+    this->fore = null;
+    this->numElements = 0;
+
+    std::ifstream cp(path.c_str(), std::ifstream::binary);
+    char eol;
+
+    if(cp.is_open()){
+      const std::type_info& t_info = typeid(T);
+
+      std::string name_str;
+      getline(cp,name_str);
+      if(name_str != std::string(t_info.name())){
+        throw CheckpointException("names of type T do not match up in Unity checkpoint reader");
+      }
+      
+      size_t hash_code;
+      cp.read((char*)&hash_code,sizeof(size_t));
+      cp.read(&eol,1);
+        
+      if(hash_code != t_info.hash_code()){
+        throw CheckpointException("hash_codes of type T do not match up in Unity checkpoint reader");
+      }
+
+      MemoryState origin;
+      cp.read((char*)&origin,sizeof(MemoryState));
+      cp.read((char*)&this->numElements,sizeof(unsigned long));
+      cp.read(&eol,1);
+
+      if(origin == null){
+        throw CheckpointException("read origin in Unity checkpoint header shows null");
+      }
+
+      this->host = new T[this->numElements]();
+      this->state = cpu;
+      this->fore = cpu;
+      for(unsigned long i = 0; i < this->numElements; ++i){
+        cp.read((char*)&this->host[i],sizeof(T));
+      }
+      if(this->state != origin) this->setMemoryState(origin);
+
+      cp.close();
+      if(cp.good()){
+        std::cout<<"Unity created from checkpoint "<<path<<std::endl;
+      }
+      else{
+        path = "could not successfully read checkpoint " + path;
+        throw CheckpointException(path);
+      }
+    }
+    else{
+      path = "cannot open for read: " + path;
+      throw CheckpointException(path);
     }
   }
   template<typename T>
@@ -367,20 +521,26 @@ namespace ssrlcv{
     if(this->state == null){
       throw NullUnityException("cannot resize and empty Unity");
     }
-    else if(this->numElements <= resizeLength || resizeLength == 0U){
-      throw IllegalUnityTransition("in Unity<T>::resize resizeLength must be > 0 and < this->numElements");
+    else if(resizeLength == 0U){
+      throw IllegalUnityTransition("in Unity<T>::resize resizeLength must be > 0");
     }
     else if(this->state <= 3){
+      unsigned long toCopy = ((resizeLength > this->numElements) ? this->numElements: resizeLength);
       if(this->state == cpu || this->state == both){
         T* replacement = new T[resizeLength]();
-        std::memcpy(replacement,this->host,resizeLength*sizeof(T));
+        std::memcpy(replacement,this->host,toCopy*sizeof(T));
         delete[] this->host;
         this->host = replacement;
       }
       if(this->state == gpu || this->state == both){
         T* replacement  = nullptr;
         CudaSafeCall(cudaMalloc((void**)&replacement,resizeLength*sizeof(T)));
-        CudaSafeCall(cudaMemcpy(replacement,this->device,resizeLength*sizeof(T),cudaMemcpyDeviceToDevice));
+        if(resizeLength > this->numElements){
+          T* replacement_host = new T[resizeLength]();
+          CudaSafeCall(cudaMemcpy(replacement,replacement_host,resizeLength*sizeof(T),cudaMemcpyHostToDevice));
+          delete[] replacement_host;
+        }
+        CudaSafeCall(cudaMemcpy(replacement,this->device,toCopy*sizeof(T),cudaMemcpyDeviceToDevice));
         CudaSafeCall(cudaFree(this->device));
         this->device = replacement;
       }
@@ -580,33 +740,39 @@ namespace ssrlcv{
       throw IllegalUnityTransition("unsupported memory destination in Unity<T>::transferMemoryTo (supported states = both, cpu & gpu)");
     }
   }
+
   template<typename T> 
-  Unity<T>* Unity<T>::copy(MemoryState destination){
-    Unity<T>* copied = nullptr;
+  Unity<T> Unity<T>::copy(MemoryState destination){
+     if(this->state == null || this->numElements == 0){
+      throw NullUnityException("cannot copy a null Unity<T>");
+    }
+    Unity<T> copied;
+    bool perfect_copy = (destination == nc);
+    if(perfect_copy) destination = this->state;
     if(destination == null){
       throw NullUnityException("cannot use null as destination for Unity<T>::copy()");
     }
-    else if(destination <= 3){//this would be unsupported currently 
-      copied = new Unity<T>(nullptr,this->numElements,destination);
-      if(this->fore == both || this->fore == destination){
+    else if(destination <= 3 || perfect_copy){//else this would be unsupported currently 
+      copied = Unity<T>(nullptr,this->numElements,destination);
+      if(this->fore == both || this->fore == destination || (perfect_copy && destination == both)){
         if(destination == cpu || destination == both){
-          std::memcpy(copied->host,this->host,this->numElements*sizeof(T));
+          std::memcpy(copied.host,this->host,this->numElements*sizeof(T));
         }
         if(destination == gpu || destination == both){
-          CudaSafeCall(cudaMemcpy(copied->device,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
+          CudaSafeCall(cudaMemcpy(copied.device,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
         } 
       }
       else{
         if(this->fore == cpu){//cpu to gpu
-          CudaSafeCall(cudaMemcpy(copied->device,this->host,this->numElements*sizeof(T),cudaMemcpyHostToDevice));
-          copied->setFore(cpu);
+          CudaSafeCall(cudaMemcpy(copied.device,this->host,this->numElements*sizeof(T),cudaMemcpyHostToDevice));
+          copied.setFore(cpu);
         }
         else if(this->fore == gpu){//gpu to cpu
-          CudaSafeCall(cudaMemcpy(copied->host,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToHost));
-          copied->setFore(gpu);
+          CudaSafeCall(cudaMemcpy(copied.host,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToHost));
+          copied.setFore(gpu);
         }
-        if(destination == both) copied->transferMemoryTo(both);
-      }    
+        if(destination == both) copied.transferMemoryTo(both);
+      }  
     }
     else{
       throw IllegalUnityTransition("unsupported memory destination in Unity<T>::copy (supported states = both, cpu & gpu)");
@@ -614,10 +780,166 @@ namespace ssrlcv{
     return copied;
   }
   template<typename T> 
+  Unity<T> Unity<T>::copy(bool (*predicate)(const T&),MemoryState destination){
+    MemoryState origin = this->state;
+    if(origin == null || this->numElements == 0 || destination == null){
+      throw NullUnityException("cannot copy a null Unity<T> or copy to a null destination");
+    }
+    Unity<T> copied = Unity<T>();
+    if(destination == nc) destination = this->state;
+    if(destination <= 3){//else this would be unsupported currently 
+      thrust::device_ptr<T> in_ptr;
+      T* tmp_device = nullptr;
+      if(this->fore != cpu){
+        in_ptr = thrust::device_ptr<T>(this->device);
+      }
+      else{
+        CudaSafeCall(cudaMalloc((void**)&tmp_device,this->numElements*sizeof(T)));
+        CudaSafeCall(cudaMemcpy(tmp_device,this->host,this->numElements*sizeof(T),cudaMemcpyHostToDevice));
+        in_ptr = thrust::device_ptr<T>(tmp_device);
+      }
+      copied.setData(nullptr,this->numElements,gpu);
+      thrust::device_ptr<T> out_ptr(copied.device);
+      thrust::device_ptr<T> new_end = thrust::copy_if(in_ptr,in_ptr+this->numElements,out_ptr,predicate);
+      CudaCheckError();
+
+      unsigned long compressedSize = new_end - out_ptr;
+      copied.resize(compressedSize);
+      if(destination != copied.getMemoryState()) copied.setMemoryState(destination);
+      if(tmp_device != nullptr) CudaSafeCall(cudaFree(tmp_device));
+    }
+    else{
+      throw IllegalUnityTransition("unsupported memory destination in Unity<T>::copy (supported states = both, cpu & gpu)");
+    }
+    if(origin != this->state) this->setMemoryState(origin);
+    return copied;
+  }
+  template<typename T>
+  void Unity<T>::remove(bool (*predicate)(const T&),MemoryState destination){
+    if(this->state == null || this->numElements == 0){
+      throw NullUnityException("cannot remove anything from an already null Unity<T>");
+    }
+    if(destination == nc) destination = this->state;
+    if(this->state == null){
+      throw UnityException("cannot perform sort on an empty Unity<T>");
+    }
+    else if(this->fore == cpu){
+      this->transferMemoryTo(gpu);
+    }
+    thrust::device_ptr<T> data_ptr(this->device);
+    thrust::device_ptr<T> new_end = thrust::remove_if(data_ptr,data_ptr+this->numElements,predicate);
+    CudaCheckError();
+    this->fore = gpu;
+    unsigned long compressedSize = new_end - data_ptr;
+    if(compressedSize == 0){
+      std::clog<<"Unity<T>::remove(bool(*validate)(const T&)) led to all elements being removed (data cleared)"<<std::endl;
+      this->clear();
+      return;
+    }
+    else if(compressedSize != this->numElements){
+      this->resize(compressedSize);
+    }
+    if(destination != this->state) this->setMemoryState(destination);
+  }
+
+  template<typename T>
+  void Unity<T>::sort(bool greater, MemoryState destination){
+    if(this->state == null || this->numElements == 0){
+      throw NullUnityException("cannot sort a null Unity<T>");
+    }
+    MemoryState origin = (destination == nc) ? this->state : destination;
+    if(origin == null){
+      throw UnityException("cannot perform sort on an empty Unity<T>");
+    }
+    if(this->fore == cpu){
+      this->transferMemoryTo(gpu);
+    } 
+    thrust::device_ptr<T> data_ptr(this->device);
+    if(greater){
+      thrust::stable_sort(data_ptr,data_ptr+this->numElements,thrust::greater<T>());
+    }
+    else{
+      thrust::stable_sort(data_ptr,data_ptr+this->numElements,thrust::less<T>());
+    }
+    CudaCheckError();
+    this->fore = gpu;
+    if(origin != this->state) this->setMemoryState(origin);
+  }
+  template<typename T>
+  void Unity<T>::sort(comp_ptr comparator, MemoryState destination){
+    if(this->state == null || this->numElements == 0){
+      throw NullUnityException("cannot sort a null Unity<T>");
+    }
+    MemoryState origin = (destination == nc) ? this->state : destination;
+    if(origin == null){
+      throw UnityException("cannot perform sort on an empty Unity<T>");
+    }
+    if(this->fore == cpu){
+      this->transferMemoryTo(gpu);
+    } 
+    thrust::device_ptr<T> data_ptr(this->device);
+    thrust::stable_sort(data_ptr,data_ptr+this->numElements,comparator);
+    CudaCheckError();
+    this->fore = gpu;
+    if(origin != this->state) this->setMemoryState(origin);
+  }
+
+
+  template<typename T>
+  void Unity<T>::checkpoint(int id, std::string dirPath){
+    if(this->state == null){
+      throw NullUnityException("cannot write a checkpoint with a null Unity<T>");
+    }
+
+    const std::type_info& ti = typeid(T);
+    size_t hash_code = ti.hash_code();
+    const char* name = ti.name();
+
+    char eol = '\n';
+
+    std::string pathToFile = dirPath + std::to_string(id) + "_";
+    pathToFile += name;
+    pathToFile += ".uty";
+    std::ofstream cp(pathToFile.c_str(), std::ofstream::binary);
+
+    MemoryState origin = this->state;
+    if(this->fore == gpu) this->transferMemoryTo(cpu);
+    
+    if(cp.is_open()){
+      //header
+      cp.write(name,strlen(name));
+      cp.write(&eol,sizeof(char));
+      cp.write((char*)&hash_code,sizeof(size_t));
+      cp.write(&eol,sizeof(char));
+      cp.write((char*)&origin,sizeof(MemoryState));
+      cp.write((char*)&this->numElements,sizeof(unsigned long));
+      cp.write(&eol,sizeof(char));
+      //body
+
+      for(unsigned long i = 0; i < this->numElements; ++i){
+        cp.write((char*)&this->host[i],sizeof(T));
+      }
+      cp.close();
+      if(cp.good()){
+        std::cout<<"checkpoint "<<pathToFile<<" successfully written"<<std::endl;
+      }
+      else{
+        pathToFile = "could not write Unity<T> checkpoint: " + pathToFile;
+        throw CheckpointException(pathToFile);
+      }
+      if(this->state != origin) this->setMemoryState(origin);
+    }
+    else{
+      pathToFile = "could not open for writing: " + pathToFile;
+      throw CheckpointException(pathToFile);
+    }
+  }
+  template<typename T> 
   void Unity<T>::printInfo(){
     std::cout<<"numElements = "<<this->numElements;
     std::cout<<" state = "<<memoryStateToString(this->state);
-    std::cout<<" fore = "<<memoryStateToString(this->fore)<<std::endl;
+    std::cout<<" fore = "<<memoryStateToString(this->fore);
+    std::cout<<" type = "<<typeid(T).name()<<std::endl;
   }
 
   /**
