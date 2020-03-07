@@ -13,6 +13,13 @@ std::map<std::string, std::string> ssrlcv::cl_args = {
   {"--noparams","noparams"}  // to disable the requirement of a params.csv or params.bcp file
 };
 
+void ssrlcv::toLower(std::string &str){
+  std::locale loc;
+  for (std::string::size_type i = 0; i < str.length(); ++i){
+    str[i] = std::tolower(str[i], loc);
+  }
+}
+
 bool ssrlcv::fileExists(std::string fileName){
     std::ifstream infile(fileName);
     return infile.good();
@@ -35,7 +42,9 @@ bool ssrlcv::directoryExists(std::string dirPath){
  * @return string a string of the end of the file
  */
 std::string ssrlcv::getFileExtension(std::string path){
-  return path.substr(path.find_last_of(".") + 1);
+  std::string type = path.substr(path.find_last_of(".") + 1);
+  toLower(type);
+  return type;
 }
 
 /*
@@ -312,21 +321,42 @@ unsigned char* ssrlcv::readTIFF(const char* filePath, unsigned int &height, unsi
   if(tif) {
     TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width);
     TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
-    int scanLineSize = TIFFScanlineSize(tif);
-    colorDepth = scanLineSize/width;
+    size_t scanlineSize = TIFFScanlineSize(tif);
+    TIFFGetField(tif, TIFFTAG_SAMPLESPERPIXEL, &colorDepth);
+
+    unsigned int config;
+    TIFFGetField(tif, TIFFTAG_PLANARCONFIG, &config);
 
     unsigned char* pixels = new unsigned char[height*width*colorDepth];
-    tdata_t buf;
-    buf = _TIFFmalloc(scanLineSize);
-
-    for (unsigned char row = 0; row < height; row++) {
-      if (TIFFReadScanline(tif, buf, row, 0) != -1) {
-        memcpy(&pixels[row * width], buf, scanLineSize);
-      } else {
-        std::cout << "ERROR READING SCANLINE" << std::endl;
-        exit(-1);
+    tdata_t buf = _TIFFmalloc(scanlineSize);
+    if(config == PLANARCONFIG_CONTIG || colorDepth == 1){
+      for (uint32 row = 0; row < height; row++) {
+        if (TIFFReadScanline(tif, buf, row) != -1) {
+          std::memcpy(&pixels[row * width], buf,TIFFScanlineSize(tif));
+        } else {
+          std::cout << "ERROR READING SCANLINE" << std::endl;
+          exit(-1);
+        }
       }
     }
+    else if (config == PLANARCONFIG_SEPARATE){
+      uint16 nsamples;
+      for(uint16 s = 0; s < colorDepth; ++s){
+        for (uint32 row = 0; row < height; row++) {
+          if (TIFFReadScanline(tif, buf, row, s) != -1) {
+            for(int i = 0; i < width; ++i){
+              std::memcpy(&pixels[(row*width) + (i*colorDepth) + s], buf++,TIFFScanlineSize(tif)/width);
+            }
+          } else {
+            std::cout << "ERROR READING SCANLINE" << std::endl;
+            exit(-1);
+          }
+        }
+      }
+
+    }
+    
+    
     _TIFFfree(buf);
     TIFFClose(tif);
     return pixels;
@@ -454,6 +484,46 @@ void ssrlcv::writeJPEG(const char* filePath, unsigned char* image, const unsigne
   fclose(outfile);
   std::cout<<filePath<<" has been written"<<std::endl;
 }
+
+unsigned char* ssrlcv::readImage(const char *filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth){
+  std::string str_filePath = filePath;
+  std::string fileType = getFileExtension(str_filePath);
+  unsigned char* pixels = nullptr;
+  
+  if (fileType == "png"){
+    pixels = readPNG(filePath,height,width,colorDepth);
+  }
+  else if (fileType == "jpg" || fileType == "jpeg"){
+    pixels = readJPEG(filePath,height,width,colorDepth);
+  }
+  else if(fileType == "tif" || fileType == "tiff"){
+    pixels = readTIFF(filePath,height,width,colorDepth);
+  }
+  else{
+    throw UnsupportedImageException(str_filePath);
+  }
+  return pixels;
+}
+
+void ssrlcv::writeImage(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height){
+  std::string str_filePath = filePath;
+  std::string fileType = getFileExtension(str_filePath);
+  unsigned char* pixels = nullptr;
+  
+  if (fileType == "png"){
+    writePNG(filePath,image,colorDepth,width,height);
+  }
+  else if (fileType == "jpg" || fileType == "jpeg"){
+    writeJPEG(filePath,image,colorDepth,width,height);
+  }
+  else if(fileType == "tif" || fileType == "tiff"){
+    writeTIFF(filePath,image,colorDepth,width,height);
+  }
+  else{
+    throw UnsupportedImageException(str_filePath);
+  }
+}
+
 
 //
 // CSV and Misc Debug IO

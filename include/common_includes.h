@@ -29,6 +29,7 @@
 #include <time.h>
 #include <dirent.h>
 #include <iomanip>
+#include <locale>
 
 
 //data structures

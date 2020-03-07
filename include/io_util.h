@@ -28,6 +28,8 @@ namespace ssrlcv{
    */
 extern std::map<std::string, std::string> cl_args;
 
+void toLower(std::string &str);
+
 /**
    * \brief Determines if a file path exists. 
    * \details This method takes in an absolute path and 
@@ -122,7 +124,7 @@ struct arg
   /*
   IMAGE IO
   */
-
+  
   /**
   * \brief Get pixel array from a row of pointers generated from ssrlcv::readPNG utilizing png.h.
   * \details This method is utilized by readPNG and writePNG for help in writing images. 
@@ -198,6 +200,30 @@ struct arg
   * \param height - number of rows in an image
   */
   void writeJPEG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
+
+  /**
+  * \brief Reads an image and generates a pixel array.
+  * \details This method will read a PNG, JPG/JPEG or TIF/TIFF image and fill in the passed-by-reference arguments 
+  * height, width and colorDepth. 
+  * \param filePath - const char* filePath for location of image (<string>.c_str() is easiest way to use a string path)
+  * \param height - image height in pixels (reference argument that will be filled in during reading of image)
+  * \param width - image width in pixels (reference argument that will be filled in during reading of image)
+  * \param colorDepth - number of unsigned char values per pixel (reference argument that will be filled in during reading of image)
+  * \returns a pixel array flattened row-wise with dimensions filled out in width, height, and colorDepth reference arguments
+  */
+  unsigned char* readImage(const char *filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
+
+  /**
+  * \brief Writes an image from a pixel array.
+  * \details This method will write an image from a row-wise flattened pixel array.
+  * \param filePath - const char* filePath where image is to be written (<string>.c_str() is easiest way to use a string path)
+  * \param image - unsigned char array with pixels values flattened row wise
+  * \param colorDepth - number of unsigned chars per pixel value
+  * \param width - number of pixels in a row
+  * \param height - number of rows in an image
+  */
+  void writeImage(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
+
 
   /*
   FEATURE AND MATCH IO

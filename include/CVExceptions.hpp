@@ -25,16 +25,33 @@ namespace ssrlcv{
   struct CVException : std::exception{
     std::string msg;
     CVException(){
-      msg = "Unknown Exception";
+      msg = "SSRLCV Exception";
     }
     CVException(std::string msg) : msg("SSRLCV Exception: " + msg){}
     virtual const char* what() const throw(){
       return msg.c_str();
     }
   };
-
-
-
+  struct FileIOExpection : CVException{
+    std::string msg;
+    FileIOExpection(){
+      msg = "File IO Exception";
+    }
+    FileIOExpection(std::string msg) : msg("File IO Exception: " + msg) {}
+    virtual const char *what() const throw(){
+      return msg.c_str();
+    }
+  };
+  struct UnsupportedImageException : FileIOExpection{
+    std::string msg;
+    UnsupportedImageException(){
+      msg = "Unsupported Image Type Exception (supported = png,jpg,tiff)";
+    }
+    UnsupportedImageException(std::string msg) : msg("Unsupported Image Type Exception (supported = png,jpg,tiff): " + msg) {}
+    virtual const char *what() const throw(){
+      return msg.c_str();
+    }
+  };
 
   /**
    * \}
