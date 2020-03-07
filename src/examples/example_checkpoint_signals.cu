@@ -57,38 +57,52 @@ SIGNAL HANDLING
 */
 
 /*
-due to the way that signals work in C++ global variables are required for 
-signal handlers to access variables
+    due to the way that signals work in C++ global variables are required for 
+    signal handlers to access variables
+    
+    NOTE: Unity does not need to be allocated with new 
+    for this to work, the interrupt will just throw a device shutting 
+    down error when the destructor is called if a non-pointer Unity is 
+    used here - test will pass though
 */
+
+ssrlcv::Unity<int>* i_nums;
+ssrlcv::Unity<int>* i_nums_cpt;
+
 
 void sigintHandler(int signal){
     std::cout<<"Interrupted by signal ("<<signal<<")"<<std::endl;
+    i_nums->checkpoint(0,"./");//will write i_nums data and state information
+
+    std::cout<<"reading checkpoint"<<std::endl;
+    ssrlcv::Unity<int>* i_nums_cpt = new ssrlcv::Unity<int>("0_i.uty");
+
+    std::cout<<"equating checkpoint data"<<std::endl;
+    if(printTest(i_nums,i_nums_cpt)){
+        std::cout<<"TEST PASSED"<<std::endl;
+    }
+    else{
+        std::cout<<"TEST FAILED"<<std::endl;
+    }
+    delete i_nums;
+    delete i_nums_cpt;
     exit(signal);
 }
 
 
 int main(int argc, char *argv[]){
   try{
-    ssrlcv::Unity<int> i_nums = ssrlcv::Unity<int>(nullptr,100,ssrlcv::cpu);
+    signal(SIGINT,sigintHandler);
 
+    i_nums = new ssrlcv::Unity<int>(nullptr,100,ssrlcv::cpu);
     for(int i = 0; i < 100; ++i){
-      i_nums.host[i] = i;
+      i_nums->host[i] = i;
     } 
-    i_nums.transferMemoryTo(ssrlcv::gpu);//check if checkpointing can handle reoriginating to both cpu and gpu with data
-
-    i_nums.checkpoint(0,"./");//will write i_nums data and state information
-
-    bool successfull = false;
-
-    std::cout<<"reading checkpoint"<<std::endl;
-    ssrlcv::Unity<int> i_nums_cpt = ssrlcv::Unity<int>("0_i.uty");
-
-    std::cout<<"equating checkpoint data"<<std::endl;
-    if(printTest(&i_nums,&i_nums_cpt)){
-        std::cout<<"TEST PASSED"<<std::endl;
-    }
-    else{
-        std::cout<<"TEST FAILED"<<std::endl;
+    i_nums->transferMemoryTo(ssrlcv::gpu);//check if checkpointing can handle reoriginating to both cpu and gpu with data
+    
+    while(true){
+        std::cout<<"Waiting for interrupt to perform checkpoint test"<<std::endl;
+        sleep(1);
     }
 
     return 0;
