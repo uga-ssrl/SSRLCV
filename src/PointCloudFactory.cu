@@ -512,7 +512,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   std::vector<float> errorTracker;
 
   int i = 1;
-  while(i < 200){
+  while(i < 10){
   // while(*linearError > (100000.0)*matchSet->matches->numElements){
     // generate the bundle set
     bundleSet = generateBundles(matchSet,images);
@@ -530,7 +530,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       errors_sample->host[k] = errors->host[k*10];
     }
     // only do this once
-    if (i == 1) ssrlcv::writeCSV(errors->host, (int) errors->size(), "filteredIndividualLinearErrors" + std::to_string(i));
+    if (i == 1) ssrlcv::writeCSV(errors_sample->host, (int) errors_sample->size(), "filteredIndividualLinearErrors" + std::to_string(i));
 
 
     // CLEAR OUT THE DATA STRUCTURES
