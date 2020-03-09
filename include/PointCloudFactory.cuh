@@ -36,7 +36,7 @@ namespace ssrlcv{
     bool invalid;
   };
 
-  
+
   /*
    * \brief a set of lines in point vector format, and indexes (stored as bundles) that represent bundled lines for reprojection
    */
@@ -57,7 +57,14 @@ namespace ssrlcv{
     // this is not a good name anymore
     //Unity<float3>* reproject(Unity<Match>* matches, Image* target, Image* query);
 
+    /**
+    * The CPU method that sets up the GPU enabled line generation, which stores lines
+    * and sets of lines as bundles
+    * @param matchSet a group of maches
+    * @param a group of images, used only for their stored camera parameters
+    */
     BundleSet generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images);
+
 
     // stereo with auto cacluated scalar from camera params
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, Image::Camera* cameras);
