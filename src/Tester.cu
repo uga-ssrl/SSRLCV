@@ -90,8 +90,10 @@ int main(int argc, char *argv[]){
     attempted bundle adjustment
     */
 
-    ssrlcv::PointCloudFactory adjuster = ssrlcv::PointCloudFactory();
-    ssrlcv::Unity<float3>* points = adjuster.BundleAdjustTwoView(&matchSet,images);
+    ssrlcv::PointCloudFactory pc = ssrlcv::PointCloudFactory();
+
+
+    ssrlcv::Unity<float3>* points = pc.BundleAdjustTwoView(&matchSet,images);
 
     ssrlcv::writePLY("out/bundleAdjustedPoints.ply",points);
     // points->clear();
@@ -207,4 +209,3 @@ int main(int argc, char *argv[]){
 
 
 // yeet
-
