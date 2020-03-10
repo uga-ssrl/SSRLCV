@@ -7,7 +7,6 @@
 #include "MeshFactory.cuh"
 
 //TODO fix gaussian operators - currently creating very low values
-ssrlcv::Unity<float>* errors;
 
 int main(int argc, char *argv[]){
   try{
@@ -33,15 +32,15 @@ int main(int argc, char *argv[]){
     images_vec[0]->id = 0;
 
     images_vec[0]->camera.size = {2,2};
-    images_vec[0]->camera.cam_pos = {-2.0,2.0,2.0};
-    images_vec[0]->camera.cam_rot = {(M_PI/2),0.0f,0.0f};
+    images_vec[0]->camera.cam_pos = {2.0,-2.0,2.0};
+    images_vec[0]->camera.cam_rot = {3.0 * (M_PI/2.0),0.0f,0.0f};
     images_vec[0]->camera.fov = {(M_PI/8),(M_PI/8)};
     images_vec[0]->camera.foc = 0.25;
 
     images_vec[1]->id = 1;
     images_vec[1]->camera.size = {2,2};
-    images_vec[1]->camera.cam_pos = {2.0,-2.0,2.0};
-    images_vec[1]->camera.cam_rot = {(M_PI/2), 0.0, (M_PI/2)};
+    images_vec[1]->camera.cam_pos = {-2.0,2.0,2.0};
+    images_vec[1]->camera.cam_rot = {3.0 * (M_PI/2), 0.0, 3.0 * (M_PI/2)};
     images_vec[1]->camera.fov = {(M_PI/8),(M_PI/8)};
     images_vec[1]->camera.foc = 0.25;
 
@@ -70,7 +69,7 @@ int main(int argc, char *argv[]){
     // test the prefect case
     std::cout << "Testing perfect case ..." << std::endl;
 
-    errors      = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+    ssrlcv::Unity<float>* errors      = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
     float* linearError                = (float*) malloc(sizeof(float));
     float* linearErrorCutoff          = (float*) malloc(sizeof(float));
     *linearError                      = 0;
