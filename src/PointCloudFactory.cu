@@ -534,12 +534,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     }
     float sample_mean = sample_sum / errors_sample->size();
     float squared_sum = 0;
-    for for (int k = 0; k < sample_size; k++){
+    for (int k = 0; k < sample_size; k++){
       squared_sum += (errors_sample->host[k] - sample_mean)*(errors_sample->host[k] - sample_mean);
     }
     float variance = squared_sum / errors_sample->size();
-    std::cout << "Sample variance: " << variance << std::endl;
+    // std::cout << "Sample variance: " << variance << std::endl;
     std::cout << "Linear Cutoff Adjusted to: " << sqrtf(variance) << std::endl;
+    *linearErrorCutoff = sqrtf(variance);
+
     // only do this once
     if (i == 1) ssrlcv::writeCSV(errors_sample->host, (int) errors_sample->size(), "filteredIndividualLinearErrors" + std::to_string(i));
 
