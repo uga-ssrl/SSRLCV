@@ -629,12 +629,12 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // what the step sizes should be tho:
     // this is only for the "sensitivity" in those component directions
     float min_step = 0.0000001;
-    float h_rot = min_step
-    float h_pos = min_step
-    float h_foc = min_step
-    float h_fov = min_step
+    float h_rot = min_step;
+    float h_pos = min_step;
+    float h_foc = min_step;
+    float h_fov = min_step;
     // the stepsize along the gradient
-    float step  = min_step
+    float step  = min_step;
 
     // calculate the descrete partial derivatives using forward difference
     for (int j = 0; j < partials.size(); j++){
@@ -1078,8 +1078,8 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, unsigned l
   pointcloud[globalID] = point;
 
   // add the linaer errors locally within the block before
-  float error = dotProduct(s1,s2)*dotProduct(s1,s2);
-  if(error != 0.0f) error = sqrtf(error);
+  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));;
+  // if(error != 0.0f) error = sqrtf(error);
   atomicAdd(&localSum,error);
   __syncthreads();
   if (!threadIdx.x) atomicAdd(linearError,localSum);
@@ -1128,8 +1128,8 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* err
   pointcloud[globalID] = point;
 
   // add the linaer errors locally within the block before
-  float error = dotProduct(s1,s2)*dotProduct(s1,s2);
-  if(error != 0.0f) error = sqrtf(error);
+  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));
+  // if(error != 0.0f) error = sqrtf(error);
   errors[globalID] = error;
   //int i_error = error;
   atomicAdd(&localSum,error);

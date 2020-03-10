@@ -7,7 +7,7 @@
 #include "MeshFactory.cuh"
 
 //TODO fix gaussian operators - currently creating very low values
-
+ssrlcv::Unity<float>* errors;
 
 int main(int argc, char *argv[]){
   try{
@@ -35,14 +35,14 @@ int main(int argc, char *argv[]){
     images_vec[0]->camera.size = {2,2};
     images_vec[0]->camera.cam_pos = {-2.0,2.0,2.0};
     images_vec[0]->camera.cam_rot = {(M_PI/2),0.0f,0.0f};
-    images_vec[0]->camera.fov = (M_PI/8);
+    images_vec[0]->camera.fov = {(M_PI/8),(M_PI/8)};
     images_vec[0]->camera.foc = 0.25;
 
     images_vec[1]->id = 1;
     images_vec[1]->camera.size = {2,2};
     images_vec[1]->camera.cam_pos = {2.0,-2.0,2.0};
-    images_vec[1]->camera.cam_vec = {(M_PI/2), 0.0, (M_PI/2)};
-    images_vec[1]->camera.fov = (M_PI/8);
+    images_vec[1]->camera.cam_rot = {(M_PI/2), 0.0, (M_PI/2)};
+    images_vec[1]->camera.fov = {(M_PI/8),(M_PI/8)};
     images_vec[1]->camera.foc = 0.25;
 
     // fill the test match points
@@ -59,8 +59,8 @@ int main(int argc, char *argv[]){
 
     //match interpolation method will take the place of this here.
     ssrlcv::MatchSet matchSet;
-    matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->numElements*2,ssrlcv::cpu);
-    matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->numElements,ssrlcv::cpu);
+    matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->size()*2,ssrlcv::cpu);
+    matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->size(),ssrlcv::cpu);
     for(int i = 0; i < matches->size(); ++i){
       matchSet.keyPoints->host[i*2] = matches->host[i].keyPoints[0];
       matchSet.keyPoints->host[i*2 + 1] = matches->host[i].keyPoints[1];
@@ -70,13 +70,13 @@ int main(int argc, char *argv[]){
     // test the prefect case
     std::cout << "Testing perfect case ..." << std::endl;
 
-    ssrlcv::Unity<float>* errors      = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+    errors      = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
     float* linearError                = (float*) malloc(sizeof(float));
     float* linearErrorCutoff          = (float*) malloc(sizeof(float));
     *linearError                      = 0;
     *linearErrorCutoff                = 9001;
     ssrlcv::BundleSet bundleSet       = demPoints.generateBundles(&matchSet,images_vec);
-    ssrlcv::Unity<float3>* test_point = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+    ssrlcv::Unity<float3>* test_point = demPoints.twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
 
     std::cout << "Prefect point: ( " << test_point->host[0].x << ",  " << test_point->host[0].y << ", " << test_point->host[0].z << " )" << std::endl;
 
