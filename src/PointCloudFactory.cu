@@ -616,7 +616,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     delete bundleSet.lines;
     delete bundleSet.bundles;
     delete errors;
-    delete errors_sample;
+    //delete errors_sample;
     // delete points;
 
     // a nice printout for the humans

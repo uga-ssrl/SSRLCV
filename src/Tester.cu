@@ -45,18 +45,19 @@ int main(int argc, char *argv[]){
 
     // fill the test match points
     std::cout << "Filling in Matches ..." << std::endl;
-    ssrlcv::Match* matches_host = new ssrlcv::Match[2];
-    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 2, ssrlcv::cpu);
+    ssrlcv::Match* matches_host = new ssrlcv::Match[1];
+    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 1, ssrlcv::cpu);
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[1].parentId = 1;
     matches->host[0].keyPoints[0].loc = {1.0,1.0}; // at the center
     matches->host[0].keyPoints[1].loc = {1.0,1.0}; // at the center
 
+    /*
     matches->host[1].keyPoints[0].parentId = 0;
     matches->host[1].keyPoints[1].parentId = 1;
     matches->host[1].keyPoints[0].loc = {1.0,2.0}; // at the center top
     matches->host[1].keyPoints[1].loc = {1.0,2.0}; // at the center top
-
+    */
 
     // start testing reprojection
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
@@ -84,7 +85,7 @@ int main(int argc, char *argv[]){
 
     std::cout << "Prefect points:" << std::endl;
     std::cout << "\t( " << test_point->host[0].x << ",  " << test_point->host[0].y << ", " << test_point->host[0].z << " )" << std::endl;
-    std::cout << "\t( " << test_point->host[1].x << ",  " << test_point->host[1].y << ", " << test_point->host[1].z << " )" << std::endl;
+    //std::cout << "\t( " << test_point->host[1].x << ",  " << test_point->host[1].y << ", " << test_point->host[1].z << " )" << std::endl;
     std::cout << "\tLinear Error: " << *linearError << std::endl;
 
     // add some random errors into the camera stuff
@@ -136,12 +137,12 @@ int main(int argc, char *argv[]){
 
     std::cout << "Errored points:" << std::endl;
     std::cout << "\t( " << test_point_err->host[0].x << ",  " << test_point_err->host[0].y << ", " << test_point_err->host[0].z << " )" << std::endl;
-    std::cout << "\t( " << test_point_err->host[1].x << ",  " << test_point_err->host[1].y << ", " << test_point_err->host[1].z << " )" << std::endl;
+    //std::cout << "\t( " << test_point_err->host[1].x << ",  " << test_point_err->host[1].y << ", " << test_point_err->host[1].z << " )" << std::endl;
     std::cout << "\tLinear Error: " << *linearError_err << std::endl;
 
     std::cout << "Attempting Bundle Adjustment ..." << std::endl;
 
-    ssrlcv::Unity<float3>* bundleAdjustedPoints = demPoints.BundleAdjustTwoView(&matchSet,image_vec_err);
+    ssrlcv::Unity<float3>* bundleAdjustedPoints = demPoints.BundleAdjustTwoView(&matchSet,images_vec_err);
 
     //ARG PARSING
 
