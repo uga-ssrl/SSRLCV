@@ -4,7 +4,7 @@ import sys, os
 from math import sin, cos, tan, sqrt, floor, radians, pi
 
 ## flags and shit
-verbose = True
+verbose = False
 
 # sample cube points
 cube_points = [[ -1.0,  1.0, -1.0], # 0 A
@@ -35,8 +35,8 @@ print '<========================>'
 
 # we choose to rotate in the x/y-plane!
 # based on carl_rot_cameras.txt convention
-camera = [0.0,alt,0.0]
-plane  = [0.0,alt-foc,0.0]
+camera = [0.0,0.0,alt]
+plane  = [0.0,0.0,alt-foc]
 
 # the degrees to rotates
 to_rotate = 90;
@@ -105,7 +105,7 @@ for point in cube_points:
     v_y = point[1] - camera[1]
     v_z = point[2] - camera[2]
     # compute the parametric variable's intersection with the y-plane
-    t = ((alt-foc) - point[1])/v_y
+    t = ((alt-foc) - point[2])/v_z
     # compute the points!
     x = v_x * t + point[0]
     y = v_y * t + point[1] # redundant, just for readability
@@ -132,7 +132,7 @@ for point in cube_points:
     v_y = point[1] - camera[1]
     v_z = point[2] - camera[2]
     # compute the parametric variable's intersection with the y-plane
-    t = ((alt-foc) - point[1])/v_y
+    t = ((alt-foc) - point[2])/v_z
     # compute the points!
     x = v_x * t + point[0]
     y = v_y * t + point[1] # redundant, just for readability

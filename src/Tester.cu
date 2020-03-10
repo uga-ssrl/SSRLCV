@@ -32,13 +32,13 @@ int main(int argc, char *argv[]){
 
     images_vec[0]->id = 0;
     images_vec[0]->camera.size = {1024,1024};
-    images_vec[0]->camera.cam_pos = {0.0,4.0,0.0};
+    images_vec[0]->camera.cam_pos = {0.0,0.0,4.0};
     images_vec[0]->camera.cam_rot = {0.0, 0.0, 0.0};
     images_vec[0]->camera.fov = {0.392699081699,0.392699081699};
     images_vec[0]->camera.foc = 0.25;
     images_vec[1]->id = 1;
     images_vec[1]->camera.size = {1024,1024};
-    images_vec[1]->camera.cam_pos = {0.0,2.44929359829e-16,-4.0};
+    images_vec[1]->camera.cam_pos = {0.0,4.0,2.44929359829e-16};
     images_vec[1]->camera.cam_rot = {-1.57079632679, 0.0, 0.0};
     images_vec[1]->camera.fov = {0.392699081699,0.392699081699};
     images_vec[1]->camera.foc = 0.25;
@@ -66,22 +66,22 @@ int main(int argc, char *argv[]){
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[1].parentId = 1;
     // auto generated from util/cube_gen.py
-    matches->host[0].keyPoints[0].loc = {-345.999273323,-345.999273323};
-    matches->host[0].keyPoints[1].loc = {-345.999273323,1369.99927332};
-    matches->host[1].keyPoints[0].loc = {1369.99927332,-345.999273323};
-    matches->host[1].keyPoints[1].loc = {1369.99927332,1369.99927332};
-    matches->host[2].keyPoints[0].loc = {1026.79956399,-2.79956399369};
-    matches->host[2].keyPoints[1].loc = {1369.99927332,-345.999273323};
-    matches->host[3].keyPoints[0].loc = {-2.79956399369,-2.79956399369};
-    matches->host[3].keyPoints[1].loc = {-345.999273323,-345.999273323};
-    matches->host[4].keyPoints[0].loc = {-345.999273323,1369.99927332};
-    matches->host[4].keyPoints[1].loc = {-2.79956399369,1026.79956399};
-    matches->host[5].keyPoints[0].loc = {1369.99927332,1369.99927332};
-    matches->host[5].keyPoints[1].loc = {1026.79956399,1026.79956399};
-    matches->host[6].keyPoints[0].loc = {1026.79956399,1026.79956399};
-    matches->host[6].keyPoints[1].loc = {1026.79956399,-2.79956399369};
-    matches->host[7].keyPoints[0].loc = {-2.79956399369,1026.79956399};
-    matches->host[7].keyPoints[1].loc = {-2.79956399369,-2.79956399369};
+    matches->host[0].keyPoints[0].loc = {-2.79956399369,39121.9672995};
+    matches->host[0].keyPoints[1].loc = {-345.999273323,39121.9672995};
+    matches->host[1].keyPoints[0].loc = {1026.79956399,39121.9672995};
+    matches->host[1].keyPoints[1].loc = {1369.99927332,39121.9672995};
+    matches->host[2].keyPoints[0].loc = {1026.79956399,39121.9672995};
+    matches->host[2].keyPoints[1].loc = {1026.79956399,39121.9672995};
+    matches->host[3].keyPoints[0].loc = {-2.79956399369,39121.9672995};
+    matches->host[3].keyPoints[1].loc = {-2.79956399369,39121.9672995};
+    matches->host[4].keyPoints[0].loc = {-345.999273323,39121.9672995};
+    matches->host[4].keyPoints[1].loc = {-345.999273323,39121.9672995};
+    matches->host[5].keyPoints[0].loc = {1369.99927332,39121.9672995};
+    matches->host[5].keyPoints[1].loc = {1369.99927332,39121.9672995};
+    matches->host[6].keyPoints[0].loc = {1369.99927332,39121.9672995};
+    matches->host[6].keyPoints[1].loc = {1026.79956399,39121.9672995};
+    matches->host[7].keyPoints[0].loc = {-345.999273323,39121.9672995};
+    matches->host[7].keyPoints[1].loc = {-2.79956399369,39121.9672995};
 
     /*
     matches->host[0].keyPoints[0].loc = {1.0,1.0}; // at the center
@@ -126,7 +126,7 @@ int main(int argc, char *argv[]){
 
     ssrlcv::writePLY("out/test_points.ply",test_points);
 
-    std::cout << "Cube Points: " << std:endl;
+    std::cout << "Cube Points: " << std::endl;
     for (int i = 0; i < test_points->size(); i++){
       std::cout << "\t(" << test_points->host[i].x << "," << test_points->host[i].y << "," << test_points->host[i].z << ")" << std::endl;
     }
