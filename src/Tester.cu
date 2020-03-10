@@ -85,6 +85,7 @@ int main(int argc, char *argv[]){
     std::cout << "Prefect points:" << std::endl;
     std::cout << "\t( " << test_point->host[0].x << ",  " << test_point->host[0].y << ", " << test_point->host[0].z << " )" << std::endl;
     std::cout << "\t( " << test_point->host[1].x << ",  " << test_point->host[1].y << ", " << test_point->host[1].z << " )" << std::endl;
+    std::cout << "\tLinear Error: " << *linearError << std::endl;
 
     // add some random errors into the camera stuff
     std::vector<ssrlcv::Image*> images_vec_err;
@@ -108,7 +109,8 @@ int main(int argc, char *argv[]){
     std::cout << "Filling in Test Camera Params ..." << std::endl;
     images_vec_err[0]->id = images_vec[0]->id;
     images_vec_err[0]->camera.size = images_vec[0]->camera.size;
-    images_vec_err[0]->camera.cam_pos = images_vec[0]->camera.cam_pos + {0.0001,0.0,0.0};
+    float3 err0 = {0.0001,0.0,0.0};
+    images_vec_err[0]->camera.cam_pos = images_vec[0]->camera.cam_pos + err0;
     images_vec_err[0]->camera.cam_rot = images_vec[0]->camera.cam_rot;
     images_vec_err[0]->camera.fov = images_vec[0]->camera.fov;
     images_vec_err[0]->camera.foc = images_vec[0]->camera.foc;
@@ -116,7 +118,8 @@ int main(int argc, char *argv[]){
     images_vec_err[1]->id = images_vec[1]->id;
     images_vec_err[1]->camera.size = images_vec[1]->camera.size;
     images_vec_err[1]->camera.cam_pos = images_vec[1]->camera.cam_pos;
-    images_vec_err[1]->camera.cam_rot = images_vec[1]->camera.cam_rot + {0.0000001,0.0,0.0};
+    float3 err1 = {0.0000001,0.0,0.0};
+    images_vec_err[1]->camera.cam_rot = images_vec[1]->camera.cam_rot + err1;
     images_vec_err[1]->camera.fov = images_vec[1]->camera.fov;
     images_vec_err[1]->camera.foc = images_vec[1]->camera.foc;
 
@@ -134,7 +137,11 @@ int main(int argc, char *argv[]){
     std::cout << "Errored points:" << std::endl;
     std::cout << "\t( " << test_point_err->host[0].x << ",  " << test_point_err->host[0].y << ", " << test_point_err->host[0].z << " )" << std::endl;
     std::cout << "\t( " << test_point_err->host[1].x << ",  " << test_point_err->host[1].y << ", " << test_point_err->host[1].z << " )" << std::endl;
+    std::cout << "\tLinear Error: " << *linearError_err << std::endl;
 
+    std::cout << "Attempting Bundle Adjustment ..." << std::endl;
+
+    ssrlcv::Unity<float3>* bundleAdjustedPoints = demPoints.BundleAdjustTwoView(&matchSet,image_vec_err);
 
     //ARG PARSING
 
