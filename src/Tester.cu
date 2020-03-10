@@ -29,6 +29,21 @@ int main(int argc, char *argv[]){
 
     // fill the test camera params
     std::cout << "Filling in Test Camera Params ..." << std::endl;
+
+    images_vec[0]->id = 0;
+    images_vec[0]->camera.size = {2,2};
+    images_vec[0]->camera.cam_pos = {0.0,4.0,0.0};
+    images_vec[0]->camera.cam_rot = {0.0, 0.0, 0.0};
+    images_vec[0]->camera.fov = {0.392699081699,0.392699081699};
+    images_vec[0]->camera.foc = 0.25;
+    images_vec[1]->id = 1;
+    images_vec[1]->camera.size = {2,2};
+    images_vec[1]->camera.cam_pos = {0.0,0.0,-4.0};
+    images_vec[1]->camera.cam_rot = {-1.57079632679, 0.0, 0.0};
+    images_vec[1]->camera.fov = {0.392699081699,0.392699081699};
+    images_vec[1]->camera.foc = 0.25;
+
+    /*
     images_vec[0]->id = 0;
     images_vec[0]->camera.size = {2,2};
     images_vec[0]->camera.cam_pos = {2.0,-2.0,2.0};
@@ -42,6 +57,7 @@ int main(int argc, char *argv[]){
     images_vec[1]->camera.cam_rot = {3.0 * (M_PI/2), 0.0, 3.0 * (M_PI/2)};
     images_vec[1]->camera.fov = {(M_PI/8),(M_PI/8)};
     images_vec[1]->camera.foc = 0.25;
+    */
 
     // fill the test match points
     std::cout << "Filling in Matches ..." << std::endl;
@@ -50,22 +66,22 @@ int main(int argc, char *argv[]){
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[1].parentId = 1;
     // auto generated from util/cube_gen.py
-    matches->host[0].keyPoints[0].loc = {-4.02733949213,-4.02733949213};
-    matches->host[0].keyPoints[1].loc = {6.02733949213,-4.02733949213};
-    matches->host[1].keyPoints[0].loc = {6.02733949213,-4.02733949213};
-    matches->host[1].keyPoints[1].loc = {2.67577983071,-0.675779830709};
-    matches->host[2].keyPoints[0].loc = {2.67577983071,-0.675779830709};
-    matches->host[2].keyPoints[1].loc = {-0.675779830709,-0.675779830709};
-    matches->host[3].keyPoints[0].loc = {-0.675779830709,-0.675779830709};
-    matches->host[3].keyPoints[1].loc = {-4.02733949213,-4.02733949213};
-    matches->host[4].keyPoints[0].loc = {-4.02733949213,6.02733949213};
-    matches->host[4].keyPoints[1].loc = {6.02733949213,6.02733949213};
-    matches->host[5].keyPoints[0].loc = {6.02733949213,6.02733949213};
-    matches->host[5].keyPoints[1].loc = {2.67577983071,2.67577983071};
-    matches->host[6].keyPoints[0].loc = {2.67577983071,2.67577983071};
-    matches->host[6].keyPoints[1].loc = {-0.675779830709,2.67577983071};
-    matches->host[7].keyPoints[0].loc = {-0.675779830709,2.67577983071};
-    matches->host[7].keyPoints[1].loc = {-4.02733949213,6.02733949213};
+    matches->host[0].keyPoints[0].loc = {-0.675779830709,-0.675779830709};
+    matches->host[0].keyPoints[1].loc = {-0.675779830709,2.67577983071};
+    matches->host[1].keyPoints[0].loc = {2.67577983071,-0.675779830709};
+    matches->host[1].keyPoints[1].loc = {2.67577983071,2.67577983071};
+    matches->host[2].keyPoints[0].loc = {2.00546789843,-0.00546789842517};
+    matches->host[2].keyPoints[1].loc = {2.67577983071,-0.675779830709};
+    matches->host[3].keyPoints[0].loc = {-0.00546789842517,-0.00546789842517};
+    matches->host[3].keyPoints[1].loc = {-0.675779830709,-0.675779830709};
+    matches->host[4].keyPoints[0].loc = {-0.675779830709,2.67577983071};
+    matches->host[4].keyPoints[1].loc = {-0.00546789842517,2.00546789843};
+    matches->host[5].keyPoints[0].loc = {2.67577983071,2.67577983071};
+    matches->host[5].keyPoints[1].loc = {2.00546789843,2.00546789843};
+    matches->host[6].keyPoints[0].loc = {2.00546789843,2.00546789843};
+    matches->host[6].keyPoints[1].loc = {2.00546789843,-0.00546789842517};
+    matches->host[7].keyPoints[0].loc = {-0.00546789842517,2.00546789843};
+    matches->host[7].keyPoints[1].loc = {-0.00546789842517,-0.00546789842517};
 
     /*
     matches->host[0].keyPoints[0].loc = {1.0,1.0}; // at the center
@@ -121,12 +137,12 @@ int main(int argc, char *argv[]){
     std::default_random_engine generator;
     std::normal_distribution<float> distribution(0.0,0.00001);
 
-    std::cout << "Sample Errors to add:" << std::endl;
-    for (int i = 0; i < 5; i ++){
-      float n = distribution(generator);
-      std::cout << n << ", ";
-    }
-    std::cout << std::endl;
+    // std::cout << "Sample Errors to add:" << std::endl;
+    // for (int i = 0; i < 5; i ++){
+    //   float n = distribution(generator);
+    //   std::cout << n << ", ";
+    // }
+    // std::cout << std::endl;
 
     // addint noise to camera
     std::cout << "Filling in Test Camera Params ..." << std::endl;

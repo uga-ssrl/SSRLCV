@@ -19,7 +19,7 @@ cube_points = [[ -1.0,  1.0, -1.0], # 0 A
 origin = [0.0,0.0,0.0]
 foc    = 0.25
 fov    = pi / 8
-alt    = 2.0 # in meters
+alt    = 4.0 # in meters
 res    = 2 # pixels
 dpix   = (foc*tan(fov/2))/(res/2)
 
@@ -37,6 +37,9 @@ print '<========================>'
 # based on carl_rot_cameras.txt convention
 camera = [0.0,alt,0.0]
 plane  = [0.0,alt-foc,0.0]
+
+# the degrees to rotates
+to_rotate = 90;
 
 # the final guy
 raw_match_set = []
@@ -66,10 +69,24 @@ def rotate_camera_z(r):
     camera[1] = sin(r)*x + cos(r)*y;
     camera[2] = z
 
+def rotate_camera_x(r):
+    x = camera[0]
+    y = camera[1]
+    z = camera[2]
+    camera[0] = x
+    camera[1] = cos(r)*y - sin(r)*z
+    camera[2] = sin(r)*y + cos(r)*z
+
 def rotate_points_z(x_0,y_0,z_0,r):
     x = cos(r)*x_0 + -1*sin(r)*y_0;
     y = sin(r)*x_0 + cos(r)*y_0;
     z = z_0
+    return [x,y,z]
+
+def rotate_points_x(x_0,y_0,z_0,r):
+    x = x_0
+    y = cos(r)*y_0 - sin(r)*z_0
+    z = sin(r)*y_0 + cos(r)*z_0
     return [x,y,z]
 
     #########################
@@ -108,7 +125,7 @@ for point in cube_points:
     #
     # now rotate the point and do it again
     #print point
-    point = rotate_points_z(point[0],point[1],point[2],radians(270))
+    point = rotate_points_x(point[0],point[1],point[2],radians(to_rotate))
     #print point
     # compute vectors for each point pair:
     v_x = point[0] - camera[0]
@@ -147,6 +164,7 @@ for match in matches:
     print 'matches->host[' + str(match_num) + '].keyPoints[0].loc = {' + str(match[0][0]) + ',' + str(match[0][2]) + '};'
     print 'matches->host[' + str(match_num) + '].keyPoints[1].loc = {' + str(match[1][0]) + ',' + str(match[1][2]) + '};'
     match_num += 1
+print ''
 
 #print raw_match_set
 # print matches
@@ -166,6 +184,24 @@ for match in matches:
 #############################
 ### cameras
 #############################
+
+print 'For Copy Past into Tester: \n'
+print 'images_vec[0]->id = 0;'
+print 'images_vec[0]->camera.size = {' + str(res) + ',' + str(res) + '};'
+print 'images_vec[0]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
+print 'images_vec[0]->camera.cam_rot = {0.0, 0.0, 0.0};'
+print 'images_vec[0]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
+print 'images_vec[0]->camera.foc = ' + str(foc) + ';'
+rotate_camera_x(radians(-1.0 * to_rotate))
+y_u = abs(cos(radians(-1.0 * to_rotate)))
+z_u = abs(sin(radians(-1.0 * to_rotate)))
+print 'images_vec[1]->id = 1;'
+print 'images_vec[1]->camera.size = {' + str(res) + ',' + str(res) + '};'
+print 'images_vec[1]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
+print 'images_vec[1]->camera.cam_rot = {' + str(radians(-1.0 * to_rotate)) + ', 0.0, 0.0};'
+print 'images_vec[1]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
+print 'images_vec[1]->camera.foc = ' + str(foc) + ';'
+
 
 # f = open('cameras.txt', 'w')
 # if verbose:
