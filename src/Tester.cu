@@ -47,11 +47,17 @@ int main(int argc, char *argv[]){
     // fill the test match points
     std::cout << "Filling in Matches ..." << std::endl;
     ssrlcv::Match* matches_host = new ssrlcv::Match[1];
-    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 1, ssrlcv::cpu);
+    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 2, ssrlcv::cpu);
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[1].parentId = 1;
     matches->host[0].keyPoints[0].loc = {1.0,1.0}; // at the center
     matches->host[0].keyPoints[1].loc = {1.0,1.0}; // at the center
+
+    matches->host[1].keyPoints[0].parentId = 0;
+    matches->host[1].keyPoints[1].parentId = 1;
+    matches->host[1].keyPoints[0].loc = {1.0,2.0}; // at the center top
+    matches->host[1].keyPoints[1].loc = {1.0,2.0}; // at the center top
+
 
     // start testing reprojection
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
@@ -77,7 +83,20 @@ int main(int argc, char *argv[]){
     ssrlcv::BundleSet bundleSet       = demPoints.generateBundles(&matchSet,images_vec);
     ssrlcv::Unity<float3>* test_point = demPoints.twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
 
-    std::cout << "Prefect point: ( " << test_point->host[0].x << ",  " << test_point->host[0].y << ", " << test_point->host[0].z << " )" << std::endl;
+    std::cout << "Prefect points:" << std::endl;
+    std::cout << "\t( " << test_point->host[0].x << ",  " << test_point->host[0].y << ", " << test_point->host[0].z << " )" << std::endl;
+    std::cout << "\t( " << test_point->host[1].x << ",  " << test_point->host[1].y << ", " << test_point->host[1].z << " )" << std::endl;
+
+    // add some random errors into the camera stuff
+    std::vector<ssrlcv::Image*> images_vec_err;
+
+    ssrlcv::Image* image0_err = new ssrlcv::Image();
+    ssrlcv::Image* image1_err = new ssrlcv::Image();
+    images_vec_err.push_back(image0_err);
+    images_vec_err.push_back(image1_err);
+
+    std::default_random_engine generator;
+    std::normal_distribution<float> distribution(0.001,1.0);
 
     //ARG PARSING
 
