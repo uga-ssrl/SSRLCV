@@ -512,7 +512,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   std::vector<float> errorTracker;
 
   int i = 1;
-  while(i < 10){
+  while(i < 20){
   // while(*linearError > (100000.0)*matchSet->matches->numElements){
     // generate the bundle set
     bundleSet = generateBundles(matchSet,images);
@@ -524,14 +524,27 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
 
     // the assumption is that choosing every 10 indexes is random enough
+    // https://en.wikipedia.org/wiki/Variance#Sample_variance
     size_t sample_size = (int) (errors->size() - (errors->size()%10))/10; // make sure divisible by 10 always
     errors_sample      = new ssrlcv::Unity<float>(nullptr,sample_size,ssrlcv::cpu);
+    float sample_sum = 0;
     for (int k = 0; k < sample_size; k++){
       errors_sample->host[k] = errors->host[k*10];
+      sample_sum += errors->host[k*10];
     }
+    float sample_mean = sample_sum / errors_sample->size();
+    float squared_sum = 0;
+    for for (int k = 0; k < sample_size; k++){
+      squared_sum += (errors_sample->host[k] - sample_mean)*(errors_sample->host[k] - sample_mean);
+    }
+    float variance = squared_sum / errors_sample->size();
+    std::cout << "Sample variance: " << variance << std::endl;
+    std::cout << "Linear Cutoff Adjusted to: " << sqrtf(variance) << std::endl;
     // only do this once
     if (i == 1) ssrlcv::writeCSV(errors_sample->host, (int) errors_sample->size(), "filteredIndividualLinearErrors" + std::to_string(i));
 
+    // recalculate with new cutoff
+    points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
 
     // CLEAR OUT THE DATA STRUCTURES
     // count the number of bad bundles to be removed
@@ -600,6 +613,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     delete bundleSet.lines;
     delete bundleSet.bundles;
     delete errors;
+    delete errors_sample;
     // delete points;
 
     // a nice printout for the humans
