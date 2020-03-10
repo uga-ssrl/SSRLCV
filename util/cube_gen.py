@@ -20,7 +20,7 @@ origin = [0.0,0.0,0.0]
 foc    = 0.25
 fov    = pi / 8
 alt    = 4.0 # in meters
-res    = 2 # pixels
+res    = 1024 # pixels
 dpix   = (foc*tan(fov/2))/(res/2)
 
 print '      CONFIGURATION:'
