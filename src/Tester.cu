@@ -45,12 +45,32 @@ int main(int argc, char *argv[]){
 
     // fill the test match points
     std::cout << "Filling in Matches ..." << std::endl;
-    ssrlcv::Match* matches_host = new ssrlcv::Match[1];
-    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 1, ssrlcv::cpu);
+    ssrlcv::Match* matches_host = new ssrlcv::Match[8];
+    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 8, ssrlcv::cpu);
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[1].parentId = 1;
+    // auto generated from util/cube_gen.py
+    matches->host[0].keyPoints[0].loc = {-4.02733949213,-4.02733949213};
+    matches->host[0].keyPoints[1].loc = {6.02733949213,-4.02733949213};
+    matches->host[1].keyPoints[0].loc = {6.02733949213,-4.02733949213};
+    matches->host[1].keyPoints[1].loc = {2.67577983071,-0.675779830709};
+    matches->host[2].keyPoints[0].loc = {2.67577983071,-0.675779830709};
+    matches->host[2].keyPoints[1].loc = {-0.675779830709,-0.675779830709};
+    matches->host[3].keyPoints[0].loc = {-0.675779830709,-0.675779830709};
+    matches->host[3].keyPoints[1].loc = {-4.02733949213,-4.02733949213};
+    matches->host[4].keyPoints[0].loc = {-4.02733949213,6.02733949213};
+    matches->host[4].keyPoints[1].loc = {6.02733949213,6.02733949213};
+    matches->host[5].keyPoints[0].loc = {6.02733949213,6.02733949213};
+    matches->host[5].keyPoints[1].loc = {2.67577983071,2.67577983071};
+    matches->host[6].keyPoints[0].loc = {2.67577983071,2.67577983071};
+    matches->host[6].keyPoints[1].loc = {-0.675779830709,2.67577983071};
+    matches->host[7].keyPoints[0].loc = {-0.675779830709,2.67577983071};
+    matches->host[7].keyPoints[1].loc = {-4.02733949213,6.02733949213};
+
+    /*
     matches->host[0].keyPoints[0].loc = {1.0,1.0}; // at the center
     matches->host[0].keyPoints[1].loc = {1.0,1.0}; // at the center
+    */
 
     /*
     matches->host[1].keyPoints[0].parentId = 0;
@@ -75,18 +95,20 @@ int main(int argc, char *argv[]){
     // test the prefect case
     std::cout << "Testing perfect case ..." << std::endl;
 
-    ssrlcv::Unity<float>* errors      = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
-    float* linearError                = (float*) malloc(sizeof(float));
-    float* linearErrorCutoff          = (float*) malloc(sizeof(float));
-    *linearError                      = 0;
-    *linearErrorCutoff                = 9001;
-    ssrlcv::BundleSet bundleSet       = demPoints.generateBundles(&matchSet,images_vec);
-    ssrlcv::Unity<float3>* test_point = demPoints.twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+    ssrlcv::Unity<float>* errors       = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
+    float* linearError                 = (float*) malloc(sizeof(float));
+    float* linearErrorCutoff           = (float*) malloc(sizeof(float));
+    *linearError                       = 0;
+    *linearErrorCutoff                 = 9001;
+    ssrlcv::BundleSet bundleSet        = demPoints.generateBundles(&matchSet,images_vec);
+    ssrlcv::Unity<float3>* test_points = demPoints.twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
 
     std::cout << "Prefect points:" << std::endl;
-    std::cout << "\t( " << test_point->host[0].x << ",  " << test_point->host[0].y << ", " << test_point->host[0].z << " )" << std::endl;
+    //std::cout << "\t( " << test_point->host[0].x << ",  " << test_point->host[0].y << ", " << test_point->host[0].z << " )" << std::endl;
     //std::cout << "\t( " << test_point->host[1].x << ",  " << test_point->host[1].y << ", " << test_point->host[1].z << " )" << std::endl;
     std::cout << "\tLinear Error: " << *linearError << std::endl;
+
+    ssrlcv::writePLY("out/test_points.ply",test_points);
 
     // add some random errors into the camera stuff
     std::vector<ssrlcv::Image*> images_vec_err;
@@ -136,13 +158,13 @@ int main(int argc, char *argv[]){
     ssrlcv::Unity<float3>* test_point_err = demPoints.twoViewTriangulate(bundleSet_err, errors_err, linearError_err, linearErrorCutoff_err);
 
     std::cout << "Errored points:" << std::endl;
-    std::cout << "\t( " << test_point_err->host[0].x << ",  " << test_point_err->host[0].y << ", " << test_point_err->host[0].z << " )" << std::endl;
+    //std::cout << "\t( " << test_point_err->host[0].x << ",  " << test_point_err->host[0].y << ", " << test_point_err->host[0].z << " )" << std::endl;
     //std::cout << "\t( " << test_point_err->host[1].x << ",  " << test_point_err->host[1].y << ", " << test_point_err->host[1].z << " )" << std::endl;
     std::cout << "\tLinear Error: " << *linearError_err << std::endl;
 
     std::cout << "Attempting Bundle Adjustment ..." << std::endl;
 
-    ssrlcv::Unity<float3>* bundleAdjustedPoints = demPoints.BundleAdjustTwoView(&matchSet,images_vec_err);
+    // ssrlcv::Unity<float3>* bundleAdjustedPoints = demPoints.BundleAdjustTwoView(&matchSet,images_vec_err);
 
     //ARG PARSING
 
