@@ -512,7 +512,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   std::vector<float> errorTracker;
 
   int i = 1;
-  while(i < 20){
+  while(i < 400){
   // while(*linearError > (100000.0)*matchSet->matches->numElements){
     // generate the bundle set
     bundleSet = generateBundles(matchSet,images);
@@ -539,8 +539,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     }
     float variance = squared_sum / errors_sample->size();
     // std::cout << "Sample variance: " << variance << std::endl;
-    std::cout << "Linear Cutoff Adjusted to: " << sqrtf(variance) << std::endl;
-    *linearErrorCutoff = sqrtf(variance);
+    std::cout << "\tSigma Calculated As: " << sqrtf(variance) << std::endl;
+    std::cout << "\tLinear Error Cutoff Adjusted To: " << 5 * sqrtf(variance) << std::endl;
+    *linearErrorCutoff = 5 * sqrtf(variance);
 
     // only do this once
     if (i == 1) ssrlcv::writeCSV(errors_sample->host, (int) errors_sample->size(), "filteredIndividualLinearErrors" + std::to_string(i));
@@ -627,12 +628,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // what the step sizes should be tho:
     // this is only for the "sensitivity" in those component directions
-    float h_rot = 0.00001;
-    float h_pos = 0.00001;
-    float h_foc = 0.00001;
-    float h_fov = 0.00001;
+    float min_step = std::numeric_limits<float>::min();
+    float h_rot = min_step;
+    float h_pos = min_step;
+    float h_foc = min_step;
+    float h_fov = min_step;
     // the stepsize along the gradient
-    float step  = 0.00001;
+    float step  = min_step;
 
     // calculate the descrete partial derivatives using forward difference
     for (int j = 0; j < partials.size(); j++){
