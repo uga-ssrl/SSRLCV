@@ -628,13 +628,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // what the step sizes should be tho:
     // this is only for the "sensitivity" in those component directions
-    float min_step = std::numeric_limits<float>::min();
-    float h_rot = min_step;
-    float h_pos = min_step;
-    float h_foc = min_step;
-    float h_fov = min_step;
+    float min_step = 0.0000001;
+    float h_rot = min_step
+    float h_pos = min_step
+    float h_foc = min_step
+    float h_fov = min_step
     // the stepsize along the gradient
-    float step  = min_step;
+    float step  = min_step
 
     // calculate the descrete partial derivatives using forward difference
     for (int j = 0; j < partials.size(); j++){
