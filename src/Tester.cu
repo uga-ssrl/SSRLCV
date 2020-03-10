@@ -30,7 +30,6 @@ int main(int argc, char *argv[]){
     // fill the test camera params
     std::cout << "Filling in Test Camera Params ..." << std::endl;
     images_vec[0]->id = 0;
-
     images_vec[0]->camera.size = {2,2};
     images_vec[0]->camera.cam_pos = {2.0,-2.0,2.0};
     images_vec[0]->camera.cam_rot = {3.0 * (M_PI/2.0),0.0f,0.0f};
@@ -46,7 +45,7 @@ int main(int argc, char *argv[]){
 
     // fill the test match points
     std::cout << "Filling in Matches ..." << std::endl;
-    ssrlcv::Match* matches_host = new ssrlcv::Match[1];
+    ssrlcv::Match* matches_host = new ssrlcv::Match[2];
     ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 2, ssrlcv::cpu);
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[1].parentId = 1;
@@ -97,6 +96,30 @@ int main(int argc, char *argv[]){
 
     std::default_random_engine generator;
     std::normal_distribution<float> distribution(0.001,1.0);
+    std::cout << "Sample Errors to add:" << std::endl;
+    for (int i; i < 20; i ++){
+      float n = distribution(generator);
+      std::cout << n << ",\t";
+    }
+    std::cout << std::endl;
+
+    // addint noise to camera
+    std::cout << "Filling in Test Camera Params ..." << std::endl;
+    images_vec_err[0]->id = images_vec[0]->id;
+    images_vec_err[0]->camera.size = images_vec[0]->camera.size;
+    images_vec_err[0]->camera.cam_pos = images_vec[0]->camera.cam_pos + {0.0001,0.0,0.0};
+    images_vec_err[0]->camera.com_rot = images_vec[0]->camera.cam_rot;
+    images_vec_err[0]->camera.fov = images_vec[0]->camera.fov;
+    images_vec_err[0]->camera.foc = images_vec[0]->camera.foc;
+
+    images_vec_err[0]->id = images_vec[1]->id;
+    images_vec_err[0]->camera.size = images_vec[1]->camera.size;
+    images_vec_err[0]->camera.cam_pos = images_vec[1]->camera.cam_pos;
+    images_vec_err[0]->camera.com_rot = images_vec[1]->camera.cam_rot + {0.0000001,0.0,0.0};
+    images_vec_err[0]->camera.fov = images_vec[1]->camera.fov;
+    images_vec_err[0]->camera.foc = images_vec[1]->camera.foc;
+
+
 
     //ARG PARSING
 
