@@ -95,11 +95,12 @@ int main(int argc, char *argv[]){
     images_vec_err.push_back(image1_err);
 
     std::default_random_engine generator;
-    std::normal_distribution<float> distribution(0.001,1.0);
+    std::normal_distribution<float> distribution(0.0,0.00001);
+
     std::cout << "Sample Errors to add:" << std::endl;
-    for (int i; i < 20; i ++){
+    for (int i = 0; i < 5; i ++){
       float n = distribution(generator);
-      std::cout << n << ",\t";
+      std::cout << n << ", ";
     }
     std::cout << std::endl;
 
@@ -108,17 +109,31 @@ int main(int argc, char *argv[]){
     images_vec_err[0]->id = images_vec[0]->id;
     images_vec_err[0]->camera.size = images_vec[0]->camera.size;
     images_vec_err[0]->camera.cam_pos = images_vec[0]->camera.cam_pos + {0.0001,0.0,0.0};
-    images_vec_err[0]->camera.com_rot = images_vec[0]->camera.cam_rot;
+    images_vec_err[0]->camera.cam_rot = images_vec[0]->camera.cam_rot;
     images_vec_err[0]->camera.fov = images_vec[0]->camera.fov;
     images_vec_err[0]->camera.foc = images_vec[0]->camera.foc;
 
-    images_vec_err[0]->id = images_vec[1]->id;
-    images_vec_err[0]->camera.size = images_vec[1]->camera.size;
-    images_vec_err[0]->camera.cam_pos = images_vec[1]->camera.cam_pos;
-    images_vec_err[0]->camera.com_rot = images_vec[1]->camera.cam_rot + {0.0000001,0.0,0.0};
-    images_vec_err[0]->camera.fov = images_vec[1]->camera.fov;
-    images_vec_err[0]->camera.foc = images_vec[1]->camera.foc;
+    images_vec_err[1]->id = images_vec[1]->id;
+    images_vec_err[1]->camera.size = images_vec[1]->camera.size;
+    images_vec_err[1]->camera.cam_pos = images_vec[1]->camera.cam_pos;
+    images_vec_err[1]->camera.cam_rot = images_vec[1]->camera.cam_rot + {0.0000001,0.0,0.0};
+    images_vec_err[1]->camera.fov = images_vec[1]->camera.fov;
+    images_vec_err[1]->camera.foc = images_vec[1]->camera.foc;
 
+    // test the prefect case
+    std::cout << "Testing error case ..." << std::endl;
+
+    ssrlcv::Unity<float>* errors_err      = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
+    float* linearError_err                = (float*) malloc(sizeof(float));
+    float* linearErrorCutoff_err          = (float*) malloc(sizeof(float));
+    *linearError_err                      = 0;
+    *linearErrorCutoff_err                = 9001;
+    ssrlcv::BundleSet bundleSet_err       = demPoints.generateBundles(&matchSet,images_vec_err);
+    ssrlcv::Unity<float3>* test_point_err = demPoints.twoViewTriangulate(bundleSet_err, errors_err, linearError_err, linearErrorCutoff_err);
+
+    std::cout << "Errored points:" << std::endl;
+    std::cout << "\t( " << test_point_err->host[0].x << ",  " << test_point_err->host[0].y << ", " << test_point_err->host[0].z << " )" << std::endl;
+    std::cout << "\t( " << test_point_err->host[1].x << ",  " << test_point_err->host[1].y << ", " << test_point_err->host[1].z << " )" << std::endl;
 
 
     //ARG PARSING
