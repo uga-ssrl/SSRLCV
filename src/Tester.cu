@@ -134,6 +134,16 @@ int main(int argc, char *argv[]){
     ssrlcv::BundleSet bundleSet        = demPoints.generateBundles(&matchSet,images_vec);
     ssrlcv::Unity<float3>* test_points = demPoints.twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
 
+    std::cout << "<lines start>" << std::endl;
+    for(int i = 0; i < bundleSet.bundles->numElements; i ++){
+      for (int j = bundleSet.bundles->host[i].index; j < bundleSet.bundles->host[i].index + bundleSet.bundles->host[i].numLines; j++){
+        std::cout << "(" << bundleSet.lines->host[j].pnt.x << "," << bundleSet.lines->host[j].pnt.y << "," << bundleSet.lines->host[j].pnt.z << ")\t\t";
+        std::cout << "<" << bundleSet.lines->host[j].vec.x << "," << bundleSet.lines->host[j].vec.y << "," << bundleSet.lines->host[j].vec.z << ">" << std::endl;
+      }
+      std::cout << std::endl;
+    }
+    std::cout << "</lines end>" << std::endl;
+
     std::cout << "Prefect points:" << std::endl;
     //std::cout << "\t( " << test_point->host[0].x << ",  " << test_point->host[0].y << ", " << test_point->host[0].z << " )" << std::endl;
     //std::cout << "\t( " << test_point->host[1].x << ",  " << test_point->host[1].y << ", " << test_point->host[1].z << " )" << std::endl;

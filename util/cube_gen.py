@@ -39,7 +39,7 @@ camera = [0.0,0.0,alt]
 plane  = [0.0,0.0,alt-foc]
 
 # the degrees to rotates
-to_rotate = 90;
+to_rotate = 10;
 
 # the final guy
 raw_match_set = []
@@ -194,13 +194,12 @@ print 'images_vec[0]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]
 print 'images_vec[0]->camera.cam_rot = {0.0, 0.0, 0.0};'
 print 'images_vec[0]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
 print 'images_vec[0]->camera.foc = ' + str(foc) + ';'
-rotate_camera_x(radians(-1.0 * to_rotate))
-y_u = abs(cos(radians(-1.0 * to_rotate)))
-z_u = abs(sin(radians(-1.0 * to_rotate)))
+# rotate_camera_x(radians(-1.0 * to_rotate))
+rotate_camera_x(radians(to_rotate))
 print 'images_vec[1]->id = 1;'
 print 'images_vec[1]->camera.size = {' + str(res) + ',' + str(res) + '};'
 print 'images_vec[1]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
-print 'images_vec[1]->camera.cam_rot = {' + str(radians(-1.0 * to_rotate)) + ', 0.0, 0.0};'
+print 'images_vec[1]->camera.cam_rot = {' + str(radians(to_rotate)) + ', 0.0, 0.0};'
 print 'images_vec[1]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
 print 'images_vec[1]->camera.foc = ' + str(foc) + ';'
 
