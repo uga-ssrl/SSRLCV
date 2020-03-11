@@ -172,7 +172,7 @@ int main(int argc, char *argv[]){
       cpoints[i].b = 10;
     }
     // fill in the vectors
-    for (int i = bundleSet.bundles->size() + 2; i < 2*bundleSet.lines->size() + 2; i++) {
+    for (int i = bundleSet.lines->size() + 2; i < 2*bundleSet.lines->size() + 2; i++) {
       std::cout << "bundle vector index: " << i - bundleSet.lines->size() - 2 << "\ti: " << i<< std::endl;
       cpoints[i].x = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.x + bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.x;
       cpoints[i].y = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.y + bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.y;

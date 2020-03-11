@@ -34,7 +34,7 @@ single = [[0.0,0.0,0.0]]
 
 origin = [0.0,0.0,0.0]
 foc    = 0.25
-fov    = pi / 8
+fov    = radians(15)
 alt    = -20.0 # in meters
 res    = 1024 # pixels
 # cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov.x / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
