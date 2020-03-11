@@ -201,9 +201,9 @@ int main(int argc, char *argv[]){
       cpoints[i].r = 0;
       cpoints[i].g = 255;
       cpoints[i].b = 10;
-      cpoints[i].x = bundleSet.lines->host[i - 2].pnt.x + bunldeSet.lines.vec.x;
-      cpoints[i].y = bundleSet.lines->host[i - 2].pnt.y + bunldeSet.lines.vec.y;
-      cpoints[i].z = bundleSet.lines->host[i - 2].pnt.z + bunldeSet.lines.vec.z;
+      cpoints[i].x = bundleSet.lines->host[i - 2].pnt.x + bundleSet.lines->host[i - 2].vec.x;
+      cpoints[i].y = bundleSet.lines->host[i - 2].pnt.y + bundleSet.lines->host[i - 2].vec.y;
+      cpoints[i].z = bundleSet.lines->host[i - 2].pnt.z + bundleSet.lines->host[i - 2].vec.z;
       cpoints[i].r = 30;
       cpoints[i].g = 10;
       cpoints[i].b = 127;
