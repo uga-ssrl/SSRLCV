@@ -226,7 +226,7 @@ print 'images[0]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + 
 print 'images[0]->camera.cam_rot = {0.0, 0.0, 0.0};'
 print 'images[0]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
 print 'images[0]->camera.foc = ' + str('{0:.10f}'.format(foc)) + ';'
-rotate_camera_x(radians(-1.0 * to_rotate))
+rotate_camera_x(radians(90 - to_rotate))
 # rotate_camera_x(radians(to_rotate))
 print 'images[1]->id = 1;'
 print 'images[1]->camera.size = {' + str(res) + ',' + str(res) + '};'

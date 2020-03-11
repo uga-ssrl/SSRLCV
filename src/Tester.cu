@@ -40,7 +40,7 @@ int main(int argc, char *argv[]){
     images[0]->camera.foc = 0.0000250000;
     images[1]->id = 1;
     images[1]->camera.size = {2,2};
-    images[1]->camera.cam_pos = {0.0,-7.07106781187,-7.07106781187};
+    images[1]->camera.cam_pos = {0.0,7.07106781187,-7.07106781187};
     images[1]->camera.cam_rot = {0.785398163397, 0.0, 0.0};
     images[1]->camera.fov = {0.174532925199,0.174532925199};
     images[1]->camera.foc = 0.0000250000;
@@ -245,9 +245,9 @@ int main(int argc, char *argv[]){
     // fill in the vectors
     for (int i = bundleSet.lines->size() + 2; i < 2*bundleSet.lines->size() + 2; i++) {
       std::cout << "bundle vector index: " << i - bundleSet.lines->size() - 2 << "\ti: " << i<< std::endl;
-      cpoints[i].x = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.x - bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.x;
-      cpoints[i].y = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.y - bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.y;
-      cpoints[i].z = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.z - bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.z;
+      cpoints[i].x = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.x + bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.x;
+      cpoints[i].y = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.y + bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.y;
+      cpoints[i].z = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.z + bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.z;
       cpoints[i].r = 30;
       cpoints[i].g = 10;
       cpoints[i].b = 127;
