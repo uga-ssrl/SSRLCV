@@ -30,6 +30,7 @@
 #include <dirent.h>
 #include <iomanip>
 #include <random>
+#include <locale>
 
 
 //data structures

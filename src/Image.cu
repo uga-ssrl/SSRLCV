@@ -883,23 +883,23 @@ __device__ __host__ __forceinline__ int ssrlcv::getSymmetrizedCoord(int i, unsig
   i = (i+ll)%ll;
   return (i>l-1) ? i = ll - 1 - i : i;
 }
-__device__ __host__ __forceinline__ unsigned char ssrlcv::bwaToBW(const uchar2 &color){
+__device__ __host__ unsigned char ssrlcv::bwaToBW(const uchar2 &color){
   return (1-color.y)*color.x + color.y*color.x;
 }
-__device__ __host__ __forceinline__ unsigned char ssrlcv::rgbToBW(const uchar3 &color){
+__device__ __host__ unsigned char ssrlcv::rgbToBW(const uchar3 &color){
   return (color.x/4) + (color.y/2) + (color.z/4);
 }
-__device__ __host__ __forceinline__ unsigned char ssrlcv::rgbaToBW(const uchar4 &color){
+__device__ __host__ unsigned char ssrlcv::rgbaToBW(const uchar4 &color){
   return rgbToBW(rgbaToRGB(color));
 }
-__device__ __host__ __forceinline__ uchar3 ssrlcv::bwToRGB(const unsigned char &color){
+__device__ __host__ uchar3 ssrlcv::bwToRGB(const unsigned char &color){
   int colorTemp = (int) color*10;
   return {(unsigned char)(colorTemp/4),(unsigned char)(colorTemp/2),(unsigned char)(colorTemp/4)};
 }
-__device__ __host__ __forceinline__ uchar3 ssrlcv::bwaToRGB(const uchar2 &color){
+__device__ __host__ uchar3 ssrlcv::bwaToRGB(const uchar2 &color){
   return {color.x,color.y,(unsigned char)((color.x/3)*2 + (color.y/3))};
 }
-__device__ __host__ __forceinline__ uchar3 ssrlcv::rgbaToRGB(const uchar4 &color){
+__device__ __host__ uchar3 ssrlcv::rgbaToRGB(const uchar4 &color){
   return {
     (unsigned char)((1-color.w)*color.x + color.w*color.x),
     (unsigned char)((1-color.w)*color.y + color.w*color.y),

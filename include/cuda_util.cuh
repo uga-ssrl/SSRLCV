@@ -174,6 +174,7 @@ void printDeviceProperties();
 * \ingroup cuda_util
 * \see Unity
 * \brief universal sort method for unity if < operator is overloader
+* \todo add option for > or < operator usage
 */
 template<typename T>
 void sort(ssrlcv::Unity<T>* array){
