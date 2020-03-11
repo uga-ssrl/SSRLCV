@@ -34,53 +34,65 @@ int main(int argc, char *argv[]){
     images_vec[0]->camera.size = {1024,1024};
     images_vec[0]->camera.cam_pos = {0.0,0.0,-20.0};
     images_vec[0]->camera.cam_rot = {0.0, 0.0, 0.0};
-    images_vec[0]->camera.fov = {0.392699081699,0.392699081699};
+    images_vec[0]->camera.fov = {0.261799387799,0.261799387799};
     images_vec[0]->camera.foc = 0.25;
     images_vec[1]->id = 1;
     images_vec[1]->camera.size = {1024,1024};
     images_vec[1]->camera.cam_pos = {0.0,14.1421356237,-14.1421356237};
     images_vec[1]->camera.cam_rot = {0.785398163397, 0.0, 0.0};
-    images_vec[1]->camera.fov = {0.392699081699,0.392699081699};
+    images_vec[1]->camera.fov = {0.261799387799,0.261799387799};
     images_vec[1]->camera.foc = 0.25;
-
-    /*
-    images_vec[0]->id = 0;
-    images_vec[0]->camera.size = {2,2};
-    images_vec[0]->camera.cam_pos = {2.0,-2.0,2.0};
-    images_vec[0]->camera.cam_rot = {3.0 * (M_PI/2.0),0.0f,0.0f};
-    images_vec[0]->camera.fov = {(M_PI/8),(M_PI/8)};
-    images_vec[0]->camera.foc = 0.25;
-
-    images_vec[1]->id = 1;
-    images_vec[1]->camera.size = {2,2};
-    images_vec[1]->camera.cam_pos = {-2.0,2.0,2.0};
-    images_vec[1]->camera.cam_rot = {3.0 * (M_PI/2), 0.0, 3.0 * (M_PI/2)};
-    images_vec[1]->camera.fov = {(M_PI/8),(M_PI/8)};
-    images_vec[1]->camera.foc = 0.25;
-    */
 
     // fill the test match points
     std::cout << "Filling in Matches ..." << std::endl;
-    ssrlcv::Match* matches_host = new ssrlcv::Match[1];
-    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 1, ssrlcv::cpu);
+    ssrlcv::Match* matches_host = new ssrlcv::Match[11];
+    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 11, ssrlcv::cpu);
 
     // auto generated from util/cube_gen.py
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[1].parentId = 1;
-    matches->host[0].keyPoints[0].loc = {512.0,512.0};
-    matches->host[0].keyPoints[1].loc = {512.0,512.0};
-
-    /*
-    matches->host[0].keyPoints[0].loc = {1.0,1.0}; // at the center
-    matches->host[0].keyPoints[1].loc = {1.0,1.0}; // at the center
-    */
-
-    /*
+    matches->host[0].keyPoints[0].loc = {307.314415489,307.314415489};
+    matches->host[0].keyPoints[1].loc = {317.548694714,237.004326844};
     matches->host[1].keyPoints[0].parentId = 0;
     matches->host[1].keyPoints[1].parentId = 1;
-    matches->host[1].keyPoints[0].loc = {1.0,2.0}; // at the center top
-    matches->host[1].keyPoints[1].loc = {1.0,2.0}; // at the center top
-    */
+    matches->host[1].keyPoints[0].loc = {349.957245595,349.957245595};
+    matches->host[1].keyPoints[1].loc = {356.438955771,292.003461475};
+    matches->host[2].keyPoints[0].parentId = 0;
+    matches->host[2].keyPoints[1].parentId = 1;
+    matches->host[2].keyPoints[0].loc = {391.720842091,391.720842091};
+    matches->host[2].keyPoints[1].loc = {395.329216829,347.002596106};
+    matches->host[3].keyPoints[0].parentId = 0;
+    matches->host[3].keyPoints[1].parentId = 1;
+    matches->host[3].keyPoints[0].loc = {432.632120292,432.632120292};
+    matches->host[3].keyPoints[1].loc = {434.219477886,402.001730737};
+    matches->host[4].keyPoints[0].parentId = 0;
+    matches->host[4].keyPoints[1].parentId = 1;
+    matches->host[4].keyPoints[0].loc = {472.716908023,472.716908023};
+    matches->host[4].keyPoints[1].loc = {473.109738943,457.000865369};
+    matches->host[5].keyPoints[0].parentId = 0;
+    matches->host[5].keyPoints[1].parentId = 1;
+    matches->host[5].keyPoints[0].loc = {512.0,512.0};
+    matches->host[5].keyPoints[1].loc = {512.0,512.0};
+    matches->host[6].keyPoints[0].parentId = 0;
+    matches->host[6].keyPoints[1].parentId = 1;
+    matches->host[6].keyPoints[0].loc = {550.505208967,550.505208967};
+    matches->host[6].keyPoints[1].loc = {550.890261057,566.999134631};
+    matches->host[7].keyPoints[0].parentId = 0;
+    matches->host[7].keyPoints[1].parentId = 1;
+    matches->host[7].keyPoints[0].loc = {588.255413838,588.255413838};
+    matches->host[7].keyPoints[1].loc = {589.780522114,621.998269263};
+    matches->host[8].keyPoints[0].parentId = 0;
+    matches->host[8].keyPoints[1].parentId = 1;
+    matches->host[8].keyPoints[0].loc = {625.272605021,625.272605021};
+    matches->host[8].keyPoints[1].loc = {628.670783171,676.997403894};
+    matches->host[9].keyPoints[0].parentId = 0;
+    matches->host[9].keyPoints[1].parentId = 1;
+    matches->host[9].keyPoints[0].loc = {661.577927143,661.577927143};
+    matches->host[9].keyPoints[1].loc = {667.561044229,731.996538525};
+    matches->host[10].keyPoints[0].parentId = 0;
+    matches->host[10].keyPoints[1].parentId = 1;
+    matches->host[10].keyPoints[0].loc = {697.19171932,697.19171932};
+    matches->host[10].keyPoints[1].loc = {706.451305286,786.995673156};
 
     // start testing reprojection
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
