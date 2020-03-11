@@ -32,14 +32,14 @@ int main(int argc, char *argv[]){
 
     images_vec[0]->id = 0;
     images_vec[0]->camera.size = {1024,1024};
-    images_vec[0]->camera.cam_pos = {0.0,0.0,8.0};
-    images_vec[0]->camera.cam_rot = {1.57079632679, 0.0, 0.0};
+    images_vec[0]->camera.cam_pos = {0.0,0.0,20.0};
+    images_vec[0]->camera.cam_rot = {3.14159265359, 0.0, 0.0};
     images_vec[0]->camera.fov = {0.392699081699,0.392699081699};
     images_vec[0]->camera.foc = 0.25;
     images_vec[1]->id = 1;
     images_vec[1]->camera.size = {1024,1024};
-    images_vec[1]->camera.cam_pos = {0.0,-7.8784620241,-1.38918542134};
-    images_vec[1]->camera.cam_rot = {1.74532925199, 0.0, 0.0};
+    images_vec[1]->camera.cam_pos = {0.0,-3.47296355334,19.6961550602};
+    images_vec[1]->camera.cam_rot = {3.31612557879, 0.0, 0.0};
     images_vec[1]->camera.fov = {0.392699081699,0.392699081699};
     images_vec[1]->camera.foc = 0.25;
 
@@ -67,36 +67,36 @@ int main(int argc, char *argv[]){
     // auto generated from util/cube_gen.py
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[1].parentId = 1;
-    matches->host[0].keyPoints[0].loc = {226.000242226,797.999757774};
-    matches->host[0].keyPoints[1].loc = {219.870706692,850.418912358};
+    matches->host[0].keyPoints[0].loc = {389.42867524,634.57132476};
+    matches->host[0].keyPoints[1].loc = {388.316463259,655.281926665};
     matches->host[1].keyPoints[0].parentId = 0;
     matches->host[1].keyPoints[1].parentId = 1;
-    matches->host[1].keyPoints[0].loc = {797.999757774,797.999757774};
-    matches->host[1].keyPoints[1].loc = {804.129293308,850.418912358};
+    matches->host[1].keyPoints[0].loc = {634.57132476,634.57132476};
+    matches->host[1].keyPoints[1].loc = {635.683536741,655.281926665};
     matches->host[2].keyPoints[0].parentId = 0;
     matches->host[2].keyPoints[1].parentId = 1;
-    matches->host[2].keyPoints[0].loc = {797.999757774,226.000242226};
-    matches->host[2].keyPoints[1].loc = {793.051504692,284.022380804};
+    matches->host[2].keyPoints[0].loc = {634.57132476,389.42867524};
+    matches->host[2].keyPoints[1].loc = {633.653386637,413.319690557};
     matches->host[3].keyPoints[0].parentId = 0;
     matches->host[3].keyPoints[1].parentId = 1;
-    matches->host[3].keyPoints[0].loc = {226.000242226,226.000242226};
-    matches->host[3].keyPoints[1].loc = {230.948495308,284.022380804};
+    matches->host[3].keyPoints[0].loc = {389.42867524,389.42867524};
+    matches->host[3].keyPoints[1].loc = {390.346613363,413.319690557};
     matches->host[4].keyPoints[0].parentId = 0;
     matches->host[4].keyPoints[1].parentId = 1;
-    matches->host[4].keyPoints[0].loc = {144.286025719,879.713974281};
-    matches->host[4].keyPoints[1].loc = {135.769459951,817.183005098};
+    matches->host[4].keyPoints[0].loc = {376.526430528,647.473569472};
+    matches->host[4].keyPoints[1].loc = {375.38710827,622.814855242};
     matches->host[5].keyPoints[0].parentId = 0;
     matches->host[5].keyPoints[1].parentId = 1;
-    matches->host[5].keyPoints[0].loc = {879.713974281,879.713974281};
-    matches->host[5].keyPoints[1].loc = {888.230540049,817.183005098};
+    matches->host[5].keyPoints[0].loc = {647.473569472,647.473569472};
+    matches->host[5].keyPoints[1].loc = {648.61289173,622.814855242};
     matches->host[6].keyPoints[0].parentId = 0;
     matches->host[6].keyPoints[1].parentId = 1;
-    matches->host[6].keyPoints[0].loc = {879.713974281,144.286025719};
-    matches->host[6].keyPoints[1].loc = {870.054660824,97.209454661};
+    matches->host[6].keyPoints[0].loc = {647.473569472,376.526430528};
+    matches->host[6].keyPoints[1].loc = {646.14035257,356.604313022};
     matches->host[7].keyPoints[0].parentId = 0;
     matches->host[7].keyPoints[1].parentId = 1;
-    matches->host[7].keyPoints[0].loc = {144.286025719,144.286025719};
-    matches->host[7].keyPoints[1].loc = {153.945339176,97.209454661};
+    matches->host[7].keyPoints[0].loc = {376.526430528,376.526430528};
+    matches->host[7].keyPoints[1].loc = {377.85964743,356.604313022};
     matches->host[8].keyPoints[0].parentId = 0;
     matches->host[8].keyPoints[1].parentId = 1;
     matches->host[8].keyPoints[0].loc = {512.0,512.0};
@@ -195,7 +195,7 @@ int main(int argc, char *argv[]){
     cpoints[1].b = 32;
     // fill in the first bundles
     for (int i = 2; i < bundleSet.bundles->size() + 2; i++){
-      std::cout << "bundle point index: " << i - 2 << std::endl;
+      std::cout << "bundle point index: " << i - 2 << "\ti: "<< i << std::endl;
       cpoints[i].x = bundleSet.lines->host[i - 2].pnt.x;
       cpoints[i].y = bundleSet.lines->host[i - 2].pnt.y;
       cpoints[i].z = bundleSet.lines->host[i - 2].pnt.z;
@@ -205,7 +205,7 @@ int main(int argc, char *argv[]){
     }
     // fill in the vectors
     for (int i = bundleSet.bundles->size() + 2; i < 2*bundleSet.bundles->size() + 2; i++) {
-      std::cout << "bundle vector index: " << i - bundleSet.bundles->size() - 2 << std::endl;
+      std::cout << "bundle vector index: " << i - bundleSet.bundles->size() - 2 << "\ti: " << i<< std::endl;
       cpoints[i].x = bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].pnt.x + bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].vec.x;
       cpoints[i].y = bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].pnt.y + bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].vec.y;
       cpoints[i].z = bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].pnt.z + bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].vec.z;
@@ -214,8 +214,8 @@ int main(int argc, char *argv[]){
       cpoints[i].b = 127;
     }
     // fill in the point cloud
-    for (int i = bundleSet.bundles->size() + 2; i < test_points->size() + 2*bundleSet.bundles->size() + 2; i++){
-      std::cout << "point clound index: " << i - 2*bundleSet.bundles->size() - 2 << std::endl;
+    for (int i = 2*bundleSet.bundles->size() + 2; i < test_points->size() + 2*bundleSet.bundles->size() + 2; i++){
+      std::cout << "point clound index: " << i - 2*bundleSet.bundles->size() - 2 << "\ti: " << i << std::endl;
       cpoints[i].x = test_points->host[i - 2*bundleSet.bundles->size() - 2].x;
       cpoints[i].y = test_points->host[i - 2*bundleSet.bundles->size() - 2].y;
       cpoints[i].z = test_points->host[i - 2*bundleSet.bundles->size() - 2].z;

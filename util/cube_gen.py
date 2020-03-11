@@ -17,6 +17,19 @@ cube_points = [[ -1.0,  1.0, -1.0], # 0 A
                [ -1.0, -1.0,  1.0], # 7 H
                [  0.0,  0.0,  0.0]] # 8 Origin Test Point
 
+# sample "dotted" line
+line_points = [[-1.0, -1.0, -1.0], # 0
+               [-0.8, -0.8, -0.8],
+               [-0.6, -0.6, -0.6], # 2
+               [-0.4, -0.4, -0.4],
+               [-0.2, -0.2, -0.2], # 4
+               [ 0.0,  0.0,  0.0],
+               [ 0.2,  0.2,  0.2], # 6
+               [ 0.4,  0.4,  0.4],
+               [ 0.6,  0.6,  0.6], # 8
+               [ 0.8,  0.8,  0.8],
+               [ 1.0,  1.0,  1.0]] # 10
+
 origin = [0.0,0.0,0.0]
 foc    = 0.25
 fov    = pi / 8
@@ -99,7 +112,8 @@ print 'computing projections...'
 
 matches = []
 
-for point in cube_points:
+#for point in cube_points:
+for point in line_points:
     if (verbose):
         print 'Camera 1:'
     match = []
