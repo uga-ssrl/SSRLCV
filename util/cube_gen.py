@@ -153,16 +153,16 @@ for point in cube_points:
 
 print 'Cube Match Attempt: '
 for match in matches:
-    match_str  = str(match[0][0]) + ',' + str(match[0][2]) + '\t'
-    match_str += str(match[1][0]) + ',' + str(match[1][2])
+    match_str  = str(match[0][0]) + ',' + str(match[0][1]) + '\t'
+    match_str += str(match[1][0]) + ',' + str(match[1][1])
     print match_str
 
 # TODO make it so we can save this as a matches guy
 print 'For Copy Paste into Tester: '
 match_num = 0
 for match in matches:
-    print 'matches->host[' + str(match_num) + '].keyPoints[0].loc = {' + str(match[0][0]) + ',' + str(match[0][2]) + '};'
-    print 'matches->host[' + str(match_num) + '].keyPoints[1].loc = {' + str(match[1][0]) + ',' + str(match[1][2]) + '};'
+    print 'matches->host[' + str(match_num) + '].keyPoints[0].loc = {' + str(match[0][0]) + ',' + str(match[0][1]) + '};'
+    print 'matches->host[' + str(match_num) + '].keyPoints[1].loc = {' + str(match[1][0]) + ',' + str(match[1][1]) + '};'
     match_num += 1
 print ''
 
