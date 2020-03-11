@@ -178,7 +178,7 @@ int main(int argc, char *argv[]){
 
     // test output of all the boiz
     // ssrlcv::Unity<colorPoint>* cpoints = new ssrlcv::Unity<float>(nullptr, bundleSet.bundles->size() + test_points->size() + 2,ssrlcv::cpu);
-    int colorPoint_size = test_points->size() + bundleSet.bundles->size() + 2;
+    int colorPoint_size = test_points->size() + 2*bundleSet.bundles->size() + 2;
     struct colorPoint* cpoints = (colorPoint*)  malloc(colorPoint_size * sizeof(struct colorPoint));
     // fill in the camera points
     cpoints[0].x = images_vec[0]->camera.cam_pos.x;
@@ -194,19 +194,25 @@ int main(int argc, char *argv[]){
     cpoints[1].g = 32;
     cpoints[1].b = 32;
     // fill in the first bundles
-    for (int i = 2; i < bundleSet.bundles->size() + 2; i++){
+    for (int i = 2; i < 2*bundleSet.bundles->size() + 2; i++){
       cpoints[i].x = bundleSet.lines->host[i - 2].pnt.x;
       cpoints[i].y = bundleSet.lines->host[i - 2].pnt.y;
       cpoints[i].z = bundleSet.lines->host[i - 2].pnt.z;
       cpoints[i].r = 0;
       cpoints[i].g = 255;
       cpoints[i].b = 10;
+      cpoints[i].x = bundleSet.lines->host[i - 2].pnt.x + bunldeSet.lines.vec.x;
+      cpoints[i].y = bundleSet.lines->host[i - 2].pnt.y + bunldeSet.lines.vec.y;
+      cpoints[i].z = bundleSet.lines->host[i - 2].pnt.z + bunldeSet.lines.vec.z;
+      cpoints[i].r = 30;
+      cpoints[i].g = 10;
+      cpoints[i].b = 127;
     }
     // fill in the point cloud
-    for (int i = bundleSet.bundles->size() + 2; i < test_points->size() + bundleSet.bundles->size() + 2; i++){
-      cpoints[i].x = test_points->host[i - bundleSet.bundles->size() - 2].x;
-      cpoints[i].y = test_points->host[i - bundleSet.bundles->size() - 2].y;
-      cpoints[i].z = test_points->host[i - bundleSet.bundles->size() - 2].z;
+    for (int i = bundleSet.bundles->size() + 2; i < test_points->size() + 2*bundleSet.bundles->size() + 2; i++){
+      cpoints[i].x = test_points->host[i - 2*bundleSet.bundles->size() - 2].x;
+      cpoints[i].y = test_points->host[i - 2*bundleSet.bundles->size() - 2].y;
+      cpoints[i].z = test_points->host[i - 2*bundleSet.bundles->size() - 2].z;
       cpoints[i].r = 100;
       cpoints[i].g = 30;
       cpoints[i].b = 255;
