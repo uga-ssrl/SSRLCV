@@ -40,7 +40,7 @@ int main(int argc, char *argv[]){
     images[0]->camera.foc = 0.0000250000;
     images[1]->id = 1;
     images[1]->camera.size = {2,2};
-    images[1]->camera.cam_pos = {0.0,-7.07106781187,-7.07106781187};
+    images[1]->camera.cam_pos = {0.0,7.07106781187,-7.07106781187};
     images[1]->camera.cam_rot = {0.785398163397, 0.0, 0.0};
     images[1]->camera.fov = {0.174532925199,0.174532925199};
     images[1]->camera.foc = 0.0000250000;

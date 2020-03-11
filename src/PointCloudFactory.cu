@@ -987,9 +987,9 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
     kp[k].z = cameras[currentKP.parentId].cam_pos.z - (kp[k].z);
     // calculate the vector component of the line
     lines[i].vec = {
-      cameras[currentKP.parentId].cam_pos.x - kp[k].x,
-      cameras[currentKP.parentId].cam_pos.y - kp[k].y,
-      cameras[currentKP.parentId].cam_pos.z - kp[k].z
+      cameras[currentKP.parentId].cam_pos.x + kp[k].x,
+      cameras[currentKP.parentId].cam_pos.y + kp[k].y,
+      cameras[currentKP.parentId].cam_pos.z + kp[k].z
     };
     // fill in the line values
     normalize(lines[i].vec);
