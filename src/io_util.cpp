@@ -610,7 +610,10 @@ void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
   if(origin == gpu) points->setMemoryState(gpu);
 }
 
+// colored PLY writing
+void writePLY(const char* filePath, ssrlcv::ColorPoint* cpoint, size_t size, bool binary = false){
 
+}
 
 
 

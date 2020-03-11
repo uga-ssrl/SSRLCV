@@ -20,7 +20,7 @@ cube_points = [[ -1.0,  1.0, -1.0], # 0 A
 origin = [0.0,0.0,0.0]
 foc    = 0.25
 fov    = pi / 8
-alt    = 8.0 # in meters
+alt    = 20.0 # in meters
 res    = 1024 # pixels
 # cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov.x / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
 dpix   = (foc*tan(fov/2))/(res/2)
@@ -167,8 +167,8 @@ match_num = 0
 for match in matches:
     print 'matches->host[' + str(match_num) + '].keyPoints[0].parentId = 0;'
     print 'matches->host[' + str(match_num) + '].keyPoints[1].parentId = 1;'
-    print 'matches->host[' + str(match_num) + '].keyPoints[0].loc = {' + str(match[0][0]) + ',' + str(match[0][1]) + '};'
-    print 'matches->host[' + str(match_num) + '].keyPoints[1].loc = {' + str(match[1][0]) + ',' + str(match[1][1]) + '};'
+    print 'matches->host[' + str(match_num) + '].keyPoints[0].loc = {' + str(match[0][1]) + ',' + str(match[0][0]) + '};'
+    print 'matches->host[' + str(match_num) + '].keyPoints[1].loc = {' + str(match[1][1]) + ',' + str(match[1][0]) + '};'
     match_num += 1
 print ''
 
@@ -195,15 +195,15 @@ print 'For Copy Past into Tester: \n'
 print 'images_vec[0]->id = 0;'
 print 'images_vec[0]->camera.size = {' + str(res) + ',' + str(res) + '};'
 print 'images_vec[0]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
-print 'images_vec[0]->camera.cam_rot = {0.0, 0.0, 0.0};'
+print 'images_vec[0]->camera.cam_rot = {' + str(radians(90)) + ', 0.0, 0.0};'
 print 'images_vec[0]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
 print 'images_vec[0]->camera.foc = ' + str(foc) + ';'
-# rotate_camera_x(radians(-1.0 * to_rotate))
 rotate_camera_x(radians(to_rotate))
+# rotate_camera_x(radians(to_rotate))
 print 'images_vec[1]->id = 1;'
 print 'images_vec[1]->camera.size = {' + str(res) + ',' + str(res) + '};'
 print 'images_vec[1]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
-print 'images_vec[1]->camera.cam_rot = {' + str(radians(to_rotate)) + ', 0.0, 0.0};'
+print 'images_vec[1]->camera.cam_rot = {' + str(radians(90 + to_rotate)) + ', 0.0, 0.0};'
 print 'images_vec[1]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
 print 'images_vec[1]->camera.foc = ' + str(foc) + ';'
 

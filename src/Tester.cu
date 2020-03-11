@@ -33,13 +33,13 @@ int main(int argc, char *argv[]){
     images_vec[0]->id = 0;
     images_vec[0]->camera.size = {1024,1024};
     images_vec[0]->camera.cam_pos = {0.0,0.0,8.0};
-    images_vec[0]->camera.cam_rot = {0.0, 0.0, 0.0};
+    images_vec[0]->camera.cam_rot = {1.57079632679, 0.0, 0.0};
     images_vec[0]->camera.fov = {0.392699081699,0.392699081699};
     images_vec[0]->camera.foc = 0.25;
     images_vec[1]->id = 1;
     images_vec[1]->camera.size = {1024,1024};
-    images_vec[1]->camera.cam_pos = {0.0,-1.38918542134,7.8784620241};
-    images_vec[1]->camera.cam_rot = {0.174532925199, 0.0, 0.0};
+    images_vec[1]->camera.cam_pos = {0.0,-7.8784620241,-1.38918542134};
+    images_vec[1]->camera.cam_rot = {1.74532925199, 0.0, 0.0};
     images_vec[1]->camera.fov = {0.392699081699,0.392699081699};
     images_vec[1]->camera.foc = 0.25;
 
