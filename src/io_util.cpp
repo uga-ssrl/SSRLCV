@@ -611,8 +611,17 @@ void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
 }
 
 // colored PLY writing
-void writePLY(const char* filePath, ssrlcv::ColorPoint* cpoint, size_t size, bool binary = false){
-
+void writePLY(const char* filePath, colorPoint* cpoint, size_t size, bool binary){
+  tinyply::PlyFile ply;
+  ply.get_comments().push_back("SSRL Color PLY");
+  ply.add_properties_to_element("vertex",{"x","y","z", "red", "green", "blue"},tinyply::Type::FLOAT32, size, reinterpret_cast<uint8_t*>(cpoint), tinyply::Type::INVALID, 0);
+  // currently never checks if binary
+  std::filebuf fb_ascii;
+  fb_ascii.open(filePath, std::ios::out);
+  std::ostream outstream_ascii(&fb_ascii);
+  if (outstream_ascii.fail()) throw std::runtime_error("failed to write ply");
+  ply.write(outstream_ascii, false);
+  std::cout << filePath << " has successfully been written" << std::endl;
 }
 
 
