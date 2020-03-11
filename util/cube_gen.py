@@ -143,7 +143,7 @@ for point in line_points:
     #
     # now rotate the point and do it again
     #print point
-    point = rotate_points_x(point[0],point[1],point[2],radians(to_rotate))
+    point = rotate_points_x(point[0],point[1],point[2],radians(-to_rotate))
     #print point
     # compute vectors for each point pair:
     v_x = point[0] - camera[0]

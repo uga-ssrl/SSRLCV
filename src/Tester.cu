@@ -18,182 +18,114 @@ int main(int argc, char *argv[]){
 
     // test bundle adjustment here
 
-    // std::cout << "=========================== TEST 01 ===========================" << std::endl;
-    // std::cout << "Making fake image guys ..." << std::endl;
-    // std::vector<ssrlcv::Image*> images_vec;
-    //
-    // ssrlcv::Image* image0 = new ssrlcv::Image();
-    // ssrlcv::Image* image1 = new ssrlcv::Image();
-    // images_vec.push_back(image0);
-    // images_vec.push_back(image1);
-    //
-    // // fill the test camera params
-    // std::cout << "Filling in Test Camera Params ..." << std::endl;
-    //
-    // images_vec[0]->id = 0;
-    // images_vec[0]->camera.size = {1024,1024};
-    // images_vec[0]->camera.cam_pos = {0.0,0.0,20.0};
-    // images_vec[0]->camera.cam_rot = {3.14159265359, 0.0, 0.0};
-    // images_vec[0]->camera.fov = {0.392699081699,0.392699081699};
-    // images_vec[0]->camera.foc = 0.25;
-    // images_vec[1]->id = 1;
-    // images_vec[1]->camera.size = {1024,1024};
-    // images_vec[1]->camera.cam_pos = {0.0,-3.47296355334,19.6961550602};
-    // images_vec[1]->camera.cam_rot = {3.31612557879, 0.0, 0.0};
-    // images_vec[1]->camera.fov = {0.392699081699,0.392699081699};
-    // images_vec[1]->camera.foc = 0.25;
-    //
-    // /*
-    // images_vec[0]->id = 0;
-    // images_vec[0]->camera.size = {2,2};
-    // images_vec[0]->camera.cam_pos = {2.0,-2.0,2.0};
-    // images_vec[0]->camera.cam_rot = {3.0 * (M_PI/2.0),0.0f,0.0f};
-    // images_vec[0]->camera.fov = {(M_PI/8),(M_PI/8)};
-    // images_vec[0]->camera.foc = 0.25;
-    //
-    // images_vec[1]->id = 1;
-    // images_vec[1]->camera.size = {2,2};
-    // images_vec[1]->camera.cam_pos = {-2.0,2.0,2.0};
-    // images_vec[1]->camera.cam_rot = {3.0 * (M_PI/2), 0.0, 3.0 * (M_PI/2)};
-    // images_vec[1]->camera.fov = {(M_PI/8),(M_PI/8)};
-    // images_vec[1]->camera.foc = 0.25;
-    // */
-    //
-    // // fill the test match points
-    // std::cout << "Filling in Matches ..." << std::endl;
-    // ssrlcv::Match* matches_host = new ssrlcv::Match[9];
-    // ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 9, ssrlcv::cpu);
-    //
-    // // auto generated from util/cube_gen.py
-    // matches->host[0].keyPoints[0].parentId = 0;
-    // matches->host[0].keyPoints[1].parentId = 1;
-    // matches->host[0].keyPoints[0].loc = {389.42867524,634.57132476};
-    // matches->host[0].keyPoints[1].loc = {388.316463259,655.281926665};
-    // matches->host[1].keyPoints[0].parentId = 0;
-    // matches->host[1].keyPoints[1].parentId = 1;
-    // matches->host[1].keyPoints[0].loc = {634.57132476,634.57132476};
-    // matches->host[1].keyPoints[1].loc = {635.683536741,655.281926665};
-    // matches->host[2].keyPoints[0].parentId = 0;
-    // matches->host[2].keyPoints[1].parentId = 1;
-    // matches->host[2].keyPoints[0].loc = {634.57132476,389.42867524};
-    // matches->host[2].keyPoints[1].loc = {633.653386637,413.319690557};
-    // matches->host[3].keyPoints[0].parentId = 0;
-    // matches->host[3].keyPoints[1].parentId = 1;
-    // matches->host[3].keyPoints[0].loc = {389.42867524,389.42867524};
-    // matches->host[3].keyPoints[1].loc = {390.346613363,413.319690557};
-    // matches->host[4].keyPoints[0].parentId = 0;
-    // matches->host[4].keyPoints[1].parentId = 1;
-    // matches->host[4].keyPoints[0].loc = {376.526430528,647.473569472};
-    // matches->host[4].keyPoints[1].loc = {375.38710827,622.814855242};
-    // matches->host[5].keyPoints[0].parentId = 0;
-    // matches->host[5].keyPoints[1].parentId = 1;
-    // matches->host[5].keyPoints[0].loc = {647.473569472,647.473569472};
-    // matches->host[5].keyPoints[1].loc = {648.61289173,622.814855242};
-    // matches->host[6].keyPoints[0].parentId = 0;
-    // matches->host[6].keyPoints[1].parentId = 1;
-    // matches->host[6].keyPoints[0].loc = {647.473569472,376.526430528};
-    // matches->host[6].keyPoints[1].loc = {646.14035257,356.604313022};
-    // matches->host[7].keyPoints[0].parentId = 0;
-    // matches->host[7].keyPoints[1].parentId = 1;
-    // matches->host[7].keyPoints[0].loc = {376.526430528,376.526430528};
-    // matches->host[7].keyPoints[1].loc = {377.85964743,356.604313022};
-    // matches->host[8].keyPoints[0].parentId = 0;
-    // matches->host[8].keyPoints[1].parentId = 1;
-    // matches->host[8].keyPoints[0].loc = {512.0,512.0};
-    // matches->host[8].keyPoints[1].loc = {512.0,512.0};
-    //
-    // /*
-    // matches->host[0].keyPoints[0].loc = {1.0,1.0}; // at the center
-    // matches->host[0].keyPoints[1].loc = {1.0,1.0}; // at the center
-    // */
-    //
-    // /*
-    // matches->host[1].keyPoints[0].parentId = 0;
-    // matches->host[1].keyPoints[1].parentId = 1;
-    // matches->host[1].keyPoints[0].loc = {1.0,2.0}; // at the center top
-    // matches->host[1].keyPoints[1].loc = {1.0,2.0}; // at the center top
-    // */
+    std::cout << "=========================== TEST 01 ===========================" << std::endl;
+    std::cout << "Making fake image guys ..." << std::endl;
+    std::vector<ssrlcv::Image*> images_vec;
 
-    std::map<std::string,ssrlcv::arg*> args = ssrlcv::parseArgs(argc,argv);
-    if(args.find("dir") == args.end()){
-      std::cerr<<"ERROR: SFM executable requires a directory of images"<<std::endl;
-      exit(-1);
-    }
-    ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1.5f,6.0f);
-    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,250.0f*250.0f);
-    bool seedProvided = false;
-    ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* seedFeatures = nullptr;
-    if(args.find("seed") != args.end()){
-      seedProvided = true;
-      std::string seedPath = ((ssrlcv::img_arg*)args["seed"])->path;
-      ssrlcv::Image* seed = new ssrlcv::Image(seedPath,-1);
-      seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8);
-      matchFactory.setSeedFeatures(seedFeatures);
-      delete seed;
-    }
-    std::vector<std::string> imagePaths = ((ssrlcv::img_dir_arg*)args["dir"])->paths;
-    int numImages = (int) imagePaths.size();
-    std::cout<<"found "<<numImages<<" in directory given"<<std::endl;
+    ssrlcv::Image* image0 = new ssrlcv::Image();
+    ssrlcv::Image* image1 = new ssrlcv::Image();
+    images_vec.push_back(image0);
+    images_vec.push_back(image1);
 
-    std::vector<ssrlcv::Image*> images;
-    std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
-    for(int i = 0; i < numImages; ++i){
-      ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
-      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
-      features->transferMemoryTo(ssrlcv::cpu);
-      images.push_back(image);
-      allFeatures.push_back(features);
-    }
+    // fill the test camera params
+    std::cout << "Filling in Test Camera Params ..." << std::endl;
+
+    images_vec[0]->id = 0;
+    images_vec[0]->camera.size = {1024,1024};
+    images_vec[0]->camera.cam_pos = {0.0,0.0,20.0};
+    images_vec[0]->camera.cam_rot = {3.14159265359, 0.0, 0.0};
+    images_vec[0]->camera.fov = {0.392699081699,0.392699081699};
+    images_vec[0]->camera.foc = 0.25;
+    images_vec[1]->id = 1;
+    images_vec[1]->camera.size = {1024,1024};
+    images_vec[1]->camera.cam_pos = {0.0,-3.47296355334,19.6961550602};
+    images_vec[1]->camera.cam_rot = {3.31612557879, 0.0, 0.0};
+    images_vec[1]->camera.fov = {0.392699081699,0.392699081699};
+    images_vec[1]->camera.foc = 0.25;
 
     /*
-    MATCHING
+    images_vec[0]->id = 0;
+    images_vec[0]->camera.size = {2,2};
+    images_vec[0]->camera.cam_pos = {2.0,-2.0,2.0};
+    images_vec[0]->camera.cam_rot = {3.0 * (M_PI/2.0),0.0f,0.0f};
+    images_vec[0]->camera.fov = {(M_PI/8),(M_PI/8)};
+    images_vec[0]->camera.foc = 0.25;
+
+    images_vec[1]->id = 1;
+    images_vec[1]->camera.size = {2,2};
+    images_vec[1]->camera.cam_pos = {-2.0,2.0,2.0};
+    images_vec[1]->camera.cam_rot = {3.0 * (M_PI/2), 0.0, 3.0 * (M_PI/2)};
+    images_vec[1]->camera.fov = {(M_PI/8),(M_PI/8)};
+    images_vec[1]->camera.foc = 0.25;
     */
-    //seeding with false photo
 
-    std::cout << "Starting matching..." << std::endl;
-    ssrlcv::Unity<float>* seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
-    ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
-    if(seedDistances != nullptr) delete seedDistances;
+    // fill the test match points
+    std::cout << "Filling in Matches ..." << std::endl;
+    ssrlcv::Match* matches_host = new ssrlcv::Match[9];
+    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 9, ssrlcv::cpu);
 
-    distanceMatches->transferMemoryTo(ssrlcv::cpu);
-    float maxDist = 0.0f;
-    for(int i = 0; i < distanceMatches->size(); ++i){
-      if(maxDist < distanceMatches->host[i].distance) maxDist = distanceMatches->host[i].distance;
-    }
-    printf("max euclidean distance between features = %f\n",maxDist);
-    if(distanceMatches->getMemoryState() != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
-    ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
-    delete distanceMatches;
-    std::string delimiter = "/";
-    std::string matchFile = imagePaths[0].substr(0,imagePaths[0].rfind(delimiter)) + "/matches.txt";
-    ssrlcv::writeMatchFile(matches, matchFile);
+    // auto generated from util/cube_gen.py
+    matches->host[0].keyPoints[0].parentId = 0;
+    matches->host[0].keyPoints[1].parentId = 1;
+    matches->host[0].keyPoints[0].loc = {226.000242226,797.999757774};
+    matches->host[0].keyPoints[1].loc = {219.870706692,850.418912358};
+    matches->host[1].keyPoints[0].parentId = 0;
+    matches->host[1].keyPoints[1].parentId = 1;
+    matches->host[1].keyPoints[0].loc = {797.999757774,797.999757774};
+    matches->host[1].keyPoints[1].loc = {804.129293308,850.418912358};
+    matches->host[2].keyPoints[0].parentId = 0;
+    matches->host[2].keyPoints[1].parentId = 1;
+    matches->host[2].keyPoints[0].loc = {797.999757774,226.000242226};
+    matches->host[2].keyPoints[1].loc = {793.051504692,284.022380804};
+    matches->host[3].keyPoints[0].parentId = 0;
+    matches->host[3].keyPoints[1].parentId = 1;
+    matches->host[3].keyPoints[0].loc = {226.000242226,226.000242226};
+    matches->host[3].keyPoints[1].loc = {230.948495308,284.022380804};
+    matches->host[4].keyPoints[0].parentId = 0;
+    matches->host[4].keyPoints[1].parentId = 1;
+    matches->host[4].keyPoints[0].loc = {144.286025719,879.713974281};
+    matches->host[4].keyPoints[1].loc = {135.769459951,817.183005098};
+    matches->host[5].keyPoints[0].parentId = 0;
+    matches->host[5].keyPoints[1].parentId = 1;
+    matches->host[5].keyPoints[0].loc = {879.713974281,879.713974281};
+    matches->host[5].keyPoints[1].loc = {888.230540049,817.183005098};
+    matches->host[6].keyPoints[0].parentId = 0;
+    matches->host[6].keyPoints[1].parentId = 1;
+    matches->host[6].keyPoints[0].loc = {879.713974281,144.286025719};
+    matches->host[6].keyPoints[1].loc = {870.054660824,97.209454661};
+    matches->host[7].keyPoints[0].parentId = 0;
+    matches->host[7].keyPoints[1].parentId = 1;
+    matches->host[7].keyPoints[0].loc = {144.286025719,144.286025719};
+    matches->host[7].keyPoints[1].loc = {153.945339176,97.209454661};
+    matches->host[8].keyPoints[0].parentId = 0;
+    matches->host[8].keyPoints[1].parentId = 1;
+    matches->host[8].keyPoints[0].loc = {512.0,512.0};
+    matches->host[8].keyPoints[1].loc = {512.0,512.0};
 
-    // HARD CODED FOR 2 VIEW
-    // Need to fill into to MatchSet boi
-    std::cout << "Generating MatchSet ..." << std::endl;
-    ssrlcv::MatchSet matchSet;
-    matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->size()*2,ssrlcv::cpu);
-    matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->size(),ssrlcv::cpu);
-    matches->setMemoryState(ssrlcv::cpu);
-    for(int i = 0; i < matchSet.matches->size(); i++){
-      matchSet.keyPoints->host[i*2] = matches->host[i].keyPoints[0];
-      matchSet.keyPoints->host[i*2 + 1] = matches->host[i].keyPoints[1];
-      matchSet.matches->host[i] = {2,i*2};
-    }
-    std::cout << "Generated MatchSet ..." << std::endl << "Total Matches: " << matches->size() << std::endl << std::endl;
+    /*
+    matches->host[0].keyPoints[0].loc = {1.0,1.0}; // at the center
+    matches->host[0].keyPoints[1].loc = {1.0,1.0}; // at the center
+    */
 
+    /*
+    matches->host[1].keyPoints[0].parentId = 0;
+    matches->host[1].keyPoints[1].parentId = 1;
+    matches->host[1].keyPoints[0].loc = {1.0,2.0}; // at the center top
+    matches->host[1].keyPoints[1].loc = {1.0,2.0}; // at the center top
+    */
 
     // start testing reprojection
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
 
-    // ssrlcv::MatchSet matchSet;
-    // matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->size()*2,ssrlcv::cpu);
-    // matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->size(),ssrlcv::cpu);
-    // for(int i = 0; i < matches->size(); ++i){
-    //   matchSet.keyPoints->host[i*2] = matches->host[i].keyPoints[0];
-    //   matchSet.keyPoints->host[i*2 + 1] = matches->host[i].keyPoints[1];
-    //   matchSet.matches->host[i] = {2,i*2};
-    // }
+    //match interpolation method will take the place of this here.
+    ssrlcv::MatchSet matchSet;
+    matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->size()*2,ssrlcv::cpu);
+    matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->size(),ssrlcv::cpu);
+    for(int i = 0; i < matches->size(); ++i){
+      matchSet.keyPoints->host[i*2] = matches->host[i].keyPoints[0];
+      matchSet.keyPoints->host[i*2 + 1] = matches->host[i].keyPoints[1];
+      matchSet.matches->host[i] = {2,i*2};
+    }
 
     // test the prefect case
     std::cout << "Testing perfect case ..." << std::endl;
