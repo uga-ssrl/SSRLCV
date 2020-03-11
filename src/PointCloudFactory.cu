@@ -512,7 +512,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   std::vector<float> errorTracker;
 
   int i = 1;
-  while(i < 20){
+  while(i < 2){
   // while(*linearError > (100000.0)*matchSet->matches->numElements){
     // generate the bundle set
     bundleSet = generateBundles(matchSet,images);
@@ -523,86 +523,87 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // for filtering
     points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
 
-    // the assumption is that choosing every 10 indexes is random enough
-    // https://en.wikipedia.org/wiki/Variance#Sample_variance
-    size_t sample_size = (int) (errors->size() - (errors->size()%10))/10; // make sure divisible by 10 always
-    errors_sample      = new ssrlcv::Unity<float>(nullptr,sample_size,ssrlcv::cpu);
-    float sample_sum = 0;
-    for (int k = 0; k < sample_size; k++){
-      errors_sample->host[k] = errors->host[k*10];
-      sample_sum += errors->host[k*10];
-    }
-    float sample_mean = sample_sum / errors_sample->size();
-    float squared_sum = 0;
-    for (int k = 0; k < sample_size; k++){
-      squared_sum += (errors_sample->host[k] - sample_mean)*(errors_sample->host[k] - sample_mean);
-    }
-    float variance = squared_sum / errors_sample->size();
-    // std::cout << "Sample variance: " << variance << std::endl;
-    std::cout << "Linear Cutoff Adjusted to: " << sqrtf(variance) << std::endl;
-    *linearErrorCutoff = sqrtf(variance);
-
-    // only do this once
-    if (i == 1) ssrlcv::writeCSV(errors_sample->host, (int) errors_sample->size(), "filteredIndividualLinearErrors" + std::to_string(i));
-
-    // recalculate with new cutoff
-    points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
-
-    // CLEAR OUT THE DATA STRUCTURES
-    // count the number of bad bundles to be removed
-    int bad_bundles = 0;
-    for (int k = 0; k < bundleSet.bundles->size(); k++){
-      if (bundleSet.bundles->host[k].invalid){
-	       bad_bundles++;
-      }
-    }
-    if (bad_bundles) std::cout << "Detected " << bad_bundles << " bad bundles to remove" << std::endl;
-    // Need to generated and adjustment match set
-    // make a temporary match set
-    delete tempMatchSet.keyPoints;
-    delete tempMatchSet.matches;
-    tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matchSet->matches->size()*2,ssrlcv::cpu);
-    tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
-    // fill in the boiz
-    for (int k = 0; k < tempMatchSet.keyPoints->size(); k++){
-      tempMatchSet.keyPoints->host[k] = matchSet->keyPoints->host[k];
-    }
-    for (int k = 0; k < tempMatchSet.matches->size(); k++){
-      tempMatchSet.matches->host[k] = matchSet->matches->host[k];
-    }
-    // resize the standard matchSet
-    size_t new_kp_size = 2*(matchSet->matches->size() - bad_bundles);
-    size_t new_mt_size = matchSet->matches->size() - bad_bundles;
-    delete matchSet->keyPoints;
-    delete matchSet->matches;
-    matchSet->keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,new_kp_size,ssrlcv::cpu);
-    matchSet->matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,new_mt_size,ssrlcv::cpu);
-    // this is much easier because of the 2 view assumption
-    // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
-    int k_adjust = 0;
-    // if (bad_bundles){
-    for (int k = 0; k < bundleSet.bundles->size(); k++){
-    	if (!bundleSet.bundles->host[k].invalid){
-    	  matchSet->keyPoints->host[2*k_adjust]     = tempMatchSet.keyPoints->host[2*k];
-    	  matchSet->keyPoints->host[2*k_adjust + 1] = tempMatchSet.keyPoints->host[2*k + 1];
-    	  // matchSet->matches->host[k_adjust]         = tempMatchSet.matches->host[k];
-        matchSet->matches->host[k_adjust]         = {2,2*k_adjust};
-    	  k_adjust++;
-    	}
-    }
-
-    // only do this once for now
-    if (i == 1)
-
-    if (false){
-      std::cout << "\tsize of bundles:       " << bundleSet.bundles->size() << std::endl;
-      std::cout << "\tgood bundles:          " << bundleSet.bundles->size() - bad_bundles << std::endl;
-      std::cout << "\tsize of old matches:   " << tempMatchSet.matches->size() << std::endl;
-      std::cout << "\tsize of new matches:   " << matchSet->matches->size() << std::endl;
-      std::cout << "\tk_adjust:              " << k_adjust << std::endl;
-      std::cout << "\tsize of old keyPoints: " << tempMatchSet.keyPoints->size() << std::endl;
-      std::cout << "\tsize of new keyPoints: " << matchSet->keyPoints->size() << std::endl;
-    }
+    // // the assumption is that choosing every 10 indexes is random enough
+    // // https://en.wikipedia.org/wiki/Variance#Sample_variance
+    // size_t sample_size = (int) (errors->size() - (errors->size()%10))/10; // make sure divisible by 10 always
+    // errors_sample      = new ssrlcv::Unity<float>(nullptr,sample_size,ssrlcv::cpu);
+    // float sample_sum = 0;
+    // for (int k = 0; k < sample_size; k++){
+    //   errors_sample->host[k] = errors->host[k*10];
+    //   sample_sum += errors->host[k*10];
+    // }
+    // float sample_mean = sample_sum / errors_sample->size();
+    // float squared_sum = 0;
+    // for (int k = 0; k < sample_size; k++){
+    //   squared_sum += (errors_sample->host[k] - sample_mean)*(errors_sample->host[k] - sample_mean);
+    // }
+    // float variance = squared_sum / errors_sample->size();
+    // // std::cout << "Sample variance: " << variance << std::endl;
+    // std::cout << "\tSigma Calculated As: " << sqrtf(variance) << std::endl;
+    // std::cout << "\tLinear Error Cutoff Adjusted To: " << 5 * sqrtf(variance) << std::endl;
+    // *linearErrorCutoff = 5 * sqrtf(variance);
+    //
+    // // only do this once
+    // if (i == 1) ssrlcv::writeCSV(errors_sample->host, (int) errors_sample->size(), "filteredIndividualLinearErrors" + std::to_string(i));
+    //
+    // // recalculate with new cutoff
+    // points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+    //
+    // // CLEAR OUT THE DATA STRUCTURES
+    // // count the number of bad bundles to be removed
+    // int bad_bundles = 0;
+    // for (int k = 0; k < bundleSet.bundles->size(); k++){
+    //   if (bundleSet.bundles->host[k].invalid){
+	  //      bad_bundles++;
+    //   }
+    // }
+    // if (bad_bundles) std::cout << "Detected " << bad_bundles << " bad bundles to remove" << std::endl;
+    // // Need to generated and adjustment match set
+    // // make a temporary match set
+    // delete tempMatchSet.keyPoints;
+    // delete tempMatchSet.matches;
+    // tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matchSet->matches->size()*2,ssrlcv::cpu);
+    // tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+    // // fill in the boiz
+    // for (int k = 0; k < tempMatchSet.keyPoints->size(); k++){
+    //   tempMatchSet.keyPoints->host[k] = matchSet->keyPoints->host[k];
+    // }
+    // for (int k = 0; k < tempMatchSet.matches->size(); k++){
+    //   tempMatchSet.matches->host[k] = matchSet->matches->host[k];
+    // }
+    // // resize the standard matchSet
+    // size_t new_kp_size = 2*(matchSet->matches->size() - bad_bundles);
+    // size_t new_mt_size = matchSet->matches->size() - bad_bundles;
+    // delete matchSet->keyPoints;
+    // delete matchSet->matches;
+    // matchSet->keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,new_kp_size,ssrlcv::cpu);
+    // matchSet->matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,new_mt_size,ssrlcv::cpu);
+    // // this is much easier because of the 2 view assumption
+    // // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
+    // int k_adjust = 0;
+    // // if (bad_bundles){
+    // for (int k = 0; k < bundleSet.bundles->size(); k++){
+    // 	if (!bundleSet.bundles->host[k].invalid){
+    // 	  matchSet->keyPoints->host[2*k_adjust]     = tempMatchSet.keyPoints->host[2*k];
+    // 	  matchSet->keyPoints->host[2*k_adjust + 1] = tempMatchSet.keyPoints->host[2*k + 1];
+    // 	  // matchSet->matches->host[k_adjust]         = tempMatchSet.matches->host[k];
+    //     matchSet->matches->host[k_adjust]         = {2,2*k_adjust};
+    // 	  k_adjust++;
+    // 	}
+    // }
+    //
+    // // only do this once for now
+    // if (i == 1)
+    //
+    // if (false){
+    //   std::cout << "\tsize of bundles:       " << bundleSet.bundles->size() << std::endl;
+    //   std::cout << "\tgood bundles:          " << bundleSet.bundles->size() - bad_bundles << std::endl;
+    //   std::cout << "\tsize of old matches:   " << tempMatchSet.matches->size() << std::endl;
+    //   std::cout << "\tsize of new matches:   " << matchSet->matches->size() << std::endl;
+    //   std::cout << "\tk_adjust:              " << k_adjust << std::endl;
+    //   std::cout << "\tsize of old keyPoints: " << tempMatchSet.keyPoints->size() << std::endl;
+    //   std::cout << "\tsize of new keyPoints: " << matchSet->keyPoints->size() << std::endl;
+    // }
 
 
     // do this only once
@@ -615,7 +616,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     delete bundleSet.lines;
     delete bundleSet.bundles;
     delete errors;
-    delete errors_sample;
+    //delete errors_sample;
     // delete points;
 
     // a nice printout for the humans
@@ -627,12 +628,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // what the step sizes should be tho:
     // this is only for the "sensitivity" in those component directions
-    float h_rot = 0.00001;
-    float h_pos = 0.00001;
-    float h_foc = 0.00001;
-    float h_fov = 0.00001;
+    float min_step = 0.0000001;
+    float h_rot = min_step;
+    float h_pos = min_step;
+    float h_foc = min_step;
+    float h_fov = min_step;
     // the stepsize along the gradient
-    float step  = 0.00001;
+    float step  = min_step;
 
     // calculate the descrete partial derivatives using forward difference
     for (int j = 0; j < partials.size(); j++){
@@ -1076,8 +1078,8 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, unsigned l
   pointcloud[globalID] = point;
 
   // add the linaer errors locally within the block before
-  float error = dotProduct(s1,s2)*dotProduct(s1,s2);
-  if(error != 0.0f) error = sqrtf(error);
+  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));;
+  // if(error != 0.0f) error = sqrtf(error);
   atomicAdd(&localSum,error);
   __syncthreads();
   if (!threadIdx.x) atomicAdd(linearError,localSum);
@@ -1126,8 +1128,8 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* err
   pointcloud[globalID] = point;
 
   // add the linaer errors locally within the block before
-  float error = dotProduct(s1,s2)*dotProduct(s1,s2);
-  if(error != 0.0f) error = sqrtf(error);
+  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));
+  // if(error != 0.0f) error = sqrtf(error);
   errors[globalID] = error;
   //int i_error = error;
   atomicAdd(&localSum,error);
