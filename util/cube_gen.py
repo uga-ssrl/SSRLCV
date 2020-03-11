@@ -18,7 +18,7 @@ cube_points = [[ -1.0,  1.0, -1.0], # 0 A
                [  0.0,  0.0,  0.0]] # 8 Origin Test Point
 
 # sample "dotted" line
-line_points = [[-1.0, -1.0, -1.0], # 0
+xyz_line_points = [[-1.0, -1.0, -1.0], # 0
                [-0.8, -0.8, -0.8],
                [-0.6, -0.6, -0.6], # 2
                [-0.4, -0.4, -0.4],
@@ -30,12 +30,20 @@ line_points = [[-1.0, -1.0, -1.0], # 0
                [ 0.8,  0.8,  0.8],
                [ 1.0,  1.0,  1.0]] # 10
 
+y_points = [[ 0.0, 0.0, -1.5], # 0
+            [ 0.0, 0.0, -1.0],
+            [ 0.0, 0.0, -0.5], # 2
+            [ 0.0, 0.0,  0.0],
+            [ 0.0, 0.0,  0.5], # 4
+            [ 0.0, 0.0,  1.0],
+            [ 0.0, 0.0,  1.5]] # 7
+
 single = [[0.0,0.0,0.0]]
 
 origin = [0.0,0.0,0.0]
 foc    = 0.000025
 fov    = radians(10)
-alt    = -1.0 # in meters
+alt    = -10.0 # in meters
 res    = 2 # pixels
 # cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov.x / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
 dpix   = (foc*tan(fov/2))/(res/2)
@@ -116,7 +124,7 @@ matches = []
 
 #for point in cube_points:
 # for point in line_points:
-for point in single:
+for point in y_points:
     if (verbose):
         print 'Camera 1:'
     match = []
@@ -179,7 +187,9 @@ for match in matches:
     print match_str
 
 # TODO make it so we can save this as a matches guy
-print 'For Copy Paste into Tester: '
+print 'For Copy Paste into Tester: \n'
+print 'ssrlcv::Match* matches_host = new ssrlcv::Match[' + str(len(matches)) + '];'
+print 'ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, ' + str(len(matches)) + ', ssrlcv::cpu);'
 match_num = 0
 for match in matches:
     print 'matches->host[' + str(match_num) + '].keyPoints[0].parentId = 0;'
@@ -209,22 +219,22 @@ print ''
 #############################
 
 print 'For Copy Paste into Tester: \n'
-print 'images_vec[0]->id = 0;'
-print 'images_vec[0]->camera.size = {' + str(res) + ',' + str(res) + '};'
-print 'images_vec[0]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
+print 'images[0]->id = 0;'
+print 'images[0]->camera.size = {' + str(res) + ',' + str(res) + '};'
+print 'images[0]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
 # print 'images_vec[0]->camera.cam_rot = {' + str(radians(180)) + ', 0.0, 0.0};'
-print 'images_vec[0]->camera.cam_rot = {0.0, 0.0, 0.0};'
-print 'images_vec[0]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
-print 'images_vec[0]->camera.foc = ' + str('{0:.10f}'.format(foc)) + ';'
+print 'images[0]->camera.cam_rot = {0.0, 0.0, 0.0};'
+print 'images[0]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
+print 'images[0]->camera.foc = ' + str('{0:.10f}'.format(foc)) + ';'
 rotate_camera_x(radians(-1.0 * to_rotate))
 # rotate_camera_x(radians(to_rotate))
-print 'images_vec[1]->id = 1;'
-print 'images_vec[1]->camera.size = {' + str(res) + ',' + str(res) + '};'
-print 'images_vec[1]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
+print 'images[1]->id = 1;'
+print 'images[1]->camera.size = {' + str(res) + ',' + str(res) + '};'
+print 'images[1]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
 # print 'images_vec[1]->camera.cam_rot = {' + str(radians(180 + to_rotate)) + ', 0.0, 0.0};'
-print 'images_vec[1]->camera.cam_rot = {' + str(radians(to_rotate)) + ', 0.0, 0.0};'
-print 'images_vec[1]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
-print 'images_vec[1]->camera.foc = ' + str('{0:.10f}'.format(foc)) + ';'
+print 'images[1]->camera.cam_rot = {' + str(radians(to_rotate)) + ', 0.0, 0.0};'
+print 'images[1]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
+print 'images[1]->camera.foc = ' + str('{0:.10f}'.format(foc)) + ';'
 
 
 # f = open('cameras.txt', 'w')
