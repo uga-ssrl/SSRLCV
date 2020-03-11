@@ -194,22 +194,28 @@ int main(int argc, char *argv[]){
     cpoints[1].g = 32;
     cpoints[1].b = 32;
     // fill in the first bundles
-    for (int i = 2; i < 2*bundleSet.bundles->size() + 2; i++){
+    for (int i = 2; i < bundleSet.bundles->size() + 2; i++){
+      std::cout << "bundle point index: " << i - 2 << std::endl;
       cpoints[i].x = bundleSet.lines->host[i - 2].pnt.x;
       cpoints[i].y = bundleSet.lines->host[i - 2].pnt.y;
       cpoints[i].z = bundleSet.lines->host[i - 2].pnt.z;
       cpoints[i].r = 0;
       cpoints[i].g = 255;
       cpoints[i].b = 10;
-      cpoints[i].x = bundleSet.lines->host[i - 2].pnt.x + bundleSet.lines->host[i - 2].vec.x;
-      cpoints[i].y = bundleSet.lines->host[i - 2].pnt.y + bundleSet.lines->host[i - 2].vec.y;
-      cpoints[i].z = bundleSet.lines->host[i - 2].pnt.z + bundleSet.lines->host[i - 2].vec.z;
+    }
+    // fill in the vectors
+    for (int i = bundleSet.bundles->size() + 2; i < 2*bundleSet.bundles->size() + 2; i++) {
+      std::cout << "bundle vector index: " << i - bundleSet.bundles->size() - 2 << std::endl;
+      cpoints[i].x = bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].pnt.x + bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].vec.x;
+      cpoints[i].y = bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].pnt.y + bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].vec.y;
+      cpoints[i].z = bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].pnt.z + bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].vec.z;
       cpoints[i].r = 30;
       cpoints[i].g = 10;
       cpoints[i].b = 127;
     }
     // fill in the point cloud
     for (int i = bundleSet.bundles->size() + 2; i < test_points->size() + 2*bundleSet.bundles->size() + 2; i++){
+      std::cout << "point clound index: " << i - 2*bundleSet.bundles->size() - 2 << std::endl;
       cpoints[i].x = test_points->host[i - 2*bundleSet.bundles->size() - 2].x;
       cpoints[i].y = test_points->host[i - 2*bundleSet.bundles->size() - 2].y;
       cpoints[i].z = test_points->host[i - 2*bundleSet.bundles->size() - 2].z;
