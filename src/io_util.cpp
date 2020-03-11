@@ -379,8 +379,8 @@ unsigned char* ssrlcv::readTIFF(const char* filePath, unsigned int &height, unsi
       }
 
     }
-    
-    
+
+
     _TIFFfree(buf);
     TIFFClose(tif);
     return pixels;
@@ -513,7 +513,7 @@ unsigned char* ssrlcv::readImage(const char *filePath, unsigned int &height, uns
   std::string str_filePath = filePath;
   std::string fileType = getFileExtension(str_filePath);
   unsigned char* pixels = nullptr;
-  
+
   if (fileType == "png"){
     pixels = readPNG(filePath,height,width,colorDepth);
   }
@@ -533,7 +533,7 @@ void ssrlcv::writeImage(const char* filePath, unsigned char* image, const unsign
   std::string str_filePath = filePath;
   std::string fileType = getFileExtension(str_filePath);
   unsigned char* pixels = nullptr;
-  
+
   if (fileType == "png"){
     writePNG(filePath,image,colorDepth,width,height);
   }
@@ -761,6 +761,22 @@ void ssrlcv::writePLY(const char* filePath, colorPoint* cpoint, int size){
   of.close(); // done with the file building
 }
 
+void ssrlcv::writePLY(const char* filePath, Unity<colorPoint>* cpoint){
+  std::string filename = filePath;
+  std::ofstream of;
+  of.open ("out/" + filename + ".ply");
+  of << "ply\nformat ascii 1.0\n";
+  of << "comment author: Caleb Adams & Jackson Parker\n";
+  of << "comment SSRL CV color PLY writer\n";
+  of << "element vertex " << size << "\n";
+  of << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n"; // the elements in the guy
+  of << "end_header\n";
+  // start writing the values
+  for (int i = 0; i < cpoint->size(); i++){
+    of << std::fixed << cpoint->host[i].x << " " << cpoint->host[i].y << " " << cpoint->host[i].z << " " << (unsigned int) cpoint->host[i].r << " " << (unsigned int) cpoint->host[i].g << " " << (unsigned int) cpoint->host[i].b << "\n";
+  }
+  of.close(); // done with the file building
+}
 
 //
 // CSV and Misc Debug IO

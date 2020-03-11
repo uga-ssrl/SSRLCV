@@ -155,25 +155,62 @@ int main(int argc, char *argv[]){
 
     ssrlcv::writePLY("out/test_points.ply",test_points);
 
-    // a test of the new PLY writer    
-    int colorPoint_size = 10; 
-    struct colorPoint* cpoints = (colorPoint*)  malloc(colorPoint_size * sizeof(struct colorPoint));
-    for (int k = 0; k < colorPoint_size; k++){
-      //cpoints[k] = {(float) k,1.0,1.0,0,255,32};
-      cpoints[k].x = (float) k;
-      cpoints[k].y = (float) 0.0;
-      cpoints[k].z = (float) 0.0;
-      cpoints[k].r = 0;
-      cpoints[k].g = 255;
-      cpoints[k].b = 32;
-    }
-    std::string fname = "colorPointTest";
-    ssrlcv::writePLY("fuck", cpoints, colorPoint_size);
+    // a test of the new PLY writer
+    // int colorPoint_size = 10;
+    // // struct colorPoint* cpoints = (colorPoint*)  malloc(colorPoint_size * sizeof(struct colorPoint));
+    // ssrlcv::Unity<colorPoint>* cpoints = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
+    // for (int k = 0; k < colorPoint_size; k++){
+    //   //cpoints[k] = {(float) k,1.0,1.0,0,255,32};
+    //   cpoints[k].x = (float) k;
+    //   cpoints[k].y = (float) 0.0;
+    //   cpoints[k].z = (float) 0.0;
+    //   cpoints[k].r = 0;
+    //   cpoints[k].g = 255;
+    //   cpoints[k].b = 32;
+    // }
+    // std::string fname = "colorPointTest";
+    // ssrlcv::writePLY("fuck", cpoints, colorPoint_size);
 
     std::cout << "Cube Points: " << std::endl;
     for (int i = 0; i < test_points->size(); i++){
       std::cout << "\t(" << test_points->host[i].x << "," << test_points->host[i].y << "," << test_points->host[i].z << ")" << std::endl;
     }
+
+    // test output of all the boiz
+    ssrlcv::Unity<colorPoint>* cpoints = new ssrlcv::Unity<float>(nullptr, bundleSet.bundles->size() + test_points->size() + 2,ssrlcv::cpu);
+    // fill in the camera points
+    cpoints->host[0].x = images_vec[0]->camera.cam_pos.x;
+    cpoints->host[0].y = images_vec[0]->camera.cam_pos.y;
+    cpoints->host[0].z = images_vec[0]->camera.cam_pos.z;
+    cpoints->host[0].r = 255;
+    cpoints->host[0].g = 32;
+    cpoints->host[0].b = 32;
+    cpoints->host[1].x = images_vec[1]->camera.cam_pos.x;
+    cpoints->host[1].y = images_vec[1]->camera.cam_pos.y;
+    cpoints->host[1].z = images_vec[1]->camera.cam_pos.z;
+    cpoints->host[1].r = 255;
+    cpoints->host[1].g = 32;
+    cpoints->host[1].b = 32;
+    // fill in the first bundles
+    for (int i = 2; i < bundleSet->size() + 2; i++){
+      cpoints->host[i].x = bundleSet.lines->host[i - 2].pnt.x;
+      cpoints->host[i].y = bundleSet.lines->host[i - 2].pnt.y;
+      cpoints->host[i].z = bundleSet.lines->host[i - 2].pnt.z;
+      cpoints->host[i].r = 0;
+      cpoints->host[i].g = 255;
+      cpoints->host[i].b = 10;
+    }
+    // fill in the point cloud
+    for (int i = bundleSet->size() + 2; i < test_points->size() + bundleSet->size() + 2; i++){
+      cpoints->host[i].x = test_points.lines->host[i - 3*matchSet.matches->size()].pnt.x;
+      cpoints->host[i].y = test_points.lines->host[i - 3*matchSet.matches->size()].pnt.y;
+      cpoints->host[i].z = test_points.lines->host[i - 3*matchSet.matches->size()].pnt.z;
+      cpoints->host[i].r = 100;
+      cpoints->host[i].g = 30;
+      cpoints->host[i].b = 255;
+    }
+    // now save it
+    ssrlcv::writePLY("cubeTest", cpoints, colorPoint_size);
 
     // add some random errors into the camera stuff
     std::vector<ssrlcv::Image*> images_vec_err;
