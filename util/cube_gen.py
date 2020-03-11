@@ -30,6 +30,8 @@ line_points = [[-1.0, -1.0, -1.0], # 0
                [ 0.8,  0.8,  0.8],
                [ 1.0,  1.0,  1.0]] # 10
 
+single = [[0.0,0.0,0.0]]
+
 origin = [0.0,0.0,0.0]
 foc    = 0.25
 fov    = pi / 8
@@ -54,7 +56,7 @@ camera = [0.0,0.0,alt]
 plane  = [0.0,0.0,alt+foc]
 
 # the degrees to rotates
-to_rotate = 10;
+to_rotate = 45;
 
 # the final guy
 raw_match_set = []
@@ -113,7 +115,7 @@ print 'computing projections...'
 matches = []
 
 #for point in cube_points:
-for point in line_points:
+for point in single:
     if (verbose):
         print 'Camera 1:'
     match = []

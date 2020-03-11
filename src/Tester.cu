@@ -32,14 +32,14 @@ int main(int argc, char *argv[]){
 
     images_vec[0]->id = 0;
     images_vec[0]->camera.size = {1024,1024};
-    images_vec[0]->camera.cam_pos = {0.0,0.0,20.0};
-    images_vec[0]->camera.cam_rot = {3.14159265359, 0.0, 0.0};
+    images_vec[0]->camera.cam_pos = {0.0,0.0,-20.0};
+    images_vec[0]->camera.cam_rot = {0.0, 0.0, 0.0};
     images_vec[0]->camera.fov = {0.392699081699,0.392699081699};
     images_vec[0]->camera.foc = 0.25;
     images_vec[1]->id = 1;
     images_vec[1]->camera.size = {1024,1024};
-    images_vec[1]->camera.cam_pos = {0.0,-3.47296355334,19.6961550602};
-    images_vec[1]->camera.cam_rot = {3.31612557879, 0.0, 0.0};
+    images_vec[1]->camera.cam_pos = {0.0,14.1421356237,-14.1421356237};
+    images_vec[1]->camera.cam_rot = {0.785398163397, 0.0, 0.0};
     images_vec[1]->camera.fov = {0.392699081699,0.392699081699};
     images_vec[1]->camera.foc = 0.25;
 
@@ -61,46 +61,14 @@ int main(int argc, char *argv[]){
 
     // fill the test match points
     std::cout << "Filling in Matches ..." << std::endl;
-    ssrlcv::Match* matches_host = new ssrlcv::Match[9];
-    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 9, ssrlcv::cpu);
+    ssrlcv::Match* matches_host = new ssrlcv::Match[1];
+    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 1, ssrlcv::cpu);
 
     // auto generated from util/cube_gen.py
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[1].parentId = 1;
-    matches->host[0].keyPoints[0].loc = {226.000242226,797.999757774};
-    matches->host[0].keyPoints[1].loc = {219.870706692,850.418912358};
-    matches->host[1].keyPoints[0].parentId = 0;
-    matches->host[1].keyPoints[1].parentId = 1;
-    matches->host[1].keyPoints[0].loc = {797.999757774,797.999757774};
-    matches->host[1].keyPoints[1].loc = {804.129293308,850.418912358};
-    matches->host[2].keyPoints[0].parentId = 0;
-    matches->host[2].keyPoints[1].parentId = 1;
-    matches->host[2].keyPoints[0].loc = {797.999757774,226.000242226};
-    matches->host[2].keyPoints[1].loc = {793.051504692,284.022380804};
-    matches->host[3].keyPoints[0].parentId = 0;
-    matches->host[3].keyPoints[1].parentId = 1;
-    matches->host[3].keyPoints[0].loc = {226.000242226,226.000242226};
-    matches->host[3].keyPoints[1].loc = {230.948495308,284.022380804};
-    matches->host[4].keyPoints[0].parentId = 0;
-    matches->host[4].keyPoints[1].parentId = 1;
-    matches->host[4].keyPoints[0].loc = {144.286025719,879.713974281};
-    matches->host[4].keyPoints[1].loc = {135.769459951,817.183005098};
-    matches->host[5].keyPoints[0].parentId = 0;
-    matches->host[5].keyPoints[1].parentId = 1;
-    matches->host[5].keyPoints[0].loc = {879.713974281,879.713974281};
-    matches->host[5].keyPoints[1].loc = {888.230540049,817.183005098};
-    matches->host[6].keyPoints[0].parentId = 0;
-    matches->host[6].keyPoints[1].parentId = 1;
-    matches->host[6].keyPoints[0].loc = {879.713974281,144.286025719};
-    matches->host[6].keyPoints[1].loc = {870.054660824,97.209454661};
-    matches->host[7].keyPoints[0].parentId = 0;
-    matches->host[7].keyPoints[1].parentId = 1;
-    matches->host[7].keyPoints[0].loc = {144.286025719,144.286025719};
-    matches->host[7].keyPoints[1].loc = {153.945339176,97.209454661};
-    matches->host[8].keyPoints[0].parentId = 0;
-    matches->host[8].keyPoints[1].parentId = 1;
-    matches->host[8].keyPoints[0].loc = {512.0,512.0};
-    matches->host[8].keyPoints[1].loc = {512.0,512.0};
+    matches->host[0].keyPoints[0].loc = {512.0,512.0};
+    matches->host[0].keyPoints[1].loc = {512.0,512.0};
 
     /*
     matches->host[0].keyPoints[0].loc = {1.0,1.0}; // at the center
@@ -148,10 +116,10 @@ int main(int argc, char *argv[]){
     }
     std::cout << "</lines end>" << std::endl;
 
-    std::cout << "Prefect points:" << std::endl;
-    //std::cout << "\t( " << test_point->host[0].x << ",  " << test_point->host[0].y << ", " << test_point->host[0].z << " )" << std::endl;
-    //std::cout << "\t( " << test_point->host[1].x << ",  " << test_point->host[1].y << ", " << test_point->host[1].z << " )" << std::endl;
-    std::cout << "\tLinear Error: " << *linearError << std::endl;
+    // std::cout << "Prefect points:" << std::endl;
+    // //std::cout << "\t( " << test_point->host[0].x << ",  " << test_point->host[0].y << ", " << test_point->host[0].z << " )" << std::endl;
+    // //std::cout << "\t( " << test_point->host[1].x << ",  " << test_point->host[1].y << ", " << test_point->host[1].z << " )" << std::endl;
+    // std::cout << "\tLinear Error: " << *linearError << std::endl;
 
     ssrlcv::writePLY("out/test_points.ply",test_points);
 
@@ -178,7 +146,7 @@ int main(int argc, char *argv[]){
 
     // test output of all the boiz
     // ssrlcv::Unity<colorPoint>* cpoints = new ssrlcv::Unity<float>(nullptr, bundleSet.bundles->size() + test_points->size() + 2,ssrlcv::cpu);
-    int colorPoint_size = test_points->size() + 2*bundleSet.bundles->size() + 2;
+    int colorPoint_size = test_points->size() + 2*bundleSet.lines->size() + 2;
     struct colorPoint* cpoints = (colorPoint*)  malloc(colorPoint_size * sizeof(struct colorPoint));
     // fill in the camera points
     cpoints[0].x = images_vec[0]->camera.cam_pos.x;
@@ -194,7 +162,7 @@ int main(int argc, char *argv[]){
     cpoints[1].g = 32;
     cpoints[1].b = 32;
     // fill in the first bundles
-    for (int i = 2; i < bundleSet.bundles->size() + 2; i++){
+    for (int i = 2; i < bundleSet.lines->size() + 2; i++){
       std::cout << "bundle point index: " << i - 2 << "\ti: "<< i << std::endl;
       cpoints[i].x = bundleSet.lines->host[i - 2].pnt.x;
       cpoints[i].y = bundleSet.lines->host[i - 2].pnt.y;
@@ -204,21 +172,21 @@ int main(int argc, char *argv[]){
       cpoints[i].b = 10;
     }
     // fill in the vectors
-    for (int i = bundleSet.bundles->size() + 2; i < 2*bundleSet.bundles->size() + 2; i++) {
-      std::cout << "bundle vector index: " << i - bundleSet.bundles->size() - 2 << "\ti: " << i<< std::endl;
-      cpoints[i].x = bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].pnt.x + bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].vec.x;
-      cpoints[i].y = bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].pnt.y + bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].vec.y;
-      cpoints[i].z = bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].pnt.z + bundleSet.lines->host[i -  bundleSet.bundles->size() - 2].vec.z;
+    for (int i = bundleSet.bundles->size() + 2; i < 2*bundleSet.lines->size() + 2; i++) {
+      std::cout << "bundle vector index: " << i - bundleSet.lines->size() - 2 << "\ti: " << i<< std::endl;
+      cpoints[i].x = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.x + bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.x;
+      cpoints[i].y = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.y + bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.y;
+      cpoints[i].z = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.z + bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.z;
       cpoints[i].r = 30;
       cpoints[i].g = 10;
       cpoints[i].b = 127;
     }
     // fill in the point cloud
-    for (int i = 2*bundleSet.bundles->size() + 2; i < test_points->size() + 2*bundleSet.bundles->size() + 2; i++){
-      std::cout << "point clound index: " << i - 2*bundleSet.bundles->size() - 2 << "\ti: " << i << std::endl;
-      cpoints[i].x = test_points->host[i - 2*bundleSet.bundles->size() - 2].x;
-      cpoints[i].y = test_points->host[i - 2*bundleSet.bundles->size() - 2].y;
-      cpoints[i].z = test_points->host[i - 2*bundleSet.bundles->size() - 2].z;
+    for (int i = 2*bundleSet.lines->size() + 2; i < test_points->size() + 2*bundleSet.lines->size() + 2; i++){
+      std::cout << "point clound index: " << i - 2*bundleSet.lines->size() - 2 << "\ti: " << i << std::endl;
+      cpoints[i].x = test_points->host[i - 2*bundleSet.lines->size() - 2].x;
+      cpoints[i].y = test_points->host[i - 2*bundleSet.lines->size() - 2].y;
+      cpoints[i].z = test_points->host[i - 2*bundleSet.lines->size() - 2].z;
       cpoints[i].r = 0;
       cpoints[i].g = 32;
       cpoints[i].b = 255;
