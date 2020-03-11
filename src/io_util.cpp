@@ -724,7 +724,7 @@ void ssrlcv::writePLY(const char* filePath, colorPoint* cpoint, int size){
   of << "end_header\n";
   // start writing the values
   for (int i = 0; i < size; i++){
-    of << std::fixed << cpoint[i].x << " " << cpoint[i].y << " " << cpoint[i].z << " " << (unsigned int) cpoint[i].r << " " << (unsigned int) cpoint[i].g << " " << (unsigned int) cpoint[i].b << "\n";
+    of << std::fixed << std::setprecision(12) << cpoint[i].x << " " << cpoint[i].y << " " << cpoint[i].z << " " << (unsigned int) cpoint[i].r << " " << (unsigned int) cpoint[i].g << " " << (unsigned int) cpoint[i].b << "\n";
   }
   of.close(); // done with the file building
 }
@@ -741,7 +741,7 @@ void ssrlcv::writePLY(const char* filePath, Unity<colorPoint>* cpoint){
   of << "end_header\n";
   // start writing the values
   for (int i = 0; i < cpoint->size(); i++){
-    of << std::fixed << cpoint->host[i].x << " " << cpoint->host[i].y << " " << cpoint->host[i].z << " " << (unsigned int) cpoint->host[i].r << " " << (unsigned int) cpoint->host[i].g << " " << (unsigned int) cpoint->host[i].b << "\n";
+    of << std::fixed << std::setprecision(12) << cpoint->host[i].x << " " << cpoint->host[i].y << " " << cpoint->host[i].z << " " << (unsigned int) cpoint->host[i].r << " " << (unsigned int) cpoint->host[i].g << " " << (unsigned int) cpoint->host[i].b << "\n";
   }
   of.close(); // done with the file building
 }

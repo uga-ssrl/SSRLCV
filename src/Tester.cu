@@ -213,8 +213,8 @@ int main(int argc, char *argv[]){
       cpoints[i].x = test_points->host[i - 2*bundleSet.bundles->size() - 2].x;
       cpoints[i].y = test_points->host[i - 2*bundleSet.bundles->size() - 2].y;
       cpoints[i].z = test_points->host[i - 2*bundleSet.bundles->size() - 2].z;
-      cpoints[i].r = 100;
-      cpoints[i].g = 30;
+      cpoints[i].r = 0;
+      cpoints[i].g = 32;
       cpoints[i].b = 255;
     }
     // now save it
