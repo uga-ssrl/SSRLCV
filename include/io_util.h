@@ -240,8 +240,20 @@ struct arg
   * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
   * \see Unity
   */
-  void writePLY(std::string filename, colorPoint* cpoint, size_t size);
+  void writePLY(std::string filename, colorPoint* cpoint, int size);
 
+  /**
+  * \brief Will write a ply file based on a set of float3 values with rgb color
+  * \details This method will write a ply in the specified location and can
+  * be written in binary or ASCII format.
+  * \param filePath - c++ string, rather than a c string
+  * \param cpoint - a colored float3 point
+  * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
+  * \see Unity
+  */
+  void writePLY(const char* filePath, colorPoint* cpoint, int size);
+
+  
   /*
   CSV and Misc Debug IO
   */

@@ -456,6 +456,19 @@ void ssrlcv::writeJPEG(const char* filePath, unsigned char* image, const unsigne
 }
 
 
+  /**
+ * Replaces the file's extension with .bcp (binary camera parameters)
+ * @return NEW std::string with the resultant file path
+ */
+std::string getImageMetaName(std::string imgpath)
+{
+  for(std::string::iterator it = imgpath.end(); it != imgpath.begin(); it--) {
+    if(*it == '.') return std::string(imgpath.replace(it, imgpath.end(), ".bcp"));
+  }
+  return std::string();
+}
+
+
 /**
  * Reads the binary
  *
@@ -471,6 +484,8 @@ bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out)
     std::cerr << "Couldn't open " << path << std::endl;
     return false;
   }
+
+
 
 
   // Reading the file - for now, the official spec of this format is the layout of the struct bcpFormat,
@@ -588,9 +603,27 @@ void ssrlcv::writePLY(std::string filename, Unity<float3>* points, bool binary){
 }
 
 // colored PLY writing
-void writePLY(std::string filename, colorPoint* cpoint, size_t size){
-  ofstream of;
-  of.open ("out/" + filename ".ply");
+void ssrlcv::writePLY(std::string filename, colorPoint* cpoint, int size){
+  std::ofstream of;
+  of.open ("out/" + filename + ".ply");
+  of << "format ascii 1.0\n";
+  of << "comment author: Caleb Adams & Jackson Parker\n";
+  of << "comment SSRL CV color PLY writer\n";
+  of << "element vertex " << size << "\n";
+  of << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n"; // the elements in the guy
+  of << "end_header\n";
+  // start writing the values
+  for (int i = 0; i < size; i++){
+    of << cpoint[i].x << " " << cpoint[i].y << " " << cpoint[i].z << " " << cpoint[i].r << " " << cpoint[i].g << " " << cpoint[i].b << "\n";
+  }
+  of.close(); // done with the file building
+}
+
+// colored PLY writing
+void ssrlcv::writePLY(const char* filePath, colorPoint* cpoint, int size){
+  std::string filename = filePath;
+  std::ofstream of;
+  of.open ("out/" + filename + ".ply");
   of << "format ascii 1.0\n";
   of << "comment author: Caleb Adams & Jackson Parker\n";
   of << "comment SSRL CV color PLY writer\n";
@@ -639,18 +672,6 @@ void ssrlcv::writeCSV(std::vector<float> v, std::string filename){
 //
 // Binary files - Gitlab #58
 //
-
-/**
- * Replaces the file's extension with .bcp (binary camera parameters)
- * @return NEW std::string with the resultant file path
- */
-std::string getImageMetaName(std::string imgpath)
-{
-  for(std::string::iterator it = imgpath.end(); it != imgpath.begin(); it--) {
-    if(*it == '.') return std::string(imgpath.replace(it, imgpath.end(), ".bcp"));
-  }
-  return std::string();
-}
 
 
 
