@@ -35,8 +35,8 @@ single = [[0.0,0.0,0.0]]
 origin = [0.0,0.0,0.0]
 foc    = 0.000025
 fov    = radians(10)
-alt    = -20.0 # in meters
-res    = 1024 # pixels
+alt    = -1.0 # in meters
+res    = 2 # pixels
 # cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov.x / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
 dpix   = (foc*tan(fov/2))/(res/2)
 
@@ -115,7 +115,8 @@ print 'computing projections...'
 matches = []
 
 #for point in cube_points:
-for point in line_points:
+# for point in line_points:
+for point in single:
     if (verbose):
         print 'Camera 1:'
     match = []
@@ -145,7 +146,7 @@ for point in line_points:
     #
     # now rotate the point and do it again
     #print point
-    point = rotate_points_x(point[0],point[1],point[2],radians(-to_rotate))
+    point = rotate_points_x(point[0],point[1],point[2],radians(to_rotate))
     #print point
     # compute vectors for each point pair:
     v_x = point[0] - camera[0]
@@ -215,7 +216,7 @@ print 'images_vec[0]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]
 print 'images_vec[0]->camera.cam_rot = {0.0, 0.0, 0.0};'
 print 'images_vec[0]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
 print 'images_vec[0]->camera.foc = ' + str('{0:.10f}'.format(foc)) + ';'
-rotate_camera_x(radians(to_rotate))
+rotate_camera_x(radians(-1.0 * to_rotate))
 # rotate_camera_x(radians(to_rotate))
 print 'images_vec[1]->id = 1;'
 print 'images_vec[1]->camera.size = {' + str(res) + ',' + str(res) + '};'
