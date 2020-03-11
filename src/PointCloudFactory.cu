@@ -1176,8 +1176,8 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* lin
   float3 s2 = L2.pnt + (numer2/denom2) * L2.vec;
   float3 point = (s1 + s2)/2.0;
 
-  printf("(%f, %f, %f)\n",s1.x,s1.y,s1.z);
-  printf("(%f, %f, %f)\n",s2.x,s2.y,s2.z);
+  printf("S1 (%f, %f, %f)\n",s1.x,s1.y,s1.z);
+  printf("S2 (%f, %f, %f)\n",s2.x,s2.y,s2.z);
 
   // fill in the value for the point cloud
   pointcloud[globalID] = point;

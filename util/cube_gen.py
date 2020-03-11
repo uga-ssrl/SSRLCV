@@ -33,8 +33,8 @@ line_points = [[-1.0, -1.0, -1.0], # 0
 single = [[0.0,0.0,0.0]]
 
 origin = [0.0,0.0,0.0]
-foc    = 0.25
-fov    = radians(15)
+foc    = 0.000025
+fov    = radians(10)
 alt    = -20.0 # in meters
 res    = 1024 # pixels
 # cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov.x / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
@@ -207,14 +207,14 @@ print ''
 ### cameras
 #############################
 
-print 'For Copy Past into Tester: \n'
+print 'For Copy Paste into Tester: \n'
 print 'images_vec[0]->id = 0;'
 print 'images_vec[0]->camera.size = {' + str(res) + ',' + str(res) + '};'
 print 'images_vec[0]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
 # print 'images_vec[0]->camera.cam_rot = {' + str(radians(180)) + ', 0.0, 0.0};'
 print 'images_vec[0]->camera.cam_rot = {0.0, 0.0, 0.0};'
 print 'images_vec[0]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
-print 'images_vec[0]->camera.foc = ' + str(foc) + ';'
+print 'images_vec[0]->camera.foc = ' + str('{0:.10f}'.format(foc)) + ';'
 rotate_camera_x(radians(to_rotate))
 # rotate_camera_x(radians(to_rotate))
 print 'images_vec[1]->id = 1;'
@@ -223,7 +223,7 @@ print 'images_vec[1]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]
 # print 'images_vec[1]->camera.cam_rot = {' + str(radians(180 + to_rotate)) + ', 0.0, 0.0};'
 print 'images_vec[1]->camera.cam_rot = {' + str(radians(to_rotate)) + ', 0.0, 0.0};'
 print 'images_vec[1]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
-print 'images_vec[1]->camera.foc = ' + str(foc) + ';'
+print 'images_vec[1]->camera.foc = ' + str('{0:.10f}'.format(foc)) + ';'
 
 
 # f = open('cameras.txt', 'w')
