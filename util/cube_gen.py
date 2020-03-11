@@ -33,7 +33,7 @@ line_points = [[-1.0, -1.0, -1.0], # 0
 origin = [0.0,0.0,0.0]
 foc    = 0.25
 fov    = pi / 8
-alt    = 20.0 # in meters
+alt    = -20.0 # in meters
 res    = 1024 # pixels
 # cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov.x / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
 dpix   = (foc*tan(fov/2))/(res/2)
@@ -51,7 +51,7 @@ print '<========================>'
 # we choose to rotate in the x/y-plane!
 # based on carl_rot_cameras.txt convention
 camera = [0.0,0.0,alt]
-plane  = [0.0,0.0,alt-foc]
+plane  = [0.0,0.0,alt+foc]
 
 # the degrees to rotates
 to_rotate = 10;
@@ -122,7 +122,7 @@ for point in line_points:
     v_y = point[1] - camera[1]
     v_z = point[2] - camera[2]
     # compute the parametric variable's intersection with the y-plane
-    t = ((alt-foc) - point[2])/v_z
+    t = ((alt+foc) - point[2])/v_z
     # compute the points!
     x = v_x * t + point[0]
     y = v_y * t + point[1] # redundant, just for readability
@@ -150,7 +150,7 @@ for point in line_points:
     v_y = point[1] - camera[1]
     v_z = point[2] - camera[2]
     # compute the parametric variable's intersection with the y-plane
-    t = ((alt-foc) - point[2])/v_z
+    t = ((alt+foc) - point[2])/v_z
     # compute the points!
     x = v_x * t + point[0]
     y = v_y * t + point[1] # redundant, just for readability
@@ -209,7 +209,8 @@ print 'For Copy Past into Tester: \n'
 print 'images_vec[0]->id = 0;'
 print 'images_vec[0]->camera.size = {' + str(res) + ',' + str(res) + '};'
 print 'images_vec[0]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
-print 'images_vec[0]->camera.cam_rot = {' + str(radians(180)) + ', 0.0, 0.0};'
+# print 'images_vec[0]->camera.cam_rot = {' + str(radians(180)) + ', 0.0, 0.0};'
+print 'images_vec[0]->camera.cam_rot = {0.0, 0.0, 0.0};'
 print 'images_vec[0]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
 print 'images_vec[0]->camera.foc = ' + str(foc) + ';'
 rotate_camera_x(radians(to_rotate))
@@ -217,7 +218,8 @@ rotate_camera_x(radians(to_rotate))
 print 'images_vec[1]->id = 1;'
 print 'images_vec[1]->camera.size = {' + str(res) + ',' + str(res) + '};'
 print 'images_vec[1]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
-print 'images_vec[1]->camera.cam_rot = {' + str(radians(180 + to_rotate)) + ', 0.0, 0.0};'
+# print 'images_vec[1]->camera.cam_rot = {' + str(radians(180 + to_rotate)) + ', 0.0, 0.0};'
+print 'images_vec[1]->camera.cam_rot = {' + str(radians(to_rotate)) + ', 0.0, 0.0};'
 print 'images_vec[1]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
 print 'images_vec[1]->camera.foc = ' + str(foc) + ';'
 
