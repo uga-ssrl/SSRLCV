@@ -606,7 +606,7 @@ void ssrlcv::writePLY(std::string filename, Unity<float3>* points, bool binary){
 void ssrlcv::writePLY(std::string filename, colorPoint* cpoint, int size){
   std::ofstream of;
   of.open ("out/" + filename + ".ply");
-  of << "format ascii 1.0\n";
+  of << "ply\nformat ascii 1.0\n";
   of << "comment author: Caleb Adams & Jackson Parker\n";
   of << "comment SSRL CV color PLY writer\n";
   of << "element vertex " << size << "\n";
@@ -624,7 +624,7 @@ void ssrlcv::writePLY(const char* filePath, colorPoint* cpoint, int size){
   std::string filename = filePath;
   std::ofstream of;
   of.open ("out/" + filename + ".ply");
-  of << "format ascii 1.0\n";
+  of << "ply\nformat ascii 1.0\n";
   of << "comment author: Caleb Adams & Jackson Parker\n";
   of << "comment SSRL CV color PLY writer\n";
   of << "element vertex " << size << "\n";
@@ -632,7 +632,7 @@ void ssrlcv::writePLY(const char* filePath, colorPoint* cpoint, int size){
   of << "end_header\n";
   // start writing the values
   for (int i = 0; i < size; i++){
-    of << cpoint[i].x << " " << cpoint[i].y << " " << cpoint[i].z << " " << cpoint[i].r << " " << cpoint[i].g << " " << cpoint[i].b << "\n";
+    of << std::fixed << cpoint[i].x << " " << cpoint[i].y << " " << cpoint[i].z << " " << (unsigned int) cpoint[i].r << " " << (unsigned int) cpoint[i].g << " " << (unsigned int) cpoint[i].b << "\n";
   }
   of.close(); // done with the file building
 }

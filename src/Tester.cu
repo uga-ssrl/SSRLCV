@@ -160,7 +160,12 @@ int main(int argc, char *argv[]){
     struct colorPoint* cpoints = (colorPoint*)  malloc(colorPoint_size * sizeof(struct colorPoint));
     for (int k = 0; k < colorPoint_size; k++){
       //cpoints[k] = {(float) k,1.0,1.0,0,255,32};
-      cpoints[k].x = 1.0;
+      cpoints[k].x = (float) k;
+      cpoints[k].y = (float) 0.0;
+      cpoints[k].z = (float) 0.0;
+      cpoints[k].r = 0;
+      cpoints[k].g = 255;
+      cpoints[k].b = 32;
     }
     std::string fname = "colorPointTest";
     ssrlcv::writePLY("fuck", cpoints, colorPoint_size);
