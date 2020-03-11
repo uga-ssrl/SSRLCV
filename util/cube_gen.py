@@ -195,7 +195,7 @@ print 'For Copy Past into Tester: \n'
 print 'images_vec[0]->id = 0;'
 print 'images_vec[0]->camera.size = {' + str(res) + ',' + str(res) + '};'
 print 'images_vec[0]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
-print 'images_vec[0]->camera.cam_rot = {' + str(radians(90)) + ', 0.0, 0.0};'
+print 'images_vec[0]->camera.cam_rot = {' + str(radians(180)) + ', 0.0, 0.0};'
 print 'images_vec[0]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
 print 'images_vec[0]->camera.foc = ' + str(foc) + ';'
 rotate_camera_x(radians(to_rotate))
@@ -203,7 +203,7 @@ rotate_camera_x(radians(to_rotate))
 print 'images_vec[1]->id = 1;'
 print 'images_vec[1]->camera.size = {' + str(res) + ',' + str(res) + '};'
 print 'images_vec[1]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
-print 'images_vec[1]->camera.cam_rot = {' + str(radians(90 + to_rotate)) + ', 0.0, 0.0};'
+print 'images_vec[1]->camera.cam_rot = {' + str(radians(180 + to_rotate)) + ', 0.0, 0.0};'
 print 'images_vec[1]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
 print 'images_vec[1]->camera.foc = ' + str(foc) + ';'
 
