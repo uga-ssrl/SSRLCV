@@ -23,9 +23,9 @@ double1,2,3,4
 */
 
 struct colorPoint : float3 {
-  char r;
-  char b;
-  char g;
+  uchar r;
+  uchar b;
+  uchar g;
 };
 
 /**

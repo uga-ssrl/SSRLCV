@@ -455,55 +455,6 @@ void ssrlcv::writeJPEG(const char* filePath, unsigned char* image, const unsigne
   std::cout<<filePath<<" has been written"<<std::endl;
 }
 
-//
-// CSV and Misc Debug IO
-//
-
-/*
- * Takes in an array of floats and writes them to a CSV
- * @param values a set of float elements as a float array that are written in csv format on one line
- * @param num the number of elements in the float array
- * @param filename a string representing the desired filename of the csv output
- */
-void ssrlcv::writeCSV(float* values, int num, std::string filename){
-  std::ofstream outfile;
-  outfile.open("out/" + filename + ".csv");
-  // the stupid method of doing this would be to just write it all on the same line ... that's what I'm going to do!
-  // other overloaded versions of this method will handle more robust types of inputs and saving and so on.
-  for(int i = 0; i < num; i++) outfile << std::to_string(values[i]) << ",";
-  outfile.close();
-}
-
-/*
- * Takes in a c++ vector and prints it all on one line of a csv
- * @param v a vector of float guys
- * @param filename a string representing the desired filename of the csv output
- */
-void ssrlcv::writeCSV(std::vector<float> v, std::string filename){
-  std::ofstream outfile;
-  outfile.open("out/" + filename + ".csv");
-  for (int i = 0; i < v.size(); i++) outfile << v[i] << ",";
-  outfile.close();
-}
-
-
-//
-// Binary files - Gitlab #58
-//
-
-/**
- * Replaces the file's extension with .bcp (binary camera parameters)
- * @return NEW std::string with the resultant file path
- */
-std::string getImageMetaName(std::string imgpath)
-{
-  for(std::string::iterator it = imgpath.end(); it != imgpath.begin(); it--) {
-    if(*it == '.') return std::string(imgpath.replace(it, imgpath.end(), ".bcp"));
-  }
-  return std::string();
-}
-
-
 
 /**
  * Reads the binary
@@ -610,23 +561,96 @@ void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
   if(origin == gpu) points->setMemoryState(gpu);
 }
 
-// colored PLY writing
-void writePLY(const char* filePath, colorPoint* cpoint, size_t size, bool binary){
+void ssrlcv::writePLY(std::string filename, Unity<float3>* points, bool binary){
+  MemoryState origin = points->getMemoryState();
+  if(origin == gpu) points->transferMemoryTo(cpu);
   tinyply::PlyFile ply;
-  ply.get_comments().push_back("SSRL Color PLY");
-  ply.add_properties_to_element("vertex",{"x","y","z", "red", "green", "blue"},tinyply::Type::FLOAT32, size, reinterpret_cast<uint8_t*>(cpoint), tinyply::Type::INVALID, 0);
-  // currently never checks if binary
-  std::filebuf fb_ascii;
-  fb_ascii.open(filePath, std::ios::out);
-  std::ostream outstream_ascii(&fb_ascii);
-  if (outstream_ascii.fail()) throw std::runtime_error("failed to write ply");
-  ply.write(outstream_ascii, false);
-  std::cout << filePath << " has successfully been written" << std::endl;
+  ply.get_comments().push_back("SSRL Test");
+  ply.add_properties_to_element("vertex",{"x","y","z"},tinyply::Type::FLOAT32, points->size(), reinterpret_cast<uint8_t*>(points->host), tinyply::Type::INVALID, 0);
+
+  std::filebuf fb_binary;
+  if(binary){
+    fb_binary.open(filename.c_str(), std::ios::out | std::ios::binary);
+    std::ostream outstream_binary(&fb_binary);
+    if (outstream_binary.fail()) throw std::runtime_error("failed to write ply");
+    ply.write(outstream_binary, true);
+  }
+  else{
+    std::filebuf fb_ascii;
+  	fb_ascii.open(filename.c_str(), std::ios::out);
+  	std::ostream outstream_ascii(&fb_ascii);
+  	if (outstream_ascii.fail()) throw std::runtime_error("failed to write ply");
+    ply.write(outstream_ascii, false);
+  }
+  std::cout << filename.c_str() << " has successfully been written" << std::endl;
+
+  if(origin == gpu) points->setMemoryState(gpu);
+}
+
+// colored PLY writing
+void writePLY(std::string filename, colorPoint* cpoint, size_t size){
+  ofstream of;
+  of.open ("out/" + filename ".ply");
+  of << "format ascii 1.0\n";
+  of << "comment author: Caleb Adams & Jackson Parker\n";
+  of << "comment SSRL CV color PLY writer\n";
+  of << "element vertex " << size << "\n";
+  of << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n"; // the elements in the guy
+  of << "end_header\n";
+  // start writing the values
+  for (int i = 0; i < size; i++){
+    of << cpoint[i].x << " " << cpoint[i].y << " " << cpoint[i].z << " " << cpoint[i].r << " " << cpoint[i].g << " " << cpoint[i].b << "\n";
+  }
+  of.close(); // done with the file building
 }
 
 
+//
+// CSV and Misc Debug IO
+//
 
+/*
+ * Takes in an array of floats and writes them to a CSV
+ * @param values a set of float elements as a float array that are written in csv format on one line
+ * @param num the number of elements in the float array
+ * @param filename a string representing the desired filename of the csv output
+ */
+void ssrlcv::writeCSV(float* values, int num, std::string filename){
+  std::ofstream outfile;
+  outfile.open("out/" + filename + ".csv");
+  // the stupid method of doing this would be to just write it all on the same line ... that's what I'm going to do!
+  // other overloaded versions of this method will handle more robust types of inputs and saving and so on.
+  for(int i = 0; i < num; i++) outfile << std::to_string(values[i]) << ",";
+  outfile.close();
+}
 
+/*
+ * Takes in a c++ vector and prints it all on one line of a csv
+ * @param v a vector of float guys
+ * @param filename a string representing the desired filename of the csv output
+ */
+void ssrlcv::writeCSV(std::vector<float> v, std::string filename){
+  std::ofstream outfile;
+  outfile.open("out/" + filename + ".csv");
+  for (int i = 0; i < v.size(); i++) outfile << v[i] << ",";
+  outfile.close();
+}
+
+//
+// Binary files - Gitlab #58
+//
+
+/**
+ * Replaces the file's extension with .bcp (binary camera parameters)
+ * @return NEW std::string with the resultant file path
+ */
+std::string getImageMetaName(std::string imgpath)
+{
+  for(std::string::iterator it = imgpath.end(); it != imgpath.begin(); it--) {
+    if(*it == '.') return std::string(imgpath.replace(it, imgpath.end(), ".bcp"));
+  }
+  return std::string();
+}
 
 
 

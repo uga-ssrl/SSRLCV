@@ -155,6 +155,13 @@ int main(int argc, char *argv[]){
 
     ssrlcv::writePLY("out/test_points.ply",test_points);
 
+    // a test of the new PLY writer
+    struct colorPoint* cpoints =  (colorPoint*) malloc(sizeof(10 * struct colorPoint));
+    for (int k = 0; k < 10; k++){
+      cpoints[k] = {k,k/2,k/4,0,255,32};
+    }
+    ssrlcv::writePLY("colorPointTest", cpoints, (size_t) 10);
+
     std::cout << "Cube Points: " << std::endl;
     for (int i = 0; i < test_points->size(); i++){
       std::cout << "\t(" << test_points->host[i].x << "," << test_points->host[i].y << "," << test_points->host[i].z << ")" << std::endl;

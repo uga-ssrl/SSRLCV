@@ -221,15 +221,26 @@ struct arg
   void writePLY(const char* filePath, Unity<float3>* points, bool binary = false);
 
   /**
-  * \brief Will write a ply file based on a set of float3 values with rgb color
+  * \brief Will write a ply file based on a set of float3 values.
   * \details This method will write a ply in the specified location and can
   * be written in binary or ASCII format.
   * \param filePath - path where image will be written (<string>.c_str() is easiest way to use a string path)
+  * \param points - a Unity<float3>* where the points are listed
+  * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
+  * \see Unity
+  */
+  void writePLY(std::string filename, Unity<float3>* points, bool binary = false);
+
+  /**
+  * \brief Will write a ply file based on a set of float3 values with rgb color
+  * \details This method will write a ply in the specified location and can
+  * be written in binary or ASCII format.
+  * \param filePath - c++ string, rather than a c string
   * \param cpoint - a colored float3 point
   * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
   * \see Unity
   */
-  void writePLY(const char* filePath, colorPoint* cpoint, size_t size, bool binary = false);
+  void writePLY(std::string filename, colorPoint* cpoint, size_t size);
 
   /*
   CSV and Misc Debug IO
