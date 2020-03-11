@@ -19,7 +19,7 @@ cube_points = [[ -1.0,  1.0, -1.0], # 0 A
 origin = [0.0,0.0,0.0]
 foc    = 0.25
 fov    = pi / 8
-alt    = 4.0 # in meters
+alt    = 400.0 # in meters
 res    = 1024 # pixels
 dpix   = (foc*tan(fov/2))/(res/2)
 
@@ -161,6 +161,8 @@ for match in matches:
 print 'For Copy Paste into Tester: '
 match_num = 0
 for match in matches:
+    print 'matches->host[0].keyPoints[0].parentId = 0;'
+    print 'matches->host[0].keyPoints[1].parentId = 1;'
     print 'matches->host[' + str(match_num) + '].keyPoints[0].loc = {' + str(match[0][0]) + ',' + str(match[0][1]) + '};'
     print 'matches->host[' + str(match_num) + '].keyPoints[1].loc = {' + str(match[1][0]) + ',' + str(match[1][1]) + '};'
     match_num += 1
