@@ -14,13 +14,15 @@ cube_points = [[ -1.0,  1.0, -1.0], # 0 A
                [ -1.0,  1.0,  1.0], # 4 E
                [  1.0,  1.0,  1.0], # 5 F
                [  1.0, -1.0,  1.0], # 6 G
-               [ -1.0, -1.0,  1.0]] # 7 H
+               [ -1.0, -1.0,  1.0], # 7 H
+               [  0.0,  0.0,  0.0]] # 8 Origin Test Point
 
 origin = [0.0,0.0,0.0]
 foc    = 0.25
 fov    = pi / 8
 alt    = 8.0 # in meters
 res    = 1024 # pixels
+# cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov.x / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
 dpix   = (foc*tan(fov/2))/(res/2)
 
 print '      CONFIGURATION:'
@@ -98,7 +100,8 @@ print 'computing projections...'
 matches = []
 
 for point in cube_points:
-    print 'Camera 1:'
+    if (verbose):
+        print 'Camera 1:'
     match = []
     # compute vectors for each point pair:
     v_x = point[0] - camera[0]
@@ -121,7 +124,8 @@ for point in cube_points:
     #
     match.append([x,y,z])
 
-    print 'Camera 2:'
+    if (verbose):
+        print 'Camera 2:'
     #
     # now rotate the point and do it again
     #print point
