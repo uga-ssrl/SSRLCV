@@ -177,37 +177,39 @@ int main(int argc, char *argv[]){
     }
 
     // test output of all the boiz
-    ssrlcv::Unity<colorPoint>* cpoints = new ssrlcv::Unity<float>(nullptr, bundleSet.bundles->size() + test_points->size() + 2,ssrlcv::cpu);
+    // ssrlcv::Unity<colorPoint>* cpoints = new ssrlcv::Unity<float>(nullptr, bundleSet.bundles->size() + test_points->size() + 2,ssrlcv::cpu);
+    int colorPoint_size = test_points->size() + bundleSet.bundles->size() + 2;
+    struct colorPoint* cpoints = (colorPoint*)  malloc(colorPoint_size * sizeof(struct colorPoint));
     // fill in the camera points
-    cpoints->host[0].x = images_vec[0]->camera.cam_pos.x;
-    cpoints->host[0].y = images_vec[0]->camera.cam_pos.y;
-    cpoints->host[0].z = images_vec[0]->camera.cam_pos.z;
-    cpoints->host[0].r = 255;
-    cpoints->host[0].g = 32;
-    cpoints->host[0].b = 32;
-    cpoints->host[1].x = images_vec[1]->camera.cam_pos.x;
-    cpoints->host[1].y = images_vec[1]->camera.cam_pos.y;
-    cpoints->host[1].z = images_vec[1]->camera.cam_pos.z;
-    cpoints->host[1].r = 255;
-    cpoints->host[1].g = 32;
-    cpoints->host[1].b = 32;
+    cpoints[0].x = images_vec[0]->camera.cam_pos.x;
+    cpoints[0].y = images_vec[0]->camera.cam_pos.y;
+    cpoints[0].z = images_vec[0]->camera.cam_pos.z;
+    cpoints[0].r = 255;
+    cpoints[0].g = 32;
+    cpoints[0].b = 32;
+    cpoints[1].x = images_vec[1]->camera.cam_pos.x;
+    cpoints[1].y = images_vec[1]->camera.cam_pos.y;
+    cpoints[1].z = images_vec[1]->camera.cam_pos.z;
+    cpoints[1].r = 255;
+    cpoints[1].g = 32;
+    cpoints[1].b = 32;
     // fill in the first bundles
-    for (int i = 2; i < bundleSet->size() + 2; i++){
-      cpoints->host[i].x = bundleSet.lines->host[i - 2].pnt.x;
-      cpoints->host[i].y = bundleSet.lines->host[i - 2].pnt.y;
-      cpoints->host[i].z = bundleSet.lines->host[i - 2].pnt.z;
-      cpoints->host[i].r = 0;
-      cpoints->host[i].g = 255;
-      cpoints->host[i].b = 10;
+    for (int i = 2; i < bundleSet.bundles->size() + 2; i++){
+      cpoints[i].x = bundleSet.lines->host[i - 2].pnt.x;
+      cpoints[i].y = bundleSet.lines->host[i - 2].pnt.y;
+      cpoints[i].z = bundleSet.lines->host[i - 2].pnt.z;
+      cpoints[i].r = 0;
+      cpoints[i].g = 255;
+      cpoints[i].b = 10;
     }
     // fill in the point cloud
-    for (int i = bundleSet->size() + 2; i < test_points->size() + bundleSet->size() + 2; i++){
-      cpoints->host[i].x = test_points.lines->host[i - 3*matchSet.matches->size()].pnt.x;
-      cpoints->host[i].y = test_points.lines->host[i - 3*matchSet.matches->size()].pnt.y;
-      cpoints->host[i].z = test_points.lines->host[i - 3*matchSet.matches->size()].pnt.z;
-      cpoints->host[i].r = 100;
-      cpoints->host[i].g = 30;
-      cpoints->host[i].b = 255;
+    for (int i = bundleSet.bundles->size() + 2; i < test_points->size() + bundleSet.bundles->size() + 2; i++){
+      cpoints[i].x = test_points->host[i - bundleSet.bundles->size() - 2].x;
+      cpoints[i].y = test_points->host[i - bundleSet.bundles->size() - 2].y;
+      cpoints[i].z = test_points->host[i - bundleSet.bundles->size() - 2].z;
+      cpoints[i].r = 100;
+      cpoints[i].g = 30;
+      cpoints[i].b = 255;
     }
     // now save it
     ssrlcv::writePLY("cubeTest", cpoints, colorPoint_size);
