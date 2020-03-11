@@ -1,4 +1,4 @@
-/** 
+/**
 * \file cuda_vec_util.cuh
 * \brief This file contains operator overloads and utility functions for cuda built in vectors.
 */
@@ -22,6 +22,11 @@ float1,2,3,4
 double1,2,3,4
 */
 
+struct colorPoint : float3 {
+  char r;
+  char b;
+  char g;
+};
 
 /**
 * \ingroup cuda_util
@@ -447,7 +452,7 @@ __device__ __host__ uint2 operator-(const uint2 &a, const uint2 &b);
 __device__ __host__ uint2 operator*(const uint2 &a, const uint2 &b);
 __device__ __host__ uint2 operator/(const uint2 &a, const uint2 &b);
 /**
-* \} 
+* \}
 */
 
 /**

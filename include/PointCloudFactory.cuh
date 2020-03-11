@@ -45,16 +45,6 @@ namespace ssrlcv{
     Unity<Bundle>* bundles;
   };
 
-  /*
-   * \brief a colored point in R3
-   */
-  struct ColorPoint{
-    float3 pnt;
-    char r;
-    char g;
-    char b;
-  }
-
   /**
   * \brief This class contains methods to generate point clouds from a set of Match structs.
   * \param Array of Matches

@@ -229,7 +229,7 @@ struct arg
   * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
   * \see Unity
   */
-  void writePLY(const char* filePath, ssrlcv::ColorPoint* cpoint, size_t size, bool binary = false);
+  void writePLY(const char* filePath, colorPoint* cpoint, size_t size, bool binary = false);
 
   /*
   CSV and Misc Debug IO
