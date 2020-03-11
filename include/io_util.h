@@ -1,4 +1,4 @@
-/** 
+/**
 * \file io_util.h
 * \brief This file contains image io methods.
 */
@@ -13,7 +13,7 @@
 
 namespace ssrlcv{
   /**
-  * \defgroup file_io 
+  * \defgroup file_io
   * \{
   */
   /*
@@ -31,9 +31,9 @@ extern std::map<std::string, std::string> cl_args;
 void toLower(std::string &str);
 
 /**
-   * \brief Determines if a file path exists. 
-   * \details This method takes in an absolute path and 
-   * returns true if there is infact a file with that path. 
+   * \brief Determines if a file path exists.
+   * \details This method takes in an absolute path and
+   * returns true if there is infact a file with that path.
    * \param fileName - the absolute path to the file in question
    * \returns true if the path is a file, false otherwise
    */
@@ -76,7 +76,7 @@ void getImagePaths(std::string dirPath, std::vector<std::string> &imagePaths);
 void getFilePaths(std::string dirPath, std::vector<std::string> &paths, std::string extension = "all");
 
 /**
-   * \brief Base arg struct for arg parsing purposes. 
+   * \brief Base arg struct for arg parsing purposes.
    */
 struct arg
 {};
@@ -128,10 +128,10 @@ struct arg
   
   /**
   * \brief Get pixel array from a row of pointers generated from ssrlcv::readPNG utilizing png.h.
-  * \details This method is utilized by readPNG and writePNG for help in writing images. 
+  * \details This method is utilized by readPNG and writePNG for help in writing images.
   * \param row_pointers - pointers to rows of pixels in an image
   * \param width - width of image in pixels
-  * \param height - height of image in pixels 
+  * \param height - height of image in pixels
   * \param numValues - value to help with colorDepth determination
   * \returns a row-wise flattened pixel array
   */
@@ -139,8 +139,8 @@ struct arg
 
   /**
   * \brief Reads a png image and generates a pixel array.
-  * \details This method will read a PNG image utilizing libpng and fill in the passed-by-reference arguments 
-  * height, width and colorDepth. 
+  * \details This method will read a PNG image utilizing libpng and fill in the passed-by-reference arguments
+  * height, width and colorDepth.
   * \param filePath - const char* filePath for location of image (<string>.c_str() is easiest way to use a string path)
   * \param height - image height in pixels (reference argument that will be filled in during reading of image)
   * \param width - image width in pixels (reference argument that will be filled in during reading of image)
@@ -161,9 +161,9 @@ struct arg
   void writePNG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
 
   /**
-  * \brief Reads a tiff image and generates a pixel array. 
-  * \details This method will read a JPG/JPEG image utilizing libjpeg and fill in the passed-by-reference arguments 
-  * height, width and colorDepth. 
+  * \brief Reads a tiff image and generates a pixel array.
+  * \details This method will read a JPG/JPEG image utilizing libjpeg and fill in the passed-by-reference arguments
+  * height, width and colorDepth.
   * \param filePath - const char* filePath for location of image (<string>.c_str() is easiest way to use a string path)
   * \param height - image height in pixels (reference argument that will be filled in during reading of image)
   * \param width - image width in pixels (reference argument that will be filled in during reading of image)
@@ -182,8 +182,8 @@ struct arg
 
   /**
   * \brief Reads a jpeg image and generates a pixel array.
-  * \details This method will read a TIF/TIFF image utilizing libtiff and fill in the passed-by-reference arguments 
-  * height, width and colorDepth. 
+  * \details This method will read a TIF/TIFF image utilizing libtiff and fill in the passed-by-reference arguments
+  * height, width and colorDepth.
   * \param filePath - const char* filePath for location of image (<string>.c_str() is easiest way to use a string path)
   * \param height - image height in pixels (reference argument that will be filled in during reading of image)
   * \param width - image width in pixels (reference argument that will be filled in during reading of image)
@@ -238,7 +238,7 @@ struct arg
   //TODO make readPLY
   /**
   * \brief Will write a ply file based on a set of float3 values.
-  * \details This method will write a ply in the specified location and can 
+  * \details This method will write a ply in the specified location and can
   * be written in binary or ASCII format.
   * \param filePath - path where image will be written (<string>.c_str() is easiest way to use a string path)
   * \param points - a Unity<float3>* where the points are listed
@@ -247,6 +247,40 @@ struct arg
   */
   void writePLY(const char* filePath, Unity<float3>* points, bool binary = false);
 
+  /**
+  * \brief Will write a ply file based on a set of float3 values.
+  * \details This method will write a ply in the specified location and can
+  * be written in binary or ASCII format.
+  * \param filePath - path where image will be written (<string>.c_str() is easiest way to use a string path)
+  * \param points - a Unity<float3>* where the points are listed
+  * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
+  * \see Unity
+  */
+  void writePLY(std::string filename, Unity<float3>* points, bool binary = false);
+
+  /**
+  * \brief Will write a ply file based on a set of float3 values with rgb color
+  * \details This method will write a ply in the specified location and can
+  * be written in binary or ASCII format.
+  * \param filePath - c++ string, rather than a c string
+  * \param cpoint - a colored float3 point
+  * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
+  * \see Unity
+  */
+  void writePLY(std::string filename, colorPoint* cpoint, int size);
+
+  /**
+  * \brief Will write a ply file based on a set of float3 values with rgb color
+  * \details This method will write a ply in the specified location and can
+  * be written in binary or ASCII format.
+  * \param filePath - c++ string, rather than a c string
+  * \param cpoint - a colored float3 point
+  * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
+  * \see Unity
+  */
+  void writePLY(const char* filePath, colorPoint* cpoint, int size);
+
+  
   /*
   CSV and Misc Debug IO
   */
@@ -290,7 +324,7 @@ struct arg
 
 
 
-  /**\}*/ 
+  /**\}*/
 }
 
 #endif /* IO_UTIL_H */
