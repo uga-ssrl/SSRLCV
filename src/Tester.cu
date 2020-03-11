@@ -40,7 +40,7 @@ int main(int argc, char *argv[]){
     images[0]->camera.foc = 0.0000250000;
     images[1]->id = 1;
     images[1]->camera.size = {2,2};
-    images[1]->camera.cam_pos = {0.0,7.07106781187,-7.07106781187};
+    images[1]->camera.cam_pos = {0.0,-7.07106781187,-7.07106781187};
     images[1]->camera.cam_rot = {0.785398163397, 0.0, 0.0};
     images[1]->camera.fov = {0.174532925199,0.174532925199};
     images[1]->camera.foc = 0.0000250000;
@@ -52,32 +52,32 @@ int main(int argc, char *argv[]){
     ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 7, ssrlcv::cpu);
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[1].parentId = 1;
-    matches->host[0].keyPoints[0].loc = {1.0,1.0};
-    matches->host[0].keyPoints[1].loc = {1.0,2.35618529689};
+    matches->host[0].keyPoints[0].loc = {1.0,-0.714507845552};
+    matches->host[0].keyPoints[1].loc = {1.0,-0.356185296888};
     matches->host[1].keyPoints[0].parentId = 0;
     matches->host[1].keyPoints[1].parentId = 1;
-    matches->host[1].keyPoints[0].loc = {1.0,1.0};
-    matches->host[1].keyPoints[1].loc = {1.0,1.86972563904};
+    matches->host[1].keyPoints[0].loc = {1.0,-0.143005230334};
+    matches->host[1].keyPoints[1].loc = {1.0,0.13027436096};
     matches->host[2].keyPoints[0].parentId = 0;
     matches->host[2].keyPoints[1].parentId = 1;
-    matches->host[2].keyPoints[0].loc = {1.0,1.0};
-    matches->host[2].keyPoints[1].loc = {1.0,1.41892459576};
+    matches->host[2].keyPoints[0].loc = {1.0,0.428497384833};
+    matches->host[2].keyPoints[1].loc = {1.0,0.581075404237};
     matches->host[3].keyPoints[0].parentId = 0;
     matches->host[3].keyPoints[1].parentId = 1;
     matches->host[3].keyPoints[0].loc = {1.0,1.0};
     matches->host[3].keyPoints[1].loc = {1.0,1.0};
     matches->host[4].keyPoints[0].parentId = 0;
     matches->host[4].keyPoints[1].parentId = 1;
-    matches->host[4].keyPoints[0].loc = {1.0,1.0};
-    matches->host[4].keyPoints[1].loc = {1.0,0.609686298608};
+    matches->host[4].keyPoints[0].loc = {1.0,1.57150261517};
+    matches->host[4].keyPoints[1].loc = {1.0,1.39031370139};
     matches->host[5].keyPoints[0].parentId = 0;
     matches->host[5].keyPoints[1].parentId = 1;
-    matches->host[5].keyPoints[0].loc = {1.0,1.0};
-    matches->host[5].keyPoints[1].loc = {1.0,0.245149258494};
+    matches->host[5].keyPoints[0].loc = {1.0,2.14300523033};
+    matches->host[5].keyPoints[1].loc = {1.0,1.75485074151};
     matches->host[6].keyPoints[0].parentId = 0;
     matches->host[6].keyPoints[1].parentId = 1;
-    matches->host[6].keyPoints[0].loc = {1.0,1.0};
-    matches->host[6].keyPoints[1].loc = {1.0,-0.0960829689228};
+    matches->host[6].keyPoints[0].loc = {1.0,2.71450784555};
+    matches->host[6].keyPoints[1].loc = {1.0,2.09608296892};
 
     // ====================== END FOR MANUAL TESTING
 
@@ -245,9 +245,9 @@ int main(int argc, char *argv[]){
     // fill in the vectors
     for (int i = bundleSet.lines->size() + 2; i < 2*bundleSet.lines->size() + 2; i++) {
       std::cout << "bundle vector index: " << i - bundleSet.lines->size() - 2 << "\ti: " << i<< std::endl;
-      cpoints[i].x = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.x + bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.x;
-      cpoints[i].y = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.y + bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.y;
-      cpoints[i].z = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.z + bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.z;
+      cpoints[i].x = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.x - bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.x;
+      cpoints[i].y = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.y - bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.y;
+      cpoints[i].z = bundleSet.lines->host[i -  bundleSet.lines->size() - 2].pnt.z - bundleSet.lines->host[i -  bundleSet.lines->size() - 2].vec.z;
       cpoints[i].r = 30;
       cpoints[i].g = 10;
       cpoints[i].b = 127;
