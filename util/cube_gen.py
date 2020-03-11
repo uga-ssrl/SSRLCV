@@ -154,7 +154,7 @@ for point in y_points:
     #
     # now rotate the point and do it again
     #print point
-    point = rotate_points_x(point[0],point[1],point[2],radians(to_rotate))
+    point = rotate_points_x(point[0],point[1],point[2],radians(180 + to_rotate))
     #print point
     # compute vectors for each point pair:
     v_x = point[0] - camera[0]
@@ -221,8 +221,8 @@ print ''
 print 'For Copy Paste into Tester: \n'
 print 'images[0]->id = 0;'
 print 'images[0]->camera.size = {' + str(res) + ',' + str(res) + '};'
-print 'images[0]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
-# print 'images_vec[0]->camera.cam_rot = {' + str(radians(180)) + ', 0.0, 0.0};'
+# print 'images[0]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
+print 'images[0]->camera.cam_rot = {' + str(radians(180)) + ', 0.0, 0.0};'
 print 'images[0]->camera.cam_rot = {0.0, 0.0, 0.0};'
 print 'images[0]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
 print 'images[0]->camera.foc = ' + str('{0:.10f}'.format(foc)) + ';'
@@ -231,8 +231,8 @@ rotate_camera_x(radians(90 - to_rotate))
 print 'images[1]->id = 1;'
 print 'images[1]->camera.size = {' + str(res) + ',' + str(res) + '};'
 print 'images[1]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
-# print 'images_vec[1]->camera.cam_rot = {' + str(radians(180 + to_rotate)) + ', 0.0, 0.0};'
-print 'images[1]->camera.cam_rot = {' + str(radians(to_rotate)) + ', 0.0, 0.0};'
+# print 'images[1]->camera.cam_rot = {' + str(radians(180 + to_rotate)) + ', 0.0, 0.0};'
+print 'images[1]->camera.cam_rot = {' + str(radians(180 + to_rotate)) + ', 0.0, 0.0};'
 print 'images[1]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
 print 'images[1]->camera.foc = ' + str('{0:.10f}'.format(foc)) + ';'
 
