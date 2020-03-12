@@ -822,7 +822,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     //
     // calculate the step size if there was a step already taken
     //
-    if (i > 0){
+    if (i > 1){
       // previous x_n-1
       float x_0[18] = {
         images_prev[0]->camera.cam_rot.x,
@@ -908,9 +908,33 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         gradients[1].fov.y
       };
 
+      std::cout << "\tx_0: [ "
+      for (int k = 0; k < 18; k++){
+        std::cout << x_0[k] << ", ";
+      }
+      std::cout << "] " << std::endl;
+
+      std::cout << "\tx_1: [ "
+      for (int k = 0; k < 18; k++){
+        std::cout << x_1[k] << ", ";
+      }
+      std::cout << "] " << std::endl;
+
+      std::cout << "\tg_0: [ "
+      for (int k = 0; k < 18; k++){
+        std::cout << g_0[k] << ", ";
+      }
+      std::cout << "] " << std::endl;
+
+      std::cout << "\tg_1: [ "
+      for (int k = 0; k < 18; k++){
+        std::cout << g_1[k] << ", ";
+      }
+      std::cout << "] " << std::endl;
+
       std::cout << "calculating step size ..." << std::endl;
 
-      float sub_x[18] = {};
+      float sub_x[18];
       std::cout << "\t sub_x: [ ";
       for (int k = 0; k < 18; k++){
         sub_x[k] = x_1[k] - x_0[k];
@@ -918,7 +942,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       }
       std::cout << " ]" << std::endl;
 
-      float sub_g[18] = {};
+      float sub_g[18];
       float norm = 0.0f;
       std::cout << "\t sub_g: [ ";
       for (int k = 0; k < 18; k++){
@@ -930,8 +954,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       std::cout << " ]" << std::endl;
       std::cout << "\t norm: " << norm << std::endl;
 
-      float sub_g_norm[18] = {};
-      std::cout << "\t sub_g_norm: [ " << std::endl;
+      float sub_g_norm[18];
+      std::cout << "\t sub_g_norm: [ ";
       for (int k = 0; k < 18; k++){
         sub_g_norm[k] /= norm;
         std::cout << sub_g_norm[k] << ", ";
@@ -954,7 +978,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
       step = numer/denom;
       std::cout << "\tnew stepsize: " << step << std::endl;
-    }
+    } // end stepsize calculation
 
     //->camera
     // take a step down the hill!
