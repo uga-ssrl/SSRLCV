@@ -42,6 +42,11 @@ three_4_5_points = [[ 0.0, -3.0, 0.0],
                     [ 0.0,  0.0, 0.0],
                     [ 0.0,  3.0, 0.0]]
 
+square_points = [[ 1.0,  1.0,  0.0],
+                 [-1.0, -1.0,  0.0],
+                 [-1.0,  1.0,  0.0],
+                 [ 1.0, -1.0,  0.0]]
+
 single = [[0.0,0.0,0.0]]
 
 origin = [0.0,0.0,0.0]
@@ -135,7 +140,7 @@ matches = []
 
 #for point in cube_points:
 # for point in line_points:
-for point in cube_points:
+for point in single:
     if (verbose):
         print 'Camera 1:'
     match = []
@@ -205,8 +210,8 @@ match_num = 0
 for match in matches:
     print 'matches->host[' + str(match_num) + '].keyPoints[0].parentId = 0;'
     print 'matches->host[' + str(match_num) + '].keyPoints[1].parentId = 1;'
-    print 'matches->host[' + str(match_num) + '].keyPoints[0].loc = {' + str(match[0][1]) + ',' + str(match[0][1]) + '};'
-    print 'matches->host[' + str(match_num) + '].keyPoints[1].loc = {' + str(match[1][1]) + ',' + str(match[1][1]) + '};'
+    print 'matches->host[' + str(match_num) + '].keyPoints[0].loc = {' + str(match[0][0]) + ',' + str(match[0][1]) + '};'
+    print 'matches->host[' + str(match_num) + '].keyPoints[1].loc = {' + str(match[1][0]) + ',' + str(match[1][1]) + '};'
     match_num += 1
 print ''
 

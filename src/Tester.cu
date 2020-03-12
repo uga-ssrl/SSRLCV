@@ -75,44 +75,12 @@ int main(int argc, char *argv[]){
     // fill the test match points
     std::cout << "Filling in Matches ..." << std::endl;
 
-    ssrlcv::Match* matches_host = new ssrlcv::Match[9];
-    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 9, ssrlcv::cpu);
+    ssrlcv::Match* matches_host = new ssrlcv::Match[1];
+    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 1, ssrlcv::cpu);
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[1].parentId = 1;
-    matches->host[0].keyPoints[0].loc = {820.009830474,820.009830474};
-    matches->host[0].keyPoints[1].loc = {865.304333746,865.304333746};
-    matches->host[1].keyPoints[0].parentId = 0;
-    matches->host[1].keyPoints[1].parentId = 1;
-    matches->host[1].keyPoints[0].loc = {820.009830474,820.009830474};
-    matches->host[1].keyPoints[1].loc = {865.304333746,865.304333746};
-    matches->host[2].keyPoints[0].parentId = 0;
-    matches->host[2].keyPoints[1].parentId = 1;
-    matches->host[2].keyPoints[0].loc = {203.990169526,203.990169526};
-    matches->host[2].keyPoints[1].loc = {260.053698516,260.053698516};
-    matches->host[3].keyPoints[0].parentId = 0;
-    matches->host[3].keyPoints[1].parentId = 1;
-    matches->host[3].keyPoints[0].loc = {203.990169526,203.990169526};
-    matches->host[3].keyPoints[1].loc = {260.053698516,260.053698516};
-    matches->host[4].keyPoints[0].parentId = 0;
-    matches->host[4].keyPoints[1].parentId = 1;
-    matches->host[4].keyPoints[0].loc = {790.675560905,790.675560905};
-    matches->host[4].keyPoints[1].loc = {736.357455859,736.357455859};
-    matches->host[5].keyPoints[0].parentId = 0;
-    matches->host[5].keyPoints[1].parentId = 1;
-    matches->host[5].keyPoints[0].loc = {790.675560905,790.675560905};
-    matches->host[5].keyPoints[1].loc = {736.357455859,736.357455859};
-    matches->host[6].keyPoints[0].parentId = 0;
-    matches->host[6].keyPoints[1].parentId = 1;
-    matches->host[6].keyPoints[0].loc = {233.324439095,233.324439095};
-    matches->host[6].keyPoints[1].loc = {186.237254438,186.237254438};
-    matches->host[7].keyPoints[0].parentId = 0;
-    matches->host[7].keyPoints[1].parentId = 1;
-    matches->host[7].keyPoints[0].loc = {233.324439095,233.324439095};
-    matches->host[7].keyPoints[1].loc = {186.237254438,186.237254438};
-    matches->host[8].keyPoints[0].parentId = 0;
-    matches->host[8].keyPoints[1].parentId = 1;
-    matches->host[8].keyPoints[0].loc = {512.0,512.0};
-    matches->host[8].keyPoints[1].loc = {512.0,512.0};
+    matches->host[0].keyPoints[0].loc = {512.0,512.0};
+    matches->host[0].keyPoints[1].loc = {512.0,512.0};
 
     // ====================== END FOR MANUAL TESTING
 
