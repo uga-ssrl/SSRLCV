@@ -38,13 +38,17 @@ y_line_points = [[ 0.0, -1.5, 0.0 ], # 0
                 [ 0.0,  1.0, 0.0 ],
                 [ 0.0,  1.5, 0.0 ]] # 6
 
+three_4_5_points = [[ 0.0, -3.0, 0.0],
+                    [ 0.0,  0.0, 0.0],
+                    [ 0.0,  3.0, 0.0]]
+
 single = [[0.0,0.0,0.0]]
 
 origin = [0.0,0.0,0.0]
-foc    = 0.000025
-fov    = radians(10)
-alt    = -100.0 # in meters
-res    = 2 # pixels
+foc    = 0.16
+fov    = 0.19933754453 #radians(10)
+alt    = -4500 # in meters
+res    = 1024 # pixels
 # cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov.x / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
 dpix   = (foc*tan(fov/2))/(res/2)
 
@@ -64,7 +68,7 @@ camera = [0.0,0.0,alt]
 plane  = [0.0,0.0,alt+foc]
 
 # the degrees to rotates
-to_rotate = 90;
+to_rotate = 10;
 
 # the final guy
 raw_match_set = []
