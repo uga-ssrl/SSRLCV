@@ -33,33 +33,6 @@ int main(int argc, char *argv[]){
     // fill the test camera params
     std::cout << "Filling in Test Camera Params ..." << std::endl;
 
-    // ===== IF loading real image stuff
-
-
-    std::map<std::string,ssrlcv::arg*> args = ssrlcv::parseArgs(argc,argv);
-    if(args.find("dir") == args.end()){
-      std::cerr<<"ERROR: SFM executable requires a directory of images"<<std::endl;
-      exit(-1);
-    }
-
-    std::vector<std::string> imagePaths = ((ssrlcv::img_dir_arg*)args["dir"])->paths;
-    int numImages = (int) imagePaths.size();
-    std::cout<<"found "<<numImages<<" in directory given"<<std::endl;
-
-    std::vector<ssrlcv::Image*> images;
-    std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
-    for(int i = 0; i < numImages; ++i){
-      ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
-      images.push_back(image);
-    }
-
-
-    //  X        Y      Z        rot_x    rot_y      rot_z    fov_x           fov_y         foc  dpix  dpix   time        x   y
-    // 781.417, 0.0,  4436.30,  0.0,  0.1745329252, 0.0,  0.19933754453,  0.19933754453,  0.16, 0.4,  0.4,  1580766557, 1024,1024,
-    // 0.0,     0.0,  4500.0,   0.0,  0.0,          0.0,  0.19933754453,  0.19933754453,  0.16, 0.4,  0.4,  1580766557, 1024,1024,
-
-
-
     images[0]->id = 0;
     images[0]->camera.size = {1024,1024};
     images[0]->camera.cam_pos = {0.000000000000,0.000000000000,-20.000000000000};

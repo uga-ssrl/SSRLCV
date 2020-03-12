@@ -314,6 +314,4 @@ __device__ float3 ssrlcv::rotatePointArbitrary(float3 point, float3 axis, float 
 
 
 
-
-
 // yeet

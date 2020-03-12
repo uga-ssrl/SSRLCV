@@ -485,13 +485,24 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   *linearError_partial = 0.0;
   // the cutoff
   float* linearErrorCutoff = (float*) malloc(sizeof(float));
-  *linearErrorCutoff = 9001.0;
+  *linearErrorCutoff = 900100.0;
   // make the temporary image struct
   std::vector<ssrlcv::Image*> partials;
   partials.push_back(images[0]);
   partials.push_back(images[1]);
+  // previous image information
+  std::vector<ssrlcv::Image*> images_prev;
+  partials.push_back(images[0]);
+  partials.push_back(images[1]);
   // used to store the gradients in the camera
   std::vector<ssrlcv::Image::Camera> gradients;
+  ssrlcv::Image::Camera g_1 = ssrlcv::Image::Camera();
+  ssrlcv::Image::Camera g_2 = ssrlcv::Image::Camera();
+  gradients.push_back(g_1);
+  gradients.push_back(g_2);
+
+  // used to store the gradients in the camera
+  std::vector<ssrlcv::Image::Camera> gradients_prev;
   ssrlcv::Image::Camera g_1 = ssrlcv::Image::Camera();
   ssrlcv::Image::Camera g_2 = ssrlcv::Image::Camera();
   gradients.push_back(g_1);
@@ -511,18 +522,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // for printing out data about iterations and shit later
   std::vector<float> errorTracker;
 
-  int i = 1;
-  while(i < 200){
-  // while(*linearError > (100000.0)*matchSet->matches->numElements){
-    // generate the bundle set
-    bundleSet = generateBundles(matchSet,images);
-
-    // do an initial triangulation
-    errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
-
-    // for filtering
-    points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
-
+  // TODO make statistical filtering its own method
+  /*
     // // the assumption is that choosing every 10 indexes is random enough
     // // https://en.wikipedia.org/wiki/Variance#Sample_variance
     // size_t sample_size = (int) (errors->size() - (errors->size()%10))/10; // make sure divisible by 10 always
@@ -554,7 +555,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // int bad_bundles = 0;
     // for (int k = 0; k < bundleSet.bundles->size(); k++){
     //   if (bundleSet.bundles->host[k].invalid){
-	  //      bad_bundles++;
+    //      bad_bundles++;
     //   }
     // }
     // if (bad_bundles) std::cout << "Detected " << bad_bundles << " bad bundles to remove" << std::endl;
@@ -604,7 +605,27 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     //   std::cout << "\tsize of old keyPoints: " << tempMatchSet.keyPoints->size() << std::endl;
     //   std::cout << "\tsize of new keyPoints: " << matchSet->keyPoints->size() << std::endl;
     // }
+  */
 
+  // https://en.wikipedia.org/wiki/Gradient_descent#Description
+  int i = 1;
+  float min_step = 0.0000000001;
+  float h_rot = min_step;
+  float h_pos = min_step;
+  float h_foc = min_step;
+  float h_fov = min_step;
+  // the stepsize along the gradient
+  float step  = min_step;
+  while(i < 20){
+  // while(*linearError > (100000.0)*matchSet->matches->numElements){
+    // generate the bundle set
+    bundleSet = generateBundles(matchSet,images);
+
+    // do an initial triangulation
+    errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+
+    // for filtering
+    points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
 
     // do this only once
     if (i == 1) ssrlcv::writePLY("out/rawPoints.ply",points);
@@ -621,22 +642,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // a nice printout for the humans
     std::cout << std::fixed;
-    std::cout << std::setprecision(12);
+    std::cout << std::setprecision(16);
     // std::cout << "==============================================================" << std::endl;
     std::cout << "\n[itr: " << i << "] linear error: " << *linearError << std::endl;
     errorTracker.push_back(*linearError);
 
-    // what the step sizes should be tho:
-    // this is only for the "sensitivity" in those component directions
-    float min_step = 0.0000001;
-    float h_rot = min_step;
-    float h_pos = min_step;
-    float h_foc = min_step;
-    float h_fov = min_step;
-    // the stepsize along the gradient
-    float step  = min_step;
-
-    // calculate the descrete partial derivatives using forward difference
+    //
+    // Calculate the new gradient
+    //
     for (int j = 0; j < partials.size(); j++){
 
       // rotations
@@ -716,7 +729,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       partials[j]->camera.foc = images[j]->camera.foc + h_foc;
       // update dpix
       partials[j]->camera.dpix.x = (partials[j]->camera.foc * tanf(partials[j]->camera.fov.x / 2.0f)) / (partials[j]->camera.size.x / 2.0f );
-      partials[j]->camera.dpix.y = partials[j]->camera.dpix.x;
+      partials[j]->camera.dpix.y = (partials[j]->camera.foc * tanf(partials[j]->camera.fov.y / 2.0f)) / (partials[j]->camera.size.y / 2.0f );
       // get the error
       bundleSet_partial = generateBundles(matchSet,partials);
       voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
@@ -733,7 +746,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       partials[j]->camera.fov.x = images[j]->camera.fov.x + h_fov;
       // update dpix
       partials[j]->camera.dpix.x = (partials[j]->camera.foc * tanf(partials[j]->camera.fov.x / 2.0f)) / (partials[j]->camera.size.x / 2.0f );
-      partials[j]->camera.dpix.y = partials[j]->camera.dpix.x;
+      partials[j]->camera.dpix.y = (partials[j]->camera.foc * tanf(partials[j]->camera.fov.y / 2.0f)) / (partials[j]->camera.size.y / 2.0f );
       // get the error
       bundleSet_partial = generateBundles(matchSet,partials);
       voidTwoViewTriangulate(bundleSet_partial, linearError_partial, linearErrorCutoff);
@@ -748,7 +761,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       partials[j]->camera.fov.y = images[j]->camera.fov.y + h_fov;
       // update dpix
       partials[j]->camera.dpix.x = (partials[j]->camera.foc * tanf(partials[j]->camera.fov.x / 2.0f)) / (partials[j]->camera.size.x / 2.0f );
-      partials[j]->camera.dpix.y = partials[j]->camera.dpix.x;
+      partials[j]->camera.dpix.y = (partials[j]->camera.foc * tanf(partials[j]->camera.fov.y / 2.0f)) / (partials[j]->camera.size.y / 2.0f );
       // get the error
       bundleSet_partial = generateBundles(matchSet,partials);
       voidTwoViewTriangulate(bundleSet_partial, linearError_partial,linearErrorCutoff);
@@ -804,21 +817,176 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       }
     }
 
+    //
+    // calculate the step size if there was a step already taken
+    //
+    if (i > 0){
+      // previous x_n-1
+      float x_0[18] = {
+        images_prev[0].cam_rot.x,
+        images_prev[0].cam_rot.y,
+        images_prev[0].cam_rot.z,
+        images_prev[0].cam_pos.x,
+        images_prev[0].cam_pos.y,
+        images_prev[0].cam_pos.z,
+        images_prev[0].foc,
+        images_prev[0].fov.x,
+        images_prev[0].fov.y,
+        images_prev[1].cam_rot.x,
+        images_prev[1].cam_rot.y,
+        images_prev[1].cam_rot.z,
+        images_prev[1].cam_pos.x,
+        images_prev[1].cam_pos.y,
+        images_prev[1].cam_pos.z,
+        images_prev[1].foc,
+        images_prev[1].fov.x,
+        images_prev[1].fov.y
+      };
+      // current x_n
+      float x_1[18] = {
+        images[0].cam_rot.x,
+        images[0].cam_rot.y,
+        images[0].cam_rot.z,
+        images[0].cam_pos.x,
+        images[0].cam_pos.y,
+        images[0].cam_pos.z,
+        images[0].foc,
+        images[0].fov.x,
+        images[0].fov.y,
+        images[1].cam_rot.x,
+        images[1].cam_rot.y,
+        images[1].cam_rot.z,
+        images[1].cam_pos.x,
+        images[1].cam_pos.y,
+        images[1].cam_pos.z,
+        images[1].foc,
+        images[1].fov.x,
+        images[1].fov.y
+      };
+      // previous gradient
+      float g_0[18] = {
+        gradients_prev[0].cam_rot.x,
+        gradients_prev[0].cam_rot.y,
+        gradients_prev[0].cam_rot.z,
+        gradients_prev[0].cam_pos.x,
+        gradients_prev[0].cam_pos.y,
+        gradients_prev[0].cam_pos.z,
+        gradients_prev[0].foc,
+        gradients_prev[0].fov.x,
+        gradients_prev[0].fov.y,
+        gradients_prev[1].cam_rot.x,
+        gradients_prev[1].cam_rot.y,
+        gradients_prev[1].cam_rot.z,
+        gradients_prev[1].cam_pos.x,
+        gradients_prev[1].cam_pos.y,
+        gradients_prev[1].cam_pos.z,
+        gradients_prev[1].foc,
+        gradients_prev[1].fov.x,
+        gradients_prev[1].fov.y
+      };
+      // current gradient
+      float g_1[18] = {
+        gradients[0].cam_rot.x,
+        gradients[0].cam_rot.y,
+        gradients[0].cam_rot.z,
+        gradients[0].cam_pos.x,
+        gradients[0].cam_pos.y,
+        gradients[0].cam_pos.z,
+        gradients[0].foc,
+        gradients[0].fov.x,
+        gradients[0].fov.y,
+        gradients[1].cam_rot.x,
+        gradients[1].cam_rot.y,
+        gradients[1].cam_rot.z,
+        gradients[1].cam_pos.x,
+        gradients[1].cam_pos.y,
+        gradients[1].cam_pos.z,
+        gradients[1].foc,
+        gradients[1].fov.x,
+        gradients[1].fov.y
+      };
+      float sub_x[18] = {};
+      for (int k = 0; k < 18; k++){
+        sub_x[k] = x_1[k] - x_0[k];
+      }
+      float sub_g[18] = {};
+      float norm = 0.0f;
+      for (int k = 0; k < 18; k++){
+        sub_g[k] = g_1[k] - g_0[k];
+        norm += sub_g[k] * sub_g[k];
+      }
+      float norm = sqrtf(norm);
+      float sub_g_norm[18] = {};
+      for (int k = 0; k < 18; k++){
+        sub_g_norm[18] /= norm;
+      }
+      float denom = 0.0f;
+      for (int k = 0; k < 18; k++){
+        denom += sub_g_norm[k] * sub_g_norm[k];
+      }
+      //denom = sqrtf(denom);
+      numer = 0.0f;
+      for (int k = 0; k < 18; k ++){
+        numer += sub_x[k] * sub_g[k];
+      }
+      step = numer/denom;
+      std::cout << "new stepsize: " << step << std::endl;
+    }
+
+    //
     // take a step down the hill!
+    //
     for (int j = 0; j < images.size(); j++){
-      images[j]->camera.cam_rot.x += step * gradients[j].cam_rot.x;
-      images[j]->camera.cam_rot.y += step * gradients[j].cam_rot.y;
-      images[j]->camera.cam_rot.z += step * gradients[j].cam_rot.z;
-      images[j]->camera.cam_pos.x += step * gradients[j].cam_pos.x;
-      images[j]->camera.cam_pos.y += step * gradients[j].cam_pos.y;
-      images[j]->camera.cam_pos.z += step * gradients[j].cam_pos.z;
-      images[j]->camera.foc       += step * gradients[j].foc;
-      images[j]->camera.fov.x     += step * gradients[j].fov.x;
-      images[j]->camera.fov.y     += step * gradients[j].fov.y;
+
+      // set the previous here
+      images_prev[j]->camera.cam_rot.x = images[j].cam_rot.x;
+      images_prev[j]->camera.cam_rot.y = images[j].cam_rot.y;
+      images_prev[j]->camera.cam_rot.z = images[j].cam_rot.z;
+      images_prev[j]->camera.cam_pos.x = images[j].cam_pos.x;
+      images_prev[j]->camera.cam_pos.y = images[j].cam_pos.y;
+      images_prev[j]->camera.cam_pos.z = images[j].cam_pos.z;
+      images_prev[j]->camera.foc       = images[j].foc;
+      images_prev[j]->camera.fov.x     = images[j].fov.x;
+      images_prev[j]->camera.fov.y     = images[j].fov.y;
+      // update dpix
+      images_prev[j]->camera.dpix.x = images[j]->camera.dpix.x;
+      images_prev[j]->camera.dpix.y = images[j]->camera.dpix.y;
+
+      // take the gradient step here
+
+      images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - step * gradients[j].cam_rot.x; 
+      images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y - step * gradients[j].cam_rot.y;
+      images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z - step * gradients[j].cam_rot.z;
+      images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - step * gradients[j].cam_pos.x;
+      images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - step * gradients[j].cam_pos.y;
+      images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - step * gradients[j].cam_pos.z;
+      images[j]->camera.foc       = images[j]->camera.foc       - step * gradients[j].foc      ;
+      images[j]->camera.fov.x     = images[j]->camera.fov.x     - step * gradients[j].fov.x    ;
+      images[j]->camera.fov.y     = images[j]->camera.fov.y     - step * gradients[j].fov.y    ;
       // update dpix
       images[j]->camera.dpix.x = (images[j]->camera.foc * tanf(images[j]->camera.fov.x / 2.0f)) / (images[j]->camera.size.x / 2.0f );
       images[j]->camera.dpix.y = images[j]->camera.dpix.x;
     }
+
+    // set the old gradients
+    gradients_prev[0].cam_rot.x   = gradients[0].cam_rot.x;
+    gradients_prev[0].cam_rot.y   = gradients[0].cam_rot.y;
+    gradients_prev[0].cam_rot.z   = gradients[0].cam_rot.z;
+    gradients_prev[0].cam_pos.x,  = gradients[0].cam_pos.x;
+    gradients_prev[0].cam_pos.y   = gradients[0].cam_pos.y;
+    gradients_prev[0].cam_pos.z   = gradients[0].cam_pos.z;
+    gradients_prev[0].foc         = gradients[0].foc;
+    gradients_prev[0].fov.x       = gradients[0].fov.x;
+    gradients_prev[0].fov.y       = gradients[0].fov.y;
+    gradients_prev[1].cam_rot.x   = gradients[1].cam_rot.x;
+    gradients_prev[1].cam_rot.y   = gradients[1].cam_rot.y;
+    gradients_prev[1].cam_rot.z   = gradients[1].cam_rot.z;
+    gradients_prev[1].cam_pos.x   = gradients[1].cam_pos.x;
+    gradients_prev[1].cam_pos.y   = gradients[1].cam_pos.y;
+    gradients_prev[1].cam_pos.z   = gradients[1].cam_pos.z;
+    gradients_prev[1].foc         = gradients[1].foc;
+    gradients_prev[1].fov.x       = gradients[1].fov.x;
+    gradients_prev[1].fov.y       = gradients[1].fov.y;
 
     // yahboi
     i++;
