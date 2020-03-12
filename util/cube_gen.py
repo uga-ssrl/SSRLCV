@@ -46,8 +46,8 @@ single = [[0.0,0.0,0.0]]
 
 origin = [0.0,0.0,0.0]
 foc    = 0.16
-fov    = 0.19933754453 #radians(10)
-alt    = -4500 # in meters
+fov    = radians(10.0) #0.19933754453 #radians(10)
+alt    = -20 # in meters
 res    = 1024 # pixels
 # cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov.x / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
 dpix   = (foc*tan(fov/2))/(res/2)
@@ -90,14 +90,6 @@ def rotate_plane_z(r):
     plane[1] = sin(r)*x + cos(r)*y;
     plane[2] = z
 
-def rotate_camera_z(r):
-    x = camera[0]
-    y = camera[1]
-    z = camera[2]
-    camera[0] = cos(r)*x + -1*sin(r)*y;
-    camera[1] = sin(r)*x + cos(r)*y;
-    camera[2] = z
-
 def rotate_camera_x(r):
     x = camera[0]
     y = camera[1]
@@ -106,17 +98,32 @@ def rotate_camera_x(r):
     camera[1] = cos(r)*y - sin(r)*z
     camera[2] = sin(r)*y + cos(r)*z
 
-def rotate_points_z(x_0,y_0,z_0,r):
-    x = cos(r)*x_0 + -1*sin(r)*y_0;
-    y = sin(r)*x_0 + cos(r)*y_0;
-    z = z_0
-    return [x,y,z]
+def rotate_camera_z(r):
+    x = camera[0]
+    y = camera[1]
+    z = camera[2]
+    camera[0] = cos(r)*x + -1*sin(r)*y;
+    camera[1] = sin(r)*x + cos(r)*y;
+    camera[2] = z
 
 def rotate_points_x(x_0,y_0,z_0,r):
     x = x_0
     y = cos(r)*y_0 - sin(r)*z_0
     z = sin(r)*y_0 + cos(r)*z_0
     return [x,y,z]
+
+def rotate_points_y(x_0,y_0,z_0,r):
+    x = cos(r)*x_0 + sin(r)*z_0
+    y = y
+    z = -sin(r)*x_0 + cos(r)*z_0
+    return [x,y,z]
+
+def rotate_points_z(x_0,y_0,z_0,r):
+    x = cos(r)*x_0 + -1*sin(r)*y_0;
+    y = sin(r)*x_0 + cos(r)*y_0;
+    z = z_0
+    return [x,y,z]
+
 
     #########################
     ###### Entry Point ######
@@ -158,7 +165,7 @@ for point in cube_points:
     #
     # now rotate the point and do it again
     #print point
-    point = rotate_points_x(point[0],point[1],point[2],radians(360 - to_rotate))
+    point = rotate_points_x(point[0],point[1],point[2],radians(to_rotate))
     #print point
     # compute vectors for each point pair:
     v_x = point[0] - camera[0]

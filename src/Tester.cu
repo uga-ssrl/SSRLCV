@@ -22,18 +22,20 @@ int main(int argc, char *argv[]){
 
     std::cout << "=========================== TEST 01 ===========================" << std::endl;
     std::cout << "Making fake image guys ..." << std::endl;
+    /*
     std::vector<ssrlcv::Image*> images;
 
     ssrlcv::Image* image0 = new ssrlcv::Image();
     ssrlcv::Image* image1 = new ssrlcv::Image();
     images.push_back(image0);
     images.push_back(image1);
+    */
 
     // fill the test camera params
     std::cout << "Filling in Test Camera Params ..." << std::endl;
 
     // ===== IF loading real image stuff
-
+    /*
     std::map<std::string,ssrlcv::arg*> args = ssrlcv::parseArgs(argc,argv);
     if(args.find("dir") == args.end()){
       std::cerr<<"ERROR: SFM executable requires a directory of images"<<std::endl;
@@ -48,29 +50,27 @@ int main(int argc, char *argv[]){
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
     for(int i = 0; i < numImages; ++i){
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
-      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
-      features->transferMemoryTo(ssrlcv::cpu);
       images.push_back(image);
-      allFeatures.push_back(features);
     }
 
     //  X        Y      Z        rot_x    rot_y      rot_z    fov_x           fov_y         foc  dpix  dpix   time        x   y
     // 781.417, 0.0,  4436.30,  0.0,  0.1745329252, 0.0,  0.19933754453,  0.19933754453,  0.16, 0.4,  0.4,  1580766557, 1024,1024,
     // 0.0,     0.0,  4500.0,   0.0,  0.0,          0.0,  0.19933754453,  0.19933754453,  0.16, 0.4,  0.4,  1580766557, 1024,1024,
 
+    */
 
-    // images[0]->id = 0;
-    // images[0]->camera.size = {2,2};
-    // images[0]->camera.cam_pos = {0.000000000000,0.000000000000,-100.000000000000};
-    // images[0]->camera.cam_rot = {0.0, 0.0, 0.0};
-    // images[0]->camera.fov = {0.174532925199,0.174532925199};
-    // images[0]->camera.foc = 0.000025000000;
-    // images[1]->id = 1;
-    // images[1]->camera.size = {2,2};
-    // images[1]->camera.cam_pos = {0.000000000000,100.000000000000,-0.000000000000};
-    // images[1]->camera.cam_rot = {1.57079632679, 0.0, 0.0};
-    // images[1]->camera.fov = {0.174532925199,0.174532925199};
-    // images[1]->camera.foc = 0.000025000000;
+    images[0]->id = 0;
+    images[0]->camera.size = {1024,1024};
+    images[0]->camera.cam_pos = {0.000000000000,0.000000000000,-20.000000000000};
+    images[0]->camera.cam_rot = {0.0, 0.0, 0.0};
+    images[0]->camera.fov = {0.174532925199,0.174532925199};
+    images[0]->camera.foc = 0.160000000000;
+    images[1]->id = 1;
+    images[1]->camera.size = {1024,1024};
+    images[1]->camera.cam_pos = {0.000000000000,3.472963553339,-19.696155060244};
+    images[1]->camera.cam_rot = {0.174532925199, 0.0, 0.0};
+    images[1]->camera.fov = {0.174532925199,0.174532925199};
+    images[1]->camera.foc = 0.160000000000;
 
     // fill the test match points
     std::cout << "Filling in Matches ..." << std::endl;
@@ -79,36 +79,36 @@ int main(int argc, char *argv[]){
     ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 9, ssrlcv::cpu);
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[1].parentId = 1;
-    matches->host[0].keyPoints[0].loc = {513.138029297,513.138029297};
-    matches->host[0].keyPoints[1].loc = {512.923155875,512.923155875};
+    matches->host[0].keyPoints[0].loc = {820.009830474,820.009830474};
+    matches->host[0].keyPoints[1].loc = {865.304333746,865.304333746};
     matches->host[1].keyPoints[0].parentId = 0;
     matches->host[1].keyPoints[1].parentId = 1;
-    matches->host[1].keyPoints[0].loc = {513.138029297,513.138029297};
-    matches->host[1].keyPoints[1].loc = {512.923155875,512.923155875};
+    matches->host[1].keyPoints[0].loc = {820.009830474,820.009830474};
+    matches->host[1].keyPoints[1].loc = {865.304333746,865.304333746};
     matches->host[2].keyPoints[0].parentId = 0;
     matches->host[2].keyPoints[1].parentId = 1;
-    matches->host[2].keyPoints[0].loc = {510.861970703,510.861970703};
-    matches->host[2].keyPoints[1].loc = {510.681698546,510.681698546};
+    matches->host[2].keyPoints[0].loc = {203.990169526,203.990169526};
+    matches->host[2].keyPoints[1].loc = {260.053698516,260.053698516};
     matches->host[3].keyPoints[0].parentId = 0;
     matches->host[3].keyPoints[1].parentId = 1;
-    matches->host[3].keyPoints[0].loc = {510.861970703,510.861970703};
-    matches->host[3].keyPoints[1].loc = {510.681698546,510.681698546};
+    matches->host[3].keyPoints[0].loc = {203.990169526,203.990169526};
+    matches->host[3].keyPoints[1].loc = {260.053698516,260.053698516};
     matches->host[4].keyPoints[0].parentId = 0;
     matches->host[4].keyPoints[1].parentId = 1;
-    matches->host[4].keyPoints[0].loc = {513.137523618,513.137523618};
-    matches->host[4].keyPoints[1].loc = {513.317826272,513.317826272};
+    matches->host[4].keyPoints[0].loc = {790.675560905,790.675560905};
+    matches->host[4].keyPoints[1].loc = {736.357455859,736.357455859};
     matches->host[5].keyPoints[0].parentId = 0;
     matches->host[5].keyPoints[1].parentId = 1;
-    matches->host[5].keyPoints[0].loc = {513.137523618,513.137523618};
-    matches->host[5].keyPoints[1].loc = {513.317826272,513.317826272};
+    matches->host[5].keyPoints[0].loc = {790.675560905,790.675560905};
+    matches->host[5].keyPoints[1].loc = {736.357455859,736.357455859};
     matches->host[6].keyPoints[0].parentId = 0;
     matches->host[6].keyPoints[1].parentId = 1;
-    matches->host[6].keyPoints[0].loc = {510.862476382,510.862476382};
-    matches->host[6].keyPoints[1].loc = {511.077319307,511.077319307};
+    matches->host[6].keyPoints[0].loc = {233.324439095,233.324439095};
+    matches->host[6].keyPoints[1].loc = {186.237254438,186.237254438};
     matches->host[7].keyPoints[0].parentId = 0;
     matches->host[7].keyPoints[1].parentId = 1;
-    matches->host[7].keyPoints[0].loc = {510.862476382,510.862476382};
-    matches->host[7].keyPoints[1].loc = {511.077319307,511.077319307};
+    matches->host[7].keyPoints[0].loc = {233.324439095,233.324439095};
+    matches->host[7].keyPoints[1].loc = {186.237254438,186.237254438};
     matches->host[8].keyPoints[0].parentId = 0;
     matches->host[8].keyPoints[1].parentId = 1;
     matches->host[8].keyPoints[0].loc = {512.0,512.0};
