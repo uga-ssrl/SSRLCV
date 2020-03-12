@@ -616,7 +616,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   float h_fov = min_step;
   // the stepsize along the gradient
   float step  = min_step;
-  while(i < 20){
+  while(i < 5){
   // while(*linearError > (100000.0)*matchSet->matches->numElements){
     // generate the bundle set
     bundleSet = generateBundles(matchSet,images);
@@ -908,25 +908,25 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         gradients[1].fov.y
       };
 
-      std::cout << "\tx_0: [ "
+      std::cout << "\tx_0: [ ";
       for (int k = 0; k < 18; k++){
         std::cout << x_0[k] << ", ";
       }
       std::cout << "] " << std::endl;
 
-      std::cout << "\tx_1: [ "
+      std::cout << "\tx_1: [ ";
       for (int k = 0; k < 18; k++){
         std::cout << x_1[k] << ", ";
       }
       std::cout << "] " << std::endl;
 
-      std::cout << "\tg_0: [ "
+      std::cout << "\tg_0: [ ";
       for (int k = 0; k < 18; k++){
         std::cout << g_0[k] << ", ";
       }
       std::cout << "] " << std::endl;
 
-      std::cout << "\tg_1: [ "
+      std::cout << "\tg_1: [ ";
       for (int k = 0; k < 18; k++){
         std::cout << g_1[k] << ", ";
       }
@@ -1035,6 +1035,53 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     gradients_prev[1].fov.x       = gradients[1].fov.x;
     gradients_prev[1].fov.y       = gradients[1].fov.y;
 
+    std::cout << "gradient_prev: [";
+    std::cout << ", " << gradients_prev[0].cam_rot.x;
+    std::cout << ", " << gradients_prev[0].cam_rot.y;
+    std::cout << ", " << gradients_prev[0].cam_rot.z;
+    std::cout << ", " << gradients_prev[0].cam_pos.x;
+    std::cout << ", " << gradients_prev[0].cam_pos.y;
+    std::cout << ", " << gradients_prev[0].cam_pos.z;
+    std::cout << ", " << gradients_prev[0].foc      ;
+    std::cout << ", " << gradients_prev[0].fov.x    ;
+    std::cout << ", " << gradients_prev[0].fov.y    ;
+    std::cout << ", " << gradients_prev[1].cam_rot.x;
+    std::cout << ", " << gradients_prev[1].cam_rot.y;
+    std::cout << ", " << gradients_prev[1].cam_rot.z;
+    std::cout << ", " << gradients_prev[1].cam_pos.x;
+    std::cout << ", " << gradients_prev[1].cam_pos.y;
+    std::cout << ", " << gradients_prev[1].cam_pos.z;
+    std::cout << ", " << gradients_prev[1].foc      ;
+    std::cout << ", " << gradients_prev[1].fov.x    ;
+    std::cout << ", " << gradients_prev[1].fov.y    ;
+    std::cout << " ]" << std::endl;
+
+    std::cout << "images_prev: [";
+    // set the previous here
+    std::cout << ", " << images_prev[0]->camera.cam_rot.x;
+    std::cout << ", " << images_prev[0]->camera.cam_rot.y;
+    std::cout << ", " << images_prev[0]->camera.cam_rot.z;
+    std::cout << ", " << images_prev[0]->camera.cam_pos.x;
+    std::cout << ", " << images_prev[0]->camera.cam_pos.y;
+    std::cout << ", " << images_prev[0]->camera.cam_pos.z;
+    std::cout << ", " << images_prev[0]->camera.foc      ;
+    std::cout << ", " << images_prev[0]->camera.fov.x    ;
+    std::cout << ", " << images_prev[0]->camera.fov.y    ;
+    std::cout << ", " << images_prev[0]->camera.dpix.x   ;
+    std::cout << ", " << images_prev[0]->camera.dpix.y   ;
+    std::cout << ", " << images_prev[1]->camera.cam_rot.x;
+    std::cout << ", " << images_prev[1]->camera.cam_rot.y;
+    std::cout << ", " << images_prev[1]->camera.cam_rot.z;
+    std::cout << ", " << images_prev[1]->camera.cam_pos.x;
+    std::cout << ", " << images_prev[1]->camera.cam_pos.y;
+    std::cout << ", " << images_prev[1]->camera.cam_pos.z;
+    std::cout << ", " << images_prev[1]->camera.foc      ;
+    std::cout << ", " << images_prev[1]->camera.fov.x    ;
+    std::cout << ", " << images_prev[1]->camera.fov.y    ;
+    std::cout << ", " << images_prev[1]->camera.dpix.x   ;
+    std::cout << ", " << images_prev[1]->camera.dpix.y   ;
+    std::cout << " ]" << std::endl;
+
     // yahboi
     i++;
 
@@ -1044,7 +1091,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   writeCSV(errorTracker, "totalErrorOverIterations");
   std::cout << "Final Camera Parameters: " << std::endl;
   // take a step down the hill!
-  for (int j = 0; j < images.size(); j++){
+  for (int j = 0; j < images.size(); j++)1
     std::cout << std::fixed;
     std::cout << std::setprecision(12);
     std::cout << "___________________________________" << std::endl;
