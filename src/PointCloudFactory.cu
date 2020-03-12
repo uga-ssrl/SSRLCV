@@ -1160,28 +1160,35 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* lin
   ssrlcv::Bundle::Line L2 = lines[bundles[globalID].index+1];
 
   float3 n = crossProduct(L1.vec,L2.vec);
-  printf("n (%.12f, %.12f, %.12f)\n", n.x, n.y, n.z);
+  printf("Calculating n: (%.12f, %.12f, %.12f) x (%.12f, %.12f, %.12f)\n", L1.vec.x, L1.vec.y, L1.vec.z, L2.vec.x, L2.vec.y, L2.vec.z);
+  printf("\tn (%.12f, %.12f, %.12f)\n", n.x, n.y, n.z);
 
   // calculate the normals
   float3 n2 = crossProduct(L2.vec,crossProduct(L1.vec,L2.vec));
   float3 n1 = crossProduct(L1.vec,crossProduct(L1.vec,L2.vec));
 
-  printf("n1 (%.12f, %.12f, %.12f)\n", n1.x, n1.y, n1.z);
-  printf("n2 (%.12f, %.12f, %.12f)\n", n2.x, n2.y, n2.z);
+  printf("Caclulating n1: (%.12f, %.12f, %.12f) x (%.12f, %.12f, %.12f)\n", L1.vec.x, L1.vec.y, L1.vec.z, n.x, n.y, n.z);
+  printf("Caclulating n2: (%.12f, %.12f, %.12f) x (%.12f, %.12f, %.12f)\n", L2.vec.x, L2.vec.y, L2.vec.z, n.x, n.y, n.z);
+  printf("\tn1 (%.12f, %.12f, %.12f)\n", n1.x, n1.y, n1.z);
+  printf("\tn2 (%.12f, %.12f, %.12f)\n", n2.x, n2.y, n2.z);
 
   // calculate the numerators
   float numer1 = dotProduct((L2.pnt - L1.pnt),n2);
   float numer2 = dotProduct((L1.pnt - L2.pnt),n1);
 
-  printf("numer1: %.12f\n", numer1);
-  printf("numer2: %.12f\n", numer2);
+  printf("Caclulating numer1: [(%.12f, %.12f, %.12f) - (%.12f, %.12f, %.12f)] . (%.12f, %.12f, %.12f)\n", L2.pnt.x, L2.pnt.y, L2.pnt.z, L1.pnt.x, L1.pnt.y, L1.pnt.z, n2.x, n2.y, n2.z);
+  printf("Caclulating numer2: [(%.12f, %.12f, %.12f) - (%.12f, %.12f, %.12f)] . (%.12f, %.12f, %.12f)\n", L1.pnt.x, L1.pnt.y, L1.pnt.z, L2.pnt.x, L2.pnt.y, L2.pnt.z, n1.x, n1.y, n1.z);
+  printf("\tnumer1: %.12f\n", numer1);
+  printf("\tnumer2: %.12f\n", numer2);
 
   // calculate the denominators
   float denom1 = dotProduct(L1.vec,n2);
   float denom2 = dotProduct(L2.vec,n1);
 
-  printf("denom1: %.12f\n", denom1);
-  printf("denom2: %.12f\n", denom2);
+  printf("Calculating demon1: (%.12f, %.12f, %.12f) . (%.12f, %.12f, %.12f)", L1.vec.x, L1.vec.y, L1.vec.z, n2.x, n2.y, n2.z);
+  printf("Calculating demon2: (%.12f, %.12f, %.12f) . (%.12f, %.12f, %.12f)", L2.vec.x, L2.vec.y, L2.vec.z, n1.x, n1.y, n1.z);
+  printf("\tdenom1: %.12f\n", denom1);
+  printf("\tdenom2: %.12f\n", denom2);
 
   // get the S points
   float3 s1 = L1.pnt + (numer1/denom1) * L1.vec;
