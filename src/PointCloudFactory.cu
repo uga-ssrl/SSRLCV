@@ -848,6 +848,74 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   return points;
 }
 
+/**
+ * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
+ * all as points in R3. Each is color coded RED for the cameras, GREEN for the point cloud, and
+ * BLUE for the reprojected points.
+ * @param pointCloud a Unity float3 that represents the point cloud itself
+ * @param bundleSet is a BundleSet that contains lines and points to be drawn in front of the cameras
+ * @param images a vector of images that contain value camera information
+ */
+void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, BundleSet bundleSet, std::vector<ssrlcv::Image*> images){
+  // main variables
+  int size        = pointCloud->size() + bundleSet.lines->size() + images.size();
+  int index       = 0; // the use of this just makes everything easier to read
+  int index_limit = 0; // the use of this just makes everything easier to read
+  // test output of all the boiz
+  struct colorPoint* cpoints = (colorPoint*)  malloc(size * sizeof(struct colorPoint));
+  index_limit += images.size();
+  // fill in the camera points RED
+  for (int i = 0; i < images.size(); i++){
+    cpoints[index].x = images[i]->camera.cam_pos.x;
+    cpoints[index].y = images[i]->camera.cam_pos.y;
+    cpoints[index].z = images[i]->camera.cam_pos.z;
+    cpoints[index].r = 255;
+    cpoints[index].g = 0;
+    cpoints[index].b = 0;
+    index++;
+  }
+  index_limit += bundleSet.lines->size();
+  // fill in the projected match locations in front of the cameras BLUE
+  for (int i = index; i < index_limit; i++) {
+    cpoints[index].x = bundleSet.lines->host[i].pnt.x + bundleSet.lines->host[i].vec.x;
+    cpoints[index].y = bundleSet.lines->host[i].pnt.y + bundleSet.lines->host[i].vec.y;
+    cpoints[index].z = bundleSet.lines->host[i].pnt.z + bundleSet.lines->host[i].vec.z;
+    cpoints[index].r = 0;
+    cpoints[index].g = 0;
+    cpoints[index].b = 255;
+    index++;
+  }
+  index_limit += test_points->size();
+  // fill in the point cloud GREEN
+  for (int i = index; i < index_limit; i++){
+    cpoints[index].x = test_points->host[i].x;
+    cpoints[index].y = test_points->host[i].y;
+    cpoints[index].z = test_points->host[i].z;
+    cpoints[index].r = 0;
+    cpoints[index].g = 255;
+    cpoints[index].b = 0;
+    index++;
+  }
+  // now save it
+  ssrlcv::writePLY("debugCloud", cpoints, colorPoint_size);
+}
+
+/**
+ * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
+ * all as points in R3. Each is color coded RED for the cameras, GREEN for the point cloud, and
+ * BLUE for the reprojected points.
+ * @param pointCloud a Unity float3 that represents the point cloud itself
+ * @param bundleSet is a BundleSet that contains lines and points to be drawn in front of the cameras
+ * @param images a vector of images that contain value camera information
+ * @param fineName a filename for the debug cloud
+ */
+void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, BundleSet bundleSet, std::vector<ssrlcv::Image*> images, std::string filename){
+
+}
+
+/**
+ * heat map
+ */
 uchar3 ssrlcv::heatMap(float value){
   uchar3 rgb;
   // float3 colorMap[5] = {
@@ -882,6 +950,9 @@ uchar3 ssrlcv::heatMap(float value){
   return rgb;
 }
 
+/**
+ * write disparity image
+ */
 void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolationRadius, std::string pathToFile){
   MemoryState origin = points->getMemoryState();
   if(origin == gpu) points->transferMemoryTo(cpu);

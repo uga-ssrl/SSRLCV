@@ -131,6 +131,27 @@ namespace ssrlcv{
      */
     ssrlcv::Unity<float3>* nViewTriangulate(BundleSet bundleSet);
 
+    /**
+     * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
+     * all as points in R3. Each is color coded RED for the cameras, GREEN for the point cloud, and
+     * BLUE for the reprojected points.
+     * @param pointCloud a Unity float3 that represents the point cloud itself
+     * @param bundleSet is a BundleSet that contains lines and points to be drawn in front of the cameras
+     * @param images a vector of images that contain value camera information
+     */
+    void saveDebugCloud(Unity<float3>* pointCloud, BundleSet bundleSet, std::vector<ssrlcv::Image*> images);
+
+    /**
+     * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
+     * all as points in R3. Each is color coded RED for the cameras, GREEN for the point cloud, and
+     * BLUE for the reprojected points.
+     * @param pointCloud a Unity float3 that represents the point cloud itself
+     * @param bundleSet is a BundleSet that contains lines and points to be drawn in front of the cameras
+     * @param images a vector of images that contain value camera information
+     * @param fineName a filename for the debug cloud
+     */
+    void saveDebugCloud(Unity<float3>* pointCloud, BundleSet bundleSet, std::vector<ssrlcv::Image*> images, std::string filename);
+
   };
 
   /**
