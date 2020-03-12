@@ -43,7 +43,7 @@ single = [[0.0,0.0,0.0]]
 origin = [0.0,0.0,0.0]
 foc    = 0.000025
 fov    = radians(10)
-alt    = -20.0 # in meters
+alt    = -1.0 # in meters
 res    = 2 # pixels
 # cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov.x / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
 dpix   = (foc*tan(fov/2))/(res/2)
@@ -64,7 +64,7 @@ camera = [0.0,0.0,alt]
 plane  = [0.0,0.0,alt+foc]
 
 # the degrees to rotates
-to_rotate = 45;
+to_rotate = 90;
 
 # the final guy
 raw_match_set = []
@@ -221,20 +221,20 @@ print ''
 print 'For Copy Paste into Tester: \n'
 print 'images[0]->id = 0;'
 print 'images[0]->camera.size = {' + str(res) + ',' + str(res) + '};'
-print 'images[0]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
+print 'images[0]->camera.cam_pos = {' + str('{0:.12f}'.format(camera[0])) + ',' + str('{0:.12f}'.format(camera[1])) + ',' + str('{0:.12f}'.format(camera[2])) + '};'
 # print 'images[0]->camera.cam_rot = {' + str(radians(180)) + ', 0.0, 0.0};'
 print 'images[0]->camera.cam_rot = {0.0, 0.0, 0.0};'
 print 'images[0]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
-print 'images[0]->camera.foc = ' + str('{0:.10f}'.format(foc)) + ';'
+print 'images[0]->camera.foc = ' + str('{0:.12f}'.format(foc)) + ';'
 rotate_camera_x(radians(to_rotate))
 # rotate_camera_x(radians(to_rotate))
 print 'images[1]->id = 1;'
 print 'images[1]->camera.size = {' + str(res) + ',' + str(res) + '};'
-print 'images[1]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
+print 'images[1]->camera.cam_pos = {' + str('{0:.12f}'.format(camera[0])) + ',' + str('{0:.12f}'.format(camera[1])) + ',' + str('{0:.12f}'.format(camera[2])) + '};'
 # print 'images[1]->camera.cam_rot = {' + str(radians(180 + to_rotate)) + ', 0.0, 0.0};'
 print 'images[1]->camera.cam_rot = {' + str(radians(to_rotate)) + ', 0.0, 0.0};'
 print 'images[1]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
-print 'images[1]->camera.foc = ' + str('{0:.10f}'.format(foc)) + ';'
+print 'images[1]->camera.foc = ' + str('{0:.12f}'.format(foc)) + ';'
 
 
 # f = open('cameras.txt', 'w')

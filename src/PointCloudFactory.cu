@@ -994,7 +994,7 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
     // fill in the line values
     normalize(lines[i].vec);
     lines[i].pnt = cameras[currentKP.parentId].cam_pos;
-    //printf("[%lu / %u] [i: %d] < %f , %f, %f > at ( %f, %f, %f ) \n", globalID,numBundles,i,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z,lines[i].pnt.x,lines[i].pnt.y,lines[i].pnt.z);
+    //printf("[%lu / %u] [i: %d] < %f , %f, %f > at ( %.12f, %.12f, %.12f ) \n", globalID,numBundles,i,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z,lines[i].pnt.x,lines[i].pnt.y,lines[i].pnt.z);
   }
   delete[] kp;
 }
@@ -1176,8 +1176,8 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* lin
   float3 s2 = L2.pnt + (numer2/denom2) * L2.vec;
   float3 point = (s1 + s2)/2.0;
 
-  printf("S1 (%f, %f, %f)\n",s1.x,s1.y,s1.z);
-  printf("S2 (%f, %f, %f)\n",s2.x,s2.y,s2.z);
+  printf("S1 (%.12f, %.12f, %.12f)\n",s1.x,s1.y,s1.z);
+  printf("S2 (%.12f, %.12f, %.12f)\n",s2.x,s2.y,s2.z);
 
   // fill in the value for the point cloud
   pointcloud[globalID] = point;

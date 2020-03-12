@@ -34,14 +34,14 @@ int main(int argc, char *argv[]){
 
     images[0]->id = 0;
     images[0]->camera.size = {2,2};
-    images[0]->camera.cam_pos = {0.0,0.0,-20.0};
+    images[0]->camera.cam_pos = {0.0,0.0,-1.0};
     images[0]->camera.cam_rot = {0.0, 0.0, 0.0};
     images[0]->camera.fov = {0.174532925199,0.174532925199};
     images[0]->camera.foc = 0.0000250000;
     images[1]->id = 1;
     images[1]->camera.size = {2,2};
-    images[1]->camera.cam_pos = {0.0,14.1421356237,-14.1421356237};
-    images[1]->camera.cam_rot = {0.785398163397, 0.0, 0.0};
+    images[1]->camera.cam_pos = {0.0,1.0,0.0};
+    images[1]->camera.cam_rot = {M_PI/2, 0.0, 0.0};
     images[1]->camera.fov = {0.174532925199,0.174532925199};
     images[1]->camera.foc = 0.0000250000;
 
