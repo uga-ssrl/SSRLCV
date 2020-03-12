@@ -496,17 +496,17 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   partials.push_back(images[1]);
   // used to store the gradients in the camera
   std::vector<ssrlcv::Image::Camera> gradients;
-  ssrlcv::Image::Camera g_1 = ssrlcv::Image::Camera();
-  ssrlcv::Image::Camera g_2 = ssrlcv::Image::Camera();
-  gradients.push_back(g_1);
-  gradients.push_back(g_2);
+  ssrlcv::Image::Camera gr_1 = ssrlcv::Image::Camera();
+  ssrlcv::Image::Camera gr_2 = ssrlcv::Image::Camera();
+  gradients.push_back(gr_1);
+  gradients.push_back(gr_2);
 
   // used to store the gradients in the camera
   std::vector<ssrlcv::Image::Camera> gradients_prev;
-  ssrlcv::Image::Camera g_3 = ssrlcv::Image::Camera();
-  ssrlcv::Image::Camera g_4 = ssrlcv::Image::Camera();
-  gradients.push_back(g_4);
-  gradients.push_back(g_5);
+  ssrlcv::Image::Camera gr_3 = ssrlcv::Image::Camera();
+  ssrlcv::Image::Camera gr_4 = ssrlcv::Image::Camera();
+  gradients.push_back(gr_3);
+  gradients.push_back(gr_4);
 
   // the boiz in the loop
   ssrlcv::BundleSet bundleSet;
@@ -822,14 +822,89 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     //
     if (i > 0){
       // previous x_n-1
-      float x_0[18] = {images_prev[0].cam_rot.x,images_prev[0].cam_rot.y,images_prev[0].cam_rot.z,images_prev[0].cam_pos.x,images_prev[0].cam_pos.y,images_prev[0].cam_pos.z,images_prev[0].foc,images_prev[0].fov.x,images_prev[0].fov.y,images_prev[1].cam_rot.x,images_prev[1].cam_rot.y,images_prev[1].cam_rot.z,images_prev[1].cam_pos.x,images_prev[1].cam_pos.y,images_prev[1].cam_pos.z,images_prev[1].foc,images_prev[1].fov.x,images_prev[1].fov.y};
+      float x_0[18] = {
+        images_prev[0]->camera.cam_rot.x,
+        images_prev[0]->camera.cam_rot.y,
+        images_prev[0]->camera.cam_rot.z,
+        images_prev[0]->camera.cam_pos.x,
+        images_prev[0]->camera.cam_pos.y,
+        images_prev[0]->camera.cam_pos.z,
+        images_prev[0]->camera.foc,
+        images_prev[0]->camera.fov.x,
+        images_prev[0]->camera.fov.y,
+        images_prev[1]->camera.cam_rot.x,
+        images_prev[1]->camera.cam_rot.y,
+        images_prev[1]->camera.cam_rot.z,
+        images_prev[1]->camera.cam_pos.x,
+        images_prev[1]->camera.cam_pos.y,
+        images_prev[1]->camera.cam_pos.z,
+        images_prev[1]->camera.foc,
+        images_prev[1]->camera.fov.x,
+        images_prev[1]->camera.fov.y
+      };
       // current x_n
-      float x_1[18] = {images[0].cam_rot.x,images[0].cam_rot.y,images[0].cam_rot.z,images[0].cam_pos.x,images[0].cam_pos.y,images[0].cam_pos.z,images[0].foc,images[0].fov.x,images[0].fov.y,images[1].cam_rot.x,images[1].cam_rot.y,images[1].cam_rot.z,images[1].cam_pos.x,images[1].cam_pos.y,images[1].cam_pos.z,images[1].foc,images[1].fov.x,images[1].fov.y};
+      float x_1[18] = {
+        images[0]->camera.cam_rot.x,
+        images[0]->camera.cam_rot.y,
+        images[0]->camera.cam_rot.z,
+        images[0]->camera.cam_pos.x,
+        images[0]->camera.cam_pos.y,
+        images[0]->camera.cam_pos.z,
+        images[0]->camera.foc,
+        images[0]->camera.fov.x,
+        images[0]->camera.fov.y,
+        images[1]->camera.cam_rot.x,
+        images[1]->camera.cam_rot.y,
+        images[1]->camera.cam_rot.z,
+        images[1]->camera.cam_pos.x,
+        images[1]->camera.cam_pos.y,
+        images[1]->camera.cam_pos.z,
+        images[1]->camera.foc,
+        images[1]->camera.fov.x,
+        images[1]->camera.fov.y
+      };
       // previous gradient
-      float g_0[18] = {gradients_prev[0].cam_rot.x,gradients_prev[0].cam_rot.y,gradients_prev[0].cam_rot.z,gradients_prev[0].cam_pos.x,gradients_prev[0].cam_pos.y,gradients_prev[0].cam_pos.z,gradients_prev[0].foc,gradients_prev[0].fov.x,gradients_prev[0].fov.y,gradients_prev[1].cam_rot.x,gradients_prev[1].cam_rot.y,gradients_prev[1].cam_rot.z,gradients_prev[1].cam_pos.x,gradients_prev[1].cam_pos.y,gradients_prev[1].cam_pos.z,gradients_prev[1].foc,gradients_prev[1].fov.x,gradients_prev[1].fov.y};
+      float g_0[18] = {
+        gradients_prev[0].cam_rot.x,
+        gradients_prev[0].cam_rot.y,
+        gradients_prev[0].cam_rot.z,
+        gradients_prev[0].cam_pos.x,
+        gradients_prev[0].cam_pos.y,
+        gradients_prev[0].cam_pos.z,
+        gradients_prev[0].foc,
+        gradients_prev[0].fov.x,
+        gradients_prev[0].fov.y,
+        gradients_prev[1].cam_rot.x,
+        gradients_prev[1].cam_rot.y,
+        gradients_prev[1].cam_rot.z,
+        gradients_prev[1].cam_pos.x,
+        gradients_prev[1].cam_pos.y,
+        gradients_prev[1].cam_pos.z,
+        gradients_prev[1].foc,
+        gradients_prev[1].fov.x,
+        gradients_prev[1].fov.y
+      };
       // current gradient
-      float g_1[18] = {gradients[0].cam_rot.x,gradients[0].cam_rot.y,gradients[0].cam_rot.z,gradients[0].cam_pos.x,gradients[0].cam_pos.y,gradients[0].cam_pos.z,gradients[0].foc,gradients[0].fov.x,gradients[0].fov.y,gradients[1].cam_rot.x,gradients[1].cam_rot.y,gradients[1].cam_rot.z,gradients[1].cam_pos.x,gradients[1].cam_pos.y,gradients[1].cam_pos.z,gradients[1].foc,gradients[1].fov.x,gradients[1].fov.y};
-
+      float g_1[18] = {
+        gradients[0].cam_rot.x,
+        gradients[0].cam_rot.y,
+        gradients[0].cam_rot.z,
+        gradients[0].cam_pos.x,
+        gradients[0].cam_pos.y,
+        gradients[0].cam_pos.z,
+        gradients[0].foc,
+        gradients[0].fov.x,
+        gradients[0].fov.y,
+        gradients[1].cam_rot.x,
+        gradients[1].cam_rot.y,
+        gradients[1].cam_rot.z,
+        gradients[1].cam_pos.x,
+        gradients[1].cam_pos.y,
+        gradients[1].cam_pos.z,
+        gradients[1].foc,
+        gradients[1].fov.x,
+        gradients[1].fov.y
+      };
       float sub_x[18] = {};
       for (int k = 0; k < 18; k++){
         sub_x[k] = x_1[k] - x_0[k];
@@ -858,7 +933,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       std::cout << "new stepsize: " << step << std::endl;
     }
 
-    //
+    //->camera
     // take a step down the hill!
     //
     for (int j = 0; j < images.size(); j++){
@@ -879,7 +954,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
       // take the gradient step here
 
-      images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - step * gradients[j].cam_rot.x;
+      image->cameras[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - step * gradients[j].cam_rot.x;
       images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y - step * gradients[j].cam_rot.y;
       images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z - step * gradients[j].cam_rot.z;
       images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - step * gradients[j].cam_pos.x;
@@ -888,7 +963,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       images[j]->camera.foc       = images[j]->camera.foc       - step * gradients[j].foc      ;
       images[j]->camera.fov.x     = images[j]->camera.fov.x     - step * gradients[j].fov.x    ;
       images[j]->camera.fov.y     = images[j]->camera.fov.y     - step * gradients[j].fov.y    ;
-      // update dpix
+      // up->cameradate dpix
       images[j]->camera.dpix.x = (images[j]->camera.foc * tanf(images[j]->camera.fov.x / 2.0f)) / (images[j]->camera.size.x / 2.0f );
       images[j]->camera.dpix.y = images[j]->camera.dpix.x;
     }
