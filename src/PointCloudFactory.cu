@@ -512,7 +512,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   std::vector<float> errorTracker;
 
   int i = 1;
-  while(i < 20){
+  while(i < 200){
   // while(*linearError > (100000.0)*matchSet->matches->numElements){
     // generate the bundle set
     bundleSet = generateBundles(matchSet,images);
@@ -884,9 +884,9 @@ void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, Bundle
   }
   // fill in the point cloud GREEN
   for (int i = 0; i < pointCloud->size(); i++){
-    cpoints[index].x = pointsCloud->host[i].x; //
-    cpoints[index].y = pointsCloud->host[i].y;
-    cpoints[index].z = pointsCloud->host[i].z;
+    cpoints[index].x = pointCloud->host[i].x; //
+    cpoints[index].y = pointCloud->host[i].y;
+    cpoints[index].z = pointCloud->host[i].z;
     cpoints[index].r = 0;
     cpoints[index].g = 255;
     cpoints[index].b = 0;
@@ -933,9 +933,9 @@ void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, Bundle
   }
   // fill in the point cloud GREEN
   for (int i = 0; i < pointCloud->size(); i++){
-    cpoints[index].x = pointsCloud->host[i].x; //
-    cpoints[index].y = pointsCloud->host[i].y;
-    cpoints[index].z = pointsCloud->host[i].z;
+    cpoints[index].x = pointCloud->host[i].x; //
+    cpoints[index].y = pointCloud->host[i].y;
+    cpoints[index].z = pointCloud->host[i].z;
     cpoints[index].r = 0;
     cpoints[index].g = 255;
     cpoints[index].b = 0;
@@ -982,9 +982,9 @@ void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, Bundle
   }
   // fill in the point cloud GREEN
   for (int i = 0; i < pointCloud->size(); i++){
-    cpoints[index].x = pointsCloud->host[i].x; //
-    cpoints[index].y = pointsCloud->host[i].y;
-    cpoints[index].z = pointsCloud->host[i].z;
+    cpoints[index].x = pointCloud->host[i].x; //
+    cpoints[index].y = pointCloud->host[i].y;
+    cpoints[index].z = pointCloud->host[i].z;
     cpoints[index].r = 0;
     cpoints[index].g = 255;
     cpoints[index].b = 0;

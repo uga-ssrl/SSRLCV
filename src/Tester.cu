@@ -21,7 +21,6 @@ int main(int argc, char *argv[]){
     // ====================== FOR MANUAL TESTING
 
     std::cout << "=========================== TEST 01 ===========================" << std::endl;
-    /*
     std::cout << "Making fake image guys ..." << std::endl;
 
     std::vector<ssrlcv::Image*> images;
@@ -30,14 +29,13 @@ int main(int argc, char *argv[]){
     ssrlcv::Image* image1 = new ssrlcv::Image();
     images.push_back(image0);
     images.push_back(image1);
-    */
 
     // fill the test camera params
     std::cout << "Filling in Test Camera Params ..." << std::endl;
 
     // ===== IF loading real image stuff
 
-    /*
+
     std::map<std::string,ssrlcv::arg*> args = ssrlcv::parseArgs(argc,argv);
     if(args.find("dir") == args.end()){
       std::cerr<<"ERROR: SFM executable requires a directory of images"<<std::endl;
@@ -54,13 +52,13 @@ int main(int argc, char *argv[]){
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
       images.push_back(image);
     }
-    */
+
 
     //  X        Y      Z        rot_x    rot_y      rot_z    fov_x           fov_y         foc  dpix  dpix   time        x   y
     // 781.417, 0.0,  4436.30,  0.0,  0.1745329252, 0.0,  0.19933754453,  0.19933754453,  0.16, 0.4,  0.4,  1580766557, 1024,1024,
     // 0.0,     0.0,  4500.0,   0.0,  0.0,          0.0,  0.19933754453,  0.19933754453,  0.16, 0.4,  0.4,  1580766557, 1024,1024,
 
-    /*
+
 
     images[0]->id = 0;
     images[0]->camera.size = {1024,1024};
@@ -117,68 +115,8 @@ int main(int argc, char *argv[]){
     matches->host[8].keyPoints[0].loc = {512.0,512.0};
     matches->host[8].keyPoints[1].loc = {512.0,512.0};
 
-    */
-
     // ====================== END FOR MANUAL TESTING
 
-    // ====================== FOR TESTING WITH INPUT IMAGES
-
-
-    std::map<std::string,ssrlcv::arg*> args = ssrlcv::parseArgs(argc,argv);
-    if(args.find("dir") == args.end()){
-      std::cerr<<"ERROR: SFM executable requires a directory of images"<<std::endl;
-      exit(-1);
-    }
-    ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1.5f,6.0f);
-    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,250.0f*250.0f);
-    bool seedProvided = false;
-    ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* seedFeatures = nullptr;
-    if(args.find("seed") != args.end()){
-      seedProvided = true;
-      std::string seedPath = ((ssrlcv::img_arg*)args["seed"])->path;
-      ssrlcv::Image* seed = new ssrlcv::Image(seedPath,-1);
-      seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8);
-      matchFactory.setSeedFeatures(seedFeatures);
-      delete seed;
-    }
-    std::vector<std::string> imagePaths = ((ssrlcv::img_dir_arg*)args["dir"])->paths;
-    int numImages = (int) imagePaths.size();
-    std::cout<<"found "<<numImages<<" in directory given"<<std::endl;
-
-    std::vector<ssrlcv::Image*> images;
-    std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
-    for(int i = 0; i < numImages; ++i){
-      ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
-      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
-      features->transferMemoryTo(ssrlcv::cpu);
-      images.push_back(image);
-      allFeatures.push_back(features);
-    }
-
-    // MATCHING
-
-    //seeding with false photo
-
-    std::cout << "Starting matching..." << std::endl;
-    ssrlcv::Unity<float>* seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
-    ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
-    if(seedDistances != nullptr) delete seedDistances;
-
-    distanceMatches->transferMemoryTo(ssrlcv::cpu);
-    float maxDist = 0.0f;
-    for(int i = 0; i < distanceMatches->size(); ++i){
-      if(maxDist < distanceMatches->host[i].distance) maxDist = distanceMatches->host[i].distance;
-    }
-    printf("max euclidean distance between features = %f\n",maxDist);
-    if(distanceMatches->getMemoryState() != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
-    ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
-    delete distanceMatches;
-    std::string delimiter = "/";
-    std::string matchFile = imagePaths[0].substr(0,imagePaths[0].rfind(delimiter)) + "/matches.txt";
-    ssrlcv::writeMatchFile(matches, matchFile);
-
-
-    // ====================== END FOR TESTING WITH INPUT IMAGES
 
     // HARD CODED FOR 2 VIEW
     // Need to fill into to MatchSet boi
@@ -219,7 +157,7 @@ int main(int argc, char *argv[]){
     ssrlcv::Unity<float3>* ba_points = demPoints.BundleAdjustTwoView(&matchSet,images);
 
     // save the bundle adjusted points
-    demPoints.saveDebugCloud(test_points, bundleSet, images, "bundleAdjustedDebugPoints");
+    demPoints.saveDebugCloud(ba_points, bundleSet, images, "bundleAdjustedDebugPoints");
 
     return 0;
   }
