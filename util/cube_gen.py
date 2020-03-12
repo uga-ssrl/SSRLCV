@@ -73,7 +73,7 @@ camera = [0.0,0.0,alt]
 plane  = [0.0,0.0,alt+foc]
 
 # the degrees to rotates
-to_rotate = 10;
+to_rotate = 45;
 
 # the final guy
 raw_match_set = []

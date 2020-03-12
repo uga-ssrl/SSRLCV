@@ -22,14 +22,14 @@ int main(int argc, char *argv[]){
 
     std::cout << "=========================== TEST 01 ===========================" << std::endl;
     std::cout << "Making fake image guys ..." << std::endl;
-    /*
+
     std::vector<ssrlcv::Image*> images;
 
     ssrlcv::Image* image0 = new ssrlcv::Image();
     ssrlcv::Image* image1 = new ssrlcv::Image();
     images.push_back(image0);
     images.push_back(image1);
-    */
+    
 
     // fill the test camera params
     std::cout << "Filling in Test Camera Params ..." << std::endl;
