@@ -82,7 +82,7 @@ __device__ __host__ float ssrlcv::dotProduct(const float (&A)[3], const float (&
 }
 
 __device__ __host__ float3 ssrlcv::crossProduct(const float3 A, const float3 B){
-  return {(A.y * B.z - A.z * B.y),(A.x * B.z - A.z * B.x),(A.x * B.y - A.y * B.x)};
+  return {(A.y * B.z - A.z * B.y),(A.z * B.x - A.x * B.z),(A.x * B.y - A.y * B.x)};
 }
 
 __device__ __host__ bool ssrlcv::inverse(const float (&M)[3][3], float (&M_out)[3][3]){
