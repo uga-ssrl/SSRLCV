@@ -29,7 +29,7 @@ int main(int argc, char *argv[]){
     ssrlcv::Image* image1 = new ssrlcv::Image();
     images.push_back(image0);
     images.push_back(image1);
-    
+
 
     // fill the test camera params
     std::cout << "Filling in Test Camera Params ..." << std::endl;
@@ -67,8 +67,8 @@ int main(int argc, char *argv[]){
     images[0]->camera.foc = 0.160000000000;
     images[1]->id = 1;
     images[1]->camera.size = {1024,1024};
-    images[1]->camera.cam_pos = {0.000000000000,3.472963553339,-19.696155060244};
-    images[1]->camera.cam_rot = {0.174532925199, 0.0, 0.0};
+    images[1]->camera.cam_pos = {0.000000000000,14.142135623731,-14.142135623731};
+    images[1]->camera.cam_rot = {0.785398163397, 0.0, 0.0};
     images[1]->camera.fov = {0.174532925199,0.174532925199};
     images[1]->camera.foc = 0.160000000000;
 

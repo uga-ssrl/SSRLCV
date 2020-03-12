@@ -1160,28 +1160,28 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* lin
   ssrlcv::Bundle::Line L2 = lines[bundles[globalID].index+1];
 
   float3 n = crossProduct(L1.vec,L2.vec);
-  printf("n (%.12f, %.12f, %.12f)", n.x, n.y, n.z);
+  printf("n (%.12f, %.12f, %.12f)\n", n.x, n.y, n.z);
 
   // calculate the normals
   float3 n2 = crossProduct(L2.vec,crossProduct(L1.vec,L2.vec));
   float3 n1 = crossProduct(L1.vec,crossProduct(L1.vec,L2.vec));
 
-  printf("n1 (%.12f, %.12f, %.12f)", n1.x, n1.y, n1.z);
-  printf("n2 (%.12f, %.12f, %.12f)", n2.x, n2.y, n2.z);
+  printf("n1 (%.12f, %.12f, %.12f)\n", n1.x, n1.y, n1.z);
+  printf("n2 (%.12f, %.12f, %.12f)\n", n2.x, n2.y, n2.z);
 
   // calculate the numerators
   float numer1 = dotProduct((L2.pnt - L1.pnt),n2);
   float numer2 = dotProduct((L1.pnt - L2.pnt),n1);
 
-  printf("numer1: %.12f", numer1);
-  printf("numer2: %.12f", numer2);
+  printf("numer1: %.12f\n", numer1);
+  printf("numer2: %.12f\n", numer2);
 
   // calculate the denominators
   float denom1 = dotProduct(L1.vec,n2);
   float denom2 = dotProduct(L2.vec,n1);
 
-  printf("denom1: %.12f", denom1);
-  printf("denom2: %.12f", denom2);
+  printf("denom1: %.12f\n", denom1);
+  printf("denom2: %.12f\n", denom2);
 
   // get the S points
   float3 s1 = L1.pnt + (numer1/denom1) * L1.vec;
