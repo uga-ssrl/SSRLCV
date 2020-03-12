@@ -43,7 +43,7 @@ single = [[0.0,0.0,0.0]]
 origin = [0.0,0.0,0.0]
 foc    = 0.000025
 fov    = radians(10)
-alt    = -1.0 # in meters
+alt    = -100.0 # in meters
 res    = 2 # pixels
 # cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov.x / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
 dpix   = (foc*tan(fov/2))/(res/2)
@@ -124,7 +124,7 @@ matches = []
 
 #for point in cube_points:
 # for point in line_points:
-for point in single:
+for point in cube_points:
     if (verbose):
         print 'Camera 1:'
     match = []

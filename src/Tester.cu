@@ -34,27 +34,59 @@ int main(int argc, char *argv[]){
 
     images[0]->id = 0;
     images[0]->camera.size = {2,2};
-    images[0]->camera.cam_pos = {0.0,0.0,-1.0};
+    images[0]->camera.cam_pos = {0.000000000000,0.000000000000,-100.000000000000};
     images[0]->camera.cam_rot = {0.0, 0.0, 0.0};
     images[0]->camera.fov = {0.174532925199,0.174532925199};
-    images[0]->camera.foc = 0.0000250000;
+    images[0]->camera.foc = 0.000025000000;
     images[1]->id = 1;
     images[1]->camera.size = {2,2};
-    images[1]->camera.cam_pos = {0.0,1.0,0.0};
-    images[1]->camera.cam_rot = {M_PI/2, 0.0, 0.0};
+    images[1]->camera.cam_pos = {0.000000000000,100.000000000000,-0.000000000000};
+    images[1]->camera.cam_rot = {1.57079632679, 0.0, 0.0};
     images[1]->camera.fov = {0.174532925199,0.174532925199};
-    images[1]->camera.foc = 0.0000250000;
+    images[1]->camera.foc = 0.000025000000;
 
     // fill the test match points
     std::cout << "Filling in Matches ..." << std::endl;
 
-    ssrlcv::Match* matches_host = new ssrlcv::Match[1];
-    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 1, ssrlcv::cpu);
+    ssrlcv::Match* matches_host = new ssrlcv::Match[9];
+    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 9, ssrlcv::cpu);
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[1].parentId = 1;
-    matches->host[0].keyPoints[0].loc = {1.0,1.0};
-    matches->host[0].keyPoints[1].loc = {1.0,1.0};
-
+    matches->host[0].keyPoints[0].loc = {1.11545507375,1.11545507375};
+    matches->host[0].keyPoints[1].loc = {0.884544926252,0.884544926252};
+    matches->host[1].keyPoints[0].parentId = 0;
+    matches->host[1].keyPoints[1].parentId = 1;
+    matches->host[1].keyPoints[0].loc = {1.11545507375,1.11545507375};
+    matches->host[1].keyPoints[1].loc = {0.884544926252,0.884544926252};
+    matches->host[2].keyPoints[0].parentId = 0;
+    matches->host[2].keyPoints[1].parentId = 1;
+    matches->host[2].keyPoints[0].loc = {0.884544926252,0.884544926252};
+    matches->host[2].keyPoints[1].loc = {0.886831165371,0.886831165371};
+    matches->host[3].keyPoints[0].parentId = 0;
+    matches->host[3].keyPoints[1].parentId = 1;
+    matches->host[3].keyPoints[0].loc = {0.884544926252,0.884544926252};
+    matches->host[3].keyPoints[1].loc = {0.886831165371,0.886831165371};
+    matches->host[4].keyPoints[0].parentId = 0;
+    matches->host[4].keyPoints[1].parentId = 1;
+    matches->host[4].keyPoints[0].loc = {1.11316883463,1.11316883463};
+    matches->host[4].keyPoints[1].loc = {1.11545507375,1.11545507375};
+    matches->host[5].keyPoints[0].parentId = 0;
+    matches->host[5].keyPoints[1].parentId = 1;
+    matches->host[5].keyPoints[0].loc = {1.11316883463,1.11316883463};
+    matches->host[5].keyPoints[1].loc = {1.11545507375,1.11545507375};
+    matches->host[6].keyPoints[0].parentId = 0;
+    matches->host[6].keyPoints[1].parentId = 1;
+    matches->host[6].keyPoints[0].loc = {0.886831165371,0.886831165371};
+    matches->host[6].keyPoints[1].loc = {1.11316883463,1.11316883463};
+    matches->host[7].keyPoints[0].parentId = 0;
+    matches->host[7].keyPoints[1].parentId = 1;
+    matches->host[7].keyPoints[0].loc = {0.886831165371,0.886831165371};
+    matches->host[7].keyPoints[1].loc = {1.11316883463,1.11316883463};
+    matches->host[8].keyPoints[0].parentId = 0;
+    matches->host[8].keyPoints[1].parentId = 1;
+    matches->host[8].keyPoints[0].loc = {1.0,1.0};
+    matches->host[8].keyPoints[1].loc = {1.0,1.0};
+    
     // ====================== END FOR MANUAL TESTING
 
     // ====================== FOR TESTING WITH INPUT IMAGES
