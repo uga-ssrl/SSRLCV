@@ -140,7 +140,7 @@ matches = []
 
 #for point in cube_points:
 # for point in line_points:
-for point in single:
+for point in cube_points:
     if (verbose):
         print 'Camera 1:'
     match = []
