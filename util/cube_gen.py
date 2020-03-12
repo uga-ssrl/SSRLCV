@@ -30,20 +30,20 @@ xyz_line_points = [[-1.0, -1.0, -1.0 ], # 0
                    [ 0.8,  0.8,  0.8 ],
                    [ 1.0,  1.0,  1.0 ]] # 10
 
-y_points = [[ 0.0, -1.5, 0.0 ], # 0
-            [ 0.0, -1.0, 0.0 ],
-            [ 0.0, -0.5, 0.0 ], # 2
-            [ 0.0,  0.0, 0.0 ],
-            [ 0.0,  0.5, 0.0 ], # 4
-            [ 0.0,  1.0, 0.0 ],
-            [ 0.0,  1.5, 0.0 ]] # 7
+y_line_points = [[ 0.0, -1.5, 0.0 ], # 0
+                [ 0.0, -1.0, 0.0 ],
+                [ 0.0, -0.5, 0.0 ], # 2
+                [ 0.0,  0.0, 0.0 ],
+                [ 0.0,  0.5, 0.0 ], # 4
+                [ 0.0,  1.0, 0.0 ],
+                [ 0.0,  1.5, 0.0 ]] # 6
 
 single = [[0.0,0.0,0.0]]
 
 origin = [0.0,0.0,0.0]
 foc    = 0.000025
 fov    = radians(10)
-alt    = -10.0 # in meters
+alt    = -20.0 # in meters
 res    = 2 # pixels
 # cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov.x / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
 dpix   = (foc*tan(fov/2))/(res/2)
@@ -124,7 +124,7 @@ matches = []
 
 #for point in cube_points:
 # for point in line_points:
-for point in y_points:
+for point in single:
     if (verbose):
         print 'Camera 1:'
     match = []
@@ -154,7 +154,7 @@ for point in y_points:
     #
     # now rotate the point and do it again
     #print point
-    point = rotate_points_x(point[0],point[1],point[2],radians(180 + to_rotate))
+    point = rotate_points_x(point[0],point[1],point[2],radians(360 - to_rotate))
     #print point
     # compute vectors for each point pair:
     v_x = point[0] - camera[0]
@@ -194,8 +194,8 @@ match_num = 0
 for match in matches:
     print 'matches->host[' + str(match_num) + '].keyPoints[0].parentId = 0;'
     print 'matches->host[' + str(match_num) + '].keyPoints[1].parentId = 1;'
-    print 'matches->host[' + str(match_num) + '].keyPoints[0].loc = {' + str(match[0][0]) + ',' + str(match[0][1]) + '};'
-    print 'matches->host[' + str(match_num) + '].keyPoints[1].loc = {' + str(match[1][0]) + ',' + str(match[1][1]) + '};'
+    print 'matches->host[' + str(match_num) + '].keyPoints[0].loc = {' + str(match[0][1]) + ',' + str(match[0][1]) + '};'
+    print 'matches->host[' + str(match_num) + '].keyPoints[1].loc = {' + str(match[1][1]) + ',' + str(match[1][1]) + '};'
     match_num += 1
 print ''
 
@@ -221,18 +221,18 @@ print ''
 print 'For Copy Paste into Tester: \n'
 print 'images[0]->id = 0;'
 print 'images[0]->camera.size = {' + str(res) + ',' + str(res) + '};'
-# print 'images[0]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
-print 'images[0]->camera.cam_rot = {' + str(radians(180)) + ', 0.0, 0.0};'
+print 'images[0]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
+# print 'images[0]->camera.cam_rot = {' + str(radians(180)) + ', 0.0, 0.0};'
 print 'images[0]->camera.cam_rot = {0.0, 0.0, 0.0};'
 print 'images[0]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
 print 'images[0]->camera.foc = ' + str('{0:.10f}'.format(foc)) + ';'
-rotate_camera_x(radians(90 - to_rotate))
+rotate_camera_x(radians(to_rotate))
 # rotate_camera_x(radians(to_rotate))
 print 'images[1]->id = 1;'
 print 'images[1]->camera.size = {' + str(res) + ',' + str(res) + '};'
 print 'images[1]->camera.cam_pos = {' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + '};'
 # print 'images[1]->camera.cam_rot = {' + str(radians(180 + to_rotate)) + ', 0.0, 0.0};'
-print 'images[1]->camera.cam_rot = {' + str(radians(180 + to_rotate)) + ', 0.0, 0.0};'
+print 'images[1]->camera.cam_rot = {' + str(radians(to_rotate)) + ', 0.0, 0.0};'
 print 'images[1]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
 print 'images[1]->camera.foc = ' + str('{0:.10f}'.format(foc)) + ';'
 
