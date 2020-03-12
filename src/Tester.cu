@@ -215,6 +215,12 @@ int main(int argc, char *argv[]){
     // saves a colored debug cloud! (hope this works on the first try)
     demPoints.saveDebugCloud(test_points, bundleSet, images);
 
+    // a quick bundle adjustment attempt
+    ssrlcv::Unity<float3>* ba_points = demPoints.BundleAdjustTwoView(&matchSet,images);
+
+    // save the bundle adjusted points
+    demPoints.saveDebugCloud(test_points, bundleSet, images, "bundleAdjustedDebugPoints");
+
     return 0;
   }
   catch (const std::exception &e){

@@ -512,7 +512,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   std::vector<float> errorTracker;
 
   int i = 1;
-  while(i < 2){
+  while(i < 20){
   // while(*linearError > (100000.0)*matchSet->matches->numElements){
     // generate the bundle set
     bundleSet = generateBundles(matchSet,images);
@@ -860,10 +860,8 @@ void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, Bundle
   // main variables
   int size        = pointCloud->size() + bundleSet.lines->size() + images.size();
   int index       = 0; // the use of this just makes everything easier to read
-  int index_limit = 0; // the use of this just makes everything easier to read
   // test output of all the boiz
   struct colorPoint* cpoints = (colorPoint*)  malloc(size * sizeof(struct colorPoint));
-  index_limit += images.size();
   // fill in the camera points RED
   for (int i = 0; i < images.size(); i++){
     cpoints[index].x = images[i]->camera.cam_pos.x;
@@ -874,9 +872,8 @@ void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, Bundle
     cpoints[index].b = 0;
     index++;
   }
-  index_limit += bundleSet.lines->size();
   // fill in the projected match locations in front of the cameras BLUE
-  for (int i = index; i < index_limit; i++) {
+  for (int i = 0; i < bundleSet.lines->size(); i++) {
     cpoints[index].x = bundleSet.lines->host[i].pnt.x + bundleSet.lines->host[i].vec.x;
     cpoints[index].y = bundleSet.lines->host[i].pnt.y + bundleSet.lines->host[i].vec.y;
     cpoints[index].z = bundleSet.lines->host[i].pnt.z + bundleSet.lines->host[i].vec.z;
@@ -885,19 +882,18 @@ void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, Bundle
     cpoints[index].b = 255;
     index++;
   }
-  index_limit += test_points->size();
   // fill in the point cloud GREEN
-  for (int i = index; i < index_limit; i++){
-    cpoints[index].x = test_points->host[i].x;
-    cpoints[index].y = test_points->host[i].y;
-    cpoints[index].z = test_points->host[i].z;
+  for (int i = 0; i < pointCloud->size(); i++){
+    cpoints[index].x = pointsCloud->host[i].x; //
+    cpoints[index].y = pointsCloud->host[i].y;
+    cpoints[index].z = pointsCloud->host[i].z;
     cpoints[index].r = 0;
     cpoints[index].g = 255;
     cpoints[index].b = 0;
     index++;
   }
   // now save it
-  ssrlcv::writePLY("debugCloud", cpoints, colorPoint_size);
+  ssrlcv::writePLY("debugCloud", cpoints, size); //
 }
 
 /**
@@ -910,7 +906,92 @@ void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, Bundle
  * @param fineName a filename for the debug cloud
  */
 void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, BundleSet bundleSet, std::vector<ssrlcv::Image*> images, std::string filename){
+  // main variables
+  int size        = pointCloud->size() + bundleSet.lines->size() + images.size();
+  int index       = 0; // the use of this just makes everything easier to read
+  // test output of all the boiz
+  struct colorPoint* cpoints = (colorPoint*)  malloc(size * sizeof(struct colorPoint));
+  // fill in the camera points RED
+  for (int i = 0; i < images.size(); i++){
+    cpoints[index].x = images[i]->camera.cam_pos.x;
+    cpoints[index].y = images[i]->camera.cam_pos.y;
+    cpoints[index].z = images[i]->camera.cam_pos.z;
+    cpoints[index].r = 255;
+    cpoints[index].g = 0;
+    cpoints[index].b = 0;
+    index++;
+  }
+  // fill in the projected match locations in front of the cameras BLUE
+  for (int i = 0; i < bundleSet.lines->size(); i++) {
+    cpoints[index].x = bundleSet.lines->host[i].pnt.x + bundleSet.lines->host[i].vec.x;
+    cpoints[index].y = bundleSet.lines->host[i].pnt.y + bundleSet.lines->host[i].vec.y;
+    cpoints[index].z = bundleSet.lines->host[i].pnt.z + bundleSet.lines->host[i].vec.z;
+    cpoints[index].r = 0;
+    cpoints[index].g = 0;
+    cpoints[index].b = 255;
+    index++;
+  }
+  // fill in the point cloud GREEN
+  for (int i = 0; i < pointCloud->size(); i++){
+    cpoints[index].x = pointsCloud->host[i].x; //
+    cpoints[index].y = pointsCloud->host[i].y;
+    cpoints[index].z = pointsCloud->host[i].z;
+    cpoints[index].r = 0;
+    cpoints[index].g = 255;
+    cpoints[index].b = 0;
+    index++;
+  }
+  // now save it
+  ssrlcv::writePLY(filename.c_str(), cpoints, size); //
+}
 
+/**
+ * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
+ * all as points in R3. Each is color coded RED for the cameras, GREEN for the point cloud, and
+ * BLUE for the reprojected points.
+ * @param pointCloud a Unity float3 that represents the point cloud itself
+ * @param bundleSet is a BundleSet that contains lines and points to be drawn in front of the cameras
+ * @param images a vector of images that contain value camera information
+ * @param fineName a filename for the debug cloud
+ */
+void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, BundleSet bundleSet, std::vector<ssrlcv::Image*> images, const char* filename){
+  // main variables
+  int size        = pointCloud->size() + bundleSet.lines->size() + images.size();
+  int index       = 0; // the use of this just makes everything easier to read
+  // test output of all the boiz
+  struct colorPoint* cpoints = (colorPoint*)  malloc(size * sizeof(struct colorPoint));
+  // fill in the camera points RED
+  for (int i = 0; i < images.size(); i++){
+    cpoints[index].x = images[i]->camera.cam_pos.x;
+    cpoints[index].y = images[i]->camera.cam_pos.y;
+    cpoints[index].z = images[i]->camera.cam_pos.z;
+    cpoints[index].r = 255;
+    cpoints[index].g = 0;
+    cpoints[index].b = 0;
+    index++;
+  }
+  // fill in the projected match locations in front of the cameras BLUE
+  for (int i = 0; i < bundleSet.lines->size(); i++) {
+    cpoints[index].x = bundleSet.lines->host[i].pnt.x + bundleSet.lines->host[i].vec.x;
+    cpoints[index].y = bundleSet.lines->host[i].pnt.y + bundleSet.lines->host[i].vec.y;
+    cpoints[index].z = bundleSet.lines->host[i].pnt.z + bundleSet.lines->host[i].vec.z;
+    cpoints[index].r = 0;
+    cpoints[index].g = 0;
+    cpoints[index].b = 255;
+    index++;
+  }
+  // fill in the point cloud GREEN
+  for (int i = 0; i < pointCloud->size(); i++){
+    cpoints[index].x = pointsCloud->host[i].x; //
+    cpoints[index].y = pointsCloud->host[i].y;
+    cpoints[index].z = pointsCloud->host[i].z;
+    cpoints[index].r = 0;
+    cpoints[index].g = 255;
+    cpoints[index].b = 0;
+    index++;
+  }
+  // now save it
+  ssrlcv::writePLY(filename, cpoints, size); //
 }
 
 /**
