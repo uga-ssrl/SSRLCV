@@ -60,7 +60,7 @@ int main(int argc, char *argv[]){
     //seeding with false photo
 
     std::cout << "Starting matching..." << std::endl;
-    
+
     ssrlcv::Unity<float>* seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
     ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
     if(seedDistances != nullptr) delete seedDistances;
@@ -77,7 +77,7 @@ int main(int argc, char *argv[]){
 
     std::string delimiter = "/";
     std::string matchFile = imagePaths[0].substr(0,imagePaths[0].rfind(delimiter)) + "/matches.txt";
-    ssrlcv::writeMatchFile(matches, matchFile);
+    // ssrlcv::writeMatchFile(matches, matchFile);
 
     // HARD CODED FOR 2 VIEW
     // Need to fill into to MatchSet boi
@@ -103,9 +103,33 @@ int main(int argc, char *argv[]){
     // bunlde adjustment loop would be here. images_vec woudl be modified to minimize the boi
     float* linearError = (float*)malloc(sizeof(float));
     ssrlcv::BundleSet bundleSet = demPoints.generateBundles(&matchSet,images);
+    ssrlcv::Unity<float3>* points = demPoints.twoViewTriangulate(bundleSet, linearError);
+    ssrlcv::writePLY("out/unfiltered.ply",points);
+    // it's good to do a cutoff filter first how this is chosen is mostly based on ur gut
+    // if a poor estimate is chosen then you will have to statistical filter multiple times
+    // option 1: pick a fixed value
+      demPoints.linearCutoffFilter(&matchSet,images,100); // <--- removes linear errors over 100
+    // option 2: tie the initial cutoff to some fraction of the initial linear error
+      // demPoints.linearCutoffFilter(&matchSet,images,*linearError / (bundleSet.bundles->size() * 3));
+    // option 3: don't use the linear cutoff at all and just use multiple statistical filters (it is safer)
+    bundleSet = demPoints.generateBundles(&matchSet,images);
+    points = demPoints.twoViewTriangulate(bundleSet, linearError);
+    ssrlcv::writePLY("out/linearCutoff.ply",points);
+    // here you can filter points in a number of ways before bundle adjustment or triangulation
+    demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+    bundleSet = demPoints.generateBundles(&matchSet,images);
+
+    /*
+    // OPTIONAL
+    // a second filter can re-filter the new error histogram
+    // this is usually a good idea, as there will be new relative extrema to remove
+    // doing this too many times will simply over filter the point cloud
+    demPoints.deterministicStatisticalFilter(&matchSet,images, 2.0, 0.1); // <---- samples 10% of points and removes anything past 2.0 sigma
+    bundleSet = demPoints.generateBundles(&matchSet,images);
+    */
 
     // the version that will be used normally
-    ssrlcv::Unity<float3>* points = demPoints.twoViewTriangulate(bundleSet, linearError);
+    points = demPoints.twoViewTriangulate(bundleSet, linearError);
 
 
 
@@ -127,7 +151,7 @@ int main(int argc, char *argv[]){
     ssrlcv::Octree* octree = new ssrlcv::Octree(points,10,true);
     octree->name = "everetst_test";
     octree->writeEdgePLY();
-    //ssrlcv::MeshFactory mesher = ssrlcv::MeshFactory(octree);//would call poisson 
+    //ssrlcv::MeshFactory mesher = ssrlcv::MeshFactory(octree);//would call poisson
 
     delete octree;
 

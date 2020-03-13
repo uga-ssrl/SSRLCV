@@ -163,6 +163,36 @@ namespace ssrlcv{
      */
     void saveDebugCloud(Unity<float3>* pointCloud, BundleSet bundleSet, std::vector<ssrlcv::Image*> images, const char* filename);
 
+    /**
+     * Deterministically filters, with the assumption that the data is guassian, statistical outliers of the pointcloud
+     * set and returns a matchSet without such outliers. The method is deterministic by taking a uniformly spaced sample of points
+     * within the matcheSet.
+     * @param matchSet a group of matches
+     * @param iamges a group of images, used only for their stored camera parameters
+     * @param sigma is the variance to cutoff from
+     * @param sampleSize represents a percentage and should be between 0.0 and 1.0
+     */
+    void deterministicStatisticalFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float sigma, float sampleSize);
+
+    /**
+     * NonDeterministically filters, with the assumption that the data is guassian, statistical outliers of the pointcloud
+     * set and returns a matchSet without such outliers. It is the same as the deterministicStatisticalFilter only samples
+     * are chosen randomly rather than equally spaced.
+     * @param matchSet a group of matches
+     * @param images a group of images, used only for their stored camera parameters
+     * @param sigma is the variance to cutoff from
+     * @param sampleSize represents a percentage and should be between 0.0 and 1.0
+     */
+    void nonDeterministicStatisticalFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float sigma, float sampleSize);
+
+    /**
+     * A filter that removes all points with a linear error greater than the cutoff. Modifies the matchSet that is pass thru
+     * @param matchSet a group of matches
+     * @param images a group of images, used only for their stored camera parameters
+     * @param cutoff the float that no linear errors should be greater than
+     */
+    void linearCutoffFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float cutoff);
+
   };
 
   /**
