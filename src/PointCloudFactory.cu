@@ -609,14 +609,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
   // https://en.wikipedia.org/wiki/Gradient_descent#Description
   int i = 1;
-  float min_step = 0.000001;
+  float min_step = 0.001;
   float h_rot = min_step;
   float h_pos = min_step;
   float h_foc = min_step;
   float h_fov = min_step;
   // the stepsize along the gradient
-  float step  = min_step;
-  while(i < 3){
+  float step  = 0.000000001;
+  while(i < 5){
   // while(*linearError > (100000.0)*matchSet->matches->numElements){
     // generate the bundle set
     bundleSet = generateBundles(matchSet,images);
@@ -626,6 +626,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // for filtering
     points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+
+    std::string fname = "bundleAdjustedDebugPoints" + std::to_string(i);
+    saveDebugCloud(points, bundleSet, images, fname);
 
     // do this only once
     if (i == 1) ssrlcv::writePLY("out/rawPoints.ply",points);
@@ -971,7 +974,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       }
       std::cout << "\t denom: " << denom << std::endl;
 
-      //denom = sqrtf(denom);
+      denom = sqrtf(denom);
       float numer = 0.0f;
       for (int k = 0; k < 18; k ++){
         numer += sub_x[k] * sub_g[k];

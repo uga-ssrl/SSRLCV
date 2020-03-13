@@ -197,7 +197,7 @@ int main(int argc, char *argv[]){
     ssrlcv::Unity<float3>* ba_points2 = demPoints.BundleAdjustTwoView(&matchSet,images);
 
     // save the bundle adjusted points
-    demPoints.saveDebugCloud(ba_points2, bundleSet, images, "bundleAdjustedDebugPoints2");
+    // demPoints.saveDebugCloud(ba_points2, bundleSet, images, "bundleAdjustedDebugPoints2");
 
     return 0;
   }
