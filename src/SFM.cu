@@ -60,7 +60,7 @@ int main(int argc, char *argv[]){
     //seeding with false photo
 
     std::cout << "Starting matching..." << std::endl;
-    
+
     ssrlcv::Unity<float>* seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
     ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
     if(seedDistances != nullptr) delete seedDistances;
@@ -104,6 +104,9 @@ int main(int argc, char *argv[]){
     float* linearError = (float*)malloc(sizeof(float));
     ssrlcv::BundleSet bundleSet = demPoints.generateBundles(&matchSet,images);
 
+    // here you can filter points in a number of ways before bundle adjustment or triangulation
+     
+
     // the version that will be used normally
     ssrlcv::Unity<float3>* points = demPoints.twoViewTriangulate(bundleSet, linearError);
 
@@ -127,7 +130,7 @@ int main(int argc, char *argv[]){
     ssrlcv::Octree* octree = new ssrlcv::Octree(points,10,true);
     octree->name = "everetst_test";
     octree->writeEdgePLY();
-    //ssrlcv::MeshFactory mesher = ssrlcv::MeshFactory(octree);//would call poisson 
+    //ssrlcv::MeshFactory mesher = ssrlcv::MeshFactory(octree);//would call poisson
 
     delete octree;
 
