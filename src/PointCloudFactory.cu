@@ -616,7 +616,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   float h_fov = min_step;
   // the stepsize along the gradient
   float step  = min_step;
-  while(i < 5){
+  while(i < 3){
   // while(*linearError > (100000.0)*matchSet->matches->numElements){
     // generate the bundle set
     bundleSet = generateBundles(matchSet,images);
@@ -908,7 +908,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         gradients[1].fov.y
       };
 
-/*
+
       std::cout << "\tx_0: [ ";
       for (int k = 0; k < 18; k++){
         std::cout << x_0[k] << ", ";
@@ -934,49 +934,49 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       std::cout << "] " << std::endl;
 
       std::cout << "calculating step size ..." << std::endl;
-      */
+
 
       float sub_x[18];
-      //std::cout << "\t sub_x: [ ";
+      std::cout << "\t sub_x: [ ";
       for (int k = 0; k < 18; k++){
         sub_x[k] = x_1[k] - x_0[k];
-        //std::cout << sub_x[k] << ", ";
+        std::cout << sub_x[k] << ", ";
       }
-      //std::cout << " ]" << std::endl;
+      std::cout << " ]" << std::endl;
 
       float sub_g[18];
       float norm = 0.0f;
-      //std::cout << "\t sub_g: [ ";
+      std::cout << "\t sub_g: [ ";
       for (int k = 0; k < 18; k++){
         sub_g[k] = g_1[k] - g_0[k];
         norm += sub_g[k] * sub_g[k];
-        //std::cout << sub_g[k] << ", ";
+        std::cout << sub_g[k] << ", ";
       }
       norm = sqrtf(norm);
-      //std::cout << " ]" << std::endl;
-      //std::cout << "\t norm: " << norm << std::endl;
+      std::cout << " ]" << std::endl;
+      std::cout << "\t norm: " << norm << std::endl;
 
       float sub_g_norm[18];
-      //std::cout << "\t sub_g_norm: [ ";
+      std::cout << "\t sub_g_norm: [ ";
       for (int k = 0; k < 18; k++){
         sub_g_norm[k] /= norm;
-        //std::cout << sub_g_norm[k] << ", ";
+        std::cout << sub_g_norm[k] << ", ";
       }
-      //std::cout << " ]" << std::endl;
+      std::cout << " ]" << std::endl;
 
 
       float denom = 0.0f;
       for (int k = 0; k < 18; k++){
         denom += sub_g_norm[k] * sub_g_norm[k];
       }
-      //std::cout << "\t denom: " << denom << std::endl;
+      std::cout << "\t denom: " << denom << std::endl;
 
       //denom = sqrtf(denom);
       float numer = 0.0f;
       for (int k = 0; k < 18; k ++){
         numer += sub_x[k] * sub_g[k];
       }
-      //std::cout << "\t numer: " << numer << std::endl;
+      std::cout << "\t numer: " << numer << std::endl;
 
       step = numer/denom;
       std::cout << "\tnew stepsize: " << step << std::endl;
@@ -1037,7 +1037,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     gradients_prev[1].fov.x       = gradients[1].fov.x;
     gradients_prev[1].fov.y       = gradients[1].fov.y;
 
-/*
+
     std::cout << "gradient_prev: [";
     std::cout << ", " << gradients_prev[0].cam_rot.x;
     std::cout << ", " << gradients_prev[0].cam_rot.y;
@@ -1084,7 +1084,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     std::cout << ", " << images_prev[1]->camera.dpix.x   ;
     std::cout << ", " << images_prev[1]->camera.dpix.y   ;
     std::cout << " ]" << std::endl;
-*/
+
     // yahboi
     i++;
 
