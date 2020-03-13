@@ -150,8 +150,8 @@ int main(int argc, char *argv[]){
     // fill the test match points
     std::cout << "Filling in Matches ..." << std::endl;
 
-    ssrlcv::Match* matches_host = new ssrlcv::Match[9];
-    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 9, ssrlcv::cpu);
+    //ssrlcv::Match* matches_host = new ssrlcv::Match[9];
+    //ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 9, ssrlcv::cpu);
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[1].parentId = 1;
     matches->host[0].keyPoints[0].loc = {203.990169526,820.009830474};
