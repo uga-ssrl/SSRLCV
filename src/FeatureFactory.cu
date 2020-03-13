@@ -417,9 +417,7 @@ depth(depth), isDOG(makeDOG){
     }
     delete pixels;
     delete[] sigmas;
-    this->dumpData("out/ss");
     if(this->isDOG) this->convertToDOG();
-    this->dumpData("out/dog");
 }
 void ssrlcv::FeatureFactory::ScaleSpace::convertToDOG(){
     Unity<float>* pixelsUpper = nullptr;

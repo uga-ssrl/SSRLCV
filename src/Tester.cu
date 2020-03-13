@@ -147,47 +147,6 @@ int main(int argc, char *argv[]){
     images[1]->camera.fov = {0.174532925199,0.174532925199};
     images[1]->camera.foc = 0.160000000000;
 
-    // fill the test match points
-    std::cout << "Filling in Matches ..." << std::endl;
-
-    ssrlcv::Match* matches_host = new ssrlcv::Match[9];
-    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 9, ssrlcv::cpu);
-    matches->host[0].keyPoints[0].parentId = 0;
-    matches->host[0].keyPoints[1].parentId = 1;
-    matches->host[0].keyPoints[0].loc = {203.990169526,820.009830474};
-    matches->host[0].keyPoints[1].loc = {219.390661049,925.812095621};
-    matches->host[1].keyPoints[0].parentId = 0;
-    matches->host[1].keyPoints[1].parentId = 1;
-    matches->host[1].keyPoints[0].loc = {820.009830474,820.009830474};
-    matches->host[1].keyPoints[1].loc = {804.609338951,925.812095621};
-    matches->host[2].keyPoints[0].parentId = 0;
-    matches->host[2].keyPoints[1].parentId = 1;
-    matches->host[2].keyPoints[0].loc = {820.009830474,203.990169526};
-    matches->host[2].keyPoints[1].loc = {826.874315308,512.0};
-    matches->host[3].keyPoints[0].parentId = 0;
-    matches->host[3].keyPoints[1].parentId = 1;
-    matches->host[3].keyPoints[0].loc = {203.990169526,203.990169526};
-    matches->host[3].keyPoints[1].loc = {197.125684692,512.0};
-    matches->host[4].keyPoints[0].parentId = 0;
-    matches->host[4].keyPoints[1].parentId = 1;
-    matches->host[4].keyPoints[0].loc = {233.324439095,790.675560905};
-    matches->host[4].keyPoints[1].loc = {238.714840031,512.0};
-    matches->host[5].keyPoints[0].parentId = 0;
-    matches->host[5].keyPoints[1].parentId = 1;
-    matches->host[5].keyPoints[0].loc = {790.675560905,790.675560905};
-    matches->host[5].keyPoints[1].loc = {785.285159969,512.0};
-    matches->host[6].keyPoints[0].parentId = 0;
-    matches->host[6].keyPoints[1].parentId = 1;
-    matches->host[6].keyPoints[0].loc = {790.675560905,233.324439095};
-    matches->host[6].keyPoints[1].loc = {804.609338951,98.1879043789};
-    matches->host[7].keyPoints[0].parentId = 0;
-    matches->host[7].keyPoints[1].parentId = 1;
-    matches->host[7].keyPoints[0].loc = {233.324439095,233.324439095};
-    matches->host[7].keyPoints[1].loc = {219.390661049,98.1879043789};
-    matches->host[8].keyPoints[0].parentId = 0;
-    matches->host[8].keyPoints[1].parentId = 1;
-    matches->host[8].keyPoints[0].loc = {512.0,512.0};
-    matches->host[8].keyPoints[1].loc = {512.0,512.0};
 
     // changes the initial rotation just to mess with the gradient a bit
     images[1]->camera.cam_rot.x += 0.1745329;

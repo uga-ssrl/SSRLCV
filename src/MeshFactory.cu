@@ -701,7 +701,7 @@ void ssrlcv::MeshFactory::generateMesh(){
 }
 void ssrlcv::MeshFactory::generateMeshWithFinestEdges(){
   if(this->octree->name.length() == 0) this->octree->name = this->octree->pathToFile.substr(this->octree->pathToFile.find_last_of("/") + 1,this->octree->pathToFile.length() - 4);
-  std::string newFile = "out" + this->octree->name + "_meshwedges_" + std::to_string(this->octree->depth)+ ".ply";
+  std::string newFile = "out/" + this->octree->name + "_meshwedges_" + std::to_string(this->octree->depth)+ ".ply";
   std::ofstream plystream(newFile);
   MemoryState origin[4] = {
     this->octree->vertices->getMemoryState(),
