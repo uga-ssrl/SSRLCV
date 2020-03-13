@@ -13,6 +13,7 @@
 namespace ssrlcv{
   /**
   * \defgroup meshing
+  * \{
   */
   /**
   * \brief Factory for generating meshes from PointClouds.
@@ -42,7 +43,9 @@ namespace ssrlcv{
     void generateMeshWithFinestEdges();
 
   };
-
+  /**
+  * \}
+  */
   /* CUDA variable, method and kernel defintions */
 
   namespace{

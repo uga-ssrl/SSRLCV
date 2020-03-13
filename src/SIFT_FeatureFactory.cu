@@ -125,7 +125,6 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
         currentBlur = currentOctave->blurs[b];
         gradientsOrigin = currentBlur->gradients->getMemoryState();
         if(gradientsOrigin != gpu) currentBlur->gradients->setMemoryState(gpu);
-  
         grid = {1,1,1};
         getGrid(numKeyPointsInBlur,grid);
         fillDescriptors<<<grid,block>>>(numKeyPointsInBlur,currentBlur->size, 

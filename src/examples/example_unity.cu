@@ -242,10 +242,10 @@ int main(int argc, char *argv[]){
     for(int i = 0; i < 70; ++i){
       truth.push_back(i);
     }
-    std::cout<<"testing copy if\n\t";
+    std::cout<<"testing copy if constructor\n\t";
     ssrlcv::Unity<int>::pred_ptr less70_host;
     cudaMemcpyFromSymbol(&less70_host, less70_device, sizeof(ssrlcv::Unity<int>::pred_ptr));
-    ssrlcv::Unity<int> i_nums_keep = i_nums.copy(less70_host);
+    ssrlcv::Unity<int> i_nums_keep = ssrlcv::Unity<int>(&i_nums,less70_host);
     i_nums_keep.sort();
     fullpass += printTest<int>(i_nums_keep.size(),i_nums_keep.host,&truth[0]);
 
@@ -254,9 +254,6 @@ int main(int argc, char *argv[]){
     cudaMemcpyFromSymbol(&greq70_host, greq70_device, sizeof(ssrlcv::Unity<int>::pred_ptr));
     i_nums.remove(greq70_host);
     i_nums.sort();
-    for(int i = 0; i < i_nums.size(); ++i){
-      std::cout<<i_nums.host[i]<<" "<<i_nums_keep.host[i]<<std::endl;
-    }
     fullpass += printTest<int>(i_nums.size(),i_nums.host,i_nums_keep.host);
 
     if(fullpass == 9){
