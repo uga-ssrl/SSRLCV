@@ -253,6 +253,12 @@ namespace ssrlcv{
     * \param copy Unity<T>* to be copied
     */
     Unity(Unity<T>* copy);
+
+    /**
+    * \brief Copy constructor with predicate
+    * \param copy Unity<T>* to be copied
+    */
+    Unity(Unity<T>* copy,bool (*predicate)(const T&));
     
     /**
     * \brief Checkpoint constructor
@@ -349,19 +355,6 @@ namespace ssrlcv{
     */
     void setData(T* data, unsigned long numElements, MemoryState state);
 
-
-
-    /**
-    * \brief Return a copy of this Unity<T>* with a specified memory state.
-    * \details This method will return a copy of this Unity with a new or the same 
-    * memory location. Due to this returning a Unity, destination can be both. This 
-    * will leave the current Unity untouches as in this->fore and this->state remain 
-    * the same and the copied Unity will have this->fore and this->state = destination.
-    * \param destination - location of copied data (host,device,both) - default nc which means absolute copy
-    * \returns copy of data located in this
-    */
-    Unity<T> copy(MemoryState destination = nc);
-
     /**
     * \brief Return a copy of this Unity<T>* with a specified memory state.
     * \details This method will return a copy of this Unity with a new or the same 
@@ -439,16 +432,57 @@ namespace ssrlcv{
   }
   template<typename T>
   Unity<T>::Unity(Unity<T>* copy){
-    if(copy == nullptr || copy->state == null){
-      throw NullUnityException("attempt to use Unity<T> copy constructor with a null unity");
+    this->host = nullptr;
+    this->device = nullptr;
+    this->state = null;
+    this->fore = null;
+    this->numElements = 0;
+    if(copy->getMemoryState() == null || copy->size() == 0){
+      throw NullUnityException("cannot copy a null Unity<T>");
     }
-    if(this->state <= 3){
-      this = copy->copy();
+    this->setData(nullptr,copy->size(),copy->getMemoryState());
+    this->fore = copy->getFore();
+    this->state = copy->getMemoryState();
+    if(this->state == cpu || this->state == both){
+      std::memcpy(this->host,copy->host,this->numElements*sizeof(T));
+    }
+    if(this->state == gpu || this->state == both){
+      CudaSafeCall(cudaMemcpy(this->device,copy->device,this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
+    } 
+  }
+  template<typename T>
+  Unity<T>::Unity(Unity<T>* copy,bool (*predicate)(const T&)){
+    this->host = nullptr;
+    this->device = nullptr;
+    this->state = null;
+    this->fore = null;
+    this->numElements = 0;
+    if(copy->getMemoryState() == null || copy->size() == 0){
+      throw NullUnityException("cannot copy_if a null Unity<T>");
+    }
+    thrust::device_ptr<T> in_ptr;
+    T* tmp_device = nullptr;
+    if(copy->getFore() != cpu){
+      in_ptr = thrust::device_ptr<T>(copy->device);
     }
     else{
-      throw IllegalUnityTransition("attempt to use Unity<T> copy constructor with unsupported memory state (supported states = both, cpu & gpu");
+      CudaSafeCall(cudaMalloc((void**)&tmp_device,copy->size()*sizeof(T)));
+      CudaSafeCall(cudaMemcpy(tmp_device,copy->host,copy->size()*sizeof(T),cudaMemcpyHostToDevice));
+      in_ptr = thrust::device_ptr<T>(tmp_device);
     }
+    this->setData(nullptr,copy->size(),gpu);
+    thrust::device_ptr<T> out_ptr(this->device);
+    thrust::device_ptr<T> new_end = thrust::copy_if(in_ptr,in_ptr+copy->size(),out_ptr,predicate);
+    CudaCheckError();
+    unsigned long compressedSize = new_end - out_ptr;
+    this->resize(compressedSize);
+    if(tmp_device != nullptr) CudaSafeCall(cudaFree(tmp_device));
+    if(this->state != copy->getMemoryState()) this->setMemoryState(copy->getMemoryState());
   }
+
+
+
+
   template<typename T>
   Unity<T>::Unity(std::string path){
     this->host = nullptr;
@@ -522,7 +556,7 @@ namespace ssrlcv{
       throw NullUnityException("cannot resize and empty Unity");
     }
     else if(resizeLength == 0U){
-      throw IllegalUnityTransition("in Unity<T>::resize resizeLength must be > 0");
+      this->clear();
     }
     else if(this->state <= 3){
       unsigned long toCopy = ((resizeLength > this->numElements) ? this->numElements: resizeLength);
@@ -602,7 +636,7 @@ namespace ssrlcv{
         if(state == gpu || (state == both && this->device != nullptr)){
           T* zerod = (state == both && this->host != nullptr) ? this->host : new T[this->numElements]();
           CudaSafeCall(cudaMemcpy(this->device,zerod,this->numElements*sizeof(T),cudaMemcpyHostToDevice));
-          if(state != both || this->host == nullptr) delete[] zerod;
+          if(this->host == nullptr) delete[] zerod;
         }
         this->fore = state;
       }
@@ -740,80 +774,6 @@ namespace ssrlcv{
       throw IllegalUnityTransition("unsupported memory destination in Unity<T>::transferMemoryTo (supported states = both, cpu & gpu)");
     }
   }
-
-  template<typename T> 
-  Unity<T> Unity<T>::copy(MemoryState destination){
-     if(this->state == null || this->numElements == 0){
-      throw NullUnityException("cannot copy a null Unity<T>");
-    }
-    Unity<T> copied;
-    bool perfect_copy = (destination == nc);
-    if(perfect_copy) destination = this->state;
-    if(destination == null){
-      throw NullUnityException("cannot use null as destination for Unity<T>::copy()");
-    }
-    else if(destination <= 3 || perfect_copy){//else this would be unsupported currently 
-      copied = Unity<T>(nullptr,this->numElements,destination);
-      if(this->fore == both || this->fore == destination || (perfect_copy && destination == both)){
-        if(destination == cpu || destination == both){
-          std::memcpy(copied.host,this->host,this->numElements*sizeof(T));
-        }
-        if(destination == gpu || destination == both){
-          CudaSafeCall(cudaMemcpy(copied.device,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
-        } 
-      }
-      else{
-        if(this->fore == cpu){//cpu to gpu
-          CudaSafeCall(cudaMemcpy(copied.device,this->host,this->numElements*sizeof(T),cudaMemcpyHostToDevice));
-          copied.setFore(cpu);
-        }
-        else if(this->fore == gpu){//gpu to cpu
-          CudaSafeCall(cudaMemcpy(copied.host,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToHost));
-          copied.setFore(gpu);
-        }
-        if(destination == both) copied.transferMemoryTo(both);
-      }  
-    }
-    else{
-      throw IllegalUnityTransition("unsupported memory destination in Unity<T>::copy (supported states = both, cpu & gpu)");
-    }
-    return copied;
-  }
-  template<typename T> 
-  Unity<T> Unity<T>::copy(bool (*predicate)(const T&),MemoryState destination){
-    MemoryState origin = this->state;
-    if(origin == null || this->numElements == 0 || destination == null){
-      throw NullUnityException("cannot copy a null Unity<T> or copy to a null destination");
-    }
-    Unity<T> copied = Unity<T>();
-    if(destination == nc) destination = this->state;
-    if(destination <= 3){//else this would be unsupported currently 
-      thrust::device_ptr<T> in_ptr;
-      T* tmp_device = nullptr;
-      if(this->fore != cpu){
-        in_ptr = thrust::device_ptr<T>(this->device);
-      }
-      else{
-        CudaSafeCall(cudaMalloc((void**)&tmp_device,this->numElements*sizeof(T)));
-        CudaSafeCall(cudaMemcpy(tmp_device,this->host,this->numElements*sizeof(T),cudaMemcpyHostToDevice));
-        in_ptr = thrust::device_ptr<T>(tmp_device);
-      }
-      copied.setData(nullptr,this->numElements,gpu);
-      thrust::device_ptr<T> out_ptr(copied.device);
-      thrust::device_ptr<T> new_end = thrust::copy_if(in_ptr,in_ptr+this->numElements,out_ptr,predicate);
-      CudaCheckError();
-
-      unsigned long compressedSize = new_end - out_ptr;
-      copied.resize(compressedSize);
-      if(destination != copied.getMemoryState()) copied.setMemoryState(destination);
-      if(tmp_device != nullptr) CudaSafeCall(cudaFree(tmp_device));
-    }
-    else{
-      throw IllegalUnityTransition("unsupported memory destination in Unity<T>::copy (supported states = both, cpu & gpu)");
-    }
-    if(origin != this->state) this->setMemoryState(origin);
-    return copied;
-  }
   template<typename T>
   void Unity<T>::remove(bool (*predicate)(const T&),MemoryState destination){
     if(this->state == null || this->numElements == 0){
@@ -883,8 +843,6 @@ namespace ssrlcv{
     this->fore = gpu;
     if(origin != this->state) this->setMemoryState(origin);
   }
-
-
   template<typename T>
   void Unity<T>::checkpoint(int id, std::string dirPath){
     if(this->state == null){

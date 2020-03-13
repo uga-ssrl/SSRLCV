@@ -265,21 +265,16 @@ ssrlcv::Unity<float>* ssrlcv::addBufferBorder(uint2 size, ssrlcv::Unity<float>* 
 }
 
 ssrlcv::Unity<unsigned char>* ssrlcv::convertImageToChar(Unity<float>* pixels){
-  MemoryState origin = pixels->getMemoryState();
-  if(origin != cpu) pixels->setMemoryState(gpu);
-  normalizeImage(pixels);
+  Unity<float>* pixels_cpy = new Unity<float>(pixels);
+  normalizeImage(pixels_cpy);
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(pixels->size(),grid,block,convertToCharImage);
-  Unity<unsigned char>* castPixels = new Unity<unsigned char>(nullptr,pixels->size(),gpu);
-  convertToCharImage<<<grid,block>>>(pixels->size(),castPixels->device,pixels->device);
+  getFlatGridBlock(pixels_cpy->size(),grid,block,convertToCharImage);
+  Unity<unsigned char>* castPixels = new Unity<unsigned char>(nullptr,pixels_cpy->size(),gpu);
+  convertToCharImage<<<grid,block>>>(pixels_cpy->size(),castPixels->device,pixels_cpy->device);
   cudaDeviceSynchronize();
   CudaCheckError();
-
-  if(origin != gpu){
-    pixels->setMemoryState(origin);
-    castPixels->setMemoryState(origin);
-  }
+  delete pixels_cpy;
   return castPixels;
 }
 ssrlcv::Unity<float>* ssrlcv::convertImageToFlt(Unity<unsigned char>* pixels){
@@ -317,7 +312,7 @@ void ssrlcv::normalizeImage(Unity<float>* pixels){
   cudaDeviceSynchronize();
   CudaCheckError();
   pixels->setFore(gpu);
-  if(origin != both) pixels->setMemoryState(origin);
+  if(origin != pixels->getMemoryState()) pixels->setMemoryState(origin);
 }
 void ssrlcv::normalizeImage(Unity<float>* pixels, float2 minMax){
   MemoryState origin = pixels->getMemoryState();
