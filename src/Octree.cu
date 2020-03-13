@@ -202,7 +202,7 @@ ssrlcv::Octree::Octree(Unity<float3>* points, int depth, bool createVEF){
   printf("number of points = %lu\n\n", this->points->size());
 
   this->depth = depth;
-  if(this->depth >= 10){
+  if(this->depth > 10){
     std::cout<<"ERROR this octree currently only supports a depth of 10 at the max"<<std::endl;
     exit(-1);
   }

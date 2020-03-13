@@ -94,6 +94,7 @@ int main(int argc, char *argv[]){
     std::cout << "Generated MatchSet ..." << std::endl << "Total Matches: " << matches->size() << std::endl << std::endl;
 
 
+
     /*
     2 View Reprojection
     */
@@ -121,6 +122,15 @@ int main(int argc, char *argv[]){
 
     delete matches;
     ssrlcv::writePLY("out/test.ply",points);
+
+
+    ssrlcv::Octree* octree = new ssrlcv::Octree(points,10,true);
+    octree->name = "everetst_test";
+    octree->writeEdgePLY();
+    //ssrlcv::MeshFactory mesher = ssrlcv::MeshFactory(octree);//would call poisson 
+
+    delete octree;
+
     delete points;
 
     // clean up the images
