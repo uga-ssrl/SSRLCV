@@ -549,38 +549,7 @@ void ssrlcv::writeImage(const char* filePath, unsigned char* image, const unsign
 }
 
 
-//
-// CSV and Misc Debug IO
-//
-
-/*
- * Takes in an array of floats and writes them to a CSV
- * @param values a set of float elements as a float array that are written in csv format on one line
- * @param num the number of elements in the float array
- * @param filename a string representing the desired filename of the csv output
- */
-void ssrlcv::writeCSV(float* values, int num, std::string filename){
-  std::ofstream outfile;
-  outfile.open("out/" + filename + ".csv");
-  // the stupid method of doing this would be to just write it all on the same line ... that's what I'm going to do!
-  // other overloaded versions of this method will handle more robust types of inputs and saving and so on.
-  for(int i = 0; i < num; i++) outfile << std::to_string(values[i]) << ",";
-  outfile.close();
-}
-
-/*
- * Takes in a c++ vector and prints it all on one line of a csv
- * @param v a vector of float guys
- * @param filename a string representing the desired filename of the csv output
- */
-void ssrlcv::writeCSV(std::vector<float> v, std::string filename){
-  std::ofstream outfile;
-  outfile.open("out/" + filename + ".csv");
-  for (int i = 0; i < v.size(); i++) outfile << v[i] << ",";
-  outfile.close();
-}
-
-  /**
+/**
  * Replaces the file's extension with .bcp (binary camera parameters)
  * @return NEW std::string with the resultant file path
  */

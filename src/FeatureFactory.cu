@@ -417,7 +417,9 @@ depth(depth), isDOG(makeDOG){
     }
     delete pixels;
     delete[] sigmas;
+    this->dumpData("out/ss");
     if(this->isDOG) this->convertToDOG();
+    this->dumpData("out/dog");
 }
 void ssrlcv::FeatureFactory::ScaleSpace::convertToDOG(){
     Unity<float>* pixelsUpper = nullptr;
@@ -479,8 +481,8 @@ void ssrlcv::FeatureFactory::ScaleSpace::dumpData(std::string filePath){
             origin = this->octaves[o]->blurs[b]->pixels->getMemoryState();
             if(origin != gpu) this->octaves[o]->blurs[b]->pixels->setMemoryState(gpu);
             Unity<unsigned char>* writable = convertImageToChar(this->octaves[o]->blurs[b]->pixels);
-            if(origin != gpu) this->octaves[o]->blurs[b]->pixels->setMemoryState(origin);
             writable->setMemoryState(cpu);
+            if(origin != gpu) this->octaves[o]->blurs[b]->pixels->setMemoryState(origin);
             std::string currentFile = filePath + std::to_string(o) + "_" + std::to_string(b) + ".png";
             writePNG(currentFile.c_str(), writable->host, 1, this->octaves[o]->blurs[b]->size.x, this->octaves[o]->blurs[b]->size.y);
             delete writable;
@@ -513,10 +515,10 @@ void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, flo
         std::cout<<"-"<<temp - this->octaves[i]->extrema->size();
         if(currentExtrema == nullptr) continue;
         if(subpixel){
-            // temp = currentExtrema->size();
-            // this->octaves[i]->refineExtremaLocation();
-            // if(currentExtrema == nullptr) continue;
-            // std::cout<<"-"<<temp - currentExtrema->size();
+            temp = currentExtrema->size();
+            this->octaves[i]->refineExtremaLocation();
+            if(currentExtrema == nullptr) continue;
+            std::cout<<"-"<<temp - currentExtrema->size();
             temp = currentExtrema->size();
             this->octaves[i]->removeNoise(noiseThreshold);
             if(currentExtrema == nullptr) continue;
