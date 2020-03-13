@@ -105,7 +105,7 @@ int main(int argc, char *argv[]){
     ssrlcv::BundleSet bundleSet = demPoints.generateBundles(&matchSet,images);
 
     // here you can filter points in a number of ways before bundle adjustment or triangulation
-    demPoints.deterministicStatisticalFilter(&matchSet,images, 4.0, 0.1);
+    demPoints.deterministicStatisticalFilter(&matchSet,images, 5.0, 0.1);
 
     // the version that will be used normally
     ssrlcv::Unity<float3>* points = demPoints.twoViewTriangulate(bundleSet, linearError);

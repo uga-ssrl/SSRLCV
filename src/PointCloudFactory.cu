@@ -1182,7 +1182,7 @@ void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, Bundle
  * set and returns a matchSet without such outliers. The method is deterministic by taking a uniformly spaced sample of points
  * within the matcheSet.
  * @param matchSet a group of matches
- * @param a group of images, used only for their stored camera parameters
+ * @param images a group of images, used only for their stored camera parameters
  * @param sigma is the variance to cutoff from
  * @param sampleSize represents a percentage and should be between 0.0 and 1.0
  */
@@ -1223,6 +1223,8 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     std::cerr << "No N-View filtering is implemented yet" << std::endl;
     return;
   }
+
+  std::cout << "Starting Determinstic Statistical Filter ..." << std::endl;
 
   // the assumption is that choosing every ""stableJump"" indexes is random enough
   // https://en.wikipedia.org/wiki/Variance#Sample_variance
@@ -1275,6 +1277,10 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     for (int k = 0; k < tempMatchSet.matches->size(); k++){
       tempMatchSet.matches->host[k] = matchSet->matches->host[k];
     }
+    if (!(matchSet->matches->size() - bad_bundles)){
+      std::cerr << "ERROR: filtering is too aggressive, all points would be removed ..." << std::endl;
+      return;
+    }
     // resize the standard matchSet
     size_t new_kp_size = 2*(matchSet->matches->size() - bad_bundles);
     size_t new_mt_size = matchSet->matches->size() - bad_bundles;
@@ -1310,7 +1316,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
  * set and returns a matchSet without such outliers. It is the same as the deterministicStatisticalFilter only samples
  * are chosen randomly rather than equally spaced.
  * @param matchSet a group of matches
- * @param a group of images, used only for their stored camera parameters
+ * @param images a group of images, used only for their stored camera parameters
  * @param sigma is the variance to cutoff from
  * @param sampleSize represents a percentage and should be between 0.0 and 1.0
  */
@@ -1320,6 +1326,97 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
     return;
   }
   std::cout << "TODO" << std::endl;
+}
+
+/**
+ * A filter that removes all points with a linear error greater than the cutoff. Modifies the matchSet that is pass thru
+ * @param matchSet a group of matches
+ * @param images a group of images, used only for their stored camera parameters
+ * @param cutoff the float that no linear errors should be greater than
+ */
+void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float cutoff){
+  if (cutoff < 0.0){
+    std::cerr << "ERROR: linear cutoff must be positive" << std::endl;
+    return;
+  }
+
+  // the initial linear error
+  float* linearError = (float*) malloc(sizeof(float));
+  *linearError = 0.0; // just something to start
+  // the cutoff
+  float* linearErrorCutoff = (float*) malloc(sizeof(float));
+  *linearErrorCutoff = cutoff; // just somethihng to start
+
+  // the boiz
+  ssrlcv::BundleSet       bundleSet;
+  ssrlcv::Unity<float3>*  points;
+
+  // need bundles
+  bundleSet = generateBundles(matchSet,images);
+
+  // do the two view version of this (easier for now)
+  if (images.size() == 2){
+    //
+    // This is the 2-View case
+    //
+
+    // recalculate with new cutoff
+    points = twoViewTriangulate(bundleSet, linearError, linearErrorCutoff);
+
+    // CLEAR OUT THE DATA STRUCTURES
+    // count the number of bad bundles to be removed
+    int bad_bundles = 0;
+    for (int k = 0; k < bundleSet.bundles->size(); k++){
+      if (bundleSet.bundles->host[k].invalid){
+         bad_bundles++;
+      }
+    }
+    if (bad_bundles) std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
+    // Need to generated and adjustment match set
+    // make a temporary match set
+    delete tempMatchSet.keyPoints;
+    delete tempMatchSet.matches;
+    tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matchSet->matches->size()*2,ssrlcv::cpu);
+    tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+    // fill in the boiz
+    for (int k = 0; k < tempMatchSet.keyPoints->size(); k++){
+      tempMatchSet.keyPoints->host[k] = matchSet->keyPoints->host[k];
+    }
+    for (int k = 0; k < tempMatchSet.matches->size(); k++){
+      tempMatchSet.matches->host[k] = matchSet->matches->host[k];
+    }
+    if (!(matchSet->matches->size() - bad_bundles)){
+      std::cerr << "ERROR: filtering is too aggressive, all points would be removed ..." << std::endl;
+      return;
+    }
+    // resize the standard matchSet
+    size_t new_kp_size = 2*(matchSet->matches->size() - bad_bundles);
+    size_t new_mt_size = matchSet->matches->size() - bad_bundles;
+    delete matchSet->keyPoints;
+    delete matchSet->matches;
+    matchSet->keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,new_kp_size,ssrlcv::cpu);
+    matchSet->matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,new_mt_size,ssrlcv::cpu);
+    // this is much easier because of the 2 view assumption
+    // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
+    int k_adjust = 0;
+    // if (bad_bundles){
+    for (int k = 0; k < bundleSet.bundles->size(); k++){
+    	if (!bundleSet.bundles->host[k].invalid){
+    	  matchSet->keyPoints->host[2*k_adjust]     = tempMatchSet.keyPoints->host[2*k];
+    	  matchSet->keyPoints->host[2*k_adjust + 1] = tempMatchSet.keyPoints->host[2*k + 1];
+        matchSet->matches->host[k_adjust]         = {2,2*k_adjust};
+    	  k_adjust++;
+    	}
+    }
+    if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
+  } else {
+    //
+    // This is the N-view case
+    //
+
+    // TODO make the n-view case
+
+  }
 }
 
 // =============================================================================
