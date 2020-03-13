@@ -379,8 +379,8 @@ unsigned char* ssrlcv::readTIFF(const char* filePath, unsigned int &height, unsi
       }
 
     }
-    
-    
+
+
     _TIFFfree(buf);
     TIFFClose(tif);
     return pixels;
@@ -513,7 +513,7 @@ unsigned char* ssrlcv::readImage(const char *filePath, unsigned int &height, uns
   std::string str_filePath = filePath;
   std::string fileType = getFileExtension(str_filePath);
   unsigned char* pixels = nullptr;
-  
+
   if (fileType == "png"){
     pixels = readPNG(filePath,height,width,colorDepth);
   }
@@ -533,7 +533,7 @@ void ssrlcv::writeImage(const char* filePath, unsigned char* image, const unsign
   std::string str_filePath = filePath;
   std::string fileType = getFileExtension(str_filePath);
   unsigned char* pixels = nullptr;
-  
+
   if (fileType == "png"){
     writePNG(filePath,image,colorDepth,width,height);
   }
@@ -546,38 +546,6 @@ void ssrlcv::writeImage(const char* filePath, unsigned char* image, const unsign
   else{
     throw UnsupportedImageException(str_filePath);
   }
-}
-
-
-//
-// CSV and Misc Debug IO
-//
-
-/*
- * Takes in an array of floats and writes them to a CSV
- * @param values a set of float elements as a float array that are written in csv format on one line
- * @param num the number of elements in the float array
- * @param filename a string representing the desired filename of the csv output
- */
-void ssrlcv::writeCSV(float* values, int num, std::string filename){
-  std::ofstream outfile;
-  outfile.open("out/" + filename + ".csv");
-  // the stupid method of doing this would be to just write it all on the same line ... that's what I'm going to do!
-  // other overloaded versions of this method will handle more robust types of inputs and saving and so on.
-  for(int i = 0; i < num; i++) outfile << std::to_string(values[i]) << ",";
-  outfile.close();
-}
-
-/*
- * Takes in a c++ vector and prints it all on one line of a csv
- * @param v a vector of float guys
- * @param filename a string representing the desired filename of the csv output
- */
-void ssrlcv::writeCSV(std::vector<float> v, std::string filename){
-  std::ofstream outfile;
-  outfile.open("out/" + filename + ".csv");
-  for (int i = 0; i < v.size(); i++) outfile << v[i] << ",";
-  outfile.close();
 }
 
   /**
@@ -756,11 +724,27 @@ void ssrlcv::writePLY(const char* filePath, colorPoint* cpoint, int size){
   of << "end_header\n";
   // start writing the values
   for (int i = 0; i < size; i++){
-    of << std::fixed << cpoint[i].x << " " << cpoint[i].y << " " << cpoint[i].z << " " << (unsigned int) cpoint[i].r << " " << (unsigned int) cpoint[i].g << " " << (unsigned int) cpoint[i].b << "\n";
+    of << std::fixed << std::setprecision(32) << cpoint[i].x << " " << cpoint[i].y << " " << cpoint[i].z << " " << (unsigned int) cpoint[i].r << " " << (unsigned int) cpoint[i].g << " " << (unsigned int) cpoint[i].b << "\n";
   }
   of.close(); // done with the file building
 }
 
+void ssrlcv::writePLY(const char* filePath, Unity<colorPoint>* cpoint){
+  std::string filename = filePath;
+  std::ofstream of;
+  of.open ("out/" + filename + ".ply");
+  of << "ply\nformat ascii 1.0\n";
+  of << "comment author: Caleb Adams & Jackson Parker\n";
+  of << "comment SSRL CV color PLY writer\n";
+  of << "element vertex " << cpoint->size() << "\n";
+  of << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n"; // the elements in the guy
+  of << "end_header\n";
+  // start writing the values
+  for (int i = 0; i < cpoint->size(); i++){
+    of << std::fixed << std::setprecision(32) << cpoint->host[i].x << " " << cpoint->host[i].y << " " << cpoint->host[i].z << " " << (unsigned int) cpoint->host[i].r << " " << (unsigned int) cpoint->host[i].g << " " << (unsigned int) cpoint->host[i].b << "\n";
+  }
+  of.close(); // done with the file building
+}
 
 //
 // CSV and Misc Debug IO

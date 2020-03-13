@@ -485,17 +485,28 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   *linearError_partial = 0.0;
   // the cutoff
   float* linearErrorCutoff = (float*) malloc(sizeof(float));
-  *linearErrorCutoff = 9001.0;
+  *linearErrorCutoff = 900100.0;
   // make the temporary image struct
   std::vector<ssrlcv::Image*> partials;
   partials.push_back(images[0]);
   partials.push_back(images[1]);
+  // previous image information
+  std::vector<ssrlcv::Image*> images_prev;
+  images_prev.push_back(images[0]);
+  images_prev.push_back(images[1]);
   // used to store the gradients in the camera
   std::vector<ssrlcv::Image::Camera> gradients;
-  ssrlcv::Image::Camera g_1 = ssrlcv::Image::Camera();
-  ssrlcv::Image::Camera g_2 = ssrlcv::Image::Camera();
-  gradients.push_back(g_1);
-  gradients.push_back(g_2);
+  ssrlcv::Image::Camera gr_1 = ssrlcv::Image::Camera();
+  ssrlcv::Image::Camera gr_2 = ssrlcv::Image::Camera();
+  gradients.push_back(gr_1);
+  gradients.push_back(gr_2);
+
+  // used to store the gradients in the camera
+  std::vector<ssrlcv::Image::Camera> gradients_prev;
+  ssrlcv::Image::Camera gr_3 = ssrlcv::Image::Camera();
+  ssrlcv::Image::Camera gr_4 = ssrlcv::Image::Camera();
+  gradients_prev.push_back(gr_3);
+  gradients_prev.push_back(gr_4);
 
   // the boiz in the loop
   ssrlcv::BundleSet bundleSet;
@@ -511,18 +522,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // for printing out data about iterations and shit later
   std::vector<float> errorTracker;
 
-  int i = 1;
-  while(i < 2){
-  // while(*linearError > (100000.0)*matchSet->matches->numElements){
-    // generate the bundle set
-    bundleSet = generateBundles(matchSet,images);
-
-    // do an initial triangulation
-    errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
-
-    // for filtering
-    points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
-
+  // TODO make statistical filtering its own method
+  /*
     // // the assumption is that choosing every 10 indexes is random enough
     // // https://en.wikipedia.org/wiki/Variance#Sample_variance
     // size_t sample_size = (int) (errors->size() - (errors->size()%10))/10; // make sure divisible by 10 always
@@ -554,7 +555,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // int bad_bundles = 0;
     // for (int k = 0; k < bundleSet.bundles->size(); k++){
     //   if (bundleSet.bundles->host[k].invalid){
-	  //      bad_bundles++;
+    //      bad_bundles++;
     //   }
     // }
     // if (bad_bundles) std::cout << "Detected " << bad_bundles << " bad bundles to remove" << std::endl;
@@ -604,7 +605,27 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     //   std::cout << "\tsize of old keyPoints: " << tempMatchSet.keyPoints->size() << std::endl;
     //   std::cout << "\tsize of new keyPoints: " << matchSet->keyPoints->size() << std::endl;
     // }
+  */
 
+  // https://en.wikipedia.org/wiki/Gradient_descent#Description
+  int i = 1;
+  float min_step = 0.000001;
+  float h_rot = min_step;
+  float h_pos = min_step;
+  float h_foc = min_step;
+  float h_fov = min_step;
+  // the stepsize along the gradient
+  float step  = min_step;
+  while(i < 3){
+  // while(*linearError > (100000.0)*matchSet->matches->numElements){
+    // generate the bundle set
+    bundleSet = generateBundles(matchSet,images);
+
+    // do an initial triangulation
+    errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+
+    // for filtering
+    points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
 
     // do this only once
     if (i == 1) ssrlcv::writePLY("out/rawPoints.ply",points);
@@ -621,22 +642,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // a nice printout for the humans
     std::cout << std::fixed;
-    std::cout << std::setprecision(12);
+    std::cout << std::setprecision(16);
     // std::cout << "==============================================================" << std::endl;
     std::cout << "\n[itr: " << i << "] linear error: " << *linearError << std::endl;
     errorTracker.push_back(*linearError);
 
-    // what the step sizes should be tho:
-    // this is only for the "sensitivity" in those component directions
-    float min_step = 0.0000001;
-    float h_rot = min_step;
-    float h_pos = min_step;
-    float h_foc = min_step;
-    float h_fov = min_step;
-    // the stepsize along the gradient
-    float step  = min_step;
-
-    // calculate the descrete partial derivatives using forward difference
+    //
+    // Calculate the new gradient
+    //
     for (int j = 0; j < partials.size(); j++){
 
       // rotations
@@ -782,6 +795,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       gradients[j].fov.y /= norm;
     } // end generate gradients
 
+    // std::cout << "Calculated gradients ..." << std::endl;
+
     if (false){
       for (int j = 0; j < partials.size(); j++){
         std::cout << std::fixed;
@@ -804,21 +819,271 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       }
     }
 
+    //
+    // calculate the step size if there was a step already taken
+    //
+    if (i > 1){
+      // previous x_n-1
+      float x_0[18] = {
+        images_prev[0]->camera.cam_rot.x,
+        images_prev[0]->camera.cam_rot.y,
+        images_prev[0]->camera.cam_rot.z,
+        images_prev[0]->camera.cam_pos.x,
+        images_prev[0]->camera.cam_pos.y,
+        images_prev[0]->camera.cam_pos.z,
+        images_prev[0]->camera.foc,
+        images_prev[0]->camera.fov.x,
+        images_prev[0]->camera.fov.y,
+        images_prev[1]->camera.cam_rot.x,
+        images_prev[1]->camera.cam_rot.y,
+        images_prev[1]->camera.cam_rot.z,
+        images_prev[1]->camera.cam_pos.x,
+        images_prev[1]->camera.cam_pos.y,
+        images_prev[1]->camera.cam_pos.z,
+        images_prev[1]->camera.foc,
+        images_prev[1]->camera.fov.x,
+        images_prev[1]->camera.fov.y
+      };
+      // current x_n
+      float x_1[18] = {
+        images[0]->camera.cam_rot.x,
+        images[0]->camera.cam_rot.y,
+        images[0]->camera.cam_rot.z,
+        images[0]->camera.cam_pos.x,
+        images[0]->camera.cam_pos.y,
+        images[0]->camera.cam_pos.z,
+        images[0]->camera.foc,
+        images[0]->camera.fov.x,
+        images[0]->camera.fov.y,
+        images[1]->camera.cam_rot.x,
+        images[1]->camera.cam_rot.y,
+        images[1]->camera.cam_rot.z,
+        images[1]->camera.cam_pos.x,
+        images[1]->camera.cam_pos.y,
+        images[1]->camera.cam_pos.z,
+        images[1]->camera.foc,
+        images[1]->camera.fov.x,
+        images[1]->camera.fov.y
+      };
+      // previous gradient
+      float g_0[18] = {
+        gradients_prev[0].cam_rot.x,
+        gradients_prev[0].cam_rot.y,
+        gradients_prev[0].cam_rot.z,
+        gradients_prev[0].cam_pos.x,
+        gradients_prev[0].cam_pos.y,
+        gradients_prev[0].cam_pos.z,
+        gradients_prev[0].foc,
+        gradients_prev[0].fov.x,
+        gradients_prev[0].fov.y,
+        gradients_prev[1].cam_rot.x,
+        gradients_prev[1].cam_rot.y,
+        gradients_prev[1].cam_rot.z,
+        gradients_prev[1].cam_pos.x,
+        gradients_prev[1].cam_pos.y,
+        gradients_prev[1].cam_pos.z,
+        gradients_prev[1].foc,
+        gradients_prev[1].fov.x,
+        gradients_prev[1].fov.y
+      };
+      // current gradient
+      float g_1[18] = {
+        gradients[0].cam_rot.x,
+        gradients[0].cam_rot.y,
+        gradients[0].cam_rot.z,
+        gradients[0].cam_pos.x,
+        gradients[0].cam_pos.y,
+        gradients[0].cam_pos.z,
+        gradients[0].foc,
+        gradients[0].fov.x,
+        gradients[0].fov.y,
+        gradients[1].cam_rot.x,
+        gradients[1].cam_rot.y,
+        gradients[1].cam_rot.z,
+        gradients[1].cam_pos.x,
+        gradients[1].cam_pos.y,
+        gradients[1].cam_pos.z,
+        gradients[1].foc,
+        gradients[1].fov.x,
+        gradients[1].fov.y
+      };
+
+
+      std::cout << "\tx_0: [ ";
+      for (int k = 0; k < 18; k++){
+        std::cout << x_0[k] << ", ";
+      }
+      std::cout << "] " << std::endl;
+
+      std::cout << "\tx_1: [ ";
+      for (int k = 0; k < 18; k++){
+        std::cout << x_1[k] << ", ";
+      }
+      std::cout << "] " << std::endl;
+
+      std::cout << "\tg_0: [ ";
+      for (int k = 0; k < 18; k++){
+        std::cout << g_0[k] << ", ";
+      }
+      std::cout << "] " << std::endl;
+
+      std::cout << "\tg_1: [ ";
+      for (int k = 0; k < 18; k++){
+        std::cout << g_1[k] << ", ";
+      }
+      std::cout << "] " << std::endl;
+
+      std::cout << "calculating step size ..." << std::endl;
+
+
+      float sub_x[18];
+      std::cout << "\t sub_x: [ ";
+      for (int k = 0; k < 18; k++){
+        sub_x[k] = x_1[k] - x_0[k];
+        std::cout << sub_x[k] << ", ";
+      }
+      std::cout << " ]" << std::endl;
+
+      float sub_g[18];
+      float norm = 0.0f;
+      std::cout << "\t sub_g: [ ";
+      for (int k = 0; k < 18; k++){
+        sub_g[k] = g_1[k] - g_0[k];
+        norm += sub_g[k] * sub_g[k];
+        std::cout << sub_g[k] << ", ";
+      }
+      norm = sqrtf(norm);
+      std::cout << " ]" << std::endl;
+      std::cout << "\t norm: " << norm << std::endl;
+
+      float sub_g_norm[18];
+      std::cout << "\t sub_g_norm: [ ";
+      for (int k = 0; k < 18; k++){
+        sub_g_norm[k] /= norm;
+        std::cout << sub_g_norm[k] << ", ";
+      }
+      std::cout << " ]" << std::endl;
+
+
+      float denom = 0.0f;
+      for (int k = 0; k < 18; k++){
+        denom += sub_g_norm[k] * sub_g_norm[k];
+      }
+      std::cout << "\t denom: " << denom << std::endl;
+
+      //denom = sqrtf(denom);
+      float numer = 0.0f;
+      for (int k = 0; k < 18; k ++){
+        numer += sub_x[k] * sub_g[k];
+      }
+      std::cout << "\t numer: " << numer << std::endl;
+
+      step = numer/denom;
+      std::cout << "\tnew stepsize: " << step << std::endl;
+    } // end stepsize calculation
+
+    //->camera
     // take a step down the hill!
+    //
     for (int j = 0; j < images.size(); j++){
-      images[j]->camera.cam_rot.x += step * gradients[j].cam_rot.x;
-      images[j]->camera.cam_rot.y += step * gradients[j].cam_rot.y;
-      images[j]->camera.cam_rot.z += step * gradients[j].cam_rot.z;
-      images[j]->camera.cam_pos.x += step * gradients[j].cam_pos.x;
-      images[j]->camera.cam_pos.y += step * gradients[j].cam_pos.y;
-      images[j]->camera.cam_pos.z += step * gradients[j].cam_pos.z;
-      images[j]->camera.foc       += step * gradients[j].foc;
-      images[j]->camera.fov.x     += step * gradients[j].fov.x;
-      images[j]->camera.fov.y     += step * gradients[j].fov.y;
+
+      // set the previous here
+      images_prev[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x;
+      images_prev[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y;
+      images_prev[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z;
+      images_prev[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x;
+      images_prev[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y;
+      images_prev[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z;
+      images_prev[j]->camera.foc       = images[j]->camera.foc;
+      images_prev[j]->camera.fov.x     = images[j]->camera.fov.x;
+      images_prev[j]->camera.fov.y     = images[j]->camera.fov.y;
       // update dpix
+      images_prev[j]->camera.dpix.x = images[j]->camera.dpix.x;
+      images_prev[j]->camera.dpix.y = images[j]->camera.dpix.y;
+
+      // take the gradient step here
+
+      images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - step * gradients[j].cam_rot.x;
+      images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y - step * gradients[j].cam_rot.y;
+      images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z - step * gradients[j].cam_rot.z;
+      images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - step * gradients[j].cam_pos.x;
+      images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - step * gradients[j].cam_pos.y;
+      images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - step * gradients[j].cam_pos.z;
+      images[j]->camera.foc       = images[j]->camera.foc       - step * gradients[j].foc      ;
+      images[j]->camera.fov.x     = images[j]->camera.fov.x     - step * gradients[j].fov.x    ;
+      images[j]->camera.fov.y     = images[j]->camera.fov.y     - step * gradients[j].fov.y    ;
+      // up->cameradate dpix
       images[j]->camera.dpix.x = (images[j]->camera.foc * tanf(images[j]->camera.fov.x / 2.0f)) / (images[j]->camera.size.x / 2.0f );
       images[j]->camera.dpix.y = images[j]->camera.dpix.x;
     }
+
+    // set the old gradients
+    gradients_prev[0].cam_rot.x   = gradients[0].cam_rot.x;
+    gradients_prev[0].cam_rot.y   = gradients[0].cam_rot.y;
+    gradients_prev[0].cam_rot.z   = gradients[0].cam_rot.z;
+    gradients_prev[0].cam_pos.x   = gradients[0].cam_pos.x;
+    gradients_prev[0].cam_pos.y   = gradients[0].cam_pos.y;
+    gradients_prev[0].cam_pos.z   = gradients[0].cam_pos.z;
+    gradients_prev[0].foc         = gradients[0].foc;
+    gradients_prev[0].fov.x       = gradients[0].fov.x;
+    gradients_prev[0].fov.y       = gradients[0].fov.y;
+    gradients_prev[1].cam_rot.x   = gradients[1].cam_rot.x;
+    gradients_prev[1].cam_rot.y   = gradients[1].cam_rot.y;
+    gradients_prev[1].cam_rot.z   = gradients[1].cam_rot.z;
+    gradients_prev[1].cam_pos.x   = gradients[1].cam_pos.x;
+    gradients_prev[1].cam_pos.y   = gradients[1].cam_pos.y;
+    gradients_prev[1].cam_pos.z   = gradients[1].cam_pos.z;
+    gradients_prev[1].foc         = gradients[1].foc;
+    gradients_prev[1].fov.x       = gradients[1].fov.x;
+    gradients_prev[1].fov.y       = gradients[1].fov.y;
+
+
+    std::cout << "gradient_prev: [";
+    std::cout << ", " << gradients_prev[0].cam_rot.x;
+    std::cout << ", " << gradients_prev[0].cam_rot.y;
+    std::cout << ", " << gradients_prev[0].cam_rot.z;
+    std::cout << ", " << gradients_prev[0].cam_pos.x;
+    std::cout << ", " << gradients_prev[0].cam_pos.y;
+    std::cout << ", " << gradients_prev[0].cam_pos.z;
+    std::cout << ", " << gradients_prev[0].foc      ;
+    std::cout << ", " << gradients_prev[0].fov.x    ;
+    std::cout << ", " << gradients_prev[0].fov.y    ;
+    std::cout << ", " << gradients_prev[1].cam_rot.x;
+    std::cout << ", " << gradients_prev[1].cam_rot.y;
+    std::cout << ", " << gradients_prev[1].cam_rot.z;
+    std::cout << ", " << gradients_prev[1].cam_pos.x;
+    std::cout << ", " << gradients_prev[1].cam_pos.y;
+    std::cout << ", " << gradients_prev[1].cam_pos.z;
+    std::cout << ", " << gradients_prev[1].foc      ;
+    std::cout << ", " << gradients_prev[1].fov.x    ;
+    std::cout << ", " << gradients_prev[1].fov.y    ;
+    std::cout << " ]" << std::endl;
+
+    std::cout << "images_prev: [";
+    // set the previous here
+    std::cout << ", " << images_prev[0]->camera.cam_rot.x;
+    std::cout << ", " << images_prev[0]->camera.cam_rot.y;
+    std::cout << ", " << images_prev[0]->camera.cam_rot.z;
+    std::cout << ", " << images_prev[0]->camera.cam_pos.x;
+    std::cout << ", " << images_prev[0]->camera.cam_pos.y;
+    std::cout << ", " << images_prev[0]->camera.cam_pos.z;
+    std::cout << ", " << images_prev[0]->camera.foc      ;
+    std::cout << ", " << images_prev[0]->camera.fov.x    ;
+    std::cout << ", " << images_prev[0]->camera.fov.y    ;
+    std::cout << ", " << images_prev[0]->camera.dpix.x   ;
+    std::cout << ", " << images_prev[0]->camera.dpix.y   ;
+    std::cout << ", " << images_prev[1]->camera.cam_rot.x;
+    std::cout << ", " << images_prev[1]->camera.cam_rot.y;
+    std::cout << ", " << images_prev[1]->camera.cam_rot.z;
+    std::cout << ", " << images_prev[1]->camera.cam_pos.x;
+    std::cout << ", " << images_prev[1]->camera.cam_pos.y;
+    std::cout << ", " << images_prev[1]->camera.cam_pos.z;
+    std::cout << ", " << images_prev[1]->camera.foc      ;
+    std::cout << ", " << images_prev[1]->camera.fov.x    ;
+    std::cout << ", " << images_prev[1]->camera.fov.y    ;
+    std::cout << ", " << images_prev[1]->camera.dpix.x   ;
+    std::cout << ", " << images_prev[1]->camera.dpix.y   ;
+    std::cout << " ]" << std::endl;
 
     // yahboi
     i++;
@@ -848,6 +1113,155 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   return points;
 }
 
+/**
+ * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
+ * all as points in R3. Each is color coded RED for the cameras, GREEN for the point cloud, and
+ * BLUE for the reprojected points.
+ * @param pointCloud a Unity float3 that represents the point cloud itself
+ * @param bundleSet is a BundleSet that contains lines and points to be drawn in front of the cameras
+ * @param images a vector of images that contain value camera information
+ */
+void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, BundleSet bundleSet, std::vector<ssrlcv::Image*> images){
+  // main variables
+  int size        = pointCloud->size() + bundleSet.lines->size() + images.size();
+  int index       = 0; // the use of this just makes everything easier to read
+  // test output of all the boiz
+  struct colorPoint* cpoints = (colorPoint*)  malloc(size * sizeof(struct colorPoint));
+  // fill in the camera points RED
+  for (int i = 0; i < images.size(); i++){
+    cpoints[index].x = images[i]->camera.cam_pos.x;
+    cpoints[index].y = images[i]->camera.cam_pos.y;
+    cpoints[index].z = images[i]->camera.cam_pos.z;
+    cpoints[index].r = 255;
+    cpoints[index].g = 0;
+    cpoints[index].b = 0;
+    index++;
+  }
+  // fill in the projected match locations in front of the cameras BLUE
+  for (int i = 0; i < bundleSet.lines->size(); i++) {
+    cpoints[index].x = bundleSet.lines->host[i].pnt.x + bundleSet.lines->host[i].vec.x;
+    cpoints[index].y = bundleSet.lines->host[i].pnt.y + bundleSet.lines->host[i].vec.y;
+    cpoints[index].z = bundleSet.lines->host[i].pnt.z + bundleSet.lines->host[i].vec.z;
+    cpoints[index].r = 0;
+    cpoints[index].g = 0;
+    cpoints[index].b = 255;
+    index++;
+  }
+  // fill in the point cloud GREEN
+  for (int i = 0; i < pointCloud->size(); i++){
+    cpoints[index].x = pointCloud->host[i].x; //
+    cpoints[index].y = pointCloud->host[i].y;
+    cpoints[index].z = pointCloud->host[i].z;
+    cpoints[index].r = 0;
+    cpoints[index].g = 255;
+    cpoints[index].b = 0;
+    index++;
+  }
+  // now save it
+  ssrlcv::writePLY("debugCloud", cpoints, size); //
+}
+
+/**
+ * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
+ * all as points in R3. Each is color coded RED for the cameras, GREEN for the point cloud, and
+ * BLUE for the reprojected points.
+ * @param pointCloud a Unity float3 that represents the point cloud itself
+ * @param bundleSet is a BundleSet that contains lines and points to be drawn in front of the cameras
+ * @param images a vector of images that contain value camera information
+ * @param fineName a filename for the debug cloud
+ */
+void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, BundleSet bundleSet, std::vector<ssrlcv::Image*> images, std::string filename){
+  // main variables
+  int size        = pointCloud->size() + bundleSet.lines->size() + images.size();
+  int index       = 0; // the use of this just makes everything easier to read
+  // test output of all the boiz
+  struct colorPoint* cpoints = (colorPoint*)  malloc(size * sizeof(struct colorPoint));
+  // fill in the camera points RED
+  for (int i = 0; i < images.size(); i++){
+    cpoints[index].x = images[i]->camera.cam_pos.x;
+    cpoints[index].y = images[i]->camera.cam_pos.y;
+    cpoints[index].z = images[i]->camera.cam_pos.z;
+    cpoints[index].r = 255;
+    cpoints[index].g = 0;
+    cpoints[index].b = 0;
+    index++;
+  }
+  // fill in the projected match locations in front of the cameras BLUE
+  for (int i = 0; i < bundleSet.lines->size(); i++) {
+    cpoints[index].x = bundleSet.lines->host[i].pnt.x + bundleSet.lines->host[i].vec.x;
+    cpoints[index].y = bundleSet.lines->host[i].pnt.y + bundleSet.lines->host[i].vec.y;
+    cpoints[index].z = bundleSet.lines->host[i].pnt.z + bundleSet.lines->host[i].vec.z;
+    cpoints[index].r = 0;
+    cpoints[index].g = 0;
+    cpoints[index].b = 255;
+    index++;
+  }
+  // fill in the point cloud GREEN
+  for (int i = 0; i < pointCloud->size(); i++){
+    cpoints[index].x = pointCloud->host[i].x; //
+    cpoints[index].y = pointCloud->host[i].y;
+    cpoints[index].z = pointCloud->host[i].z;
+    cpoints[index].r = 0;
+    cpoints[index].g = 255;
+    cpoints[index].b = 0;
+    index++;
+  }
+  // now save it
+  ssrlcv::writePLY(filename.c_str(), cpoints, size); //
+}
+
+/**
+ * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
+ * all as points in R3. Each is color coded RED for the cameras, GREEN for the point cloud, and
+ * BLUE for the reprojected points.
+ * @param pointCloud a Unity float3 that represents the point cloud itself
+ * @param bundleSet is a BundleSet that contains lines and points to be drawn in front of the cameras
+ * @param images a vector of images that contain value camera information
+ * @param fineName a filename for the debug cloud
+ */
+void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, BundleSet bundleSet, std::vector<ssrlcv::Image*> images, const char* filename){
+  // main variables
+  int size        = pointCloud->size() + bundleSet.lines->size() + images.size();
+  int index       = 0; // the use of this just makes everything easier to read
+  // test output of all the boiz
+  struct colorPoint* cpoints = (colorPoint*)  malloc(size * sizeof(struct colorPoint));
+  // fill in the camera points RED
+  for (int i = 0; i < images.size(); i++){
+    cpoints[index].x = images[i]->camera.cam_pos.x;
+    cpoints[index].y = images[i]->camera.cam_pos.y;
+    cpoints[index].z = images[i]->camera.cam_pos.z;
+    cpoints[index].r = 255;
+    cpoints[index].g = 0;
+    cpoints[index].b = 0;
+    index++;
+  }
+  // fill in the projected match locations in front of the cameras BLUE
+  for (int i = 0; i < bundleSet.lines->size(); i++) {
+    cpoints[index].x = bundleSet.lines->host[i].pnt.x + bundleSet.lines->host[i].vec.x;
+    cpoints[index].y = bundleSet.lines->host[i].pnt.y + bundleSet.lines->host[i].vec.y;
+    cpoints[index].z = bundleSet.lines->host[i].pnt.z + bundleSet.lines->host[i].vec.z;
+    cpoints[index].r = 0;
+    cpoints[index].g = 0;
+    cpoints[index].b = 255;
+    index++;
+  }
+  // fill in the point cloud GREEN
+  for (int i = 0; i < pointCloud->size(); i++){
+    cpoints[index].x = pointCloud->host[i].x; //
+    cpoints[index].y = pointCloud->host[i].y;
+    cpoints[index].z = pointCloud->host[i].z;
+    cpoints[index].r = 0;
+    cpoints[index].g = 255;
+    cpoints[index].b = 0;
+    index++;
+  }
+  // now save it
+  ssrlcv::writePLY(filename, cpoints, size); //
+}
+
+/**
+ * heat map
+ */
 uchar3 ssrlcv::heatMap(float value){
   uchar3 rgb;
   // float3 colorMap[5] = {
@@ -882,6 +1296,9 @@ uchar3 ssrlcv::heatMap(float value){
   return rgb;
 }
 
+/**
+ * write disparity image
+ */
 void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolationRadius, std::string pathToFile){
   MemoryState origin = points->getMemoryState();
   if(origin == gpu) points->transferMemoryTo(cpu);
@@ -994,7 +1411,7 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
     // fill in the line values
     normalize(lines[i].vec);
     lines[i].pnt = cameras[currentKP.parentId].cam_pos;
-    //printf("[%lu / %u] [i: %d] < %f , %f, %f > at ( %f, %f, %f ) \n", globalID,numBundles,i,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z,lines[i].pnt.x,lines[i].pnt.y,lines[i].pnt.z);
+    //printf("[%lu / %u] [i: %d] < %f , %f, %f > at ( %.12f, %.12f, %.12f ) \n", globalID,numBundles,i,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z,lines[i].pnt.x,lines[i].pnt.y,lines[i].pnt.z);
   }
   delete[] kp;
 }
@@ -1159,22 +1576,56 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* lin
   ssrlcv::Bundle::Line L1 = lines[bundles[globalID].index];
   ssrlcv::Bundle::Line L2 = lines[bundles[globalID].index+1];
 
+  float3 n = crossProduct(L1.vec,L2.vec);
+  /*
+  printf("Calculating n: (%.12f, %.12f, %.12f) x (%.12f, %.12f, %.12f)\n", L1.vec.x, L1.vec.y, L1.vec.z, L2.vec.x, L2.vec.y, L2.vec.z);
+  printf("\tn (%.12f, %.12f, %.12f)\n", n.x, n.y, n.z);
+ */
+
   // calculate the normals
   float3 n2 = crossProduct(L2.vec,crossProduct(L1.vec,L2.vec));
   float3 n1 = crossProduct(L1.vec,crossProduct(L1.vec,L2.vec));
+
+  /*
+  printf("Caclulating n1: (%.12f, %.12f, %.12f) x (%.12f, %.12f, %.12f)\n", L1.vec.x, L1.vec.y, L1.vec.z, n.x, n.y, n.z);
+  printf("Caclulating n2: (%.12f, %.12f, %.12f) x (%.12f, %.12f, %.12f)\n", L2.vec.x, L2.vec.y, L2.vec.z, n.x, n.y, n.z);
+  printf("\tn1 (%.12f, %.12f, %.12f)\n", n1.x, n1.y, n1.z);
+  printf("\tn2 (%.12f, %.12f, %.12f)\n", n2.x, n2.y, n2.z);
+  */
 
   // calculate the numerators
   float numer1 = dotProduct((L2.pnt - L1.pnt),n2);
   float numer2 = dotProduct((L1.pnt - L2.pnt),n1);
 
+  /*
+  printf("Caclulating numer1: [(%.12f, %.12f, %.12f) - (%.12f, %.12f, %.12f)] . (%.12f, %.12f, %.12f)\n", L2.pnt.x, L2.pnt.y, L2.pnt.z, L1.pnt.x, L1.pnt.y, L1.pnt.z, n2.x, n2.y, n2.z);
+  printf("Caclulating numer2: [(%.12f, %.12f, %.12f) - (%.12f, %.12f, %.12f)] . (%.12f, %.12f, %.12f)\n", L1.pnt.x, L1.pnt.y, L1.pnt.z, L2.pnt.x, L2.pnt.y, L2.pnt.z, n1.x, n1.y, n1.z);
+  printf("numer1 subtraction: (%.12f, %.12f, %.12f)\n", (L2.pnt - L1.pnt).x, (L2.pnt - L1.pnt).y, (L2.pnt - L1.pnt).z);
+  printf("numer2 subtraction: (%.12f, %.12f, %.12f)\n", (L1.pnt - L2.pnt).x, (L1.pnt - L2.pnt).y, (L1.pnt - L2.pnt).z);
+  printf("\tnumer1: %.12f\n", numer1);
+  printf("\tnumer2: %.12f\n", numer2);
+  */
+
   // calculate the denominators
   float denom1 = dotProduct(L1.vec,n2);
   float denom2 = dotProduct(L2.vec,n1);
+
+  /*
+  printf("Calculating denom1: (%.12f, %.12f, %.12f) . (%.12f, %.12f, %.12f)\n", L1.vec.x, L1.vec.y, L1.vec.z, n2.x, n2.y, n2.z);
+  printf("Calculating denom2: (%.12f, %.12f, %.12f) . (%.12f, %.12f, %.12f)\n", L2.vec.x, L2.vec.y, L2.vec.z, n1.x, n1.y, n1.z);
+  printf("\tdenom1: %.12f\n", denom1);
+  printf("\tdenom2: %.12f\n", denom2);
+  */
 
   // get the S points
   float3 s1 = L1.pnt + (numer1/denom1) * L1.vec;
   float3 s2 = L2.pnt + (numer2/denom2) * L2.vec;
   float3 point = (s1 + s2)/2.0;
+
+  /*
+  printf("S1 (%.12f, %.12f, %.12f)\n",s1.x,s1.y,s1.z);
+  printf("S2 (%.12f, %.12f, %.12f)\n",s2.x,s2.y,s2.z);
+  */
 
   // fill in the value for the point cloud
   pointcloud[globalID] = point;
