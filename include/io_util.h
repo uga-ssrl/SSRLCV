@@ -125,7 +125,7 @@ struct arg
   /*
   IMAGE IO
   */
-  
+
   /**
   * \brief Get pixel array from a row of pointers generated from ssrlcv::readPNG utilizing png.h.
   * \details This method is utilized by readPNG and writePNG for help in writing images.
@@ -204,8 +204,8 @@ struct arg
 
   /**
   * \brief Reads an image and generates a pixel array.
-  * \details This method will read a PNG, JPG/JPEG or TIF/TIFF image and fill in the passed-by-reference arguments 
-  * height, width and colorDepth. 
+  * \details This method will read a PNG, JPG/JPEG or TIF/TIFF image and fill in the passed-by-reference arguments
+  * height, width and colorDepth.
   * \param filePath - const char* filePath for location of image (<string>.c_str() is easiest way to use a string path)
   * \param height - image height in pixels (reference argument that will be filled in during reading of image)
   * \param width - image width in pixels (reference argument that will be filled in during reading of image)
@@ -280,7 +280,18 @@ struct arg
   */
   void writePLY(const char* filePath, colorPoint* cpoint, int size);
 
-  
+  /**
+  * \brief Will write a ply file based on a set of float3 values with rgb color
+  * \details This method will write a ply in the specified location and can
+  * be written in binary or ASCII format.
+  * \param filePath - c++ string, rather than a c string
+  * \param cpoint - a colored float3 point
+  * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
+  * \see Unity
+  */
+  void writePLY(const char* filePath, Unity<colorPoint>* cpoint);
+
+
   /*
   CSV and Misc Debug IO
   */
