@@ -103,12 +103,28 @@ int main(int argc, char *argv[]){
     // bunlde adjustment loop would be here. images_vec woudl be modified to minimize the boi
     float* linearError = (float*)malloc(sizeof(float));
     ssrlcv::BundleSet bundleSet = demPoints.generateBundles(&matchSet,images);
+    ssrlcv::Unity<float3>* points = demPoints.twoViewTriangulate(bundleSet, linearError);
+    ssrlcv::writePLY("out/unfiltered.ply",points);
+    delete points;
+    delete bundleSet.lines;
+    delete buindeSet.bundles;
+
+    // it's good to do a cutoff filter first
+    demPoints.linearCutoffFilter(&matchSet,images,9001);
+    bundleSet = demPoints.generateBundles(&matchSet,images);
+    points = demPoints.twoViewTriangulate(bundleSet, linearError);
+    ssrlcv::writePLY("out/linearCutoff.ply",points);
+    delete points;
+    delete bundleSet.lines;
+    delete buindeSet.bundles;
+
 
     // here you can filter points in a number of ways before bundle adjustment or triangulation
     demPoints.deterministicStatisticalFilter(&matchSet,images, 5.0, 0.1);
+    bundleSet = demPoints.generateBundles(&matchSet,images);
 
     // the version that will be used normally
-    ssrlcv::Unity<float3>* points = demPoints.twoViewTriangulate(bundleSet, linearError);
+    points = demPoints.twoViewTriangulate(bundleSet, linearError);
 
 
 

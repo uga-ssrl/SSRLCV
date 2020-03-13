@@ -1348,11 +1348,17 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
   *linearErrorCutoff = cutoff; // just somethihng to start
 
   // the boiz
-  ssrlcv::BundleSet       bundleSet;
-  ssrlcv::Unity<float3>*  points;
+  ssrlcv::BundleSet        bundleSet;
+  ssrlcv::Unity<float3>*   points;
+  ssrlcv::Unity<float>*    errors;
+  ssrlcv::MatchSet         tempMatchSet;
+  tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,1,ssrlcv::cpu);
+  tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,1,ssrlcv::cpu);
 
   // need bundles
   bundleSet = generateBundles(matchSet,images);
+
+  errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
 
   // do the two view version of this (easier for now)
   if (images.size() == 2){
@@ -1361,7 +1367,7 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     //
 
     // recalculate with new cutoff
-    points = twoViewTriangulate(bundleSet, linearError, linearErrorCutoff);
+    points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
 
     // CLEAR OUT THE DATA STRUCTURES
     // count the number of bad bundles to be removed
@@ -1656,7 +1662,7 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, unsigned l
 
   // fill in the value for the point cloud
   pointcloud[globalID] = point;
-
+  bundles[globalID].invalid = false;
   // add the linaer errors locally within the block before
   float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));;
   // if(error != 0.0f) error = sqrtf(error);
@@ -1711,6 +1717,7 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* err
   float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));
   // if(error != 0.0f) error = sqrtf(error);
   errors[globalID] = error;
+  bundles[globalID].invalid = false;
   //int i_error = error;
   atomicAdd(&localSum,error);
   __syncthreads();
@@ -1805,6 +1812,7 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* lin
     bundles[globalID].invalid = true;
   } else {
     i_error = error;
+    bundles[globalID].invalid = false;
   }
 
   atomicAdd(&localSum,i_error);
@@ -1928,8 +1936,10 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
     //point = {1.0f,1.0f,1.0f};
     //i_error = *linearErrorCutoff;
     i_error = error;
+    bundles[globalID].invalid = true;
   } else {
     i_error = error;
+    bundles[globalID].invalid = false;
   }
   atomicAdd(&localSum,i_error);
   __syncthreads();
