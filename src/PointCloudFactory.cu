@@ -1213,7 +1213,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
   // need bundles
   bundleSet = generateBundles(matchSet,images);
   // do an initial triangulation
-  errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu)
+  errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
 
   // check for the view numbers
   if (images.size() == 2){ // === 2-View Case
@@ -1224,9 +1224,9 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     return;
   }
 
-  // the assumption is that choosing every ""10"" indexes is random enough
+  // the assumption is that choosing every ""stableJump"" indexes is random enough
   // https://en.wikipedia.org/wiki/Variance#Sample_variance
-  size_t sample_size = (int) (errors->size() - (errors->size()%sampleJump))/sampleJump; // make sure divisible by 10 always
+  size_t sample_size = (int) (errors->size() - (errors->size()%sampleJump))/sampleJump; // make sure divisible by the stableJump int always
   errors_sample      = new ssrlcv::Unity<float>(nullptr,sample_size,ssrlcv::cpu);
   float sample_sum   = 0;
   for (int k = 0; k < sample_size; k++){
@@ -1241,8 +1241,8 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
   float variance = squared_sum / errors_sample->size();
   // std::cout << "Sample variance: " << variance << std::endl;
   std::cout << "\tSigma Calculated As: " << sqrtf(variance) << std::endl;
-  std::cout << "\tLinear Error Cutoff Adjusted To: " << 5 * sqrtf(variance) << std::endl;
-  *linearErrorCutoff = 5 * sqrtf(variance);
+  std::cout << "\tLinear Error Cutoff Adjusted To: " << sigma * sqrtf(variance) << std::endl;
+  *linearErrorCutoff = sigma * sqrtf(variance);
 
   // do the two view version of this (easier for now)
   if (images.size() == 2){

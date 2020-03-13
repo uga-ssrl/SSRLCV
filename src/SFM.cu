@@ -77,7 +77,7 @@ int main(int argc, char *argv[]){
 
     std::string delimiter = "/";
     std::string matchFile = imagePaths[0].substr(0,imagePaths[0].rfind(delimiter)) + "/matches.txt";
-    ssrlcv::writeMatchFile(matches, matchFile);
+    // ssrlcv::writeMatchFile(matches, matchFile);
 
     // HARD CODED FOR 2 VIEW
     // Need to fill into to MatchSet boi
@@ -105,7 +105,7 @@ int main(int argc, char *argv[]){
     ssrlcv::BundleSet bundleSet = demPoints.generateBundles(&matchSet,images);
 
     // here you can filter points in a number of ways before bundle adjustment or triangulation
-     
+    demPoints.deterministicStatisticalFilter(&matchSet,images, 4.0, 0.1);
 
     // the version that will be used normally
     ssrlcv::Unity<float3>* points = demPoints.twoViewTriangulate(bundleSet, linearError);
