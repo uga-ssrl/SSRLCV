@@ -210,14 +210,20 @@ print ''
 #############################
 
 print 'Copy And Paste Cameras: \n'
+
+print 'std::vector<ssrlcv::Image*> images;'
+
 for cam in range(0,num_cameras):
-    print 'images[0]->id = ' + str(cam) + ';'
-    print 'images[0]->camera.size = {' + str(res) + ',' + str(res) + '};'
-    print 'images[0]->camera.cam_pos = {' + str('{0:.12f}'.format(camera[0])) + ',' + str('{0:.12f}'.format(camera[1])) + ',' + str('{0:.12f}'.format(camera[2])) + '};'
-    # print 'images[0]->camera.cam_rot = {' + str(radians(180)) + ', 0.0, 0.0};'
-    print 'images[0]->camera.cam_rot = {' + str(cam * radians(to_rotate)) + ', 0.0, 0.0};'
-    print 'images[0]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
-    print 'images[0]->camera.foc = ' + str('{0:.12f}'.format(foc)) + ';'
+    print 'ssrlcv::Image* image' + str(cam) + ' = new ssrlcv::Image();'
+    print 'images.push_back(image' + str(cam) + ');'
+
+for cam in range(0,num_cameras):
+    print 'images[' + str(cam) + ']->id = ' + str(cam) + ';'
+    print 'images[' + str(cam) + ']->camera.size = {' + str(res) + ',' + str(res) + '};'
+    print 'images[' + str(cam) + ']->camera.cam_pos = {' + str('{0:.12f}'.format(camera[0])) + ',' + str('{0:.12f}'.format(camera[1])) + ',' + str('{0:.12f}'.format(camera[2])) + '};'
+    print 'images[' + str(cam) + ']->camera.cam_rot = {' + str(cam * radians(to_rotate)) + ', 0.0, 0.0};'
+    print 'images[' + str(cam) + ']->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
+    print 'images[' + str(cam) + ']->camera.foc = ' + str('{0:.12f}'.format(foc)) + ';'
     rotate_camera_x(radians(to_rotate))
 
 

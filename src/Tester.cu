@@ -27,8 +27,10 @@ int main(int argc, char *argv[]){
 
     ssrlcv::Image* image0 = new ssrlcv::Image();
     ssrlcv::Image* image1 = new ssrlcv::Image();
+    ssrlcv::Image* image2 = new ssrlcv::Image();
     images.push_back(image0);
     images.push_back(image1);
+    images.push_back(image2);
 
     // fill the test camera params
     std::cout << "Filling in Test Camera Params ..." << std::endl;
@@ -39,18 +41,18 @@ int main(int argc, char *argv[]){
     images[0]->camera.cam_rot = {0.0, 0.0, 0.0};
     images[0]->camera.fov = {0.174532925199,0.174532925199};
     images[0]->camera.foc = 0.160000000000;
-    images[0]->id = 1;
-    images[0]->camera.size = {1024,1024};
-    images[0]->camera.cam_pos = {0.000000000000,3.472963553339,-19.696155060244};
-    images[0]->camera.cam_rot = {0.174532925199, 0.0, 0.0};
-    images[0]->camera.fov = {0.174532925199,0.174532925199};
-    images[0]->camera.foc = 0.160000000000;
-    images[0]->id = 2;
-    images[0]->camera.size = {1024,1024};
-    images[0]->camera.cam_pos = {0.000000000000,6.840402866513,-18.793852415718};
-    images[0]->camera.cam_rot = {0.349065850399, 0.0, 0.0};
-    images[0]->camera.fov = {0.174532925199,0.174532925199};
-    images[0]->camera.foc = 0.160000000000;
+    images[1]->id = 1;
+    images[1]->camera.size = {1024,1024};
+    images[1]->camera.cam_pos = {0.000000000000,3.472963553339,-19.696155060244};
+    images[1]->camera.cam_rot = {0.174532925199, 0.0, 0.0};
+    images[1]->camera.fov = {0.174532925199,0.174532925199};
+    images[1]->camera.foc = 0.160000000000;
+    images[2]->id = 2;
+    images[2]->camera.size = {1024,1024};
+    images[2]->camera.cam_pos = {0.000000000000,6.840402866513,-18.793852415718};
+    images[2]->camera.cam_rot = {0.349065850399, 0.0, 0.0};
+    images[2]->camera.fov = {0.174532925199,0.174532925199};
+    images[2]->camera.foc = 0.160000000000;
 
     // fill the test match points
     std::cout << "Filling in Matches ..." << std::endl;
@@ -106,7 +108,7 @@ int main(int argc, char *argv[]){
     ssrlcv::BundleSet bundleSet = demPoints.generateBundles(&matchSet,images);
 
     std::cout << "Attempting N-view Triangulation" << std::endl;
-    ssrlcv::Unity<float3>* points = demPoints.nViewTriangulate();
+    ssrlcv::Unity<float3>* points = demPoints.nViewTriangulate(bundleSet);
 
     demPoints.saveDebugCloud(points, bundleSet, images, "3viewTest");
 

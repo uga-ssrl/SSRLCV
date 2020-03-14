@@ -1007,6 +1007,34 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 }
 
 /**
+ * The CPU method that sets up the GPU enabled n view triangulation.
+ * @param bundleSet a set of lines and bundles to be triangulated
+ */
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bundleSet){
+  bundleSet.lines->transferMemoryTo(gpu);
+  bundleSet.bundles->transferMemoryTo(gpu);
+
+  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
+
+
+  std::cout << "Starting n-view triangulation ..." << std::endl;
+  computeNViewTriangulate<<<grid,block>>>(bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  std::cout << "n-view Triangulation done ... \n" << std::endl;
+
+
+  pointcloud->transferMemoryTo(cpu);
+  pointcloud->clear(gpu);
+  bundleSet.lines->clear(gpu);
+  bundleSet.bundles->clear(gpu);
+
+  return pointcloud;
+}
+
+/**
  * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
  * all as points in R3. Each is color coded RED for the cameras, GREEN for the point cloud, and
  * BLUE for the reprojected points.
@@ -1052,34 +1080,6 @@ void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, Bundle
   }
   // now save it
   ssrlcv::writePLY("debugCloud", cpoints, size); //
-}
-
-/**
- * The CPU method that sets up the GPU enabled n view triangulation.
- * @param bundleSet a set of lines and bundles to be triangulated
- */
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bundleSet){
-  bundleSet.lines->transferMemoryTo(gpu);
-  bundleSet.bundles->transferMemoryTo(gpu);
-
-  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
-
-  dim3 grid = {1,1,1};
-  dim3 block = {1,1,1};
-  getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
-
-
-  std::cout << "Starting n-view triangulation ..." << std::endl;
-  computeNViewTriangulate<<<grid,block>>>(bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
-  std::cout << "n-view Triangulation done ... \n" << std::endl;
-
-
-  pointcloud->transferMemoryTo(cpu);
-  pointcloud->clear(gpu);
-  bundleSet.lines->clear(gpu);
-  bundleSet.bundles->clear(gpu);
-
-  return pointcloud;
 }
 
 /**
