@@ -2067,7 +2067,7 @@ __global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::
     C = C + vectmp;
   }
 
-
+}
 
 
 

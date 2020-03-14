@@ -142,10 +142,8 @@ matches = []
 #for point in cube_points:
 # for point in line_points:
 for point in cube_points:
-    for x in range():
-        if (verbose):
-            print 'Camera 1:'
-        match = []
+    match = []
+    for asdf in range(0,num_cameras):
         # compute vectors for each point pair:
         v_x = point[0] - camera[0]
         v_y = point[1] - camera[1]
@@ -166,36 +164,12 @@ for point in cube_points:
             print '\tscaled: ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']'
         #
         match.append([x,y,z])
-
-        if (verbose):
-            print 'Camera 2:'
         #
         # now rotate the point and do it again
         #print point
         point = rotate_points_x(point[0],point[1],point[2],radians(to_rotate))
-        #print point
-        # compute vectors for each point pair:
-        v_x = point[0] - camera[0]
-        v_y = point[1] - camera[1]
-        v_z = point[2] - camera[2]
-        # compute the parametric variable's intersection with the y-plane
-        t = ((alt+foc) - point[2])/v_z
-        # compute the points!
-        x = v_x * t + point[0]
-        y = v_y * t + point[1] # redundant, just for readability
-        z = v_z * t + point[2]
-        if (verbose):
-            print '\tprojected point: ' + str(point) + '\t --> ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']'
-        # scale the projected point with dpix
-        x = x/dpix + res/2.0
-        y = y/dpix + res/2.0
-        z = z/dpix + res/2.0
-        if (verbose):
-            print '\tscaled: ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']'
-        #
-        match.append([x,y,z])
-        matches.append(match)
-        print ''
+    matches.append(match)
+
 
 
 print 'Cube Match Attempt: '
@@ -217,54 +191,24 @@ for match in matches:
     match_num += 1
 print ''
 
-#print raw_match_set
-# print matches
-# f = open('matches.txt', 'w')
-# f.write(str(len(matches)-1) + '\n')
-# for match in matches:
-#     print match
-#     format_str = '0001.jpg,0002.jpg,'
-#     format_str += str(match[0][0]) + ',' + str(match[0][2]) + ','
-#     format_str += str(match[1][0]) + ',' + str(match[1][2]) + ','
-#     format_str += '150,0,255\n'
-#     f.write(format_str)
-#     if (verbose):
-#         print format_str
-
-
 #############################
 ### cameras
 #############################
 
-print 'For Copy Paste into Tester: \n'
-print 'images[0]->id = 0;'
-print 'images[0]->camera.size = {' + str(res) + ',' + str(res) + '};'
-print 'images[0]->camera.cam_pos = {' + str('{0:.12f}'.format(camera[0])) + ',' + str('{0:.12f}'.format(camera[1])) + ',' + str('{0:.12f}'.format(camera[2])) + '};'
-# print 'images[0]->camera.cam_rot = {' + str(radians(180)) + ', 0.0, 0.0};'
-print 'images[0]->camera.cam_rot = {0.0, 0.0, 0.0};'
-print 'images[0]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
-print 'images[0]->camera.foc = ' + str('{0:.12f}'.format(foc)) + ';'
-rotate_camera_x(radians(to_rotate))
-# rotate_camera_x(radians(to_rotate))
-print 'images[1]->id = 1;'
-print 'images[1]->camera.size = {' + str(res) + ',' + str(res) + '};'
-print 'images[1]->camera.cam_pos = {' + str('{0:.12f}'.format(camera[0])) + ',' + str('{0:.12f}'.format(camera[1])) + ',' + str('{0:.12f}'.format(camera[2])) + '};'
-# print 'images[1]->camera.cam_rot = {' + str(radians(180 + to_rotate)) + ', 0.0, 0.0};'
-print 'images[1]->camera.cam_rot = {' + str(radians(to_rotate)) + ', 0.0, 0.0};'
-print 'images[1]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
-print 'images[1]->camera.foc = ' + str('{0:.12f}'.format(foc)) + ';'
+print 'Copy And Paste Cameras: \n'
+for cam in range(0,num_cameras):
+    print 'images[0]->id = ' + str(cam) + ';'
+    print 'images[0]->camera.size = {' + str(res) + ',' + str(res) + '};'
+    print 'images[0]->camera.cam_pos = {' + str('{0:.12f}'.format(camera[0])) + ',' + str('{0:.12f}'.format(camera[1])) + ',' + str('{0:.12f}'.format(camera[2])) + '};'
+    # print 'images[0]->camera.cam_rot = {' + str(radians(180)) + ', 0.0, 0.0};'
+    print 'images[0]->camera.cam_rot = {' + str(cam * radians(to_rotate)) + ', 0.0, 0.0};'
+    print 'images[0]->camera.fov = {' + str(fov) + ',' + str(fov) + '};'
+    print 'images[0]->camera.foc = ' + str('{0:.12f}'.format(foc)) + ';'
+    rotate_camera_x(radians(to_rotate))
 
 
-# f = open('cameras.txt', 'w')
-# if verbose:
-#     print '1,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.0,1.0,0.0\n'
-# f.write('1,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',0.0,1.0,0.0\n')
-#
-# rotate_camera_z(radians(-10))
-# # needed to be abs for some reason... I'm so good at math
-# x_u = abs(cos(radians(-10)))
-# y_u = abs(sin(radians(-10)))
-#
-# if verbose:
-#     print '2,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',' + str(y_u) + ',' + str(x_u) + ',0.0\n'
-# f.write('2,' + str(camera[0]) + ',' + str(camera[1]) + ',' + str(camera[2]) + ',' + str(y_u) + ',' + str(x_u) + ',0.0\n')
+
+
+
+
+    #
