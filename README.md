@@ -44,9 +44,9 @@ make sfm -j# SM=##
 
 | Device                               | Recommended          |
 |:------------------------------------:|:--------------------:|
-| TX2i                                 | `make sfm -j3 SM=52` |
-| Jetson Nano                          | `make sfm -j3 SM=53` |
-| Ubuntu 16.04 with GTX 1060/1070      | `make sfm -j5 SM=61` |
+| TX2i                                 | `make sfm -j6 SM=62` |
+| Jetson Nano                          | `make sfm -j4 SM=53` |
+| Ubuntu 16.04+ with GTX 1060/1070     | `make sfm -j8 SM=61` |
 
 You can also clean out the repo, to just have the standard files again, with
 

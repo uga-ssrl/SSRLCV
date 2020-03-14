@@ -50,10 +50,10 @@ square_points = [[ 1.0,  1.0,  0.0],
 single = [[0.0,0.0,0.0]]
 
 origin = [0.0,0.0,0.0]
-foc    = 0.16
-fov    = radians(10.0) #0.19933754453 #radians(10)
-alt    = -20 # in meters
-res    = 1024 # pixels
+foc    = 0.1 # in meters
+fov    = radians(3.4) #0.19933754453 #radians(10)
+alt    = -400000 # in meters
+res    = 4096 # pixels
 # cameras[currentKP.parentId].dpix.x = (cameras[currentKP.parentId].foc * tanf(cameras[currentKP.parentId].fov.x / 2.0f)) / (cameras[currentKP.parentId].size.x / 2.0f );
 dpix   = (foc*tan(fov/2))/(res/2)
 
@@ -73,8 +73,8 @@ camera = [0.0,0.0,alt]
 plane  = [0.0,0.0,alt+foc]
 
 # the degrees to rotates
-to_rotate   = 10
-num_cameras = 3 # so we can switch the
+to_rotate   = 5
+num_cameras = 4 # so we can switch the
 
 # the final guy
 raw_match_set = []
