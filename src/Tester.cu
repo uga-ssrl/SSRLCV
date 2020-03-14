@@ -56,6 +56,8 @@ int main(int argc, char *argv[]){
     std::cout << "Filling in Matches ..." << std::endl;
 
     ssrlcv::MatchSet matchSet;
+    matchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,9,ssrlcv::cpu);
+    matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,27,ssrlcv::cpu);
     matchSet.matches->host[0] = {3,0};
     matchSet.keyPoints->host[0] = {{0},{203.990169526,820.009830474}};
     matchSet.keyPoints->host[1] = {{1},{207.021343161,865.304333746}};
@@ -95,12 +97,18 @@ int main(int argc, char *argv[]){
 
     // ====================== END FOR MANUAL TESTING
 
-    std::cout << "Generated MatchSet ..." << std::endl << "Total Matches: " << matcheSet.matches->size() << std::endl << std::endl;
+    std::cout << "Generated MatchSet ..." << std::endl << "Total Matches: " << matchSet.matches->size() << std::endl << std::endl;
 
     // start testing reprojection
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
 
+    std::cout << "Generating N-view bundles" << std::endl;
+    ssrlcv::BundleSet bundleSet = demPoints.generateBundles(&matchSet,images);
 
+    std::cout << "Attempting N-view Triangulation" << std::endl;
+    ssrlcv::Unity<float3>* points = demPoints.nViewTriangulate();
+
+    demPoints.saveDebugCloud(points, bundleSet, images, "3viewTest");
 
     return 0;
   }

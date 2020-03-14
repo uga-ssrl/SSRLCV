@@ -298,31 +298,6 @@ ssrlcv::Unity<float3_b>* ssrlcv::PointCloudFactory::twoViewTriangulate_b(BundleS
     return pointcloud_b;
 }
 
-//TODO put this in the right place, in the same order as the header file
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bundleSet){
-  bundleSet.lines->transferMemoryTo(gpu);
-  bundleSet.bundles->transferMemoryTo(gpu);
-
-  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
-
-  dim3 grid = {1,1,1};
-  dim3 block = {1,1,1};
-  getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
-
-
-  std::cout << "Starting n-view triangulation ..." << std::endl;
-  computeNViewTriangulate<<<grid,block>>>(bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
-  std::cout << "n-view Triangulation done ... \n" << std::endl;
-
-
-  pointcloud->transferMemoryTo(cpu);
-  pointcloud->clear(gpu);
-  bundleSet.lines->clear(gpu);
-  bundleSet.bundles->clear(gpu);
-
-  return pointcloud;
-}
-
 /**
  * Same method as two view triangulation, but all that is desired fro this method is a calculation of the linearError
  * @param bundleSet a set of lines and bundles that should be triangulated
@@ -1080,6 +1055,34 @@ void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, Bundle
 }
 
 /**
+ * The CPU method that sets up the GPU enabled n view triangulation.
+ * @param bundleSet a set of lines and bundles to be triangulated
+ */
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bundleSet){
+  bundleSet.lines->transferMemoryTo(gpu);
+  bundleSet.bundles->transferMemoryTo(gpu);
+
+  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
+
+
+  std::cout << "Starting n-view triangulation ..." << std::endl;
+  computeNViewTriangulate<<<grid,block>>>(bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  std::cout << "n-view Triangulation done ... \n" << std::endl;
+
+
+  pointcloud->transferMemoryTo(cpu);
+  pointcloud->clear(gpu);
+  bundleSet.lines->clear(gpu);
+  bundleSet.bundles->clear(gpu);
+
+  return pointcloud;
+}
+
+/**
  * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
  * all as points in R3. Each is color coded RED for the cameras, GREEN for the point cloud, and
  * BLUE for the reprojected points.
@@ -1126,6 +1129,55 @@ void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, Bundle
   }
   // now save it
   ssrlcv::writePLY(filename.c_str(), cpoints, size); //
+}
+
+/**
+ * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
+ * all as points in R3. Each is color coded RED for the cameras, GREEN for the point cloud, and
+ * BLUE for the reprojected points.
+ * @param pointCloud a Unity float3 that represents the point cloud itself
+ * @param bundleSet is a BundleSet that contains lines and points to be drawn in front of the cameras
+ * @param images a vector of images that contain value camera information
+ * @param fineName a filename for the debug cloud
+ */
+void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, BundleSet bundleSet, std::vector<ssrlcv::Image*> images, const char* filename){
+  // main variables
+  int size        = pointCloud->size() + bundleSet.lines->size() + images.size();
+  int index       = 0; // the use of this just makes everything easier to read
+  // test output of all the boiz
+  struct colorPoint* cpoints = (colorPoint*)  malloc(size * sizeof(struct colorPoint));
+  // fill in the camera points RED
+  for (int i = 0; i < images.size(); i++){
+    cpoints[index].x = images[i]->camera.cam_pos.x;
+    cpoints[index].y = images[i]->camera.cam_pos.y;
+    cpoints[index].z = images[i]->camera.cam_pos.z;
+    cpoints[index].r = 255;
+    cpoints[index].g = 0;
+    cpoints[index].b = 0;
+    index++;
+  }
+  // fill in the projected match locations in front of the cameras BLUE
+  for (int i = 0; i < bundleSet.lines->size(); i++) {
+    cpoints[index].x = bundleSet.lines->host[i].pnt.x + bundleSet.lines->host[i].vec.x;
+    cpoints[index].y = bundleSet.lines->host[i].pnt.y + bundleSet.lines->host[i].vec.y;
+    cpoints[index].z = bundleSet.lines->host[i].pnt.z + bundleSet.lines->host[i].vec.z;
+    cpoints[index].r = 0;
+    cpoints[index].g = 0;
+    cpoints[index].b = 255;
+    index++;
+  }
+  // fill in the point cloud GREEN
+  for (int i = 0; i < pointCloud->size(); i++){
+    cpoints[index].x = pointCloud->host[i].x; //
+    cpoints[index].y = pointCloud->host[i].y;
+    cpoints[index].z = pointCloud->host[i].z;
+    cpoints[index].r = 0;
+    cpoints[index].g = 255;
+    cpoints[index].b = 0;
+    index++;
+  }
+  // now save it
+  ssrlcv::writePLY(filename, cpoints, size); //
 }
 
 /**
@@ -1213,55 +1265,6 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
 
   // save the file
   ssrlcv::writePLY(filename, cpoints, matchSet->matches->size());
-}
-
-/**
- * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
- * all as points in R3. Each is color coded RED for the cameras, GREEN for the point cloud, and
- * BLUE for the reprojected points.
- * @param pointCloud a Unity float3 that represents the point cloud itself
- * @param bundleSet is a BundleSet that contains lines and points to be drawn in front of the cameras
- * @param images a vector of images that contain value camera information
- * @param fineName a filename for the debug cloud
- */
-void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, BundleSet bundleSet, std::vector<ssrlcv::Image*> images, const char* filename){
-  // main variables
-  int size        = pointCloud->size() + bundleSet.lines->size() + images.size();
-  int index       = 0; // the use of this just makes everything easier to read
-  // test output of all the boiz
-  struct colorPoint* cpoints = (colorPoint*)  malloc(size * sizeof(struct colorPoint));
-  // fill in the camera points RED
-  for (int i = 0; i < images.size(); i++){
-    cpoints[index].x = images[i]->camera.cam_pos.x;
-    cpoints[index].y = images[i]->camera.cam_pos.y;
-    cpoints[index].z = images[i]->camera.cam_pos.z;
-    cpoints[index].r = 255;
-    cpoints[index].g = 0;
-    cpoints[index].b = 0;
-    index++;
-  }
-  // fill in the projected match locations in front of the cameras BLUE
-  for (int i = 0; i < bundleSet.lines->size(); i++) {
-    cpoints[index].x = bundleSet.lines->host[i].pnt.x + bundleSet.lines->host[i].vec.x;
-    cpoints[index].y = bundleSet.lines->host[i].pnt.y + bundleSet.lines->host[i].vec.y;
-    cpoints[index].z = bundleSet.lines->host[i].pnt.z + bundleSet.lines->host[i].vec.z;
-    cpoints[index].r = 0;
-    cpoints[index].g = 0;
-    cpoints[index].b = 255;
-    index++;
-  }
-  // fill in the point cloud GREEN
-  for (int i = 0; i < pointCloud->size(); i++){
-    cpoints[index].x = pointCloud->host[i].x; //
-    cpoints[index].y = pointCloud->host[i].y;
-    cpoints[index].z = pointCloud->host[i].z;
-    cpoints[index].r = 0;
-    cpoints[index].g = 255;
-    cpoints[index].b = 0;
-    index++;
-  }
-  // now save it
-  ssrlcv::writePLY(filename, cpoints, size); //
 }
 
 /**

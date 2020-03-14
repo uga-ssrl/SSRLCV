@@ -186,8 +186,8 @@ for match in matches:
 print 'For Copy Paste into Tester: \n'
 if (num_cameras > 2): # N-view case
     print 'ssrlcv::MatchSet matchSet;'
-    'matchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,' + str(len(matches)) + ',ssrlcv::cpu);'
-    'matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,' + str(len(matches) * num_cameras) + ',ssrlcv::cpu);'
+    print 'matchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,' + str(len(matches)) + ',ssrlcv::cpu);'
+    print 'matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,' + str(len(matches) * num_cameras) + ',ssrlcv::cpu);'
 else: # 2-view case
     print 'ssrlcv::Match* matches_host = new ssrlcv::Match[' + str(len(matches)) + '];'
     print 'ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, ' + str(len(matches)) + ', ssrlcv::cpu);'
