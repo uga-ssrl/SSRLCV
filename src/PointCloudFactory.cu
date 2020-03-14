@@ -1189,7 +1189,12 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
     // now fill in the color point locations
     for (int i = 0; points->size(); i++){
       // i assume that the errors and the points will have the same indices
-      
+      cpoints[i].x = pointCloud->host[i].x; //
+      cpoints[i].y = pointCloud->host[i].y;
+      cpoints[i].z = pointCloud->host[i].z;
+      cpoints[i].r = colors[ (int) errors->host[i] * (2000 / max) ].x;
+      cpoints[i].g = colors[ (int) errors->host[i] * (2000 / max) ].y;
+      cpoints[i].b = colors[ (int) errors->host[i] * (2000 / max) ].z;
     }
 
   } else {
@@ -1202,7 +1207,7 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
   }
 
   // save the file
-
+  ssrlcv::writePLY(filename.c_str(), cpoints, matchSet->matches->size());
 }
 
 /**
