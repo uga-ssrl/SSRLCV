@@ -105,6 +105,7 @@ int main(int argc, char *argv[]){
     ssrlcv::BundleSet bundleSet = demPoints.generateBundles(&matchSet,images);
     ssrlcv::Unity<float3>* points = demPoints.twoViewTriangulate(bundleSet, linearError);
     ssrlcv::writePLY("out/unfiltered.ply",points);
+    demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
     // it's good to do a cutoff filter first how this is chosen is mostly based on ur gut
     // if a poor estimate is chosen then you will have to statistical filter multiple times
     // option 1: pick a fixed value
