@@ -73,7 +73,8 @@ camera = [0.0,0.0,alt]
 plane  = [0.0,0.0,alt+foc]
 
 # the degrees to rotates
-to_rotate = 45;
+to_rotate   = 10;
+num_cameras = 3 # so we can switch the
 
 # the final guy
 raw_match_set = []
@@ -141,59 +142,60 @@ matches = []
 #for point in cube_points:
 # for point in line_points:
 for point in cube_points:
-    if (verbose):
-        print 'Camera 1:'
-    match = []
-    # compute vectors for each point pair:
-    v_x = point[0] - camera[0]
-    v_y = point[1] - camera[1]
-    v_z = point[2] - camera[2]
-    # compute the parametric variable's intersection with the y-plane
-    t = ((alt+foc) - point[2])/v_z
-    # compute the points!
-    x = v_x * t + point[0]
-    y = v_y * t + point[1] # redundant, just for readability
-    z = v_z * t + point[2]
-    if (verbose):
-        print '\tprojected point: ' + str(point) + '\t --> ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']'
-    # scale the projected point with dpix
-    x = x/dpix + res/2.0
-    y = y/dpix + res/2.0
-    z = z/dpix + res/2.0
-    if (verbose):
-        print '\tscaled: ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']'
-    #
-    match.append([x,y,z])
+    for x in range():
+        if (verbose):
+            print 'Camera 1:'
+        match = []
+        # compute vectors for each point pair:
+        v_x = point[0] - camera[0]
+        v_y = point[1] - camera[1]
+        v_z = point[2] - camera[2]
+        # compute the parametric variable's intersection with the y-plane
+        t = ((alt+foc) - point[2])/v_z
+        # compute the points!
+        x = v_x * t + point[0]
+        y = v_y * t + point[1] # redundant, just for readability
+        z = v_z * t + point[2]
+        if (verbose):
+            print '\tprojected point: ' + str(point) + '\t --> ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']'
+        # scale the projected point with dpix
+        x = x/dpix + res/2.0
+        y = y/dpix + res/2.0
+        z = z/dpix + res/2.0
+        if (verbose):
+            print '\tscaled: ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']'
+        #
+        match.append([x,y,z])
 
-    if (verbose):
-        print 'Camera 2:'
-    #
-    # now rotate the point and do it again
-    #print point
-    point = rotate_points_x(point[0],point[1],point[2],radians(to_rotate))
-    #print point
-    # compute vectors for each point pair:
-    v_x = point[0] - camera[0]
-    v_y = point[1] - camera[1]
-    v_z = point[2] - camera[2]
-    # compute the parametric variable's intersection with the y-plane
-    t = ((alt+foc) - point[2])/v_z
-    # compute the points!
-    x = v_x * t + point[0]
-    y = v_y * t + point[1] # redundant, just for readability
-    z = v_z * t + point[2]
-    if (verbose):
-        print '\tprojected point: ' + str(point) + '\t --> ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']'
-    # scale the projected point with dpix
-    x = x/dpix + res/2.0
-    y = y/dpix + res/2.0
-    z = z/dpix + res/2.0
-    if (verbose):
-        print '\tscaled: ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']'
-    #
-    match.append([x,y,z])
-    matches.append(match)
-    print ''
+        if (verbose):
+            print 'Camera 2:'
+        #
+        # now rotate the point and do it again
+        #print point
+        point = rotate_points_x(point[0],point[1],point[2],radians(to_rotate))
+        #print point
+        # compute vectors for each point pair:
+        v_x = point[0] - camera[0]
+        v_y = point[1] - camera[1]
+        v_z = point[2] - camera[2]
+        # compute the parametric variable's intersection with the y-plane
+        t = ((alt+foc) - point[2])/v_z
+        # compute the points!
+        x = v_x * t + point[0]
+        y = v_y * t + point[1] # redundant, just for readability
+        z = v_z * t + point[2]
+        if (verbose):
+            print '\tprojected point: ' + str(point) + '\t --> ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']'
+        # scale the projected point with dpix
+        x = x/dpix + res/2.0
+        y = y/dpix + res/2.0
+        z = z/dpix + res/2.0
+        if (verbose):
+            print '\tscaled: ' + '[' + str(x) + ',' + str(y) + ',' + str(z) + ']'
+        #
+        match.append([x,y,z])
+        matches.append(match)
+        print ''
 
 
 print 'Cube Match Attempt: '
