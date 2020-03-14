@@ -1190,13 +1190,13 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
     }
     std::cout << "found max" << std::endl;
     // now fill in the color point locations
-    for (int i = 0; points->size(); i++){
+    for (int i = 0; i < points->size() - 1; i++){
       // i assume that the errors and the points will have the same indices
       cpoints[i].x = points->host[i].x; //
       cpoints[i].y = points->host[i].y;
       cpoints[i].z = points->host[i].z;
       int j = floor(errors->host[i] * (2000 / max));
-      std::cout << "j: " << j << std::endl;
+      // std::cout << "j: " << j << "\t e: " << errors->host[i] << "\t ratio: " << (2000 / max) << "\t " << i << "/" << points->size() << std::endl;
       cpoints[i].r = colors[j].x;
       cpoints[i].g = colors[j].y;
       cpoints[i].b = colors[j].z;
