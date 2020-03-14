@@ -73,7 +73,7 @@ camera = [0.0,0.0,alt]
 plane  = [0.0,0.0,alt+foc]
 
 # the degrees to rotates
-to_rotate   = 10;
+to_rotate   = 10
 num_cameras = 3 # so we can switch the
 
 # the final guy
@@ -178,16 +178,30 @@ for match in matches:
     match_str += str(match[1][0]) + ',' + str(match[1][1])
     print match_str
 
-# TODO make it so we can save this as a matches guy
+
+#############################
+### matches
+#############################
+
 print 'For Copy Paste into Tester: \n'
-print 'ssrlcv::Match* matches_host = new ssrlcv::Match[' + str(len(matches)) + '];'
-print 'ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, ' + str(len(matches)) + ', ssrlcv::cpu);'
+if (num_cameras > 2): # N-view case
+    print 'ssrlcv::MatchSet matchSet;'
+    'matchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,' + str(len(matches)) + ',ssrlcv::cpu);'
+    'matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,' + str(len(matches) * num_cameras) + ',ssrlcv::cpu);'
+else: # 2-view case
+    print 'ssrlcv::Match* matches_host = new ssrlcv::Match[' + str(len(matches)) + '];'
+    print 'ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, ' + str(len(matches)) + ', ssrlcv::cpu);'
+
 match_num = 0
 for match in matches:
-    print 'matches->host[' + str(match_num) + '].keyPoints[0].parentId = 0;'
-    print 'matches->host[' + str(match_num) + '].keyPoints[1].parentId = 1;'
-    print 'matches->host[' + str(match_num) + '].keyPoints[0].loc = {' + str(match[0][0]) + ',' + str(match[0][1]) + '};'
-    print 'matches->host[' + str(match_num) + '].keyPoints[1].loc = {' + str(match[1][0]) + ',' + str(match[1][1]) + '};'
+    if (num_cameras > 2): # only needed in N-view
+        print 'matchSet.matches->host[' + str(match_num) + '] = {' + str(num_cameras) + ',' + str(match_num * num_cameras) + '};'
+    for cam in range(0,num_cameras):
+        if (num_cameras > 2): # 2-view case
+            print 'matchSet.keyPoints->host[' + str(match_num * num_cameras + cam) + '] = {{' + str(cam) + '},{' + str(match[cam][0]) + ',' + str(match[cam][1]) + '}};'
+        else: # N-view case
+            print 'matches->host[' + str(match_num) + '].keyPoints[' + str(cam) + '].parentId = ' + str(cam) + ';'
+            print 'matches->host[' + str(match_num) + '].keyPoints[' + str(cam) +'].loc = {' + str(match[cam][0]) + ',' + str(match[cam][1]) + '};'
     match_num += 1
 print ''
 
