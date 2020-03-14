@@ -1144,8 +1144,8 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
   float3 gr2  = (bad - meh )/1000;
   // initialize the gradient "mapping"
   float3 temp;
+  std::cout << "building gradient" << std::endl;
   for (int i = 0; i < 2000; i++){
-    histogram[i] = 0;
     if (i < 1000){
       temp = good + gr1*i;
       colors[i].x = (unsigned char) floor(temp.x);
@@ -1158,6 +1158,7 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
       colors[i].z = (unsigned char) floor(temp.z);
     }
   }
+  std::cout << "the boiz" << std::endl;
   float* linearError = (float*) malloc(sizeof(float));
   *linearError = 0.0; // just something to start
   float* linearErrorCutoff = (float*) malloc(sizeof(float));
@@ -1174,6 +1175,7 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
   errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
   struct colorPoint* cpoints = (colorPoint*)  malloc(matchSet->matches->size() * sizeof(struct colorPoint));
 
+  std::cout << "attempting guy" << std::endl;
   if (images.size() == 2){
     //
     // 2-View Case
@@ -1186,15 +1188,18 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
         max = errors->host[i];
       }
     }
+    std::cout << "found max" << std::endl;
     // now fill in the color point locations
     for (int i = 0; points->size(); i++){
       // i assume that the errors and the points will have the same indices
-      cpoints[i].x = pointCloud->host[i].x; //
-      cpoints[i].y = pointCloud->host[i].y;
-      cpoints[i].z = pointCloud->host[i].z;
-      cpoints[i].r = colors[ (int) errors->host[i] * (2000 / max) ].x;
-      cpoints[i].g = colors[ (int) errors->host[i] * (2000 / max) ].y;
-      cpoints[i].b = colors[ (int) errors->host[i] * (2000 / max) ].z;
+      cpoints[i].x = points->host[i].x; //
+      cpoints[i].y = points->host[i].y;
+      cpoints[i].z = points->host[i].z;
+      int j = floor(errors->host[i] * (2000 / max));
+      std::cout << "j: " << j << std::endl;
+      cpoints[i].r = colors[j].x;
+      cpoints[i].g = colors[j].y;
+      cpoints[i].b = colors[j].z;
     }
 
   } else {
@@ -1207,7 +1212,7 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
   }
 
   // save the file
-  ssrlcv::writePLY(filename.c_str(), cpoints, matchSet->matches->size());
+  ssrlcv::writePLY(filename, cpoints, matchSet->matches->size());
 }
 
 /**
