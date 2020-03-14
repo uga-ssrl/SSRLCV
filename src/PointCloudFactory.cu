@@ -1018,7 +1018,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,computeNViewTriangulate);
 
 
   std::cout << "Starting n-view triangulation ..." << std::endl;
@@ -2036,7 +2036,9 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   if (!threadIdx.x) atomicAdd(linearError,localSum);
 }
 
-
+/**
+ *
+ */
 __global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
 
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
@@ -2069,6 +2071,19 @@ __global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::
     multiply(tmp, L1.pnt, vectmp);
     C = C + vectmp;
   }
+
+  /**
+   * If all of the directional vectors are skew and not parallel, then I think S is nonsingular.
+   * However, I will look into this some more. This may have to use a pseudo-inverse matrix if that
+   * is not the case.
+   */
+  float3 Inverse [3];
+  if(inverse(S, Inverse)){
+    float3 point;
+    multiply(Inverse, C, point);
+    pointcloud[globalID] = point;
+  }
+
 
 }
 

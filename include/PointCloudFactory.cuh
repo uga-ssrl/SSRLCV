@@ -240,6 +240,9 @@ namespace ssrlcv{
   	float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9],
   	float rotationTranspose1[9], float rotationTranspose2[9], float3* points);
 
+    /**
+    * the CUDA kernel for Nview triangulate
+    */
   __global__ void computeNViewTriangulate(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 }
 
