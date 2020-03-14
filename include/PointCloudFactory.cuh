@@ -164,6 +164,14 @@ namespace ssrlcv{
     void saveDebugCloud(Unity<float3>* pointCloud, BundleSet bundleSet, std::vector<ssrlcv::Image*> images, const char* filename);
 
     /**
+     * Saves a colored point cloud where the colors correspond do the linear errors from within the cloud.
+     * @param matchSet a group of matches
+     * @param images a group of images, used only for their stored camera parameters
+     * @param filename the name of the file that should be saved
+     */
+    void saveDebugLinearErrorCloud(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, const char* filename);
+
+    /**
      * Deterministically filters, with the assumption that the data is guassian, statistical outliers of the pointcloud
      * set and returns a matchSet without such outliers. The method is deterministic by taking a uniformly spaced sample of points
      * within the matcheSet.

@@ -1129,6 +1129,83 @@ void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, Bundle
 }
 
 /**
+ * Saves a colored point cloud where the colors correspond do the linear errors from within the cloud.
+ * @param matchSet a group of matches
+ * @param images a group of images, used only for their stored camera parameters
+ * @param filename the name of the file that should be saved
+ */
+void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, const char* filename){
+  // build the helpers to make the colors
+  uchar3 colors[2000];
+  float3 good = {108,255,221};
+  float3 meh  = {251,215,134};
+  float3 bad  = {247,121,125};
+  float3 gr1  = (meh - good)/1000;
+  float3 gr2  = (bad - meh )/1000;
+  // initialize the gradient "mapping"
+  float3 temp;
+  for (int i = 0; i < 2000; i++){
+    histogram[i] = 0;
+    if (i < 1000){
+      temp = good + gr1*i;
+      colors[i].x = (unsigned char) floor(temp.x);
+      colors[i].y = (unsigned char) floor(temp.y);
+      colors[i].z = (unsigned char) floor(temp.z);
+    } else {
+      temp = meh  + gr2*i;
+      colors[i].x = (unsigned char) floor(temp.x);
+      colors[i].y = (unsigned char) floor(temp.y);
+      colors[i].z = (unsigned char) floor(temp.z);
+    }
+  }
+  float* linearError = (float*) malloc(sizeof(float));
+  *linearError = 0.0; // just something to start
+  float* linearErrorCutoff = (float*) malloc(sizeof(float));
+  *linearErrorCutoff = 1000000.0; // just somethihng to start
+
+  // the boiz
+  ssrlcv::BundleSet      bundleSet;
+  ssrlcv::Unity<float>*  errors;
+  ssrlcv::Unity<float3>* points;
+
+  // need bundles
+  bundleSet = generateBundles(matchSet,images);
+  // do an initial triangulation
+  errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+  struct colorPoint* cpoints = (colorPoint*)  malloc(matchSet->matches->size() * sizeof(struct colorPoint));
+
+  if (images.size() == 2){
+    //
+    // 2-View Case
+    //
+
+    points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+    float max = 0.0; // it would be nice to have a better way to get the max, but because this is only for debug idc
+    for (int i = 0; i < errors->size(); i++){
+      if (errors->host[i] > max){
+        max = errors->host[i];
+      }
+    }
+    // now fill in the color point locations
+    for (int i = 0; points->size(); i++){
+      // i assume that the errors and the points will have the same indices
+      
+    }
+
+  } else {
+    //
+    // N-View Case
+    //
+
+    std::cerr << "ERROR N-View Case Not Implemented" << std::endl;
+    return;
+  }
+
+  // save the file
+
+}
+
+/**
  * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
  * all as points in R3. Each is color coded RED for the cameras, GREEN for the point cloud, and
  * BLUE for the reprojected points.
