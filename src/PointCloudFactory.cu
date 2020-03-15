@@ -298,31 +298,6 @@ ssrlcv::Unity<float3_b>* ssrlcv::PointCloudFactory::twoViewTriangulate_b(BundleS
     return pointcloud_b;
 }
 
-//TODO put this in the right place, in the same order as the header file
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bundleSet){
-  bundleSet.lines->transferMemoryTo(gpu);
-  bundleSet.bundles->transferMemoryTo(gpu);
-
-  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
-
-  dim3 grid = {1,1,1};
-  dim3 block = {1,1,1};
-  getFlatGridBlock(bundleSet.bundles->size(),grid,block,generateBundle);
-
-  /*
-  std::cout << "Starting n-view triangulation ..." << std::endl;
-  computeNViewTriangulate<<<grid,block>>>(bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
-  std::cout << "n-view Triangulation done ... \n" << std::endl;
-  */
-
-  pointcloud->transferMemoryTo(cpu);
-  pointcloud->clear(gpu);
-  bundleSet.lines->clear(gpu);
-  bundleSet.bundles->clear(gpu);
-
-  return pointcloud;
-}
-
 /**
  * Same method as two view triangulation, but all that is desired fro this method is a calculation of the linearError
  * @param bundleSet a set of lines and bundles that should be triangulated
@@ -1032,6 +1007,34 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 }
 
 /**
+ * The CPU method that sets up the GPU enabled n view triangulation.
+ * @param bundleSet a set of lines and bundles to be triangulated
+ */
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bundleSet){
+  bundleSet.lines->transferMemoryTo(gpu);
+  bundleSet.bundles->transferMemoryTo(gpu);
+
+  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,computeNViewTriangulate);
+
+
+  std::cout << "Starting n-view triangulation ..." << std::endl;
+  computeNViewTriangulate<<<grid,block>>>(bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  std::cout << "n-view Triangulation done ... \n" << std::endl;
+
+
+  pointcloud->transferMemoryTo(cpu);
+  pointcloud->clear(gpu);
+  bundleSet.lines->clear(gpu);
+  bundleSet.bundles->clear(gpu);
+
+  return pointcloud;
+}
+
+/**
  * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
  * all as points in R3. Each is color coded RED for the cameras, GREEN for the point cloud, and
  * BLUE for the reprojected points.
@@ -1129,6 +1132,55 @@ void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, Bundle
 }
 
 /**
+ * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
+ * all as points in R3. Each is color coded RED for the cameras, GREEN for the point cloud, and
+ * BLUE for the reprojected points.
+ * @param pointCloud a Unity float3 that represents the point cloud itself
+ * @param bundleSet is a BundleSet that contains lines and points to be drawn in front of the cameras
+ * @param images a vector of images that contain value camera information
+ * @param fineName a filename for the debug cloud
+ */
+void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, BundleSet bundleSet, std::vector<ssrlcv::Image*> images, const char* filename){
+  // main variables
+  int size        = pointCloud->size() + bundleSet.lines->size() + images.size();
+  int index       = 0; // the use of this just makes everything easier to read
+  // test output of all the boiz
+  struct colorPoint* cpoints = (colorPoint*)  malloc(size * sizeof(struct colorPoint));
+  // fill in the camera points RED
+  for (int i = 0; i < images.size(); i++){
+    cpoints[index].x = images[i]->camera.cam_pos.x;
+    cpoints[index].y = images[i]->camera.cam_pos.y;
+    cpoints[index].z = images[i]->camera.cam_pos.z;
+    cpoints[index].r = 255;
+    cpoints[index].g = 0;
+    cpoints[index].b = 0;
+    index++;
+  }
+  // fill in the projected match locations in front of the cameras BLUE
+  for (int i = 0; i < bundleSet.lines->size(); i++) {
+    cpoints[index].x = bundleSet.lines->host[i].pnt.x + bundleSet.lines->host[i].vec.x;
+    cpoints[index].y = bundleSet.lines->host[i].pnt.y + bundleSet.lines->host[i].vec.y;
+    cpoints[index].z = bundleSet.lines->host[i].pnt.z + bundleSet.lines->host[i].vec.z;
+    cpoints[index].r = 0;
+    cpoints[index].g = 0;
+    cpoints[index].b = 255;
+    index++;
+  }
+  // fill in the point cloud GREEN
+  for (int i = 0; i < pointCloud->size(); i++){
+    cpoints[index].x = pointCloud->host[i].x; //
+    cpoints[index].y = pointCloud->host[i].y;
+    cpoints[index].z = pointCloud->host[i].z;
+    cpoints[index].r = 0;
+    cpoints[index].g = 255;
+    cpoints[index].b = 0;
+    index++;
+  }
+  // now save it
+  ssrlcv::writePLY(filename, cpoints, size); //
+}
+
+/**
  * Saves a colored point cloud where the colors correspond do the linear errors from within the cloud.
  * @param matchSet a group of matches
  * @param images a group of images, used only for their stored camera parameters
@@ -1213,55 +1265,6 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
 
   // save the file
   ssrlcv::writePLY(filename, cpoints, matchSet->matches->size());
-}
-
-/**
- * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
- * all as points in R3. Each is color coded RED for the cameras, GREEN for the point cloud, and
- * BLUE for the reprojected points.
- * @param pointCloud a Unity float3 that represents the point cloud itself
- * @param bundleSet is a BundleSet that contains lines and points to be drawn in front of the cameras
- * @param images a vector of images that contain value camera information
- * @param fineName a filename for the debug cloud
- */
-void ssrlcv::PointCloudFactory::saveDebugCloud(Unity<float3>* pointCloud, BundleSet bundleSet, std::vector<ssrlcv::Image*> images, const char* filename){
-  // main variables
-  int size        = pointCloud->size() + bundleSet.lines->size() + images.size();
-  int index       = 0; // the use of this just makes everything easier to read
-  // test output of all the boiz
-  struct colorPoint* cpoints = (colorPoint*)  malloc(size * sizeof(struct colorPoint));
-  // fill in the camera points RED
-  for (int i = 0; i < images.size(); i++){
-    cpoints[index].x = images[i]->camera.cam_pos.x;
-    cpoints[index].y = images[i]->camera.cam_pos.y;
-    cpoints[index].z = images[i]->camera.cam_pos.z;
-    cpoints[index].r = 255;
-    cpoints[index].g = 0;
-    cpoints[index].b = 0;
-    index++;
-  }
-  // fill in the projected match locations in front of the cameras BLUE
-  for (int i = 0; i < bundleSet.lines->size(); i++) {
-    cpoints[index].x = bundleSet.lines->host[i].pnt.x + bundleSet.lines->host[i].vec.x;
-    cpoints[index].y = bundleSet.lines->host[i].pnt.y + bundleSet.lines->host[i].vec.y;
-    cpoints[index].z = bundleSet.lines->host[i].pnt.z + bundleSet.lines->host[i].vec.z;
-    cpoints[index].r = 0;
-    cpoints[index].g = 0;
-    cpoints[index].b = 255;
-    index++;
-  }
-  // fill in the point cloud GREEN
-  for (int i = 0; i < pointCloud->size(); i++){
-    cpoints[index].x = pointCloud->host[i].x; //
-    cpoints[index].y = pointCloud->host[i].y;
-    cpoints[index].z = pointCloud->host[i].z;
-    cpoints[index].r = 0;
-    cpoints[index].g = 255;
-    cpoints[index].b = 0;
-    index++;
-  }
-  // now save it
-  ssrlcv::writePLY(filename, cpoints, size); //
 }
 
 /**
@@ -2032,3 +2035,64 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   __syncthreads();
   if (!threadIdx.x) atomicAdd(linearError,localSum);
 }
+
+/**
+ *
+ */
+__global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
+
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (pointnum-1)) return;
+
+  //Initializing Variables
+  float3 S [3];
+  float3 C;
+  S[0] = {0,0,0};
+  S[1] = {0,0,0};
+  S[2] = {0,0,0};
+  C = {0,0,0};
+
+  //Iterating through the Lines in a Bundle
+  for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+    ssrlcv::Bundle::Line L1 = lines[i];
+    float3 tmp [3];
+    normalize(L1.vec);
+    matrixProduct(L1.vec, tmp);
+    //Subtracting the 3x3 Identity Matrix from tmp
+    tmp[0].x -= 1;
+    tmp[1].y -= 1;
+    tmp[2].z -= 1;
+    //Adding tmp to S
+    S[0] = S[0] + tmp[0];
+    S[1] = S[1] + tmp[1];
+    S[2] = S[2] + tmp[2];
+    //Adding tmp * pnt to C
+    float3 vectmp;
+    multiply(tmp, L1.pnt, vectmp);
+    C = C + vectmp;
+  }
+
+  /**
+   * If all of the directional vectors are skew and not parallel, then I think S is nonsingular.
+   * However, I will look into this some more. This may have to use a pseudo-inverse matrix if that
+   * is not the case.
+   */
+  float3 Inverse [3];
+  if(inverse(S, Inverse)){
+    float3 point;
+    multiply(Inverse, C, point);
+    pointcloud[globalID] = point;
+  }
+
+
+}
+
+
+
+
+
+
+
+
+
+//
