@@ -33,6 +33,10 @@ All other files can be .cpp and .h
 * nvcc
 * CUDA 10.0
 
+## Intended Hardware
+
+TODO write about the indented hardware
+
 ## Compilation
 
 When making you should use the SM of your arch, you do this by setting the `SM` variable. I also recommend doing a multicore make with the `-j` flag. See below, where `#` are digits of integers:
@@ -72,7 +76,9 @@ make clean
 
 ### Full Pipeline
 
-There is no full pipeline main setup so far. There are separate pipelines compiled in the `/bin` directory. To learn about the popeline,
+The main program is under bin saved as `SFM` and can be run with `./SFM`
+
+There are addtional separate pipelines (compiled only if specified at make time) in the `/bin` directory. To learn about the pipeline,
 you can find information on SIFT can be learned here: [Anatomy of SIFT](http://gitlab.smallsat.uga.edu/Caleb/anatomy-of-sift/blob/master/Anatomy%20of%20SIFT.pdf), this
 sn't Lowe's original thing but it explains it pretty well. You should also see the latex doc that has been made, [located here](https://gitlab.smallsat.uga.edu/payload_software/Tegra-SFM/blob/master/doc/paper/main.pdf) - this is
 known as the [Algorithm Theoretical Basis Document](https://gitlab.smallsat.uga.edu/payload_software/Tegra-SFM/blob/master/doc/paper/main.pdf).
