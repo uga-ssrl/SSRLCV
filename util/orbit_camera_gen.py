@@ -19,7 +19,7 @@ if (len(sys.argv) < 3):
 # I derived this elsewhere
 earth = 6537
 alt   = float(sys.argv[1])
-theta = radians(float(sys.argv[2]))
+theta = radians(float(sys.argv[2]) - 90.0)
 steps = int(sys.argv[3])
 
 if (theta > pi/2):
@@ -40,13 +40,16 @@ for step in range(0,steps):
         # the polynomial
         p = P([C,B,A])
         x = 0
-        if (p.roots()[0] < 0):
+        if (p.roots()[0] > 0):
             x = p.roots()[0]
         else:
             x = p.roots()[1]
         y = tan(step * theta) * x
-        print('image' + str(step+1) + ',' + str(x) + ',0.0,' + str(y) + ',0.0,' + str(step * theta) + ',0.0,')
+        ## now, because of how blender renders things after this I have to do some coordinate adjustments
+        y *= -1000
+        x *= -1000
+        print(str(step+1) + '.png,' + str(x) + ',0.0,' + str(y) + ',0.0,' + str(-step * (theta + pi/2)) + ',0.0,')
     else:
-        print('image1,0.0,0.0,' + str(alt) + ',0.0,0.0,0.0')
+        print('1.png,0.0,0.0,' + str(alt*1000) + ',0.0,0.0,0.0,')
 
 #
