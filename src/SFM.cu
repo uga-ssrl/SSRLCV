@@ -47,7 +47,7 @@ int main(int argc, char *argv[]){
       seedProvided = true;
       std::string seedPath = ((ssrlcv::img_arg*)args["seed"])->path;
       ssrlcv::Image* seed = new ssrlcv::Image(seedPath,-1);
-      seedFeatures = featureFactory.generateFeatures(seed,false,3,0.8);
+      seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8);
       matchFactory.setSeedFeatures(seedFeatures);
       delete seed;
     }
@@ -59,7 +59,7 @@ int main(int argc, char *argv[]){
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
     for(int i = 0; i < numImages; ++i){
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
-      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,3,0.8);
+      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
       features->transferMemoryTo(ssrlcv::cpu);
       images.push_back(image);
       allFeatures.push_back(features);
