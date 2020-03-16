@@ -11,6 +11,8 @@
 //          ___\///////////_______\///////////_____\///________\///__\///////////////________\/////////________\///________
 //           _______________________________________________________________________________________________________________
 
+
+
 #include "common_includes.h"
 #include "Image.cuh"
 #include "io_util.h"
@@ -103,6 +105,8 @@ int main(int argc, char *argv[]){
       matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->size()*2,ssrlcv::cpu);
       matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->size(),ssrlcv::cpu);
       matches->setMemoryState(ssrlcv::cpu);
+      matchSet.matches->setMemoryState(ssrlcv::cpu);
+      matchSet.keyPoints->setMemoryState(ssrlcv::cpu);
       for(int i = 0; i < matchSet.matches->size(); i++){
         matchSet.keyPoints->host[i*2] = matches->host[i].keyPoints[0];
         matchSet.keyPoints->host[i*2 + 1] = matches->host[i].keyPoints[1];
@@ -113,7 +117,18 @@ int main(int argc, char *argv[]){
       //
       // N View Case
       //
-
+      matchSet = matchFactory.generateMatchesExaustive(images,allFeatures);
+      matches->setMemoryState(ssrlcv::cpu);
+      matchSet.matches->setMemoryState(ssrlcv::cpu);
+      matchSet.keyPoints->setMemoryState(ssrlcv::cpu);
+      k = 0;
+      for(int i = 0; i < matchSet.matches->size(); i++){
+        matchSet.matches->host[i] = {matchSet.matches->host[i].numKeyPoint,i};
+        for(int j = 0; j < matchSet.matches->host[i].numKeyPoints; j++){
+          matchSet.keyPoints->host[k] = matches->host[i].keyPoints[j];
+          k++;
+        }
+      }
     }
 
     // the point boi
@@ -125,6 +140,7 @@ int main(int argc, char *argv[]){
       //
       // 2 View Case
       //
+      std::cout << "Attempting 2-view Triangulation" << std::endl;
 
       float* linearError = (float*)malloc(sizeof(float));
       bundleSet = demPoints.generateBundles(&matchSet,images);
@@ -162,7 +178,10 @@ int main(int argc, char *argv[]){
       //
       // N View Case
       //
+      std::cout << "Attempting N-view Triangulation" << std::endl;
 
+      bundleSet = demPoints.generateBundles(&matchSet,images);
+      ssrlcv::Unity<float3>* points = demPoints.nViewTriangulate(bundleSet);
     }
 
 
