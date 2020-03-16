@@ -39,38 +39,36 @@ int main(int argc, char *argv[]){
       std::cerr<<"ERROR: SFM executable requires a directory of images"<<std::endl;
       exit(-1);
     }
-    // ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1.5f,6.0f);
-    // ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,200.0f*200.0f);
-    // bool seedProvided = false;
-    // ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* seedFeatures = nullptr;
-    // if(args.find("seed") != args.end()){
-    //   seedProvided = true;
-    //   std::string seedPath = ((ssrlcv::img_arg*)args["seed"])->path;
-    //   ssrlcv::Image* seed = new ssrlcv::Image(seedPath,-1);
-    //   seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8);
-    //   matchFactory.setSeedFeatures(seedFeatures);
-    //   delete seed;
-    // }
+    ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1.5f,6.0f);
+    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,200.0f*200.0f);
+    bool seedProvided = false;
+    ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* seedFeatures = nullptr;
+    if(args.find("seed") != args.end()){
+      seedProvided = true;
+      std::string seedPath = ((ssrlcv::img_arg*)args["seed"])->path;
+      ssrlcv::Image* seed = new ssrlcv::Image(seedPath,-1);
+      seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8);
+      matchFactory.setSeedFeatures(seedFeatures);
+      delete seed;
+    }
     std::vector<std::string> imagePaths = ((ssrlcv::img_dir_arg*)args["dir"])->paths;
     int numImages = (int) imagePaths.size();
     std::cout<<"found "<<numImages<<" in directory given"<<std::endl;
 
     std::vector<ssrlcv::Image*> images;
-    // std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
+    std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
     for(int i = 0; i < numImages; ++i){
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
-      // ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
-      // features->transferMemoryTo(ssrlcv::cpu);
+      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
+      features->transferMemoryTo(ssrlcv::cpu);
       images.push_back(image);
-      // allFeatures.push_back(features);
+      allFeatures.push_back(features);
     }
 
-    /*
-    MATCHING
-    */
-    //seeding with false photo
+    //
+    // MATCHING
+    //
 
-/*
     std::cout << "Starting matching..." << std::endl;
 
     ssrlcv::Unity<float>* seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
@@ -123,11 +121,6 @@ int main(int argc, char *argv[]){
       // matchSet.keyPoints->checkpoint(0,"out/kp");
       // matchSet.matches->checkpoint(0,"out/m");
     }
-*/
-
-    ssrlcv::MatchSet matchSet;
-    matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>("out/kp0_N6ssrlcv8KeyPointE.uty");
-    matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>("out/m0_N6ssrlcv10MultiMatchE.uty");
 
     // the point boi
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
