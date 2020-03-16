@@ -172,7 +172,7 @@ int main(int argc, char *argv[]){
       std::cout << "Attempting N-view Triangulation" << std::endl;
 
       bundleSet = demPoints.generateBundles(&matchSet,images);
-      ssrlcv::Unity<float3>* points = demPoints.nViewTriangulate(bundleSet);
+      points = demPoints.nViewTriangulate(bundleSet);
     }
 
     std::cout << "writing final PLY ..." << std::endl;
