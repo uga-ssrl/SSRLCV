@@ -116,7 +116,9 @@ int main(int argc, char *argv[]){
       matchSet = matchFactory.generateMatchesExaustive(images,allFeatures);
       matches->setMemoryState(ssrlcv::cpu);
       matchSet.matches->setMemoryState(ssrlcv::cpu);
-      matchSet.keyPoints->setMemoryState(ssrlcv::cpu);
+      matchSet.keyPoints->setMemoryState(ssrlcv::cpu);\
+      matchSet.keyPoints->checkPoint(0,"out/kp");
+      matchSet.matches->checkPoint(0,"out/m");
       // int k = 0;
       // for(int i = 0; i < matchSet.matches->size(); i++){
       //   matchSet.matches->host[i] = {matchSet.matches->host[i].numKeyPoints,i};
@@ -180,7 +182,7 @@ int main(int argc, char *argv[]){
       ssrlcv::Unity<float3>* points = demPoints.nViewTriangulate(bundleSet);
     }
 
-
+    std::cout << "writing final PLY ..." << std::endl;
     ssrlcv::writePLY("out/test.ply",points);
 
     // cleanup
