@@ -54,10 +54,6 @@ int main(int argc, char *argv[]){
     std::vector<std::string> imagePaths = ((ssrlcv::img_dir_arg*)args["dir"])->paths;
     int numImages = (int) imagePaths.size();
     std::cout<<"found "<<numImages<<" in directory given"<<std::endl;
-    if(numImages != 2){
-      std::cerr<<"ERROR this executable only accepts 2 images other than seed currently"<<std::endl;
-      exit(0);
-    }
 
     std::vector<ssrlcv::Image*> images;
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
@@ -121,14 +117,14 @@ int main(int argc, char *argv[]){
       matches->setMemoryState(ssrlcv::cpu);
       matchSet.matches->setMemoryState(ssrlcv::cpu);
       matchSet.keyPoints->setMemoryState(ssrlcv::cpu);
-      k = 0;
-      for(int i = 0; i < matchSet.matches->size(); i++){
-        matchSet.matches->host[i] = {matchSet.matches->host[i].numKeyPoint,i};
-        for(int j = 0; j < matchSet.matches->host[i].numKeyPoints; j++){
-          matchSet.keyPoints->host[k] = matches->host[i].keyPoints[j];
-          k++;
-        }
-      }
+      // int k = 0;
+      // for(int i = 0; i < matchSet.matches->size(); i++){
+      //   matchSet.matches->host[i] = {matchSet.matches->host[i].numKeyPoints,i};
+      //   for(int j = 0; j < matchSet.matches->host[i].numKeyPoints; j++){
+      //     matchSet.keyPoints->host[k] = matches->host[i].keyPoints[j];
+      //     k++;
+      //   }
+      // }
     }
 
     // the point boi
