@@ -173,6 +173,8 @@ int main(int argc, char *argv[]){
 
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.nViewTriangulate(bundleSet);
+
+      demPoints.saveDebugCloud(points, bundleSet, images);
     }
 
     std::cout << "writing final PLY ..." << std::endl;
