@@ -1025,6 +1025,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
   computeNViewTriangulate<<<grid,block>>>(bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
   std::cout << "n-view Triangulation done ... \n" << std::endl;
 
+  pointcloud->setFore(gpu);
+  bundleSet.lines->setFore(gpu);
+  bundleSet.bundles->setFore(gpu);
 
   pointcloud->transferMemoryTo(cpu);
   pointcloud->clear(gpu);

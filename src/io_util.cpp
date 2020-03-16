@@ -643,6 +643,7 @@ bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out)
 //
 
 void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
+  std::cout << "saving " << points->size() << " points ..." << std::endl;
   MemoryState origin = points->getMemoryState();
   if(origin == gpu) points->transferMemoryTo(cpu);
   tinyply::PlyFile ply;
@@ -669,6 +670,7 @@ void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
 }
 
 void ssrlcv::writePLY(std::string filename, Unity<float3>* points, bool binary){
+  std::cout << "saving " << points->size() << " points ..." << std::endl;
   MemoryState origin = points->getMemoryState();
   if(origin == gpu) points->transferMemoryTo(cpu);
   tinyply::PlyFile ply;

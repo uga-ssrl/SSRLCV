@@ -11,7 +11,6 @@ ________________________________________________________________________________
         _\///\\\\\\\\\\\/___\///\\\\\\\\\\\/___\/\\\______\//\\\_\/\\\\\\\\\\\\\\\____\////\\\\\\\\\______\//\\\_______
          ___\///////////_______\///////////_____\///________\///__\///////////////________\/////////________\///________
           _______________________________________________________________________________________________________________
-           _______________________________________________________________________________________________________________
 
 ```
 
@@ -94,7 +93,7 @@ The image rotation encodes which way the camera was facing as a [rotation of axe
 
 | Data type       | Variable Name     |  SI unit        | Description                                |
 |:---------------:|:-----------------:|:---------------:|:------------------------------------------:|
-| `float3`        | `cam_pos`         | Meters          |  The x,y,z camera position                 |
+| `float3`        | `cam_pos`         | Kilometers      |  The x,y,z camera position                 |
 | `float3`        | `cam_rot`         | Radians         |  The x,y,z camera rotation                 |
 | `float2`        | `fov`             | Radians         |  The x and y field of view                 |
 | `float`         | `foc`             | Meters          |  The camera's focal length                 |
@@ -113,13 +112,13 @@ The ASCII encoded files that contain camera parameters should be included in the
 filename,x position,y position, z position, x rotation, y rotation, z rotation, x field of view, y field of view, camera focal length, x pixel well size, y pixel well size, UNIX timestamp, x pixel count, y pixel count
 ```
 
-the files should be listed in a numerical order, each file should have a new line.
+the files should be listed in a numerical order, each camera should be on one line and end with a `,`
 
 and example of this is:
 
 ```
-ev01.png,781.417,0.0,4436.30,0.0,0.1745329252,0.0,0.19933754453,0.19933754453,0.16,0.4,0.4,1580766557,1024,1024
-ev02.png,0.0,0.0,4500.0,0.0,0.0,0.0,0.19933754453,0.19933754453,0.16,0.4,0.4,1580766557,1024,1024
+ev01.png,781.417,0.0,4436.30,0.0,0.1745329252,0.0,0.19933754453,0.19933754453,0.16,0.4,0.4,1580766557,1024,1024,
+ev02.png,0.0,0.0,4500.0,0.0,0.0,0.0,0.19933754453,0.19933754453,0.16,0.4,0.4,1580766557,1024,1024,
 ```
 
 ### Binary Camera Parameters - `.bcp` file type
