@@ -14,7 +14,9 @@ ________________________________________________________________________________
 
 ```
 
-# Tegra - Structure from Motion
+# UGA SSRL Computer Vision
+
+This computer vision software is for the [University of Georgia Small Satellite Research Laboratory](smallsat.uga.edu)'s MOCI (Multiview Onbloard Computational Imager) Satellite Mission. If you utilize this software please cite the papers listed below.
 
 ## Create the following directories if they do not exist
 bin, data, obj, out, src, util
@@ -24,13 +26,17 @@ bin, data, obj, out, src, util
 If a file has CUDA in it of any sort -> .cu and its header -> .cuh.
 All other files can be .cpp and .h
 
-## Dependencies
-* libpng-dev
-* libtiff-dev
-* g++
-* gcc
-* nvcc
-* CUDA 10.0
+## Dependencies and Conventions
+
+Required:
+  * libpng-dev
+  * libtiff-dev
+  * g++
+  * gcc
+  * nvcc
+  * CUDA 10.0
+
+You may need to create the following directories: `bin, data, obj, out, src, util` (util, data, and src should be in repository)
 
 ## Intended Hardware
 
@@ -147,22 +153,48 @@ Check out the [contributors guide](CONTRIB.md) for imformation on contributions
 
 TODO fill out information about how to make test data
 
+# Citations
 
+Upon usage please cite one or more of the following:
 
+### Hardware Related Citation:
 
+[Towards an Integrated GPU Accelerated SoC as a Flight Computer for Small Satellites](https://ieeexplore.ieee.org/document/8741765)
 
+```
+@inproceedings{TowardsAdams2019,
+  doi = {10.1109/aero.2019.8741765},
+  url = {https://doi.org/10.1109/aero.2019.8741765},
+  year = {2019},
+  month = mar,
+  publisher = {{IEEE}},
+  author = {Caleb Adams and Allen Spain and Jackson Parker and Matthew Hevert and James Roach and David Cotten},
+  title = {Towards an Integrated {GPU} Accelerated {SoC} as a Flight Computer for Small Satellites},
+  booktitle = {2019 {IEEE} Aerospace Conference}
+}
+```
 
+### Pipeline Related Citation:
 
+[A Near Real Time Space Based Computer Vision System for Accurate Terrain Mapping](https://digitalcommons.usu.edu/cgi/viewcontent.cgi?article=4216&context=smallsat)
 
+```
+@inproceedings{CVAdams2018,
+  title={A Near Real Time Space Based Computer Vision System for Accurate Terrain Mapping},
+  author={Adams, Caleb},
+  journal={32nd Annual AIAA/USU Conference on Small Satellites},
+  year={2018},
+  publisher={AIAA}
+}
+```
 
+### Use of Library Structure Citation:
 
+TBD
 
+### Use of 3D reconstruction Citation:
 
-
-
-
-
-
+TBD
 
 
 
