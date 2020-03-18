@@ -134,7 +134,7 @@ namespace ssrlcv{
      * @param bundleSet a set of lines and bundles to be triangulated
      * @param
      */
-    ssrlcv::Unity<float3>* nViewTriangulate(BundleSet bundleSet float* angularError);
+    ssrlcv::Unity<float3>* nViewTriangulate(BundleSet bundleSet, float* angularError);
 
     // =============================================================================================================
     //

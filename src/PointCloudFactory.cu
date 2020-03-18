@@ -548,7 +548,15 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
  * @param bundleSet a set of lines and bundles to be triangulated
  * @param
  */
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bundleSet float* angularError){
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bundleSet, float* angularError){
+
+  // make the error guys
+  *angularError = 0;
+  float* d_angularError;
+  size_t eSize = sizeof(float);
+  CudaSafeCall(cudaMalloc((void**) &d_angularError,eSize));
+  CudaSafeCall(cudaMemcpy(d_angularError,angularError,eSize,cudaMemcpyHostToDevice));
+
   bundleSet.lines->transferMemoryTo(gpu);
   bundleSet.bundles->transferMemoryTo(gpu);
 
@@ -560,7 +568,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
 
 
   std::cout << "Starting n-view triangulation ..." << std::endl;
-  computeNViewTriangulate<<<grid,block>>>(bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  computeNViewTriangulate<<<grid,block>>>(d_angularError,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
   std::cout << "n-view Triangulation done ... \n" << std::endl;
 
   pointcloud->setFore(gpu);
@@ -2164,6 +2172,100 @@ __global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::
 
 
 }
+
+/**
+ *
+ */
+__global__ void ssrlcv::computeNViewTriangulate(float* linearError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
+
+  // get ready to do the stuff local memory space
+  // this will later be added back to a global memory space
+  __shared__ float localSum;
+  if (threadIdx.x == 0) localSum = 0;
+  __syncthreads();
+
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (pointnum-1)) return;
+
+  //Initializing Variables
+  float3 S [3];
+  float3 C;
+  S[0] = {0,0,0};
+  S[1] = {0,0,0};
+  S[2] = {0,0,0};
+  C = {0,0,0};
+
+  //Iterating through the Lines in a Bundle
+  for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+    ssrlcv::Bundle::Line L1 = lines[i];
+    float3 tmp [3];
+    normalize(L1.vec);
+    matrixProduct(L1.vec, tmp);
+    //Subtracting the 3x3 Identity Matrix from tmp
+    tmp[0].x -= 1;
+    tmp[1].y -= 1;
+    tmp[2].z -= 1;
+    //Adding tmp to S
+    S[0] = S[0] + tmp[0];
+    S[1] = S[1] + tmp[1];
+    S[2] = S[2] + tmp[2];
+    //Adding tmp * pnt to C
+    float3 vectmp;
+    multiply(tmp, L1.pnt, vectmp);
+    C = C + vectmp;
+  }
+
+  /**
+   * If all of the directional vectors are skew and not parallel, then I think S is nonsingular.
+   * However, I will look into this some more. This may have to use a pseudo-inverse matrix if that
+   * is not the case.
+   */
+  float3 Inverse [3];
+  float3 point;
+  if(inverse(S, Inverse)){
+    multiply(Inverse, C, point);
+    pointcloud[globalID] = point;
+  }
+
+  // the refrence vector
+  // we take the generated point and create a vector from it to the camera center
+  float3 r = lines[bundles[globalID].index].pnt - point;
+  normalize(r);
+  // calculate the angle between the vectors
+  float a_error = 0;
+  for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+    float3 v = lines[i].vec;
+    normalize(v);
+    float numer = dotProduct(v,r);
+    float denom = magnitude(v) * magnitude(r);
+    a_error += abs(acosf(numer/denom));
+  }
+
+  // filtering would go here
+
+  // after calculating local error add it all up
+  atomicAdd(&localSum,a_error);
+  __syncthreads();
+  if (!threadIdx.x) atomicAdd(angularError,localSum);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
