@@ -616,7 +616,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
 
 
   std::cout << "Starting n-view triangulation ..." << std::endl;
-  computeNViewTriangulate<<<grid,block>>>(d_angularError,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  computeNViewTriangulate<<<grid,block>>>(d_angularError,errors->device,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
   std::cout << "n-view Triangulation done ... \n" << std::endl;
 
   //
