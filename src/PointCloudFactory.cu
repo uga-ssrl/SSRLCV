@@ -1719,6 +1719,11 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
 // =============================================================================================================
 // =============================================================================================================
 
+// =============================================================================================================
+//
+// Bundle Adjustment Kernels
+//
+// =============================================================================================================
 
 __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
@@ -1761,6 +1766,12 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
   delete[] kp;
 }
 
+// =============================================================================================================
+//
+// Stereo Kernels
+//
+// =============================================================================================================
+
 __global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, float3* points, float scale){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if (globalID < numMatches) {
@@ -1797,6 +1808,11 @@ __global__ void ssrlcv::interpolateDepth(uint2 disparityMapSize, int influenceRa
   }
 }
 
+// =============================================================================================================
+//
+// 2 View Kernels
+//
+// =============================================================================================================
 
 /**
 * Does a trigulation with skew lines to find their closest intercetion.
@@ -2121,6 +2137,12 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   __syncthreads();
   if (!threadIdx.x) atomicAdd(linearError,localSum);
 }
+
+// =============================================================================================================
+//
+// N View Kernels
+//
+// =============================================================================================================
 
 /**
  *

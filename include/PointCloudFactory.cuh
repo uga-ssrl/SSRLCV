@@ -260,17 +260,28 @@ namespace ssrlcv{
 
   // =============================================================================================================
   //
-  // Device stubs
+  // Bundle Adjustment Kernels
   //
   // =============================================================================================================
 
   __global__ void generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras);
 
+  // =============================================================================================================
+  //
+  // Stereo Kernels
+  //
+  // =============================================================================================================
   __global__ void computeStereo(unsigned int numMatches, Match* matches, float3* points, float foc, float baseLine, float doffset);
 
   __global__ void computeStereo(unsigned int numMatches, Match* matches, float3* points, float scale);
 
   __global__ void interpolateDepth(uint2 disparityMapSize, int influenceRadius, float* disparities, float* interpolated);
+
+  // =============================================================================================================
+  //
+  // 2 View Kernels
+  //
+  // =============================================================================================================
 
   __global__ void computeTwoViewTriangulate(float* linearError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 
@@ -286,10 +297,21 @@ namespace ssrlcv{
   	float cam1V[3],float cam2C[3], float cam2V[3], float K_inv[9],
   	float rotationTranspose1[9], float rotationTranspose2[9], float3* points);
 
+  // =============================================================================================================
+  //
+  // N View Kernels
+  //
+  // =============================================================================================================
+
     /**
     * the CUDA kernel for Nview triangulate
     */
   __global__ void computeNViewTriangulate(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
+
+  /**
+  * the CUDA kernel for Nview triangulation with angular error
+  */
+  __global__ void computeNViewTriangulate(float* angularError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 }
 
 
