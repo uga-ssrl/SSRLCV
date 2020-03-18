@@ -2265,9 +2265,8 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, unsigned lo
     float3 r = lines[i].pnt - point;
     normalize(r);
 
-    float numer = dotProduct(v,r);
-    float denom = magnitude(v) * magnitude(r);
-    a_error += abs(acosf(numer/denom));
+    float3 er = v - r;
+    a_error += sqrtf(er.x*er.x + er.y*er.y + er.z*er.z);
   }
 
   // filtering would go here
