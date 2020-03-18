@@ -7,7 +7,6 @@
 
 #include "common_includes.h"
 #include "Unity.cuh"
-#include "tinyply.h"
 #include "Octree.cuh"
 #include <stdio.h>
 
@@ -159,27 +158,6 @@ struct arg
   * \param height - number of rows in an image
   */
   void writePNG(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
-
-  /**
-  * \brief Reads a tiff image and generates a pixel array.
-  * \details This method will read a JPG/JPEG image utilizing libjpeg and fill in the passed-by-reference arguments
-  * height, width and colorDepth.
-  * \param filePath - const char* filePath for location of image (<string>.c_str() is easiest way to use a string path)
-  * \param height - image height in pixels (reference argument that will be filled in during reading of image)
-  * \param width - image width in pixels (reference argument that will be filled in during reading of image)
-  * \param colorDepth - number of unsigned char values per pixel (reference argument that will be filled in during reading of image)
-  * \returns a pixel array flattened row-wise with dimensions filled out in width, height, and colorDepth reference arguments
-  */
-  unsigned char* readTIFF(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
-  /**
-  * \brief Writes a tiff image from a pixel array.
-  * \details This method will write a JPG/JPEG image from a row-wise flattened pixel array using libjpeg.
-  * \param filePath - const char* filePath where image is to be written (<string>.c_str() is easiest way to use a string path)
-  * \param image - unsigned char array with pixels values flattened row wise
-  * \param colorDepth - number of unsitin compression parameters
-  */
-  void writeTIFF(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height);
-
   /**
   * \brief Reads a jpeg image and generates a pixel array.
   * \details This method will read a TIF/TIFF image utilizing libtiff and fill in the passed-by-reference arguments

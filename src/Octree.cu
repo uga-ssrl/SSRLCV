@@ -467,13 +467,16 @@ void ssrlcv::Octree::fillInCoarserDepths(){
 
   Node** nodeArray2D = new Node*[this->depth + 1];
 
-  int* nodeAddresses_device;
-  int* nodeNumbers_device;
+  int* nodeAddresses_device = nullptr;
+  int* nodeNumbers_device = nullptr;
 
   unsigned int* nodeDepthIndex_host = new unsigned int[this->depth + 1]();
-  unsigned int* pointNodeIndex_device;
+  unsigned int* pointNodeIndex_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&pointNodeIndex_device, this->points->size()*sizeof(unsigned int)));
 
+  int3* coordPlacementIdentity_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&coordPlacementIdentity_device,8*sizeof(int3)));
+  CudaSafeCall(cudaMemcpy(coordPlacementIdentity_device,coordPlacementIdentity_host,8*sizeof(int3),cudaMemcpyHostToDevice));
   for(int d = this->depth; d >= 0; --d){
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
@@ -539,13 +542,13 @@ void ssrlcv::Octree::fillInCoarserDepths(){
           }
         }
       }
-      generateParentalUniqueNodes<<<grid,block>>>(uniqueNodes_device, nodeArray2D[this->depth - d], numNodesAtDepth, this->width);
+      generateParentalUniqueNodes<<<grid,block>>>(uniqueNodes_device, nodeArray2D[this->depth - d], numNodesAtDepth, this->width,coordPlacementIdentity_device);
       CudaCheckError();
     }
     nodeDepthIndex_host[this->depth - d] = totalNodes;
     totalNodes += numNodesAtDepth;
   }
-
+  CudaSafeCall(cudaFree(coordPlacementIdentity_device));
   Node* nodeArray_device;
   CudaSafeCall(cudaMalloc((void**)&nodeArray_device, totalNodes*sizeof(Node)));
   for(int i = 0; i <= this->depth; ++i){
@@ -709,10 +712,13 @@ void ssrlcv::Octree::computeVertexArray(){
   unsigned int* vertexDepthIndex_host = new unsigned int[this->depth + 1];
 
   int prevCount = 0;
-  int* ownerInidices_device;
-  int* vertexPlacement_device;
-  int* compactedOwnerArray_device;
-  int* compactedVertexPlacement_device;
+  int* ownerInidices_device = nullptr;
+  int* vertexPlacement_device = nullptr;
+  int* compactedOwnerArray_device = nullptr;
+  int* compactedVertexPlacement_device = nullptr;
+  int3* coordPlacementIdentity_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&coordPlacementIdentity_device,8*sizeof(int3)));
+  CudaSafeCall(cudaMemcpy(coordPlacementIdentity_device,coordPlacementIdentity_host,8*sizeof(int3),cudaMemcpyHostToDevice));
   for(int i = 0; i <= this->depth; ++i){
     //reset previously allocated resources
     grid.y = 1;
@@ -795,12 +801,13 @@ void ssrlcv::Octree::computeVertexArray(){
 
     fillUniqueVertexArray<<<grid, block>>>(this->nodes->device, vertexArray2D[i],
       numVertices - prevCount, vertexDepthIndex_host[i], nodeDepthIndex_host[i], this->depth - i,
-      this->width, vertexLUT_device, compactedOwnerArray_device, compactedVertexPlacement_device);
+      this->width, vertexLUT_device, compactedOwnerArray_device, compactedVertexPlacement_device,coordPlacementIdentity_device);
     CudaCheckError();
     CudaSafeCall(cudaFree(compactedOwnerArray_device));
     CudaSafeCall(cudaFree(compactedVertexPlacement_device));
 
   }
+  CudaSafeCall(cudaFree(coordPlacementIdentity_device));
   Vertex* vertices_device;
   CudaSafeCall(cudaMalloc((void**)&vertices_device, numVertices*sizeof(Vertex)));
   for(int i = 0; i <= this->depth; ++i){
@@ -867,10 +874,14 @@ void ssrlcv::Octree::computeEdgeArray(){
   unsigned int* edgeDepthIndex_host = new unsigned int[this->depth + 1];
 
   int prevCount = 0;
-  int* ownerInidices_device;
-  int* edgePlacement_device;
-  int* compactedOwnerArray_device;
-  int* compactedEdgePlacement_device;
+  int* ownerInidices_device = nullptr;
+  int* edgePlacement_device = nullptr;
+  int* compactedOwnerArray_device = nullptr;
+  int* compactedEdgePlacement_device = nullptr;
+  int2* vertexEdgeIdentity_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&vertexEdgeIdentity_device,12*sizeof(int2)));
+  CudaSafeCall(cudaMemcpy(vertexEdgeIdentity_device,vertexEdgeIdentity_host,12*sizeof(int2),cudaMemcpyHostToDevice));
+
   for(int i = 0; i <= this->depth; ++i){
     //reset previously allocated resources
     grid.y = 1;
@@ -932,7 +943,7 @@ void ssrlcv::Octree::computeEdgeArray(){
 
     CudaSafeCall(cudaFree(ownerInidices_device));
     CudaSafeCall(cudaFree(edgePlacement_device));
-
+    
     //reset and allocated resources
     grid.y = 1;
     block.x = 1;
@@ -953,12 +964,13 @@ void ssrlcv::Octree::computeEdgeArray(){
 
     fillUniqueEdgeArray<<<grid, block>>>(this->nodes->device, edgeArray2D[i],
       numEdges - prevCount, edgeDepthIndex_host[i], nodeDepthIndex_host[i], this->depth - i,
-      this->width, edgeLUT_device, compactedOwnerArray_device, compactedEdgePlacement_device);
+      this->width, edgeLUT_device, compactedOwnerArray_device, compactedEdgePlacement_device,vertexEdgeIdentity_device);
     CudaCheckError();
     CudaSafeCall(cudaFree(compactedOwnerArray_device));
     CudaSafeCall(cudaFree(compactedEdgePlacement_device));
 
   }
+  CudaSafeCall(cudaFree(vertexEdgeIdentity_device));
   Edge* edgeArray_device;
   CudaSafeCall(cudaMalloc((void**)&edgeArray_device, numEdges*sizeof(Edge)));
   for(int i = 0; i <= this->depth; ++i){
@@ -1008,10 +1020,13 @@ void ssrlcv::Octree::computeFaceArray(){
   unsigned int* faceDepthIndex_host = new unsigned int[this->depth + 1];
 
   int prevCount = 0;
-  int* ownerInidices_device;
-  int* facePlacement_device;
-  int* compactedOwnerArray_device;
-  int* compactedFacePlacement_device;
+  int* ownerInidices_device = nullptr;
+  int* facePlacement_device = nullptr;
+  int* compactedOwnerArray_device = nullptr;
+  int* compactedFacePlacement_device = nullptr;
+  int4* edgeFaceIdentity_device = nullptr;
+  CudaSafeCall(cudaMalloc((void**)&edgeFaceIdentity_device,6*sizeof(int4)));
+  CudaSafeCall(cudaMemcpy(edgeFaceIdentity_device,edgeFaceIdentity_host,6*sizeof(int4),cudaMemcpyHostToDevice));
   for(int i = 0; i <= this->depth; ++i){
     //reset previously allocated resources
     grid.y = 1;
@@ -1094,12 +1109,13 @@ void ssrlcv::Octree::computeFaceArray(){
 
     fillUniqueFaceArray<<<grid, block>>>((Octree::Node*) this->nodes->device, faceArray2D[i],
       numFaces - prevCount, numFaces, nodeDepthIndex_host[i], this->depth - i,
-      this->width, faceLUT_device, compactedOwnerArray_device, compactedFacePlacement_device);
+      this->width, faceLUT_device, compactedOwnerArray_device, compactedFacePlacement_device,edgeFaceIdentity_device);
     CudaCheckError();
     CudaSafeCall(cudaFree(compactedOwnerArray_device));
     CudaSafeCall(cudaFree(compactedFacePlacement_device));
 
   }
+  CudaSafeCall(cudaFree(edgeFaceIdentity_device));
   Face* faceArray_device;
   CudaSafeCall(cudaMalloc((void**)&faceArray_device, numFaces*sizeof(Face)));
   for(int i = 0; i <= this->depth; ++i){
@@ -1914,51 +1930,6 @@ void ssrlcv::Octree::checkForGeneralNodeErrors(){
 CUDA implementations
 */
 
-
-__constant__ int3 ssrlcv::coordPlacementIdentity[8] = {
-  {-1,-1,-1},
-  {-1,-1,1},
-  {-1,1,-1},
-  {-1,1,1},
-  {1,-1,-1},
-  {1,-1,1},
-  {1,1,-1},
-  {1,1,1}
-};
-
-__constant__ int2 ssrlcv::vertexEdgeIdentity[12] = {
-  {0,1},
-  {0,2},
-  {1,3},
-  {2,3},
-  {0,4},
-  {1,5},
-  {2,6},
-  {3,7},
-  {4,5},
-  {4,6},
-  {5,7},
-  {6,7}
-};
-
-__constant__ int4 ssrlcv::vertexFaceIdentity[6] = {
-  {0,1,2,3},
-  {0,1,4,5},
-  {0,2,4,6},
-  {1,3,5,7},
-  {2,3,6,7},
-  {4,5,6,7}
-};
-
-__constant__ int4 ssrlcv::edgeFaceIdentity[6] = {
-  {0,1,2,3},
-  {0,4,5,8},
-  {1,4,6,9},
-  {2,5,7,10},
-  {3,6,7,11},
-  {8,9,10,11}
-};
-
 __device__ __host__ float3 ssrlcv::getVoidCenter(const Octree::Node &node, int neighbor){
   float3 center = node.center;
   center.x += node.width*((neighbor/9) - 1);
@@ -2123,7 +2094,7 @@ __global__ void ssrlcv::fillNodeArrayWithUniques(Octree::Node* uniqueNodes, int*
   }
 }
 //TODO try and optimize
-__global__ void ssrlcv::generateParentalUniqueNodes(Octree::Node* uniqueNodes, Octree::Node* nodeArrayD, int numNodesAtDepth, float totalWidth){
+__global__ void ssrlcv::generateParentalUniqueNodes(Octree::Node* uniqueNodes, Octree::Node* nodeArrayD, int numNodesAtDepth, float totalWidth, const int3* __restrict__ coordPlacementIdentity){
   int numUniqueNodesAtParentDepth = numNodesAtDepth / 8;
   int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   int nodeArrayIndex = globalID*8;
@@ -2390,7 +2361,7 @@ __global__ void ssrlcv::findVertexOwners(Octree::Node* nodeArray, int numNodes, 
     atomicAdd(numVertices, 1);
   }
 }
-__global__ void ssrlcv::fillUniqueVertexArray(Octree::Node* nodeArray, Octree::Vertex* vertexArray, int numVertices, int vertexIndex,int depthIndex, int depth, float width, int* vertexLUT, int* ownerInidices, int* vertexPlacement){
+__global__ void ssrlcv::fillUniqueVertexArray(Octree::Node* nodeArray, Octree::Vertex* vertexArray, int numVertices, int vertexIndex,int depthIndex, int depth, float width, int* vertexLUT, int* ownerInidices, int* vertexPlacement, const int3* __restrict__ coordPlacementIdentity){
   int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   if(globalID < numVertices){
 
@@ -2435,7 +2406,7 @@ __global__ void ssrlcv::findEdgeOwners(Octree::Node* nodeArray, int numNodes, in
     atomicAdd(numEdges, 1);
   }
 }
-__global__ void ssrlcv::fillUniqueEdgeArray(Octree::Node* nodeArray, Octree::Edge* edgeArray, int numEdges, int edgeIndex, int depthIndex, int depth, float width, int* edgeLUT, int* ownerInidices, int* edgePlacement){
+__global__ void ssrlcv::fillUniqueEdgeArray(Octree::Node* nodeArray, Octree::Edge* edgeArray, int numEdges, int edgeIndex, int depthIndex, int depth, float width, int* edgeLUT, int* ownerInidices, int* edgePlacement, const int2* __restrict__ vertexEdgeIdentity){
   int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   if(globalID < numEdges){
     int ownerNodeIndex = ownerInidices[globalID];
@@ -2486,7 +2457,7 @@ __global__ void ssrlcv::findFaceOwners(Octree::Node* nodeArray, int numNodes, in
   }
 
 }
-__global__ void ssrlcv::fillUniqueFaceArray(Octree::Node* nodeArray, Octree::Face* faceArray, int numFaces, int faceIndex, int depthIndex, int depth, float width, int* faceLUT, int* ownerInidices, int* facePlacement){
+__global__ void ssrlcv::fillUniqueFaceArray(Octree::Node* nodeArray, Octree::Face* faceArray, int numFaces, int faceIndex, int depthIndex, int depth, float width, int* faceLUT, int* ownerInidices, int* facePlacement, const int4* __restrict__ edgeFaceIdentity){
   int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   if(globalID < numFaces){
 
@@ -2497,11 +2468,12 @@ __global__ void ssrlcv::fillUniqueFaceArray(Octree::Node* nodeArray, Octree::Fac
 
     float depthHalfWidth = width/powf(2, depth + 1);
     Octree::Face face = Octree::Face();
+    int4 edge = edgeFaceIdentity[ownedIndex];
 
-    face.e1 = nodeArray[ownerNodeIndex].edges[edgeFaceIdentity[ownedIndex].x];
-    face.e2 = nodeArray[ownerNodeIndex].edges[edgeFaceIdentity[ownedIndex].y];
-    face.e3 = nodeArray[ownerNodeIndex].edges[edgeFaceIdentity[ownedIndex].z];
-    face.e4 = nodeArray[ownerNodeIndex].edges[edgeFaceIdentity[ownedIndex].w];
+    face.e1 = nodeArray[ownerNodeIndex].edges[edge.x];
+    face.e2 = nodeArray[ownerNodeIndex].edges[edge.y];
+    face.e3 = nodeArray[ownerNodeIndex].edges[edge.z];
+    face.e4 = nodeArray[ownerNodeIndex].edges[edge.w];
     face.color = nodeArray[ownerNodeIndex].color;
     face.depth = depth;
     face.nodes[0] = ownerNodeIndex;

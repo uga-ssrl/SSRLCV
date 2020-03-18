@@ -188,7 +188,7 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   CudaSafeCall(cudaMemcpy(&this->numSurfaceVertices, vertexAddressesDevice + (this->octree->edges->size() - 1), sizeof(int), cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaMemcpy(&this->numSurfaceTriangles, triangleAddressesDevice + (this->octree->nodes->size() - 1), sizeof(int), cudaMemcpyDeviceToHost));
 
-  printf("%d vertices and %d triangles from %d finestNodes\n",this->numSurfaceVertices, this->numSurfaceTriangles, this->octree->nodes->size());
+  printf("%d vertices and %d triangles from %lu finestNodes\n",this->numSurfaceVertices, this->numSurfaceTriangles, this->octree->nodes->size());
   CudaSafeCall(cudaFree(triangleNumbersDevice));
 
   float3* surfaceVerticesDevice;

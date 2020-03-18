@@ -23,10 +23,10 @@ namespace ssrlcv{
    * \todo find better place for this struct
    * \ingroup cuda_util
   */
-  template<typename D>
+  template<typename T>
   struct LocalizedData{
     float2 loc;
-    D data;
+    T data;
   };
 
   //TODO make Quadtree exceptions and add to a namespace
@@ -91,7 +91,7 @@ namespace ssrlcv{
     unsigned int depth;
 
 
-    ssrlcv::Unity<T>* data;
+    ssrlcv::Unity<LocalizedData<T>>* data;
     ssrlcv::Unity<Node>* nodes;
     ssrlcv::Unity<Vertex>* vertices;
     ssrlcv::Unity<Edge>* edges;
@@ -104,22 +104,6 @@ namespace ssrlcv{
     ssrlcv::Unity<unsigned int>* edgeDepthIndex;
 
     Quadtree();
-
-    /**
-    * \brief Constructor for quadtree holding pixels of an Image
-    * \param image Image holding pixels
-    * \param depth depth of quadtree
-    * \param border size of border (optional parameter)
-    */
-    Quadtree(Image* image, unsigned int depth, int2 border = {0,0});
-
-    /**
-    * \brief Constructor for full quadtrees holding indices to each pixel
-    * \param size size of image {x,y}
-    * \param depth depth of quadtree
-    * \param border size of border (optional parameter)
-    */
-    Quadtree(uint2 size, unsigned int depth, int2 border = {0,0});
     /**
     * \brief Constructor for full quadtrees holding actual data
     * \param size size of image {x,y}
@@ -127,7 +111,7 @@ namespace ssrlcv{
     * \param data of type T
     * \param border size of border (optional parameter)
     */
-    Quadtree(uint2 size, unsigned int depth, ssrlcv::Unity<T>* data, unsigned int colorDepth = 0, int2 border = {0,0});
+    Quadtree(uint2 size, unsigned int depth, ssrlcv::Unity<LocalizedData<T>>* data, unsigned int colorDepth = 0, int2 border = {0,0});
     //generally not necessary and takes up a lot of memory - useful for testing small scale
     /**
     * \brief Method to fill Quadtree Vertex array.
@@ -157,14 +141,7 @@ namespace ssrlcv{
     */
     void setNodeFlags(float2 flagBorder, bool requireFullNeighbors = false, uint2 depthRange = {0,0});
 
-    /**
-    * \brief Method to print ply of image with Quadtree<unsigned int>
-    * \param pixels pixels to be shown
-    */
-    void writePLY(Unity<unsigned char>* pixels);
     void writePLY();
-    void writePLY(Node* nodes_device, unsigned long numNodes);
-    void writePLY(float2* points_device, unsigned long numPoints);
 
     ~Quadtree();
 
@@ -190,10 +167,8 @@ namespace ssrlcv{
   CUDA KERNEL DEFINITIONS
   */
 
-  __global__ void getKeys(int* keys, float2* nodeCenters, uint2 size, int2 border, unsigned int depth);
-  __global__ void getKeys(int* keys, float2* nodeCenters, uint2 size, int2 border, unsigned int depth, unsigned int colorDepth);
-  __global__ void getKeys(unsigned int numPoints, float2* points, int* keys, float2* nodeCenters, uint2 size, unsigned int depth);
-  __global__ void getKeys(unsigned int numLocalizedPointers, ssrlcv::LocalizedData<unsigned int>* localizedPointers, int* keys, float2* nodeCenters, uint2 size, unsigned int depth);
+  template<typename T>
+  __global__ void getKeys(unsigned int numLocalizedPointers, ssrlcv::LocalizedData<T>* localizedPointers, int* keys, float2* nodeCenters, uint2 size, unsigned int depth);
 
   template<typename T>
   __global__ void fillLeafNodes(unsigned long numDataElements, unsigned long numLeafNodes, typename Quadtree<T>::Node* leafNodes,int* keys, float2* nodeCenters, unsigned int* nodeDataIndex, unsigned int depth);
