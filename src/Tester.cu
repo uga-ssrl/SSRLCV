@@ -124,8 +124,9 @@ int main(int argc, char *argv[]){
 
     // the point boi
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
-    ssrlcv::Unity<float3>* points;
-    ssrlcv::BundleSet bundleSet;
+    ssrlcv::Unity<float3>*    points;
+    ssrlcv::Unity<float>*     errors;
+    ssrlcv::BundleSet         bundleSet;
 
     if (images.size() == 2){
       //
@@ -173,12 +174,15 @@ int main(int argc, char *argv[]){
       //
       std::cout << "Attempting N-view Triangulation" << std::endl;
 
+      // if we are checkout errors
+      errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+
       float* angularError = (float*)malloc(sizeof(float));
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.nViewTriangulate(bundleSet, angularError);
 
       std::cout << "Initial Angular Error: " << *angularError << std::endl;
-
+      ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors" + std::to_string(i));
 
       demPoints.saveDebugCloud(points, bundleSet, images);
     }
