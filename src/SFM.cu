@@ -165,6 +165,8 @@ int main(int argc, char *argv[]){
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
       std::cout << "Total Linear Error: " << *linearError << std::endl;
 
+      // save an error cloud just for testing
+      demPoints.saveDebugLinearErrorCloud(&matchSet,images,"LinearErrorsVisualized");
     } else {
       //
       // N View Case
