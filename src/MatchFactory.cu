@@ -891,7 +891,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, U
     exit(-1);
   }
   printf(
-    "running disparity matching on parallel images \n\timage[0] = %lux%lu\n\timage[1] = %ux%u\n\tmaxDisparity = %d\n\twindow size = %ux%u\n",
+    "running disparity matching on parallel images \n\timage[0] = %ux%u\n\timage[1] = %ux%u\n\tmaxDisparity = %u\n\twindow size = %ux%u\n",
     querySize.x,querySize.y,targetSize.x,targetSize.y,maxDisparity,windowSize,windowSize
   );
 
@@ -961,7 +961,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, U
     matches = nullptr;
   }
   else{
-    printf("%d valid matches found out of %d original matches\n",numMatchesLeft,matches->size());
+    printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
     Match* validatedMatches_device = nullptr;
     CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(Match)));
     CudaSafeCall(cudaMemcpy(validatedMatches_device,matches->device,numMatchesLeft*sizeof(Match),cudaMemcpyDeviceToDevice));

@@ -46,9 +46,8 @@ SRCDIR 		= ./src
 OBJDIR 		= ./obj
 BINDIR 		= ./bin
 OUTDIR 		= ./out
-TESTDIR 	= ./util/CI
 
-_BASE_OBJS  = io_util.cpp.o
+_BASE_OBJS = io_util.cpp.o
 _BASE_OBJS += io_fmt_ply.cu.o
 _BASE_OBJS += io_fmt_anatomy.cu.o
 _BASE_OBJS += tinyply.cpp.o
@@ -65,47 +64,31 @@ _BASE_OBJS += PointCloudFactory.cu.o
 _BASE_OBJS += Octree.cu.o
 _BASE_OBJS += MeshFactory.cu.o
 _SFM_OBJS = SFM.cu.o
-_SD_OBJS = StereoDisparity.cu.o
 _T_OBJS += Tester.cu.o
 
 BASE_OBJS = $(patsubst %, $(OBJDIR)/%, $(_BASE_OBJS))
 SFM_OBJS = $(patsubst %, $(OBJDIR)/%, $(_SFM_OBJS))
-SD_OBJS = $(patsubst %, $(OBJDIR)/%, $(_SD_OBJS))
 T_OBJS = $(patsubst %, $(OBJDIR)/%, $(_T_OBJS))
 
 TEST_OBJS = $(patsubst %, $(OBJDIR)/%, $(_BASE_OBJS))
 
 TARGET_SFM = SFM
-TARGET_SD = StereoDisparity
 TARGET_T = Tester
-
-## Test sensing
-TestsIn_cpp 	= $(wildcard $(TESTDIR)/src/*.cpp)
-TestsIn_cu 		= $(wildcard $(TESTDIR)/src/*.cu)
-TESTS_CPP 		= $(patsubst $(TESTDIR)/src/%.cpp, $(TESTDIR)/bin/cpp/%, $(TestsIn_cpp))
-TESTS_CU 		= $(patsubst $(TESTDIR)/src/%.cu, $(TESTDIR)/bin/cu/%, $(TestsIn_cu))
-TESTS 			= $(TESTS_CU) $(TESTS_CPP)
 
 NVCCFLAGS += $(GENCODEFLAGS)
 LINKLINE_SFM = $(LINK) $(GENCODEFLAGS) $(BASE_OBJS) $(SFM_OBJS) $(LIB) -o $(BINDIR)/$(TARGET_SFM)
-LINKLINE_SD = $(LINK) $(GENCODEFLAGS) $(BASE_OBJS) $(SD_OBJS) $(LIB) -o $(BINDIR)/$(TARGET_SD)
 LINKLINE_T = $(LINK) $(GENCODEFLAGS) $(BASE_OBJS) $(T_OBJS) $(LIB) -o $(BINDIR)/$(TARGET_T)
 
 .SUFFIXES: .cpp .cu .o
 .PHONY: all clean test
 
-all: base $(BINDIR)/$(TARGET_SFM) $(BINDIR)/$(TARGET_SD) $(BINDIR)/$(TARGET_T) $(TESTS)
+all: base $(BINDIR)/$(TARGET_SFM) $(BINDIR)/$(TARGET_T)
 
 base: $(BASE_OBJS)
 
 sfm: base $(BINDIR)/$(TARGET_SFM)
 
-stereo: base $(BINDIR)/$(TARGET_SD)
-
 misc: base $(BINDIR)/$(TARGET_T)
-
-test: all $(TEST_OBJS)
-	cd $(TESTDIR); ./test-all
 
 $(OBJDIR):
 	    -mkdir -p $(OBJDIR)
@@ -115,11 +98,6 @@ $(BINDIR):
 
 $(OUTDIR):
 			-mkdir -p $(OUTDIR)
-
-
-
-
-
 
 # Compiling
 
@@ -133,27 +111,8 @@ $(OBJDIR)/%.cpp.o: $(SRCDIR)/%.cpp
 $(BINDIR)/$(TARGET_SFM): $(BASE_OBJS) $(SFM_OBJS) Makefile
 	$(LINKLINE_SFM)
 
-$(BINDIR)/$(TARGET_SD): $(BASE_OBJS) $(SD_OBJS) Makefile
-	$(LINKLINE_SD)
-
 $(BINDIR)/$(TARGET_T): $(BASE_OBJS) $(T_OBJS) Makefile
 	$(LINKLINE_T)
-
-#
-# Tests
-#
-
-$(TESTDIR)/obj/%.cpp.o: $(TESTDIR)/src/%.cpp $(TESTDIR)/unit-testing.h
-	$(CXX) $(INCLUDES) -I./util/CI/ $(CXXFLAGS)  -c -o $@ $<
-
-$(TESTDIR)/obj/%.cu.o: $(TESTDIR)/src/%.cu $(TESTDIR)/unit-testing.h
-	$(NVCC) $(INCLUDES) -I./util/CI/ $(NVCCFLAGS) -c -o $@ $<
-
-$(TESTDIR)/bin/cpp/%: $(TESTDIR)/obj/%.cpp.o $(TEST_OBJS)
-	$(LINK) $(GENCODEFLAGS) $(LIB) $(TEST_OBJS) $< -o $@
-
-$(TESTDIR)/bin/cu/%: $(TESTDIR)/obj/%.cu.o $(TEST_OBJS)
-	$(LINK) $(GENCODEFLAGS) $(LIB) $(TEST_OBJS) $< -o $@
 
 #
 # Docs
@@ -181,7 +140,7 @@ clean:
 	rm -f *.~
 	rm -f *.kpa
 	rm -f *.txt
-	rm -rf $(TESTDIR)/obj/*
-	rm -rf $(TESTDIR)/tmp/*
-	rm -rf $(TESTDIR)/bin/cu/*
-	rm -rf $(TESTDIR)/bin/cpp/*
+	rm -f data/*.uty
+	rm -f src/examples/*.out
+	rm -f src/examples/*.uty
+	rm -rf doc/doxygen/documentation/*

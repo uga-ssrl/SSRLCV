@@ -194,8 +194,8 @@ unsigned char* ssrlcv::getPixelArray(unsigned char** &row_pointers, const unsign
     exit(-1);
   }
   unsigned char* imageMatrix = new unsigned char[height*width*numValues];
-  for (int r=0; r < height; ++r){
-    for(int c=0; c < width; ++c){
+  for (unsigned int r=0; r < height; ++r){
+    for(unsigned int c=0; c < width; ++c){
       for(int p=0; p < numValues; ++p){
         imageMatrix[(r*width + c)*numValues + p] = row_pointers[r][c*numValues + p];
       }
@@ -253,12 +253,12 @@ unsigned char* ssrlcv::readPNG(const char* filePath, unsigned int &height, unsig
 
   width = png_get_image_width(png_ptr, info_ptr);
   height = png_get_image_height(png_ptr, info_ptr);
-  png_byte color_type = png_get_color_type(png_ptr, info_ptr);
+  //png_byte color_type = png_get_color_type(png_ptr, info_ptr);//unused
   //png_byte bit_depth = png_get_bit_depth(png_ptr, info_ptr);//unused
   int numChannels = png_get_channels(png_ptr, info_ptr);
   png_read_update_info(png_ptr, info_ptr);
   unsigned char** row_pointers = new unsigned char*[height];
-  for (int r=0; r < height; ++r){
+  for (unsigned int r=0; r < height; ++r){
     row_pointers[r] = new unsigned char[width*numChannels]();
   }
   png_read_image(png_ptr, row_pointers);
@@ -322,7 +322,7 @@ void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned
   }
 
   unsigned char** row_pointers = new unsigned char*[height];
-  for(int i = 0; i < height; ++i){
+  for(unsigned int i = 0; i < height; ++i){
     row_pointers[i] = new unsigned char[width*colorDepth];
     std::memcpy(row_pointers[i], image + i*width*colorDepth, width*colorDepth*sizeof(unsigned char));
   }
@@ -339,95 +339,6 @@ void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned
   std::cout<<filePath<<" has been written"<<std::endl;
 }
 
-
-unsigned char* ssrlcv::readTIFF(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth){
-  TIFF *tif = TIFFOpen(filePath, "r");
-  if(tif) {
-    TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width);
-    TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
-    size_t scanlineSize = TIFFScanlineSize(tif);
-    TIFFGetField(tif, TIFFTAG_SAMPLESPERPIXEL, &colorDepth);
-
-    unsigned int config;
-    TIFFGetField(tif, TIFFTAG_PLANARCONFIG, &config);
-
-    unsigned char* pixels = new unsigned char[height*width*colorDepth];
-    tdata_t buf = _TIFFmalloc(scanlineSize);
-    if(config == PLANARCONFIG_CONTIG || colorDepth == 1){
-      for (uint32 row = 0; row < height; row++) {
-        if (TIFFReadScanline(tif, buf, row) != -1) {
-          std::memcpy(&pixels[row * width], buf,TIFFScanlineSize(tif));
-        } else {
-          std::cout << "ERROR READING SCANLINE" << std::endl;
-          exit(-1);
-        }
-      }
-    }
-    else if (config == PLANARCONFIG_SEPARATE){
-      uint16 nsamples;
-      for(uint16 s = 0; s < colorDepth; ++s){
-        for (uint32 row = 0; row < height; row++) {
-          if (TIFFReadScanline(tif, buf, row, s) != -1) {
-            for(int i = 0; i < width; ++i){
-              std::memcpy(&pixels[(row*width) + (i*colorDepth) + s], buf++,TIFFScanlineSize(tif)/width);
-            }
-          } else {
-            std::cout << "ERROR READING SCANLINE" << std::endl;
-            exit(-1);
-          }
-        }
-      }
-
-    }
-
-
-    _TIFFfree(buf);
-    TIFFClose(tif);
-    return pixels;
-  }
-  else{
-    std::cout<<"READING IN TIFF FAILED: "<<filePath<<std::endl;
-    exit(-1);
-  }
-}
-void ssrlcv::writeTIFF(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height){
-  TIFF *tif = TIFFOpen(filePath, "w");
-  if (tif) {
-    TIFFSetField(tif, TIFFTAG_IMAGEWIDTH, width);
-    TIFFSetField(tif, TIFFTAG_IMAGELENGTH, height);
-    TIFFSetField(tif, TIFFTAG_SAMPLESPERPIXEL, colorDepth);
-    TIFFSetField(tif, TIFFTAG_BITSPERSAMPLE, 8);
-    switch(colorDepth){
-      case 1:
-        TIFFSetField(tif, TIFFTAG_PHOTOMETRIC, 0);
-        break;
-      case 2:
-        TIFFSetField(tif, TIFFTAG_PHOTOMETRIC, 0);
-        break;
-      case 3:
-        TIFFSetField(tif, TIFFTAG_PHOTOMETRIC, 2);
-        break;
-      case 4:
-        TIFFSetField(tif, TIFFTAG_PHOTOMETRIC, 2);
-        break;
-      default:
-        std::cerr<<"ERROR unsupported photometric in writeTIFF()"<<std::endl;
-        exit(-1);
-    }
-    for(uint32 row = 0; row < height; ++row){
-      if (TIFFWriteScanline(tif, image + (row*width), row, 0) != 1) {
-        std::cerr<<"ERROR: could not write tiff: "<<filePath<<std::endl;
-        exit(-1);
-      }
-    }
-    std::cout<<filePath<<" has been created"<<std::endl;
-    TIFFClose(tif);
-  }
-  else{
-    std::cerr<<"ERROR: could not write tiff: "<<filePath<<std::endl;
-    exit(-1);
-  }
-}
 unsigned char* ssrlcv::readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth){
   struct jpeg_decompress_struct cinfo;
   struct jpeg_error_mgr jerr;
@@ -446,14 +357,13 @@ unsigned char* ssrlcv::readJPEG(const char* filePath, unsigned int &height, unsi
   width = cinfo.output_width;
   height = cinfo.output_height;
   colorDepth = cinfo.output_components;
-  int row_stride = width * colorDepth;
 
   int scanlineSize = width * colorDepth;
   unsigned char *pixels = new unsigned char[height * scanlineSize];
   unsigned char **buffer = new unsigned char*[1];
   buffer[0] = new unsigned char[scanlineSize];
 
-  for(int row = 0; row < height; ++row){
+  for(unsigned int row = 0; row < height; ++row){
     (void)jpeg_read_scanlines(&cinfo, buffer, 1);
     std::memcpy(pixels + (row * scanlineSize), buffer[0], scanlineSize * sizeof(unsigned char));
   }
@@ -491,13 +401,11 @@ void ssrlcv::writeJPEG(const char* filePath, unsigned char* image, const unsigne
   jpeg_set_quality(&cinfo,75,true);
   (void) jpeg_start_compress(&cinfo,true);
 
-  int row_stride = width * colorDepth;
-
   int scanlineSize = width * colorDepth;
   unsigned char** buffer = new unsigned char*[1];
   buffer[0] = new unsigned char[scanlineSize];
 
-  for (int row = 0; row < height; ++row){
+  for (unsigned int row = 0; row < height; ++row){
     buffer[0] = &image[row*width*colorDepth];
     (void)jpeg_write_scanlines(&cinfo, buffer, 1);
   }
@@ -520,9 +428,6 @@ unsigned char* ssrlcv::readImage(const char *filePath, unsigned int &height, uns
   else if (fileType == "jpg" || fileType == "jpeg"){
     pixels = readJPEG(filePath,height,width,colorDepth);
   }
-  else if(fileType == "tif" || fileType == "tiff"){
-    pixels = readTIFF(filePath,height,width,colorDepth);
-  }
   else{
     throw UnsupportedImageException(str_filePath);
   }
@@ -532,16 +437,12 @@ unsigned char* ssrlcv::readImage(const char *filePath, unsigned int &height, uns
 void ssrlcv::writeImage(const char* filePath, unsigned char* image, const unsigned int &colorDepth, const unsigned int &width, const unsigned int &height){
   std::string str_filePath = filePath;
   std::string fileType = getFileExtension(str_filePath);
-  unsigned char* pixels = nullptr;
 
   if (fileType == "png"){
     writePNG(filePath,image,colorDepth,width,height);
   }
   else if (fileType == "jpg" || fileType == "jpeg"){
     writeJPEG(filePath,image,colorDepth,width,height);
-  }
-  else if(fileType == "tif" || fileType == "tiff"){
-    writeTIFF(filePath,image,colorDepth,width,height);
   }
   else{
     throw UnsupportedImageException(str_filePath);
@@ -742,7 +643,7 @@ void ssrlcv::writePLY(const char* filePath, Unity<colorPoint>* cpoint){
   of << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n"; // the elements in the guy
   of << "end_header\n";
   // start writing the values
-  for (int i = 0; i < cpoint->size(); i++){
+  for (unsigned int i = 0; i < cpoint->size(); i++){
     of << std::fixed << std::setprecision(32) << cpoint->host[i].x << " " << cpoint->host[i].y << " " << cpoint->host[i].z << " " << (unsigned int) cpoint->host[i].r << " " << (unsigned int) cpoint->host[i].g << " " << (unsigned int) cpoint->host[i].b << "\n";
   }
   of.close(); // done with the file building
