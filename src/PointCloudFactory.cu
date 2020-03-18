@@ -525,7 +525,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(unsigned long, Bundle::Line*, Bundle*, float3*) = &computeNViewTriangulate;
-  getFlatGridBlock(bundleSet.bundles->size(),grid,block,computeNViewTriangulate);
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
 
   std::cout << "Starting n-view triangulation ..." << std::endl;
@@ -566,7 +566,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(float*, unsigned long, Bundle::Line*, Bundle*, float3*) = &computeNViewTriangulate;
-  getFlatGridBlock(bundleSet.bundles->size(),grid,block,computeNViewTriangulate);
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
 
   std::cout << "Starting n-view triangulation ..." << std::endl;
@@ -2204,7 +2204,7 @@ __global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::
 /**
  *
  */
-__global__ void ssrlcv::computeNViewTriangulate(float* linearError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
+__global__ void ssrlcv::computeNViewTriangulate(float* angularError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
 
   // get ready to do the stuff local memory space
   // this will later be added back to a global memory space
@@ -2255,15 +2255,16 @@ __global__ void ssrlcv::computeNViewTriangulate(float* linearError, unsigned lon
     pointcloud[globalID] = point;
   }
 
-  // the refrence vector
-  // we take the generated point and create a vector from it to the camera center
-  float3 r = lines[bundles[globalID].index].pnt - point;
-  normalize(r);
   // calculate the angle between the vectors
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
     float3 v = lines[i].vec;
     normalize(v);
+    // the refrence vector
+    // we take the generated point and create a vector from it to the camera center
+    float3 r = lines[i].pnt - point;
+    normalize(r);
+
     float numer = dotProduct(v,r);
     float denom = magnitude(v) * magnitude(r);
     a_error += abs(acosf(numer/denom));

@@ -177,7 +177,7 @@ int main(int argc, char *argv[]){
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.nViewTriangulate(bundleSet, angularError);
 
-      std::cout << "Initial Angular Error: " << angularError << std::endl;
+      std::cout << "Initial Angular Error: " << *angularError << std::endl;
 
 
       demPoints.saveDebugCloud(points, bundleSet, images);
