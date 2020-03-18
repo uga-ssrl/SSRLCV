@@ -5,70 +5,228 @@ ssrlcv::PointCloudFactory::PointCloudFactory(){
 
 }
 
+// =============================================================================================================
+//
+// Stereo Disparity Methods
+//
+// =============================================================================================================
+
 /**
-* The CPU method that sets up the GPU enabled line generation, which stores lines
-* and sets of lines as bundles
-* @param matchSet a group of maches
-* @param a group of images, used only for their stored camera parameters
+* Preforms a Stereo Disparity with the correct scalar, calcualated form camera
+* parameters
+* @param matches0
+* @param matches1
+* @param points assumes this has been allocated prior to method call
+* @param n the number of matches
+* @param cameras a camera array of only 2 Image::Camera structs. This is used to
+* dynamically calculate a scaling factor
 */
-ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>* matches, Image::Camera* cameras){
 
+  float baseline = sqrtf( (cameras[0].cam_pos.x - cameras[1].cam_pos.x)*(cameras[0].cam_pos.x - cameras[1].cam_pos.x)
+                        + (cameras[0].cam_pos.y - cameras[1].cam_pos.y)*(cameras[0].cam_pos.y - cameras[1].cam_pos.y)
+                        + (cameras[0].cam_pos.z - cameras[1].cam_pos.z)*(cameras[0].cam_pos.z - cameras[1].cam_pos.z));
+  float scale = (baseline * cameras[0].foc )/(cameras[0].dpix.x);
 
-  Unity<Bundle>* bundles = new Unity<Bundle>(nullptr,matchSet->matches->size(),gpu);
-  Unity<Bundle::Line>* lines = new Unity<Bundle::Line>(nullptr,matchSet->keyPoints->size(),gpu);
+  std::cout << "Stereo Baseline: " << baseline << ", Stereo Scale Factor: " << scale <<  ", Inverted Stereo Scale Factor: " << (1.0/scale) << std::endl;
 
-  // std::cout << "starting bundle generation ..." << std::endl;
-  //MemoryState origin[2] = {matchSet->matches->getMemoryState(),matchSet->keyPoints->getMemoryState()};
-  //if(origin[0] == cpu) matchSet->matches->transferMemoryTo(gpu);
-  //if(origin[1] == cpu) matchSet->keyPoints->transferMemoryTo(gpu);
-  // std::cout << "set the matches ... " << std::endl;
-  matchSet->matches->transferMemoryTo(gpu);
-  matchSet->keyPoints->transferMemoryTo(gpu);
+  MemoryState origin = matches->getMemoryState();
+  if(origin == cpu) matches->transferMemoryTo(gpu);
 
-  // the cameras
-  size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
-  // fill the cam boi
-  ssrlcv::Image::Camera* h_cameras;
-  h_cameras = (ssrlcv::Image::Camera*) malloc(cam_bytes);
-  for(int i = 0; i < images.size(); i++){
-    h_cameras[i] = images.at(i)->camera;
-  }
-  ssrlcv::Image::Camera* d_cameras;
-  // std::cout << "set the cameras ... " << std::endl;
-  CudaSafeCall(cudaMalloc(&d_cameras, cam_bytes));
-  // copy the othe guy
-  CudaSafeCall(cudaMemcpy(d_cameras, h_cameras, cam_bytes, cudaMemcpyHostToDevice));
+  // depth points
+  float3 *points_device = nullptr;
 
+  cudaMalloc((void**) &points_device, matches->size()*sizeof(float3));
+
+  //
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  getFlatGridBlock(bundles->size(),grid,block,generateBundle);
+  void (*fp)(unsigned int, Match*, float3*, float) = &computeStereo;
+  getFlatGridBlock(matches->size(),grid,block,fp);
+  //
+  computeStereo<<<grid, block>>>(matches->size(), matches->device, points_device, 8.0);
+  // focal lenth / baseline
 
-  //in this kernel fill lines and bundles from keyPoints and matches
-  // std::cout << "Calling bundle generation kernel ..." << std::endl;
-  generateBundle<<<grid, block>>>(bundles->size(),bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
-  // std::cout << "Returned from bundle generation kernel ... \n" << std::endl;
+  // computeStereo<<<grid, block>>>(matches->size(), matches->device, points_device, 64.0);
 
-  cudaDeviceSynchronize();
-  CudaCheckError();
+  Unity<float3>* points = new Unity<float3>(points_device, matches->size(),gpu);
+  if(origin == cpu) matches->setMemoryState(cpu);
 
-  // transfer and clear the match set information
-  matchSet->matches->setFore(gpu);
-  matchSet->keyPoints->setFore(gpu);
-  matchSet->matches->transferMemoryTo(cpu);
-  matchSet->keyPoints->transferMemoryTo(cpu);
-  matchSet->matches->clear(gpu);
-  matchSet->keyPoints->clear(gpu);
-
-  // transfer and clear the cpu information
-  bundles->transferMemoryTo(cpu);
-  bundles->clear(gpu);
-  lines->transferMemoryTo(cpu);
-  lines->clear(gpu);
-
-  BundleSet bundleSet = {lines,bundles};
-
-  return bundleSet;
+  return points;
 }
+
+/**
+* Preforms a Stereo Disparity, this SHOULD NOT BE THE DEFAULT as the scale is not
+* dyamically calculated
+* @param matches0
+* @param matches1
+* @param points assumes this has been allocated prior to method call
+* @param n the number of matches
+* @param scale the scale factor that is multiplied
+*/
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>* matches, float scale){
+
+  MemoryState origin = matches->getMemoryState();
+  if(origin == cpu) matches->transferMemoryTo(gpu);
+
+  // depth points
+  float3 *points_device = nullptr;
+
+  cudaMalloc((void**) &points_device, matches->size()*sizeof(float3));
+
+  //
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(unsigned int, Match*, float3*, float) = &computeStereo;
+  getFlatGridBlock(matches->size(),grid,block,fp);
+  //
+  computeStereo<<<grid, block>>>(matches->size(), matches->device, points_device, scale);
+
+  Unity<float3>* points = new Unity<float3>(points_device, matches->size(),gpu);
+  if(origin == cpu) matches->setMemoryState(cpu);
+
+  return points;
+}
+
+/**
+ * TODO
+ */
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>* matches, float foc, float baseline, float doffset){
+
+  MemoryState origin = matches->getMemoryState();
+  if(origin == cpu) matches->transferMemoryTo(gpu);
+
+
+  Unity<float3>* points = new Unity<float3>(nullptr, matches->size(),gpu);
+  //
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(unsigned int, Match*, float3*, float, float, float) = &computeStereo;
+  getFlatGridBlock(matches->size(),grid,block,fp);
+  //
+  computeStereo<<<grid, block>>>(matches->size(), matches->device, points->device, foc, baseline, doffset);
+
+  if(origin == cpu) matches->setMemoryState(cpu);
+
+  return points;
+}
+
+/**
+ * heat map
+ */
+uchar3 ssrlcv::heatMap(float value){
+  uchar3 rgb;
+  // float3 colorMap[5] = {
+  //   {255.0f,0,0},
+  //   {127.5f,127.5f,0},
+  //   {0,255.0f,0.0f},
+  //   {0,127.7f,127.5f},
+  //   {0,0,255.0f},
+  // };
+  // float temp = colors->host[i];
+  // colors->host[i] *= 5.0f;
+  // colors->host[i] = floor(colors->host[i]);
+  // if(colors->host[i] == 5.0f) colors->host[i] = 4.0f;
+  // if(colors->host[i] == 0.0f) colors->host[i] = 1.0f;
+  // rgb.x = (1-temp)*colorMap[(int)colors->host[i]-1].x + (temp*colorMap[(int)colors->host[i]].x);
+  // rgb.y = (1-temp)*colorMap[(int)colors->host[i]-1].y + (temp*colorMap[(int)colors->host[i]].y);
+  // rgb.z = (1-temp)*colorMap[(int)colors->host[i]-1].z + (temp*colorMap[(int)colors->host[i]].z);
+
+
+  if(value <= 0.5f){
+    value *= 2.0f;
+    rgb.x = (unsigned char) 255*(1-value) + 0.5;
+    rgb.y = (unsigned char) 255*value + 0.5;
+    rgb.z = 0;
+  }
+  else{
+    value = value*2.0f - 1;
+    rgb.x = 0;
+    rgb.y = (unsigned char) 255*(1-value) + 0.5;
+    rgb.z = (unsigned char) 255*value + 0.5;
+  }
+  return rgb;
+}
+
+/**
+ * write disparity image
+ */
+void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolationRadius, std::string pathToFile){
+  MemoryState origin = points->getMemoryState();
+  if(origin == gpu) points->transferMemoryTo(cpu);
+  float3 min = {FLT_MAX,FLT_MAX,FLT_MAX};
+  float3 max = {-FLT_MAX,-FLT_MAX,-FLT_MAX};
+  for(int i = 0; i < points->size(); ++i){
+    if(points->host[i].x < min.x) min.x = points->host[i].x;
+    if(points->host[i].x > max.x) max.x = points->host[i].x;
+    if(points->host[i].y < min.y) min.y = points->host[i].y;
+    if(points->host[i].y > max.y) max.y = points->host[i].y;
+    if(points->host[i].z < min.z) min.z = points->host[i].z;
+    if(points->host[i].z > max.z) max.z = points->host[i].z;
+  }
+  uint2 imageDim = {(unsigned int)ceil(max.x-min.x)+1,(unsigned int)ceil(max.y-min.y)+1};
+  unsigned char* disparityImage = new unsigned char[imageDim.x*imageDim.y*3];
+  Unity<float>* colors = new Unity<float>(nullptr,imageDim.x*imageDim.y,cpu);
+  for(int i = 0; i < imageDim.x*imageDim.y*3; ++i){
+    disparityImage[i] = 0;
+  }
+  for(int i = 0; i < points->size(); ++i){
+    float3 temp = points->host[i] - min;
+    if(ceil(temp.x) != temp.x || ceil(temp.y) != temp.y){
+      colors->host[((int)ceil(temp.y)*imageDim.x) + (int)ceil(temp.x)] += (1-ceil(temp.x)-temp.x)*(1-ceil(temp.y)-temp.y)*temp.z/(max.z-min.z);
+      colors->host[((int)ceil(temp.y)*imageDim.x) + (int)floor(temp.x)] += (1-temp.x-floor(temp.x))*(1-ceil(temp.y)-temp.y)*temp.z/(max.z-min.z);
+      colors->host[((int)floor(temp.y)*imageDim.x) + (int)ceil(temp.x)] += (1-ceil(temp.x)-temp.x)*(1-temp.y-floor(temp.y))*temp.z/(max.z-min.z);
+      colors->host[((int)floor(temp.y)*imageDim.x) + (int)floor(temp.x)] += (1-temp.x-floor(temp.x))*(1-temp.y-floor(temp.y))*temp.z/(max.z-min.z);
+    }
+    else{
+      colors->host[(int)temp.y*imageDim.x + (int)temp.x] += temp.z/(max.z-min.z);
+    }
+  }
+
+  /*
+  INTERPOLATE
+  */
+  if(interpolationRadius != 0){
+    colors->setMemoryState(gpu);
+    float* interpolated = nullptr;
+    CudaSafeCall(cudaMalloc((void**)&interpolated,imageDim.x*imageDim.y*sizeof(float)));
+    dim3 block = {1,1,1};
+    dim3 grid = {1,1,1};
+    getFlatGridBlock(imageDim.x*imageDim.y,grid,block,interpolateDepth);
+    interpolateDepth<<<grid,block>>>(imageDim,interpolationRadius,colors->device,interpolated);
+    cudaDeviceSynchronize();
+    CudaCheckError();
+    colors->setData(interpolated,colors->size(),gpu);
+    colors->setMemoryState(cpu);
+  }
+
+  min.z = FLT_MAX;
+  max.z = -FLT_MAX;
+  for(int i = 0; i < imageDim.x*imageDim.y; ++i){
+    if(min.z > colors->host[i]) min.z = colors->host[i];
+    if(max.z < colors->host[i]) max.z = colors->host[i];
+  }
+
+
+  uchar3 rgb;
+  for(int i = 0; i < imageDim.x*imageDim.y; ++i){
+    colors->host[i] -= min.z;
+    colors->host[i] /= (max.z-min.z);
+    rgb = heatMap(colors->host[i]);
+    disparityImage[i*3] = rgb.x;
+    disparityImage[i*3 + 1] = rgb.y;
+    disparityImage[i*3 + 2] = rgb.z;
+  }
+  delete colors;
+  writePNG(pathToFile.c_str(),disparityImage,3,imageDim.x,imageDim.y);
+  delete disparityImage;
+}
+
+// =============================================================================================================
+//
+// 2 View Methods
+//
+// =============================================================================================================
 
 /**
 * The CPU method that sets up the GPU enabled two view tringulation.
@@ -348,101 +506,112 @@ void ssrlcv::PointCloudFactory::voidTwoViewTriangulate(BundleSet bundleSet, floa
   return;
 }
 
-/**
-* Preforms a Stereo Disparity with the correct scalar, calcualated form camera
-* parameters
-* @param matches0
-* @param matches1
-* @param points assumes this has been allocated prior to method call
-* @param n the number of matches
-* @param cameras a camera array of only 2 Image::Camera structs. This is used to
-* dynamically calculate a scaling factor
-*/
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>* matches, Image::Camera* cameras){
-
-  float baseline = sqrtf( (cameras[0].cam_pos.x - cameras[1].cam_pos.x)*(cameras[0].cam_pos.x - cameras[1].cam_pos.x)
-                        + (cameras[0].cam_pos.y - cameras[1].cam_pos.y)*(cameras[0].cam_pos.y - cameras[1].cam_pos.y)
-                        + (cameras[0].cam_pos.z - cameras[1].cam_pos.z)*(cameras[0].cam_pos.z - cameras[1].cam_pos.z));
-  float scale = (baseline * cameras[0].foc )/(cameras[0].dpix.x);
-
-  std::cout << "Stereo Baseline: " << baseline << ", Stereo Scale Factor: " << scale <<  ", Inverted Stereo Scale Factor: " << (1.0/scale) << std::endl;
-
-  MemoryState origin = matches->getMemoryState();
-  if(origin == cpu) matches->transferMemoryTo(gpu);
-
-  // depth points
-  float3 *points_device = nullptr;
-
-  cudaMalloc((void**) &points_device, matches->size()*sizeof(float3));
-
-  //
-  dim3 grid = {1,1,1};
-  dim3 block = {1,1,1};
-  void (*fp)(unsigned int, Match*, float3*, float) = &computeStereo;
-  getFlatGridBlock(matches->size(),grid,block,fp);
-  //
-  computeStereo<<<grid, block>>>(matches->size(), matches->device, points_device, 8.0);
-  // focal lenth / baseline
-
-  // computeStereo<<<grid, block>>>(matches->size(), matches->device, points_device, 64.0);
-
-  Unity<float3>* points = new Unity<float3>(points_device, matches->size(),gpu);
-  if(origin == cpu) matches->setMemoryState(cpu);
-
-  return points;
-}
+// =============================================================================================================
+//
+// N View Methods
+//
+// =============================================================================================================
 
 /**
-* Preforms a Stereo Disparity, this SHOULD NOT BE THE DEFAULT as the scale is not
-* dyamically calculated
-* @param matches0
-* @param matches1
-* @param points assumes this has been allocated prior to method call
-* @param n the number of matches
-* @param scale the scale factor that is multiplied
-*/
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>* matches, float scale){
+ * The CPU method that sets up the GPU enabled n view triangulation.
+ * @param bundleSet a set of lines and bundles to be triangulated
+ */
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bundleSet){
+  bundleSet.lines->transferMemoryTo(gpu);
+  bundleSet.bundles->transferMemoryTo(gpu);
 
-  MemoryState origin = matches->getMemoryState();
-  if(origin == cpu) matches->transferMemoryTo(gpu);
+  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
 
-  // depth points
-  float3 *points_device = nullptr;
-
-  cudaMalloc((void**) &points_device, matches->size()*sizeof(float3));
-
-  //
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  void (*fp)(unsigned int, Match*, float3*, float) = &computeStereo;
-  getFlatGridBlock(matches->size(),grid,block,fp);
-  //
-  computeStereo<<<grid, block>>>(matches->size(), matches->device, points_device, scale);
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,computeNViewTriangulate);
 
-  Unity<float3>* points = new Unity<float3>(points_device, matches->size(),gpu);
-  if(origin == cpu) matches->setMemoryState(cpu);
 
-  return points;
+  std::cout << "Starting n-view triangulation ..." << std::endl;
+  computeNViewTriangulate<<<grid,block>>>(bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  std::cout << "n-view Triangulation done ... \n" << std::endl;
+
+  pointcloud->setFore(gpu);
+  bundleSet.lines->setFore(gpu);
+  bundleSet.bundles->setFore(gpu);
+
+  pointcloud->transferMemoryTo(cpu);
+  pointcloud->clear(gpu);
+  bundleSet.lines->clear(gpu);
+  bundleSet.bundles->clear(gpu);
+
+  return pointcloud;
 }
 
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::stereo_disparity(Unity<Match>* matches, float foc, float baseline, float doffset){
+// =============================================================================================================
+//
+// Bundle Adjustment Methods
+//
+// =============================================================================================================
 
-  MemoryState origin = matches->getMemoryState();
-  if(origin == cpu) matches->transferMemoryTo(gpu);
+/**
+* The CPU method that sets up the GPU enabled line generation, which stores lines
+* and sets of lines as bundles
+* @param matchSet a group of maches
+* @param a group of images, used only for their stored camera parameters
+*/
+ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
 
 
-  Unity<float3>* points = new Unity<float3>(nullptr, matches->size(),gpu);
-  //
+  Unity<Bundle>* bundles = new Unity<Bundle>(nullptr,matchSet->matches->size(),gpu);
+  Unity<Bundle::Line>* lines = new Unity<Bundle::Line>(nullptr,matchSet->keyPoints->size(),gpu);
+
+  // std::cout << "starting bundle generation ..." << std::endl;
+  //MemoryState origin[2] = {matchSet->matches->getMemoryState(),matchSet->keyPoints->getMemoryState()};
+  //if(origin[0] == cpu) matchSet->matches->transferMemoryTo(gpu);
+  //if(origin[1] == cpu) matchSet->keyPoints->transferMemoryTo(gpu);
+  // std::cout << "set the matches ... " << std::endl;
+  matchSet->matches->transferMemoryTo(gpu);
+  matchSet->keyPoints->transferMemoryTo(gpu);
+
+  // the cameras
+  size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
+  // fill the cam boi
+  ssrlcv::Image::Camera* h_cameras;
+  h_cameras = (ssrlcv::Image::Camera*) malloc(cam_bytes);
+  for(int i = 0; i < images.size(); i++){
+    h_cameras[i] = images.at(i)->camera;
+  }
+  ssrlcv::Image::Camera* d_cameras;
+  // std::cout << "set the cameras ... " << std::endl;
+  CudaSafeCall(cudaMalloc(&d_cameras, cam_bytes));
+  // copy the othe guy
+  CudaSafeCall(cudaMemcpy(d_cameras, h_cameras, cam_bytes, cudaMemcpyHostToDevice));
+
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  void (*fp)(unsigned int, Match*, float3*, float, float, float) = &computeStereo;
-  getFlatGridBlock(matches->size(),grid,block,fp);
-  //
-  computeStereo<<<grid, block>>>(matches->size(), matches->device, points->device, foc, baseline, doffset);
+  getFlatGridBlock(bundles->size(),grid,block,generateBundle);
 
-  if(origin == cpu) matches->setMemoryState(cpu);
+  //in this kernel fill lines and bundles from keyPoints and matches
+  // std::cout << "Calling bundle generation kernel ..." << std::endl;
+  generateBundle<<<grid, block>>>(bundles->size(),bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
+  // std::cout << "Returned from bundle generation kernel ... \n" << std::endl;
 
-  return points;
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  // transfer and clear the match set information
+  matchSet->matches->setFore(gpu);
+  matchSet->keyPoints->setFore(gpu);
+  matchSet->matches->transferMemoryTo(cpu);
+  matchSet->keyPoints->transferMemoryTo(cpu);
+  matchSet->matches->clear(gpu);
+  matchSet->keyPoints->clear(gpu);
+
+  // transfer and clear the cpu information
+  bundles->transferMemoryTo(cpu);
+  bundles->clear(gpu);
+  lines->transferMemoryTo(cpu);
+  lines->clear(gpu);
+
+  BundleSet bundleSet = {lines,bundles};
+
+  return bundleSet;
 }
 
 /**
@@ -1006,36 +1175,12 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   return points;
 }
 
-/**
- * The CPU method that sets up the GPU enabled n view triangulation.
- * @param bundleSet a set of lines and bundles to be triangulated
- */
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bundleSet){
-  bundleSet.lines->transferMemoryTo(gpu);
-  bundleSet.bundles->transferMemoryTo(gpu);
 
-  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
-
-  dim3 grid = {1,1,1};
-  dim3 block = {1,1,1};
-  getFlatGridBlock(bundleSet.bundles->size(),grid,block,computeNViewTriangulate);
-
-
-  std::cout << "Starting n-view triangulation ..." << std::endl;
-  computeNViewTriangulate<<<grid,block>>>(bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
-  std::cout << "n-view Triangulation done ... \n" << std::endl;
-
-  pointcloud->setFore(gpu);
-  bundleSet.lines->setFore(gpu);
-  bundleSet.bundles->setFore(gpu);
-
-  pointcloud->transferMemoryTo(cpu);
-  pointcloud->clear(gpu);
-  bundleSet.lines->clear(gpu);
-  bundleSet.bundles->clear(gpu);
-
-  return pointcloud;
-}
+// =============================================================================================================
+//
+// Debug Methods
+//
+// =============================================================================================================
 
 /**
  * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
@@ -1269,6 +1414,12 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
   // save the file
   ssrlcv::writePLY(filename, cpoints, matchSet->matches->size());
 }
+
+// =============================================================================================================
+//
+// Filtering Methods
+//
+// =============================================================================================================
 
 /**
  * Deterministically filters, with the assumption that the data is guassian, statistical outliers of the pointcloud
@@ -1520,121 +1671,13 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
 
 // =============================================================================
 
-/**
- * heat map
- */
-uchar3 ssrlcv::heatMap(float value){
-  uchar3 rgb;
-  // float3 colorMap[5] = {
-  //   {255.0f,0,0},
-  //   {127.5f,127.5f,0},
-  //   {0,255.0f,0.0f},
-  //   {0,127.7f,127.5f},
-  //   {0,0,255.0f},
-  // };
-  // float temp = colors->host[i];
-  // colors->host[i] *= 5.0f;
-  // colors->host[i] = floor(colors->host[i]);
-  // if(colors->host[i] == 5.0f) colors->host[i] = 4.0f;
-  // if(colors->host[i] == 0.0f) colors->host[i] = 1.0f;
-  // rgb.x = (1-temp)*colorMap[(int)colors->host[i]-1].x + (temp*colorMap[(int)colors->host[i]].x);
-  // rgb.y = (1-temp)*colorMap[(int)colors->host[i]-1].y + (temp*colorMap[(int)colors->host[i]].y);
-  // rgb.z = (1-temp)*colorMap[(int)colors->host[i]-1].z + (temp*colorMap[(int)colors->host[i]].z);
-
-
-  if(value <= 0.5f){
-    value *= 2.0f;
-    rgb.x = (unsigned char) 255*(1-value) + 0.5;
-    rgb.y = (unsigned char) 255*value + 0.5;
-    rgb.z = 0;
-  }
-  else{
-    value = value*2.0f - 1;
-    rgb.x = 0;
-    rgb.y = (unsigned char) 255*(1-value) + 0.5;
-    rgb.z = (unsigned char) 255*value + 0.5;
-  }
-  return rgb;
-}
-
-/**
- * write disparity image
- */
-void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolationRadius, std::string pathToFile){
-  MemoryState origin = points->getMemoryState();
-  if(origin == gpu) points->transferMemoryTo(cpu);
-  float3 min = {FLT_MAX,FLT_MAX,FLT_MAX};
-  float3 max = {-FLT_MAX,-FLT_MAX,-FLT_MAX};
-  for(int i = 0; i < points->size(); ++i){
-    if(points->host[i].x < min.x) min.x = points->host[i].x;
-    if(points->host[i].x > max.x) max.x = points->host[i].x;
-    if(points->host[i].y < min.y) min.y = points->host[i].y;
-    if(points->host[i].y > max.y) max.y = points->host[i].y;
-    if(points->host[i].z < min.z) min.z = points->host[i].z;
-    if(points->host[i].z > max.z) max.z = points->host[i].z;
-  }
-  uint2 imageDim = {(unsigned int)ceil(max.x-min.x)+1,(unsigned int)ceil(max.y-min.y)+1};
-  unsigned char* disparityImage = new unsigned char[imageDim.x*imageDim.y*3];
-  Unity<float>* colors = new Unity<float>(nullptr,imageDim.x*imageDim.y,cpu);
-  for(int i = 0; i < imageDim.x*imageDim.y*3; ++i){
-    disparityImage[i] = 0;
-  }
-  for(int i = 0; i < points->size(); ++i){
-    float3 temp = points->host[i] - min;
-    if(ceil(temp.x) != temp.x || ceil(temp.y) != temp.y){
-      colors->host[((int)ceil(temp.y)*imageDim.x) + (int)ceil(temp.x)] += (1-ceil(temp.x)-temp.x)*(1-ceil(temp.y)-temp.y)*temp.z/(max.z-min.z);
-      colors->host[((int)ceil(temp.y)*imageDim.x) + (int)floor(temp.x)] += (1-temp.x-floor(temp.x))*(1-ceil(temp.y)-temp.y)*temp.z/(max.z-min.z);
-      colors->host[((int)floor(temp.y)*imageDim.x) + (int)ceil(temp.x)] += (1-ceil(temp.x)-temp.x)*(1-temp.y-floor(temp.y))*temp.z/(max.z-min.z);
-      colors->host[((int)floor(temp.y)*imageDim.x) + (int)floor(temp.x)] += (1-temp.x-floor(temp.x))*(1-temp.y-floor(temp.y))*temp.z/(max.z-min.z);
-    }
-    else{
-      colors->host[(int)temp.y*imageDim.x + (int)temp.x] += temp.z/(max.z-min.z);
-    }
-  }
-
-  /*
-  INTERPOLATE
-  */
-  if(interpolationRadius != 0){
-    colors->setMemoryState(gpu);
-    float* interpolated = nullptr;
-    CudaSafeCall(cudaMalloc((void**)&interpolated,imageDim.x*imageDim.y*sizeof(float)));
-    dim3 block = {1,1,1};
-    dim3 grid = {1,1,1};
-    getFlatGridBlock(imageDim.x*imageDim.y,grid,block,interpolateDepth);
-    interpolateDepth<<<grid,block>>>(imageDim,interpolationRadius,colors->device,interpolated);
-    cudaDeviceSynchronize();
-    CudaCheckError();
-    colors->setData(interpolated,colors->size(),gpu);
-    colors->setMemoryState(cpu);
-  }
-
-  min.z = FLT_MAX;
-  max.z = -FLT_MAX;
-  for(int i = 0; i < imageDim.x*imageDim.y; ++i){
-    if(min.z > colors->host[i]) min.z = colors->host[i];
-    if(max.z < colors->host[i]) max.z = colors->host[i];
-  }
-
-
-  uchar3 rgb;
-  for(int i = 0; i < imageDim.x*imageDim.y; ++i){
-    colors->host[i] -= min.z;
-    colors->host[i] /= (max.z-min.z);
-    rgb = heatMap(colors->host[i]);
-    disparityImage[i*3] = rgb.x;
-    disparityImage[i*3 + 1] = rgb.y;
-    disparityImage[i*3 + 2] = rgb.z;
-  }
-  delete colors;
-  writePNG(pathToFile.c_str(),disparityImage,3,imageDim.x,imageDim.y);
-  delete disparityImage;
-}
-
-
+// =============================================================================================================
+// =============================================================================================================
 // ==================================================================================================== //
 //                                        device methods                                                //
 // ==================================================================================================== //
+// =============================================================================================================
+// =============================================================================================================
 
 
 __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras){

@@ -54,17 +54,11 @@ namespace ssrlcv{
   public:
   	PointCloudFactory();
 
-    // this is not a good name anymore
-    //Unity<float3>* reproject(Unity<Match>* matches, Image* target, Image* query);
-
-    /**
-    * The CPU method that sets up the GPU enabled line generation, which stores lines
-    * and sets of lines as bundles
-    * @param matchSet a group of maches
-    * @param a group of images, used only for their stored camera parameters
-    */
-    BundleSet generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images);
-
+    // =============================================================================================================
+    //
+    // Stereo Disparity Methods
+    //
+    // =============================================================================================================
 
     // stereo with auto cacluated scalar from camera params
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, Image::Camera* cameras);
@@ -73,6 +67,16 @@ namespace ssrlcv{
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float scale);
 
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float foc, float baseline, float doffset);
+    
+    uchar3 heatMap(float value);
+
+    void writeDisparityImage(Unity<float3>* points, unsigned int interpolationRadius, std::string pathToFile);
+
+    // =============================================================================================================
+    //
+    // 2 View Methods
+    //
+    // =============================================================================================================
 
     /**
     * The CPU method that sets up the GPU enabled two view tringulation.
@@ -117,6 +121,40 @@ namespace ssrlcv{
      */
     void voidTwoViewTriangulate(BundleSet bundleSet, float* linearError, float* linearErrorCutof);
 
+    // =============================================================================================================
+    //
+    // N View Methods
+    //
+    // =============================================================================================================
+
+    /**
+     * The CPU method that sets up the GPU enabled n view triangulation.
+     * @param bundleSet a set of lines and bundles to be triangulated
+     */
+    ssrlcv::Unity<float3>* nViewTriangulate(BundleSet bundleSet);
+
+    /**
+     * The CPU method that sets up the GPU enabled n view triangulation.
+     * @param bundleSet a set of lines and bundles to be triangulated
+     * @param
+     */
+    ssrlcv::Unity<float3>* nViewTriangulate(BundleSet bundleSet float* angularError);
+
+    // =============================================================================================================
+    //
+    // Bundle Adjustment Methods
+    //
+    // =============================================================================================================
+
+    /**
+    * The CPU method that sets up the GPU enabled line generation, which stores lines
+    * and sets of lines as bundles
+    * @param matchSet a group of maches
+    * @param a group of images, used only for their stored camera parameters
+    */
+    BundleSet generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images);
+
+
     /**
      * A Naive bundle adjustment based on a two-view triangulation and a first order descrete gradient decent
      * @param matchSet a group of matches
@@ -125,11 +163,11 @@ namespace ssrlcv{
      */
     ssrlcv::Unity<float3>* BundleAdjustTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images);
 
-    /**
-     * The CPU method that sets up the GPU enabled n view triangulation.
-     * @param bundleSet a set of lines and bundles to be triangulated
-     */
-    ssrlcv::Unity<float3>* nViewTriangulate(BundleSet bundleSet);
+    // =============================================================================================================
+    //
+    // Debug Methods
+    //
+    // =============================================================================================================
 
     /**
      * Saves a point cloud as a PLY while also saving cameras and projected points of those cameras
@@ -171,6 +209,12 @@ namespace ssrlcv{
      */
     void saveDebugLinearErrorCloud(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, const char* filename);
 
+    // =============================================================================================================
+    //
+    // Filtering Methods
+    //
+    // =============================================================================================================
+
     /**
      * Deterministically filters, with the assumption that the data is guassian, statistical outliers of the pointcloud
      * set and returns a matchSet without such outliers. The method is deterministic by taking a uniformly spaced sample of points
@@ -202,14 +246,6 @@ namespace ssrlcv{
     void linearCutoffFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float cutoff);
 
   };
-
-  /**
-  * \}
-  */
-
-  uchar3 heatMap(float value);
-
-  void writeDisparityImage(Unity<float3>* points, unsigned int interpolationRadius, std::string pathToFile);
 
   /**
   * \ingroup pointcloud
