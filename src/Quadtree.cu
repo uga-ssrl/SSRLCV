@@ -1,31 +1,13 @@
 #include "Quadtree.cuh"
 
 /*
-Accepted types for data
--listed to avoid link issues
-- IF you want to add an acceptable type to this list do the following
-  1. add definition like below
-  2. implement getKeys for that data type
-
-*/
-//for points
-template class ssrlcv::Quadtree<float2>;
-//for pointers to external data - must be flattened row wise and will be dense (dataIndex = y*dimX + x)
-//also requires size of container x,y
-template class ssrlcv::Quadtree<unsigned int>;
-//just image tree
-template class ssrlcv::Quadtree<unsigned char>;
-//for Localized Pointers to external data
-template class ssrlcv::Quadtree<ssrlcv::LocalizedData<unsigned int>>;
-
-/*
 CLASS AND STRUCT METHODS
 */
 
 template<typename T>
 __device__ __host__ ssrlcv::Quadtree<T>::Node::Node(){
   this->key = -1;
-  this->dataIndex = -1;
+  this->dataIndex = -1; 
   this->numElements = 0;
   this->center = {-1,-1};
   this->depth = -1;
@@ -59,44 +41,8 @@ ssrlcv::Quadtree<T>::Quadtree(){
   this->border = {0,0};
 }
 
-template<>
-ssrlcv::Quadtree<unsigned char>::Quadtree(Image* image, unsigned int depth, int2 border){
-  this->edges = nullptr;
-  this->vertices = nullptr;
-  this->data = image->pixels;
-  this->colorDepth = image->colorDepth;
-  this->border = border;
-  this->size = {image->size.x + (border.x*2),image->size.y + (border.y*2)};
-  this->depth = depth;
-  printf("Building Quadtree with following characteristics:\ndepth = %d",this->depth);
-  printf("\nsize = {%d,%d}\nborder = {%d,%d}\n",this->size.x,this->size.y,this->border.x,this->border.y);
-  this->generateLeafNodes();
-  this->generateParentNodes();
-  this->fillNeighborhoods();
-}
-
-//TODO throw error if depth.x is greater than depth.y
-//specifically for index full quadtree
-template<>
-ssrlcv::Quadtree<unsigned int>::Quadtree(uint2 size, unsigned int depth, int2 border){
-  this->nodes = nullptr;
-  this->edges = nullptr;
-  this->vertices = nullptr;
-  unsigned int* data_host = new unsigned int[size.x*size.y];
-  for(int i = 0; i < size.x*size.y; ++i){
-    data_host[i] = i;
-  }
-  this->data = new Unity<unsigned int>(data_host, size.x*size.y, cpu);
-  this->border = border;
-  this->size = {size.x + (border.x*2),size.y + (border.y*2)};
-  this->depth = depth;
-  printf("Building Quadtree with depth = %d\n",this->depth);
-  this->generateLeafNodes();
-  this->generateParentNodes();
-  this->fillNeighborhoods();
-}
 template<typename T>
-ssrlcv::Quadtree<T>::Quadtree(uint2 size, unsigned int depth, ssrlcv::Unity<T>* data, unsigned int colorDepth, int2 border){
+ssrlcv::Quadtree<T>::Quadtree(uint2 size, unsigned int depth, ssrlcv::Unity<LocalizedData<T>>* data, unsigned int colorDepth, int2 border){
   this->nodes = nullptr;
   this->edges = nullptr;
   this->vertices = nullptr;
@@ -142,23 +88,11 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(){
   CudaSafeCall(cudaMalloc((void**)&leafNodeCenters_device, numLeafNodes*sizeof(float2)));
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  if(this->colorDepth > 1){
-    getGrid(numLeafNodes/this->colorDepth,grid);
-    block = {this->colorDepth,1,1};
-    getKeys<<<grid,block>>>(leafNodeKeys_device, leafNodeCenters_device, this->size, this->border, this->depth, this->colorDepth);
-    cudaDeviceSynchronize();
-    CudaCheckError();
-  }
-  else{
-    grid = {1,1,1};
-    block = {1,1,1};
-    void (*fp)(int*, float2*, uint2, int2, unsigned int) = &getKeys;
-    getFlatGridBlock(numLeafNodes,grid,block,fp);
-    getKeys<<<grid,block>>>(leafNodeKeys_device, leafNodeCenters_device, this->size, this->border, this->depth);
-    cudaDeviceSynchronize();
-    CudaCheckError();
-  }
-
+  getFlatGridBlock(numLeafNodes,grid,block,getKeys<T>);
+  if(this->data->getMemoryState() != gpu) this->data->setMemoryState(gpu);
+  getKeys<T><<<grid,block>>>(numLeafNodes, this->data->device, leafNodeKeys_device,leafNodeCenters_device, this->size,this->depth);
+  cudaDeviceSynchronize();
+  CudaCheckError();
 
   thrust::counting_iterator<unsigned int> iter(0);
   thrust::device_vector<unsigned int> indices(this->data->size());
@@ -728,290 +662,14 @@ void ssrlcv::Quadtree<T>::writePLY(){
     exit(1);
   }
 }
-template<>
-void ssrlcv::Quadtree<unsigned char>::writePLY(){
-std::string newFile = "out/test_"+ std::to_string(rand())+ ".ply";
-std::ofstream plystream(newFile);
-if (plystream.is_open()) {
-  int verticesToWrite = this->nodes->size();
-  this->nodes->transferMemoryTo(cpu);
-  this->data->transferMemoryTo(cpu);
-  std::ostringstream stringBuffer = std::ostringstream("");
-  stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
-  stringBuffer << "element vertex ";
-  stringBuffer << verticesToWrite;
-  stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
-  stringBuffer << "property uchar red\nproperty uchar green\nproperty uchar blue\n";
-  stringBuffer << "end_header\n";
-  plystream << stringBuffer.str();
-  for(int i = 0; i < verticesToWrite; ++i){
-    stringBuffer = std::ostringstream("");
-    stringBuffer << this->nodes->host[i].center.x;
-    stringBuffer << " ";
-    stringBuffer << this->nodes->host[i].center.y;
-    stringBuffer << " ";
-    stringBuffer << this->nodes->host[i].depth*1000;
-    stringBuffer << " ";
-    int color = 0;
-    if(this->nodes->host[i].numElements != 0 && this->nodes->host[i].flag){
-      int numNodes = 0;
-      int index = this->nodes->host[i].dataIndex;
-      if(index == -1){
-        std::cout<<"ERROR: node with "<<this->nodes->host[i].numElements<<" elements has dataIndex of -1 at depth "<<this->nodes->host[i].depth
-        <<" "<<this->nodes->host[i].center.x<<","<<this->nodes->host[i].center.y<<std::endl;
-        exit(-1);
-      }
-      for(int c = index; c < index + this->nodes->host[i].numElements; ++c){
-        color += (int) this->data->host[c];
-        numNodes++;
-      }
-      if(numNodes > 1) color /= numNodes;
-    }
-    stringBuffer << color;
-    stringBuffer << " ";
-    stringBuffer << color;
-    stringBuffer << " ";
-    stringBuffer << color;
-    stringBuffer << "\n";
-    plystream << stringBuffer.str();
-  }
-
-  std::cout<<newFile + " has been created.\n"<<std::endl;
-}
-else{
-  std::cout << "Unable to open: " + newFile<< std::endl;
-  exit(1);
-}
-}
-template<>
-void ssrlcv::Quadtree<unsigned int>::writePLY(ssrlcv::Unity<unsigned char>* pixels){
-  std::string newFile = "out/test_"+ std::to_string(rand())+ ".ply";
-  std::ofstream plystream(newFile);
-  if (plystream.is_open()) {
-    int verticesToWrite = this->nodes->size();
-    this->nodes->transferMemoryTo(cpu);
-    pixels->transferMemoryTo(cpu);
-    this->data->transferMemoryTo(cpu);
-    std::ostringstream stringBuffer = std::ostringstream("");
-    stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
-    stringBuffer << "element vertex ";
-    stringBuffer << verticesToWrite;
-    stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
-    stringBuffer << "property uchar red\nproperty uchar green\nproperty uchar blue\n";
-    stringBuffer << "end_header\n";
-    plystream << stringBuffer.str();
-    for(int i = 0; i < verticesToWrite; ++i){
-      stringBuffer = std::ostringstream("");
-      stringBuffer << this->nodes->host[i].center.x;
-      stringBuffer << " ";
-      stringBuffer << this->nodes->host[i].center.y;
-      stringBuffer << " 0 ";
-      int color = 0;
-      if(this->nodes->host[i].numElements != 0){
-        int numNodes = 0;
-        int index = this->data->host[this->nodes->host[i].dataIndex];
-        if(index == -1){
-          std::cout<<"ERROR node"<<std::endl;
-        }
-        for(int c = index; c < index + this->nodes->host[i].numElements; ++c){
-          color += (int) pixels->host[c];
-          numNodes++;
-        }
-        if(numNodes > 1) color /= numNodes;
-      }
-      stringBuffer << color;
-      stringBuffer << " 0 0";
-      stringBuffer << "\n";
-      plystream << stringBuffer.str();
-    }
-
-    std::cout<<newFile + " has been created.\n"<<std::endl;
-  }
-  else{
-    std::cout << "Unable to open: " + newFile<< std::endl;
-    exit(1);
-  }
-}
-
-template<typename T>
-void ssrlcv::Quadtree<T>::writePLY(Node* nodes_device, unsigned long numNodes){
-  std::string newFile = "out/test_"+ std::to_string(rand())+ ".ply";
-  std::ofstream plystream(newFile);
-  if (plystream.is_open()) {
-    int verticesToWrite = numNodes;
-
-    Node* nodes_host = new Node[numNodes];
-    CudaSafeCall(cudaMemcpy(nodes_host,nodes_device,numNodes*sizeof(Node),cudaMemcpyDeviceToHost));
-    std::ostringstream stringBuffer = std::ostringstream("");
-    stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
-    stringBuffer << "element vertex ";
-    stringBuffer << verticesToWrite;
-    stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
-    stringBuffer << "end_header\n";
-    plystream << stringBuffer.str();
-    for(int i = 0; i < verticesToWrite; ++i){
-      stringBuffer = std::ostringstream("");
-      stringBuffer << nodes_host[i].center.x;
-      stringBuffer << " ";
-      stringBuffer << nodes_host[i].center.y;
-      stringBuffer << " 0.0";
-      stringBuffer << "\n";
-      plystream << stringBuffer.str();
-    }
-    delete[] nodes_host;
-    std::cout<<newFile + " has been created.\n"<<std::endl;
-  }
-  else{
-    std::cout << "Unable to open: " + newFile<< std::endl;
-    exit(1);
-  }
-}
-
-template<typename T>
-void ssrlcv::Quadtree<T>::writePLY(float2* points_device, unsigned long numPoints){
-  std::string newFile = "out/test_"+ std::to_string(rand())+ ".ply";
-  std::ofstream plystream(newFile);
-  if (plystream.is_open()) {
-    int verticesToWrite = numPoints;
-
-    float2* points_host = new float2[numPoints];
-    CudaSafeCall(cudaMemcpy(points_host,points_device,numPoints*sizeof(float2),cudaMemcpyDeviceToHost));
-    std::ostringstream stringBuffer = std::ostringstream("");
-    stringBuffer << "ply\nformat ascii 1.0\ncomment object: SSRL test\n";
-    stringBuffer << "element vertex ";
-    stringBuffer << verticesToWrite;
-    stringBuffer << "\nproperty float x\nproperty float y\nproperty float z\n";
-    stringBuffer << "end_header\n";
-    plystream << stringBuffer.str();
-    for(int i = 0; i < verticesToWrite; ++i){
-      stringBuffer = std::ostringstream("");
-      stringBuffer << points_host[i].x;
-      stringBuffer << " ";
-      stringBuffer << points_host[i].y;
-      stringBuffer << " 0.0";
-      stringBuffer << "\n";
-      plystream << stringBuffer.str();
-    }
-    delete[] points_host;
-    std::cout<<newFile + " has been created.\n"<<std::endl;
-  }
-  else{
-    std::cout << "Unable to open: " + newFile<< std::endl;
-    exit(1);
-  }
-}
-
 
 
 /*
 CUDA implementations
 */
 //NOTE: THIS SHOULD ONLY BE USED FOR DENSE POINTER QUADTREE
-__global__ void ssrlcv::getKeys(int* keys, float2* nodeCenters, uint2 size, int2 border, unsigned int depth){
-  unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)* blockDim.x + threadIdx.x;
-  if(globalID < (size.x - (border.x*2))*(size.y - (border.y*2))){
-    float x = ((float)((globalID%(size.x - (border.x*2))) + border.x)) + 0.5f;
-    float y = ((float)((globalID/(size.x - (border.x*2))) + border.y)) + 0.5f;
-    int key = 0;
-    unsigned int depth_reg = depth;
-    int currentDepth = 1;
-    float2 reg_size = {((float)size.x)/2.0f, ((float)size.y)/2.0f};
-    float2 center = reg_size;
-    while(depth_reg >= currentDepth){
-      reg_size.x /= 2.0f;
-      reg_size.y /= 2.0f;
-      currentDepth++;
-      if(x < center.x){
-        key <<= 1;
-        center.x -= reg_size.x;
-      }
-      else{
-        key = (key << 1) + 1;
-        center.x += reg_size.x;
-      }
-      if(y < center.y){
-        key <<= 1;
-        center.y -= reg_size.y;
-      }
-      else{
-        key = (key << 1) + 1;
-        center.y += reg_size.y;
-      }
-    }
-    keys[globalID] = key;
-    nodeCenters[globalID] = center;
-  }
-}
-__global__ void ssrlcv::getKeys(int* keys, float2* nodeCenters, uint2 size, int2 border, unsigned int depth, unsigned int colorDepth){
-  unsigned int blockID = blockIdx.y* gridDim.x+ blockIdx.x;
-  if(blockID < (size.x - (border.x*2))*(size.y - (border.y*2))*colorDepth){
-    float x = ((float)((blockID%(size.x - (border.x*2))) + border.x)) + 0.5f;
-    float y = ((float)((blockID/(size.x - (border.x*2))) + border.y)) + 0.5f;
-    int key = 0;
-    unsigned int depth_reg = depth;
-    int currentDepth = 1;
-    float2 reg_size = {((float)size.x)/2.0f, ((float)size.y)/2.0f};
-    float2 center = reg_size;
-    while(depth_reg >= currentDepth){
-      reg_size.x /= 2.0f;
-      reg_size.y /= 2.0f;
-      currentDepth++;
-      if(x < center.x){
-        key <<= 1;
-        center.x -= reg_size.x;
-      }
-      else{
-        key = (key << 1) + 1;
-        center.x += reg_size.x;
-      }
-      if(y < center.y){
-        key <<= 1;
-        center.y -= reg_size.y;
-      }
-      else{
-        key = (key << 1) + 1;
-        center.y += reg_size.y;
-      }
-    }
-    keys[blockID*colorDepth + threadIdx.x] = key;
-    nodeCenters[blockID*colorDepth + threadIdx.x] = center;
-  }
-}
-__global__ void ssrlcv::getKeys(unsigned int numPoints, float2* points, int* keys, float2* nodeCenters, uint2 size, unsigned int depth){
-  unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)* blockDim.x + threadIdx.x;
-  if(globalID < numPoints){
-    float2 point = points[globalID];
-    int key = 0;
-    unsigned int depth_reg = depth;
-    int currentDepth = 1;
-    float2 reg_size = {((float)size.x)/2.0f, ((float)size.y)/2.0f};
-    float2 center = reg_size;
-    while(depth_reg >= currentDepth){
-      reg_size.x /= 2.0f;
-      reg_size.y /= 2.0f;
-      currentDepth++;
-      if(point.x < center.x){
-        key <<= 1;
-        center.x -= reg_size.x;
-      }
-      else{
-        key = (key << 1) + 1;
-        center.x += reg_size.x;
-      }
-      if(point.y < center.y){
-        key <<= 1;
-        center.y -= reg_size.y;
-      }
-      else{
-        key = (key << 1) + 1;
-        center.y += reg_size.y;
-      }
-    }
-    keys[globalID] = key;
-    nodeCenters[globalID] = center;
-  }
-}
-__global__ void ssrlcv::getKeys(unsigned int numLocalizedPointers, ssrlcv::LocalizedData<unsigned int>* localizedPointers, int* keys, float2* nodeCenters, uint2 size, unsigned int depth){
+template<typename T>
+__global__ void ssrlcv::getKeys(unsigned int numLocalizedPointers, ssrlcv::LocalizedData<T>* localizedPointers, int* keys, float2* nodeCenters, uint2 size, unsigned int depth){
   unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)* blockDim.x + threadIdx.x;
   if(globalID < numLocalizedPointers){
     float2 point = localizedPointers[globalID].loc;
@@ -1111,7 +769,8 @@ typename ssrlcv::Quadtree<T>::Node* allNodes, unsigned int currentDepth, unsigne
 }
 
 template<typename T>
-__global__ void ssrlcv::buildParentalNodes(unsigned long numChildNodes, unsigned long childDepthIndex, typename ssrlcv::Quadtree<T>::Node* childNodes, typename ssrlcv::Quadtree<T>::Node* parentNodes, uint2 size){
+__global__ void ssrlcv::buildParentalNodes(unsigned long numChildNodes, unsigned long childDepthIndex, typename ssrlcv::Quadtree<T>::Node* childNodes, 
+typename ssrlcv::Quadtree<T>::Node* parentNodes, uint2 size){
   unsigned long numUniqueNodesAtParentDepth = numChildNodes / 4;
   unsigned int globalID = (blockIdx.y* gridDim.x+ blockIdx.x)* blockDim.x + threadIdx.x;
   int nodesIndex = globalID*4;
@@ -1198,7 +857,8 @@ unsigned int* childLUT, typename Quadtree<T>::Node* nodes){
 }
 
 template<typename T>
-__global__ void ssrlcv::findVertexOwners(unsigned int numNodesAtDepth, unsigned int depthIndex, typename ssrlcv::Quadtree<T>::Node* nodes, int* numVertices, int* ownerInidices, int* vertexPlacement){
+__global__ void ssrlcv::findVertexOwners(unsigned int numNodesAtDepth, unsigned int depthIndex, typename ssrlcv::Quadtree<T>::Node* nodes, int* numVertices, 
+int* ownerInidices, int* vertexPlacement){
   unsigned int vertexLUT[4][3] = {
     {0,1,3},
     {1,2,5},
@@ -1266,7 +926,8 @@ typename ssrlcv::Quadtree<T>::Vertex* vertices, int depth, int* ownerInidices, i
 }
 
 template<typename T>
-__global__ void ssrlcv::findEdgeOwners(unsigned int numNodesAtDepth, unsigned int depthIndex, typename ssrlcv::Quadtree<T>::Node* nodes, int* numEdges, int* ownerInidices, int* edgePlacement){
+__global__ void ssrlcv::findEdgeOwners(unsigned int numNodesAtDepth, unsigned int depthIndex, typename ssrlcv::Quadtree<T>::Node* nodes, int* numEdges, 
+int* ownerInidices, int* edgePlacement){
   unsigned int edgeLUT[4] = {1,3,5,7};
   unsigned blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numNodesAtDepth){

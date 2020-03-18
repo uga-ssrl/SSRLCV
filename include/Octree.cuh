@@ -162,6 +162,47 @@ namespace ssrlcv{
     void writeDepthPLY(int d, bool binary = false);
   };
 
+  static const int3 coordPlacementIdentity_host[8] {
+    {-1,-1,-1},
+    {-1,-1,1},
+    {-1,1,-1},
+    {-1,1,1},
+    {1,-1,-1},
+    {1,-1,1},
+    {1,1,-1},
+    {1,1,1}
+  };
+  static const int2 vertexEdgeIdentity_host[12] {
+    {0,1},
+    {0,2},
+    {1,3},
+    {2,3},
+    {0,4},
+    {1,5},
+    {2,6},
+    {3,7},
+    {4,5},
+    {4,6},
+    {5,7},
+    {6,7}
+  };
+  static const int4 vertexFaceIdentity_host[6] {
+    {0,1,2,3},
+    {0,1,4,5},
+    {0,2,4,6},
+    {1,3,5,7},
+    {2,3,6,7},
+    {4,5,6,7}
+  };
+  static const int4 edgeFaceIdentity_host[6] {
+    {0,1,2,3},
+    {0,4,5,8},
+    {1,4,6,9},
+    {2,5,7,10},
+    {3,6,7,11},
+    {8,9,10,11}
+  };
+
   /* CUDA variable, method and kernel defintions */
 
   namespace{
@@ -173,12 +214,7 @@ namespace ssrlcv{
       }
     };
   }
-
-  extern __constant__ int3 coordPlacementIdentity[8];
-  extern __constant__ int2 vertexEdgeIdentity[12];
-  extern __constant__ int4 vertexFaceIdentity[6];
-  extern __constant__ int4 edgeFaceIdentity[6];
-
+  
   __device__ __host__ float3 getVoidCenter(const Octree::Node &node, int neighbor);
   __device__ __host__ float3 getVoidChildCenter(const Octree::Node &parent, int child);
   __device__ __forceinline__ int floatToOrderedInt(float floatVal);
@@ -195,7 +231,7 @@ namespace ssrlcv{
   __global__ void fillBlankNodeArray(Octree::Node* uniqueNodes, int* nodeNumbers, int* nodeAddresses, Octree::Node* outputNodeArray, int numUniqueNodes, int currentDepth, float totalWidth);
   __global__ void fillFinestNodeArrayWithUniques(Octree::Node* uniqueNodes, int* nodeAddresses, Octree::Node* outputNodeArray, int numUniqueNodes, unsigned int* pointNodeIndex);
   __global__ void fillNodeArrayWithUniques(Octree::Node* uniqueNodes, int* nodeAddresses, Octree::Node* outputNodeArray, Octree::Node* childNodeArray ,int numUniqueNodes);
-  __global__ void generateParentalUniqueNodes(Octree::Node* uniqueNodes, Octree::Node* nodeArrayD, int numNodesAtDepth, float totalWidth);
+  __global__ void generateParentalUniqueNodes(Octree::Node* uniqueNodes, Octree::Node* nodeArrayD, int numNodesAtDepth, float totalWidth, const int3* __restrict__ coordPlacementIdentity);
   __global__ void computeNeighboringNodes(Octree::Node* nodeArray, int numNodes, int depthIndex, int* parentLUT, int* childLUT, int childDepthIndex);
 
   __global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Octree::Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors);
@@ -205,11 +241,11 @@ namespace ssrlcv{
   __global__ void reorient(int numNodesAtDepth, int depthIndex, Octree::Node* nodeArray, int* numNeighbors, int maxNeighbors, float3* normals, int* neighborIndices, bool* ambiguous);
 
   __global__ void findVertexOwners(Octree::Node* nodeArray, int numNodes, int depthIndex, int* vertexLUT, int* numVertices, int* ownerInidices, int* vertexPlacement);
-  __global__ void fillUniqueVertexArray(Octree::Node* nodeArray, Octree::Vertex* vertexArray, int numVertices, int vertexIndex,int depthIndex, int depth, float width, int* vertexLUT, int* ownerInidices, int* vertexPlacement);
+  __global__ void fillUniqueVertexArray(Octree::Node* nodeArray, Octree::Vertex* vertexArray, int numVertices, int vertexIndex,int depthIndex, int depth, float width, int* vertexLUT, int* ownerInidices, int* vertexPlacement, const int3* __restrict__ coordPlacementIdentity);
   __global__ void findEdgeOwners(Octree::Node* nodeArray, int numNodes, int depthIndex, int* edgeLUT, int* numEdges, int* ownerInidices, int* edgePlacement);
-  __global__ void fillUniqueEdgeArray(Octree::Node* nodeArray, Octree::Edge* edgeArray, int numEdges, int edgeIndex,int depthIndex, int depth, float width, int* edgeLUT, int* ownerInidices, int* edgePlacement);
+  __global__ void fillUniqueEdgeArray(Octree::Node* nodeArray, Octree::Edge* edgeArray, int numEdges, int edgeIndex,int depthIndex, int depth, float width, int* edgeLUT, int* ownerInidices, int* edgePlacement, const int2* __restrict__ vertexEdgeIdentity);
   __global__ void findFaceOwners(Octree::Node* nodeArray, int numNodes, int depthIndex, int* faceLUT, int* numFaces, int* ownerInidices, int* facePlacement);
-  __global__ void fillUniqueFaceArray(Octree::Node* nodeArray, Octree::Face* faceArray, int numFaces, int faceIndex,int depthIndex, int depth, float width, int* faceLUT, int* ownerInidices, int* facePlacement);
+  __global__ void fillUniqueFaceArray(Octree::Node* nodeArray, Octree::Face* faceArray, int numFaces, int faceIndex,int depthIndex, int depth, float width, int* faceLUT, int* ownerInidices, int* facePlacement, const int4* __restrict__ edgeFaceIdentity);
 
 }
 

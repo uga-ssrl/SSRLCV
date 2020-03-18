@@ -257,8 +257,9 @@ namespace ssrlcv{
     /**
     * \brief Copy constructor with predicate
     * \param copy Unity<T>* to be copied
+    * \param predicate - predicate for copy_if
     */
-    Unity(Unity<T>* copy,bool (*predicate)(const T&));
+    Unity(Unity<T>* copy,pred_ptr predicate);
     
     /**
     * \brief Checkpoint constructor
@@ -354,18 +355,7 @@ namespace ssrlcv{
     * \param state - location of new data (must be cpu or gpu)
     */
     void setData(T* data, unsigned long numElements, MemoryState state);
-
-    /**
-    * \brief Return a copy of this Unity<T>* with a specified memory state.
-    * \details This method will return a copy of this Unity with a new or the same 
-    * memory location. Due to this returning a Unity, destination can be both. This 
-    * will leave the current Unity untouches as in this->fore and this->state remain 
-    * the same and the copied Unity will have this->fore and this->state = destination.
-    * \param predicate - predicate for copy_if
-    * \param destination - location of copied data (host,device,both) - optional 
-    * \returns copy of data located in this
-    */
-    Unity<T> copy(bool (*predicate)(const T&), MemoryState destination = nc);
+    
     /**
     * \brief remove elements of a unity
     * \details This will remove elements of a unity based on a predicate. 
@@ -376,7 +366,7 @@ namespace ssrlcv{
     * \see example_unity.cu
     * \note nc here means that the fore will default to origin
     */
-    void remove(bool (*predicate)(const T&), MemoryState destination = nc);
+    void remove(pred_ptr predicate, MemoryState destination = nc);
 
     /**
     * \brief sort a unity based on overloaded < and > operators
@@ -479,10 +469,6 @@ namespace ssrlcv{
     if(tmp_device != nullptr) CudaSafeCall(cudaFree(tmp_device));
     if(this->state != copy->getMemoryState()) this->setMemoryState(copy->getMemoryState());
   }
-
-
-
-
   template<typename T>
   Unity<T>::Unity(std::string path){
     this->host = nullptr;
@@ -801,7 +787,6 @@ namespace ssrlcv{
     }
     if(destination != this->state) this->setMemoryState(destination);
   }
-
   template<typename T>
   void Unity<T>::sort(bool greater, MemoryState destination){
     if(this->state == null || this->numElements == 0){

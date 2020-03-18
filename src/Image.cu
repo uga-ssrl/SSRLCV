@@ -44,18 +44,9 @@ ssrlcv::Image::Image(std::string filePath, int id) {
   this->filePath = filePath;
   this->id = id;
   this->colorDepth = 1;
-  unsigned char* pixels_host = nullptr;
   // find the image extension
-  std::string extension = getFileExtension(filePath);
-  if(extension == "png"){ // load if PNG
-    pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
-  }
-  else if(extension == "tiff" || extension == "tif"){ // load if TIFF
-    pixels_host = readTIFF(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
-  }
-  else if(extension == "jpeg" || extension == "jpg"){ // load if JPG
-    pixels_host = readJPEG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
-  }
+  unsigned char* pixels_host = readImage(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+
   // set some initial params
   this->camera.size = this->size;
   this->size = size;
@@ -130,17 +121,8 @@ ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int
   this->filePath = filePath;
   this->id = id;
   this->colorDepth = 1;
-  unsigned char* pixels_host = nullptr;
-  std::string extension = getFileExtension(filePath);
-  if(extension == "png"){
-    pixels_host = readPNG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
-  }
-  else if(extension == "tiff" || extension == "tif"){
-    pixels_host = readTIFF(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
-  }
-  else if(extension == "jpeg" || extension == "jpg"){
-    pixels_host = readJPEG(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
-  }
+  unsigned char* pixels_host = readImage(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+
   this->camera.size = this->size;
   this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
@@ -564,7 +546,7 @@ void ssrlcv::get_cam_params2view(Image* cam1, Image* cam2, std::string infile){
       cam2->camera.cam_rot.z = arg3;
     }
   }
-
+  res = res;//remove compile time warning while this is not used lol
   cam1->camera.dpix = {cam1->camera.foc*tan(cam1->camera.fov.x/2)/(cam1->size.x/2),
     cam1->camera.foc*tan(cam1->camera.fov.y/2)/(cam1->size.y/2)};
   cam2->camera.dpix = {cam2->camera.foc*tan(cam2->camera.fov.x/2)/(cam2->size.x/2),
