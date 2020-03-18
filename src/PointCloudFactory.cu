@@ -524,6 +524,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
+  void (*fp)(unsigned long, Bundle::Line*, Bundle*, float3*) = &computeNViewTriangulate;
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,computeNViewTriangulate);
 
 
@@ -564,6 +565,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
+  void (*fp)(float*, unsigned long, Bundle::Line*, Bundle*, float3*) = &computeNViewTriangulate;
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,computeNViewTriangulate);
 
 
@@ -579,6 +581,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
   pointcloud->clear(gpu);
   bundleSet.lines->clear(gpu);
   bundleSet.bundles->clear(gpu);
+
+  // copy back the total error that occured
+  CudaSafeCall(cudaMemcpy(angularError,d_angularError,eSize,cudaMemcpyDeviceToHost));
+  cudaFree(d_angularError);
 
   return pointcloud;
 }
