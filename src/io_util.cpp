@@ -664,7 +664,7 @@ void ssrlcv::writeCSV(float* values, int num, std::string filename){
   outfile.open("out/" + filename + ".csv");
   // the stupid method of doing this would be to just write it all on the same line ... that's what I'm going to do!
   // other overloaded versions of this method will handle more robust types of inputs and saving and so on.
-  for(int i = 0; i < num; i++) outfile << std::to_string(values[i]) << ",";
+  for(int i = 0; i < num; i++) outfile << std::setprecision(32) << std::to_string(values[i]) << ",";
   outfile.close();
 }
 
@@ -676,7 +676,7 @@ void ssrlcv::writeCSV(float* values, int num, std::string filename){
 void ssrlcv::writeCSV(std::vector<float> v, std::string filename){
   std::ofstream outfile;
   outfile.open("out/" + filename + ".csv");
-  for (unsigned int i = 0; i < v.size(); i++) outfile << v[i] << ",";
+  for (int i = 0; i < v.size(); i++) outfile << std::setprecision(32) << v[i] << ",";
   outfile.close();
 }
 
