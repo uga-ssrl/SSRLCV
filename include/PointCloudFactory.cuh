@@ -144,6 +144,15 @@ namespace ssrlcv{
      */
     ssrlcv::Unity<float3>* nViewTriangulate(BundleSet bundleSet, Unity<float>* errors, float* angularError);
 
+    /**
+     * The CPU method that sets up the GPU enabled n view triangulation.
+     * @param bundleSet a set of lines and bundles to be triangulated
+     * @param errors the individual angular errors per point
+     * @param angularError the total diff between vectors
+     * @param angularErrorCutoff generated points that have an error over this cutoff are marked invalid
+     */
+    ssrlcv::Unity<float3>* nViewTriangulate(BundleSet bundleSet, Unity<float>* errors, float* angularError, float* angularErrorCutoff);
+
     // =============================================================================================================
     //
     // Bundle Adjustment Methods
@@ -325,6 +334,11 @@ namespace ssrlcv{
   * the CUDA kernel for Nview triangulation with angular error
   */
   __global__ void computeNViewTriangulate(float* angularError, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
+
+  /**
+  * the CUDA kernel for Nview triangulation with angular error
+  */
+  __global__ void computeNViewTriangulate(float* angularError, float* angularErrorCutoff, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 
 
 }
