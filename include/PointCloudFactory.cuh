@@ -67,10 +67,6 @@ namespace ssrlcv{
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float scale);
 
     ssrlcv::Unity<float3>* stereo_disparity(Unity<Match>* matches, float foc, float baseline, float doffset);
-    
-    uchar3 heatMap(float value);
-
-    void writeDisparityImage(Unity<float3>* points, unsigned int interpolationRadius, std::string pathToFile);
 
     // =============================================================================================================
     //
@@ -247,12 +243,26 @@ namespace ssrlcv{
 
   };
 
+  // =======
+  // MISC.
+  // =======
+
+  uchar3 heatMap(float value);
+
+  void writeDisparityImage(Unity<float3>* points, unsigned int interpolationRadius, std::string pathToFile);
+
   /**
   * \ingroup pointcloud
   * \ingroup cuda_kernels
   * \defgroup pointcloud_kernels
   * \{
   */
+
+  // =============================================================================================================
+  //
+  // Device stubs
+  //
+  // =============================================================================================================
 
   __global__ void generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras);
 
