@@ -657,7 +657,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
   float* d_angularErrorCutoff;
   size_t cutSize = sizeof(float);
   CudaSafeCall(cudaMalloc((void**) &d_angularErrorCutoff,cutSize));
-  CudaSafeCall(cudaMemcpy(d_angularErrorCutoffangularrErrorCutoff,cutSize,cudaMemcpyHostToDevice));
+  CudaSafeCall(cudaMemcpy(d_angularErrorCutoff, angularErrorCutoff,cutSize,cudaMemcpyHostToDevice));
 
   bundleSet.lines->transferMemoryTo(gpu);
   bundleSet.bundles->transferMemoryTo(gpu);
@@ -1818,7 +1818,6 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     // This is the N-view case
     //
 
-
     // recalculate with new cutoff
     points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
 
@@ -1837,7 +1836,7 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     // make a temporary match set
     delete tempMatchSet.keyPoints;
     delete tempMatchSet.matches;
-    tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr, bad_lines,ssrlcv::cpu); // TODO
+    tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr, bad_lines,ssrlcv::cpu);
     tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
     // fill in the boiz
     for (int k = 0; k < tempMatchSet.keyPoints->size(); k++){
@@ -1851,7 +1850,7 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
       return;
     }
     // resize the standard matchSet
-    size_t new_kp_size = matchSet->keyPoints->size() - bad_lines; // TODO;
+    size_t new_kp_size = matchSet->keyPoints->size() - bad_lines;
     size_t new_mt_size = matchSet->matches->size() - bad_bundles;
     delete matchSet->keyPoints;
     delete matchSet->matches;
@@ -1862,7 +1861,7 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     int k_adjust = 0;
     int k_jump = 0;
     for (int k = 0; k < bundleSet.bundles->size(); k++){
-      k_jump += bundleSet.bundles->host[k].numlines;
+      k_jump = bundleSet.bundles->host[k].numLines;
     	if (!bundleSet.bundles->host[k].invalid){
         matchSet->matches->host[k_adjust] = {k_jump,k_jump*k_adjust};
         for (int j = 0; j < k_jump; j++){
