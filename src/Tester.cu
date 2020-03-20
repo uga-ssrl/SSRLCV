@@ -185,11 +185,13 @@ int main(int argc, char *argv[]){
       std::cout << "Initial Angular Error: " << *angularError << std::endl;
       ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors1");
 
-      demPoints.linearCutoffFilter(&matchSet,images,0.1);
+      demPoints.linearCutoffFilter(&matchSet,images,0.001);
+      
+
       ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors2");
 
       demPoints.saveDebugCloud(points, bundleSet, images);
-      
+
     }
 
     std::cout << "writing final PLY ..." << std::endl;

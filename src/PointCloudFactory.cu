@@ -1821,6 +1821,13 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     // recalculate with new cutoff
     points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
 
+    // see if any errors are greatre than 0
+    for(int i =0; i < errors->size(); i++){
+      if (errors->host[i] > 0){
+        std::cout << "asdf" << std::endl;
+      }
+    }
+
     // CLEAR OUT THE DATA STRUCTURES
     // count the number of bad bundles to be removed
     int bad_bundles = 0;
@@ -1831,12 +1838,19 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
          bad_lines += bundleSet.bundles->host[k].numLines;
       }
     }
-    if (bad_bundles) std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
+    if (bad_bundles) {
+      std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
+    } else {
+      // TODO add filter where we return if there not points to remove
+      // also add it above
+      std::cout << "No points removed! all are less than " << cutoff << std::endl;
+      return;
+    }
     // Need to generated and adjustment match set
     // make a temporary match set
     delete tempMatchSet.keyPoints;
     delete tempMatchSet.matches;
-    tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr, bad_lines,ssrlcv::cpu);
+    tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matchSet->keyPoints->size(),ssrlcv::cpu);
     tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
     // fill in the boiz
     for (int k = 0; k < tempMatchSet.keyPoints->size(); k++){
