@@ -2496,18 +2496,29 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, unsigned lo
     pointcloud[globalID] = point;
   }
 
-  // calculate the angle between the vectors
+  // float a_error = 0;
+  // for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+  //   float3 v = lines[i].vec;
+  //   normalize(v);
+  //   // the refrence vector
+  //   // we take the generated point and create a vector from it to the camera center
+  //   float3 r = lines[i].pnt - point;
+  //   normalize(r);
+  //
+  //   float3 er = v - r;
+  //   a_error += sqrtf(er.x*er.x + er.y*er.y + er.z*er.z);
+  // }
+
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
-    float3 v = lines[i].vec;
-    normalize(v);
-    // the refrence vector
-    // we take the generated point and create a vector from it to the camera center
-    float3 r = lines[i].pnt - point;
-    normalize(r);
-
-    float3 er = v - r;
-    a_error += sqrtf(er.x*er.x + er.y*er.y + er.z*er.z);
+    float3 a = lines[i].vec;
+    float3 b = lines[i].pnt - point;
+    float3 c = crossProduct(b,a);
+    normalize(b);
+    normalize(c);
+    float numer = magnitude(c);
+    float denom = magnitude(b);
+    a_error += numer / denom;
   }
 
   // filtering would go here
@@ -2572,23 +2583,33 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* erro
     pointcloud[globalID] = point;
   }
 
-  // calculate the angle between the vectors
+
+  // float a_error = 0;
+  // for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+  //   float3 v = lines[i].vec;
+  //   normalize(v);
+  //   // the refrence vector
+  //   // we take the generated point and create a vector from it to the camera center
+  //   float3 r = lines[i].pnt - point;
+  //   normalize(r);
+  //
+  //   float3 er = v - r;
+  //   a_error += sqrtf(er.x*er.x + er.y*er.y + er.z*er.z);
+  // }
+
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
-    float3 v = lines[i].vec;
-    normalize(v);
-    // the refrence vector
-    // we take the generated point and create a vector from it to the camera center
-    float3 r = lines[i].pnt - point;
-    normalize(r);
-
-    float3 er = v - r;
-    a_error += sqrtf(er.x*er.x + er.y*er.y + er.z*er.z);
+    float3 a = lines[i].vec;
+    float3 b = lines[i].pnt - point;
+    float3 c = crossProduct(b,a);
+    normalize(b);
+    normalize(c);
+    float numer = magnitude(c);
+    float denom = magnitude(b);
+    a_error += numer / denom;
   }
 
   errors[globalID] = a_error;
-
-  // filtering would go here
 
   // after calculating local error add it all up
   atomicAdd(&localSum,a_error);
@@ -2650,18 +2671,29 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* angu
     pointcloud[globalID] = point;
   }
 
-  // calculate the angle between the vectors
+  // float a_error = 0;
+  // for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+  //   float3 v = lines[i].vec;
+  //   normalize(v);
+  //   // the refrence vector
+  //   // we take the generated point and create a vector from it to the camera center
+  //   float3 r = lines[i].pnt - point;
+  //   normalize(r);
+  //
+  //   float3 er = v - r;
+  //   a_error += sqrtf(er.x*er.x + er.y*er.y + er.z*er.z);
+  // }
+
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
-    float3 v = lines[i].vec;
-    normalize(v);
-    // the refrence vector
-    // we take the generated point and create a vector from it to the camera center
-    float3 r = lines[i].pnt - point;
-    normalize(r);
-
-    float3 er = v - r;
-    a_error += sqrtf(er.x*er.x + er.y*er.y + er.z*er.z);
+    float3 a = lines[i].vec;
+    float3 b = lines[i].pnt - point;
+    float3 c = crossProduct(b,a);
+    normalize(b);
+    normalize(c);
+    float numer = magnitude(c);
+    float denom = magnitude(b);
+    a_error += numer / denom;
   }
 
   errors[globalID] = a_error;
