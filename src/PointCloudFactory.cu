@@ -640,6 +640,65 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
   return pointcloud;
 }
 
+/**
+ * The CPU method that sets up the GPU enabled n view triangulation.
+ * @param bundleSet a set of lines and bundles to be triangulated
+ * @param errors the individual angular errors per point
+ * @param angularError the total diff between vectors
+ * @param angularErrorCutoff any point past the angular error cutoff will be tagged as invalid
+ */
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bundleSet, Unity<float>* errors, float* angularError, float* angularErrorCutoff){
+  // make the error guys
+  *angularError = 0;
+  float* d_angularError;
+  size_t eSize = sizeof(float);
+  CudaSafeCall(cudaMalloc((void**) &d_angularError,eSize));
+  CudaSafeCall(cudaMemcpy(d_angularError,angularError,eSize,cudaMemcpyHostToDevice));
+  float* d_angularErrorCutoff;
+  size_t cutSize = sizeof(float);
+  CudaSafeCall(cudaMalloc((void**) &d_angularErrorCutoff,cutSize));
+  CudaSafeCall(cudaMemcpy(d_angularErrorCutoff, angularErrorCutoff,cutSize,cudaMemcpyHostToDevice));
+
+  bundleSet.lines->transferMemoryTo(gpu);
+  bundleSet.bundles->transferMemoryTo(gpu);
+  errors->transferMemoryTo(gpu);
+
+  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(float*, unsigned long, Bundle::Line*, Bundle*, float3*) = &computeNViewTriangulate;
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
+
+
+  std::cout << "Starting n-view triangulation ..." << std::endl;
+  computeNViewTriangulate<<<grid,block>>>(d_angularError,d_angularErrorCutoff,errors->device,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  std::cout << "n-view Triangulation done ... \n" << std::endl;
+
+  bundleSet.lines->setFore(gpu);
+  bundleSet.bundles->setFore(gpu);
+  bundleSet.lines->transferMemoryTo(cpu);
+  bundleSet.bundles->transferMemoryTo(cpu);
+  bundleSet.lines->clear(gpu);
+  bundleSet.bundles->clear(gpu);
+  // transfer the individual linear errors back to the CPU
+  errors->setFore(gpu);
+  errors->transferMemoryTo(cpu);
+  errors->clear(gpu);
+  //
+  pointcloud->setFore(gpu);
+  pointcloud->transferMemoryTo(cpu);
+  pointcloud->clear(gpu);
+
+  // copy back the total error that occured
+  CudaSafeCall(cudaMemcpy(angularError,d_angularError,eSize,cudaMemcpyDeviceToHost));
+  cudaFree(d_angularError);
+  CudaSafeCall(cudaMemcpy(angularErrorCutoff,d_angularErrorCutoff,eSize,cudaMemcpyDeviceToHost));
+  cudaFree(d_angularErrorCutoff);
+
+  return pointcloud;
+}
+
 // =============================================================================================================
 //
 // Bundle Adjustment Methods
@@ -1504,8 +1563,27 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
     // N-View Case
     //
 
-    std::cerr << "ERROR N-View Case Not Implemented" << std::endl;
-    return;
+    points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+    float max = 0.0; // it would be nice to have a better way to get the max, but because this is only for debug idc
+    for (int i = 0; i < errors->size(); i++){
+      if (errors->host[i] > max){
+        max = errors->host[i];
+      }
+    }
+    std::cout << "found max" << std::endl;
+    // now fill in the color point locations
+    for (int i = 0; i < points->size() - 1; i++){
+      // i assume that the errors and the points will have the same indices
+      cpoints[i].x = points->host[i].x; //
+      cpoints[i].y = points->host[i].y;
+      cpoints[i].z = points->host[i].z;
+      int j = floor(errors->host[i] * (2000 / max));
+      // std::cout << "j: " << j << "\t e: " << errors->host[i] << "\t ratio: " << (2000 / max) << "\t " << i << "/" << points->size() << std::endl;
+      cpoints[i].r = colors[j].x;
+      cpoints[i].g = colors[j].y;
+      cpoints[i].b = colors[j].z;
+    }
+
   }
 
   // save the file
@@ -1555,15 +1633,6 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
   bundleSet = generateBundles(matchSet,images);
   // do an initial triangulation
   errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
-
-  // check for the view numbers
-  if (images.size() == 2){ // === 2-View Case
-    // for filtering
-    points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
-  } else { // === N-View Case
-    std::cerr << "No N-View filtering is implemented yet" << std::endl;
-    return;
-  }
 
   std::cout << "Starting Determinstic Statistical Filter ..." << std::endl;
 
@@ -1647,7 +1716,68 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     // This is the N-view case
     //
 
-    // TODO make the n-view case
+    // recalculate with new cutoff
+    points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+
+    // CLEAR OUT THE DATA STRUCTURES
+    // count the number of bad bundles to be removed
+    int bad_bundles = 0;
+    int bad_lines   = 0;
+    for (int k = 0; k < bundleSet.bundles->size(); k++){
+      if (bundleSet.bundles->host[k].invalid){
+         bad_bundles++;
+         bad_lines += bundleSet.bundles->host[k].numLines;
+      }
+    }
+    if (bad_bundles) {
+      std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
+      std::cout << "\tDetected " << bad_lines << " lines to remove" << std::endl;
+    } else {
+      std::cout << "No points removed! all are less than " << linearErrorCutoff << std::endl;
+      return;
+    }
+    // Need to generated and adjustment match set
+    // make a temporary match set
+    delete tempMatchSet.keyPoints;
+    delete tempMatchSet.matches;
+    tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matchSet->keyPoints->size(),ssrlcv::cpu);
+    tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+    // fill in the boiz
+    for (int k = 0; k < tempMatchSet.keyPoints->size(); k++){
+      tempMatchSet.keyPoints->host[k] = matchSet->keyPoints->host[k];
+    }
+    for (int k = 0; k < tempMatchSet.matches->size(); k++){
+      tempMatchSet.matches->host[k] = matchSet->matches->host[k];
+    }
+    if (!(matchSet->matches->size() - bad_bundles) || !(matchSet->keyPoints->size() - bad_lines)){
+      std::cerr << "ERROR: filtering is too aggressive, all points would be removed ..." << std::endl;
+      return;
+    }
+    // resize the standard matchSet
+    size_t new_kp_size = matchSet->keyPoints->size() - bad_lines;
+    size_t new_mt_size = matchSet->matches->size() - bad_bundles;
+    delete matchSet->keyPoints;
+    delete matchSet->matches;
+    matchSet->keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,new_kp_size,ssrlcv::cpu);
+    matchSet->matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,new_mt_size,ssrlcv::cpu);
+    // this is much easier because of the 2 view assumption
+    // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
+    int k_adjust = 0;
+    int k_lines  = 0;
+    int k_bundle = 0;
+    for (int k = 0; k < bundleSet.bundles->size(); k++){
+      k_lines = bundleSet.bundles->host[k].numLines;
+      if (!bundleSet.bundles->host[k].invalid){
+        matchSet->matches->host[k_bundle] = {k_lines,k_adjust};
+        for (int j = 0; j < k_lines; j++){
+          matchSet->keyPoints->host[k_adjust + j] = tempMatchSet.keyPoints->host[k_adjust + j];
+        }
+        k_adjust += k_lines;
+        k_bundle++;
+      }
+    }
+
+    if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
 
   }
 }
@@ -1677,7 +1807,7 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
  */
 void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float cutoff){
   if (cutoff < 0.0){
-    std::cerr << "ERROR: linear cutoff must be positive" << std::endl;
+    std::cerr << "ERROR: cutoff must be positive" << std::endl;
     return;
   }
 
@@ -1746,7 +1876,6 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     // this is much easier because of the 2 view assumption
     // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
     int k_adjust = 0;
-    // if (bad_bundles){
     for (int k = 0; k < bundleSet.bundles->size(); k++){
     	if (!bundleSet.bundles->host[k].invalid){
     	  matchSet->keyPoints->host[2*k_adjust]     = tempMatchSet.keyPoints->host[2*k];
@@ -1761,7 +1890,68 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     // This is the N-view case
     //
 
-    // TODO make the n-view case
+    // recalculate with new cutoff
+    points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+
+    // CLEAR OUT THE DATA STRUCTURES
+    // count the number of bad bundles to be removed
+    int bad_bundles = 0;
+    int bad_lines   = 0;
+    for (int k = 0; k < bundleSet.bundles->size(); k++){
+      if (bundleSet.bundles->host[k].invalid){
+         bad_bundles++;
+         bad_lines += bundleSet.bundles->host[k].numLines;
+      }
+    }
+    if (bad_bundles) {
+      std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
+      std::cout << "\tDetected " << bad_lines << " lines to remove" << std::endl;
+    } else {
+      std::cout << "No points removed! all are less than " << cutoff << std::endl;
+      return;
+    }
+    // Need to generated and adjustment match set
+    // make a temporary match set
+    delete tempMatchSet.keyPoints;
+    delete tempMatchSet.matches;
+    tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matchSet->keyPoints->size(),ssrlcv::cpu);
+    tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+    // fill in the boiz
+    for (int k = 0; k < tempMatchSet.keyPoints->size(); k++){
+      tempMatchSet.keyPoints->host[k] = matchSet->keyPoints->host[k];
+    }
+    for (int k = 0; k < tempMatchSet.matches->size(); k++){
+      tempMatchSet.matches->host[k] = matchSet->matches->host[k];
+    }
+    if (!(matchSet->matches->size() - bad_bundles) || !(matchSet->keyPoints->size() - bad_lines)){
+      std::cerr << "ERROR: filtering is too aggressive, all points would be removed ..." << std::endl;
+      return;
+    }
+    // resize the standard matchSet
+    size_t new_kp_size = matchSet->keyPoints->size() - bad_lines;
+    size_t new_mt_size = matchSet->matches->size() - bad_bundles;
+    delete matchSet->keyPoints;
+    delete matchSet->matches;
+    matchSet->keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,new_kp_size,ssrlcv::cpu);
+    matchSet->matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,new_mt_size,ssrlcv::cpu);
+    // this is much easier because of the 2 view assumption
+    // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
+    int k_adjust = 0;
+    int k_lines  = 0;
+    int k_bundle = 0;
+    for (int k = 0; k < bundleSet.bundles->size(); k++){
+      k_lines = bundleSet.bundles->host[k].numLines;
+    	if (!bundleSet.bundles->host[k].invalid){
+        matchSet->matches->host[k_bundle] = {k_lines,k_adjust};
+        for (int j = 0; j < k_lines; j++){
+          matchSet->keyPoints->host[k_adjust + j] = tempMatchSet.keyPoints->host[k_adjust + j];
+        }
+    	  k_adjust += k_lines;
+        k_bundle++;
+    	}
+    }
+
+    if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
 
   }
 }
@@ -2399,6 +2589,89 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* erro
   errors[globalID] = a_error;
 
   // filtering would go here
+
+  // after calculating local error add it all up
+  atomicAdd(&localSum,a_error);
+  __syncthreads();
+  if (!threadIdx.x) atomicAdd(angularError,localSum);
+}
+
+/**
+ *
+ */
+__global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* angularErrorCutoff, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
+
+  // get ready to do the stuff local memory space
+  // this will later be added back to a global memory space
+  __shared__ float localSum;
+  if (threadIdx.x == 0) localSum = 0;
+  __syncthreads();
+
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (pointnum-1)) return;
+
+  //Initializing Variables
+  float3 S [3];
+  float3 C;
+  S[0] = {0,0,0};
+  S[1] = {0,0,0};
+  S[2] = {0,0,0};
+  C = {0,0,0};
+
+  //Iterating through the Lines in a Bundle
+  for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+    ssrlcv::Bundle::Line L1 = lines[i];
+    float3 tmp [3];
+    normalize(L1.vec);
+    matrixProduct(L1.vec, tmp);
+    //Subtracting the 3x3 Identity Matrix from tmp
+    tmp[0].x -= 1;
+    tmp[1].y -= 1;
+    tmp[2].z -= 1;
+    //Adding tmp to S
+    S[0] = S[0] + tmp[0];
+    S[1] = S[1] + tmp[1];
+    S[2] = S[2] + tmp[2];
+    //Adding tmp * pnt to C
+    float3 vectmp;
+    multiply(tmp, L1.pnt, vectmp);
+    C = C + vectmp;
+  }
+
+  /**
+   * If all of the directional vectors are skew and not parallel, then I think S is nonsingular.
+   * However, I will look into this some more. This may have to use a pseudo-inverse matrix if that
+   * is not the case.
+   */
+  float3 Inverse [3];
+  float3 point;
+  if(inverse(S, Inverse)){
+    multiply(Inverse, C, point);
+    pointcloud[globalID] = point;
+  }
+
+  // calculate the angle between the vectors
+  float a_error = 0;
+  for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+    float3 v = lines[i].vec;
+    normalize(v);
+    // the refrence vector
+    // we take the generated point and create a vector from it to the camera center
+    float3 r = lines[i].pnt - point;
+    normalize(r);
+
+    float3 er = v - r;
+    a_error += sqrtf(er.x*er.x + er.y*er.y + er.z*er.z);
+  }
+
+  errors[globalID] = a_error;
+
+  // filtering
+  if (a_error > *angularErrorCutoff) {
+    bundles[globalID].invalid = true;
+  } else {
+    bundles[globalID].invalid = false;
+  }
 
   // after calculating local error add it all up
   atomicAdd(&localSum,a_error);
