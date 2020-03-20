@@ -675,19 +675,20 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
   computeNViewTriangulate<<<grid,block>>>(d_angularError,d_angularErrorCutoff,errors->device,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
   std::cout << "n-view Triangulation done ... \n" << std::endl;
 
-  //
-  pointcloud->setFore(gpu);
   bundleSet.lines->setFore(gpu);
   bundleSet.bundles->setFore(gpu);
+  bundleSet.lines->transferMemoryTo(cpu);
+  bundleSet.bundles->transferMemoryTo(cpu);
+  bundleSet.lines->clear(gpu);
+  bundleSet.bundles->clear(gpu);
   // transfer the individual linear errors back to the CPU
   errors->setFore(gpu);
   errors->transferMemoryTo(cpu);
   errors->clear(gpu);
   //
+  pointcloud->setFore(gpu);
   pointcloud->transferMemoryTo(cpu);
   pointcloud->clear(gpu);
-  bundleSet.lines->clear(gpu);
-  bundleSet.bundles->clear(gpu);
 
   // copy back the total error that occured
   CudaSafeCall(cudaMemcpy(angularError,d_angularError,eSize,cudaMemcpyDeviceToHost));
@@ -1735,7 +1736,7 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
  */
 void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float cutoff){
   if (cutoff < 0.0){
-    std::cerr << "ERROR: linear cutoff must be positive" << std::endl;
+    std::cerr << "ERROR: cutoff must be positive" << std::endl;
     return;
   }
 
@@ -1821,13 +1822,6 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     // recalculate with new cutoff
     points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
 
-    // see if any errors are greatre than 0
-    for(int i =0; i < errors->size(); i++){
-      if (errors->host[i] > 0){
-        std::cout << "asdf" << std::endl;
-      }
-    }
-
     // CLEAR OUT THE DATA STRUCTURES
     // count the number of bad bundles to be removed
     int bad_bundles = 0;
@@ -1836,6 +1830,7 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
       if (bundleSet.bundles->host[k].invalid){
          bad_bundles++;
          bad_lines += bundleSet.bundles->host[k].numLines;
+         std::cout << "FOUND BAD GUY\n" << std::endl;
       }
     }
     if (bad_bundles) {
