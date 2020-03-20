@@ -1563,8 +1563,27 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
     // N-View Case
     //
 
-    std::cerr << "ERROR N-View Case Not Implemented" << std::endl;
-    return;
+    points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+    float max = 0.0; // it would be nice to have a better way to get the max, but because this is only for debug idc
+    for (int i = 0; i < errors->size(); i++){
+      if (errors->host[i] > max){
+        max = errors->host[i];
+      }
+    }
+    std::cout << "found max" << std::endl;
+    // now fill in the color point locations
+    for (int i = 0; i < points->size() - 1; i++){
+      // i assume that the errors and the points will have the same indices
+      cpoints[i].x = points->host[i].x; //
+      cpoints[i].y = points->host[i].y;
+      cpoints[i].z = points->host[i].z;
+      int j = floor(errors->host[i] * (2000 / max));
+      // std::cout << "j: " << j << "\t e: " << errors->host[i] << "\t ratio: " << (2000 / max) << "\t " << i << "/" << points->size() << std::endl;
+      cpoints[i].r = colors[j].x;
+      cpoints[i].g = colors[j].y;
+      cpoints[i].b = colors[j].z;
+    }
+
   }
 
   // save the file
@@ -1706,7 +1725,68 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     // This is the N-view case
     //
 
-    // TODO make the n-view case
+    // recalculate with new cutoff
+    points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+
+    // CLEAR OUT THE DATA STRUCTURES
+    // count the number of bad bundles to be removed
+    int bad_bundles = 0;
+    int bad_lines   = 0;
+    for (int k = 0; k < bundleSet.bundles->size(); k++){
+      if (bundleSet.bundles->host[k].invalid){
+         bad_bundles++;
+         bad_lines += bundleSet.bundles->host[k].numLines;
+      }
+    }
+    if (bad_bundles) {
+      std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
+      std::cout << "\tDetected " << bad_lines << " lines to remove" << std::endl;
+    } else {
+      std::cout << "No points removed! all are less than " << cutoff << std::endl;
+      return;
+    }
+    // Need to generated and adjustment match set
+    // make a temporary match set
+    delete tempMatchSet.keyPoints;
+    delete tempMatchSet.matches;
+    tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matchSet->keyPoints->size(),ssrlcv::cpu);
+    tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+    // fill in the boiz
+    for (int k = 0; k < tempMatchSet.keyPoints->size(); k++){
+      tempMatchSet.keyPoints->host[k] = matchSet->keyPoints->host[k];
+    }
+    for (int k = 0; k < tempMatchSet.matches->size(); k++){
+      tempMatchSet.matches->host[k] = matchSet->matches->host[k];
+    }
+    if (!(matchSet->matches->size() - bad_bundles) || !(matchSet->keyPoints->size() - bad_lines)){
+      std::cerr << "ERROR: filtering is too aggressive, all points would be removed ..." << std::endl;
+      return;
+    }
+    // resize the standard matchSet
+    size_t new_kp_size = matchSet->keyPoints->size() - bad_lines;
+    size_t new_mt_size = matchSet->matches->size() - bad_bundles;
+    delete matchSet->keyPoints;
+    delete matchSet->matches;
+    matchSet->keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,new_kp_size,ssrlcv::cpu);
+    matchSet->matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,new_mt_size,ssrlcv::cpu);
+    // this is much easier because of the 2 view assumption
+    // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
+    int k_adjust = 0;
+    int k_lines  = 0;
+    int k_bundle = 0;
+    for (int k = 0; k < bundleSet.bundles->size(); k++){
+      k_lines = bundleSet.bundles->host[k].numLines;
+      if (!bundleSet.bundles->host[k].invalid){
+        matchSet->matches->host[k_bundle] = {k_lines,k_adjust};
+        for (int j = 0; j < k_lines; j++){
+          matchSet->keyPoints->host[k_adjust + j] = tempMatchSet.keyPoints->host[k_adjust + j];
+        }
+        k_adjust += k_lines;
+        k_bundle++;
+      }
+    }
+
+    if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
 
   }
 }
@@ -1834,9 +1914,8 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     }
     if (bad_bundles) {
       std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
+      std::cout << "\tDetected " << bad_lines << " lines to remove" << std::endl;
     } else {
-      // TODO add filter where we return if there not points to remove
-      // also add it above
       std::cout << "No points removed! all are less than " << cutoff << std::endl;
       return;
     }
@@ -1867,18 +1946,19 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     // this is much easier because of the 2 view assumption
     // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
     int k_adjust = 0;
-    int k_jump = 0;
+    int k_lines  = 0;
+    int k_bundle = 0;
     for (int k = 0; k < bundleSet.bundles->size(); k++){
-      k_jump = bundleSet.bundles->host[k].numLines;
+      k_lines = bundleSet.bundles->host[k].numLines;
     	if (!bundleSet.bundles->host[k].invalid){
-        matchSet->matches->host[k_adjust] = {k_jump,k_jump*k_adjust};
-        for (int j = 0; j < k_jump; j++){
-          matchSet->keyPoints->host[k_jump*k_adjust + j] = tempMatchSet.keyPoints->host[k_jump*k];
+        matchSet->matches->host[k_bundle] = {k_lines,k_adjust};
+        for (int j = 0; j < k_lines; j++){
+          matchSet->keyPoints->host[k_adjust + j] = tempMatchSet.keyPoints->host[k_adjust + j];
         }
-    	  k_adjust++;
+    	  k_adjust += k_lines;
+        k_bundle++;
     	}
     }
-
 
     if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
 
