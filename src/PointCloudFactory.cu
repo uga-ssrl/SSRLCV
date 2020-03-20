@@ -1830,7 +1830,6 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
       if (bundleSet.bundles->host[k].invalid){
          bad_bundles++;
          bad_lines += bundleSet.bundles->host[k].numLines;
-         std::cout << "FOUND BAD GUY\n" << std::endl;
       }
     }
     if (bad_bundles) {

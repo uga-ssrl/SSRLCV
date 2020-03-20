@@ -186,10 +186,11 @@ int main(int argc, char *argv[]){
       ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors1");
 
       demPoints.linearCutoffFilter(&matchSet,images,0.001);
-      
+
+      // now redo triangulation with the newlyfiltered boi
+      points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
 
       ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors2");
-
       demPoints.saveDebugCloud(points, bundleSet, images);
 
     }
