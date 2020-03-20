@@ -1634,15 +1634,6 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
   // do an initial triangulation
   errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
 
-  // check for the view numbers
-  if (images.size() == 2){ // === 2-View Case
-    // for filtering
-    points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
-  } else { // === N-View Case
-    std::cerr << "No N-View filtering is implemented yet" << std::endl;
-    return;
-  }
-
   std::cout << "Starting Determinstic Statistical Filter ..." << std::endl;
 
   // the assumption is that choosing every ""stableJump"" indexes is random enough
@@ -1742,7 +1733,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
       std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
       std::cout << "\tDetected " << bad_lines << " lines to remove" << std::endl;
     } else {
-      std::cout << "No points removed! all are less than " << cutoff << std::endl;
+      std::cout << "No points removed! all are less than " << linearErrorCutoff << std::endl;
       return;
     }
     // Need to generated and adjustment match set
