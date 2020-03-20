@@ -2521,7 +2521,7 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, unsigned lo
     a_error += numer / denom;
   }
 
-  // filtering would go here
+  a_error /= (float) bundles[globalID].numLines;
 
   // after calculating local error add it all up
   atomicAdd(&localSum,a_error);
@@ -2609,6 +2609,8 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* erro
     a_error += numer / denom;
   }
 
+  a_error /= (float) bundles[globalID].numLines;
+
   errors[globalID] = a_error;
 
   // after calculating local error add it all up
@@ -2695,6 +2697,8 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* angu
     float denom = magnitude(b);
     a_error += numer / denom;
   }
+
+  a_error /= (float) bundles[globalID].numLines;
 
   errors[globalID] = a_error;
 

@@ -187,7 +187,7 @@ int main(int argc, char *argv[]){
       std::cout << "Initial Angular Error: " << *angularError << std::endl;
       ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors1");
 
-      demPoints.linearCutoffFilter(&matchSet,images,0.001);
+      demPoints.linearCutoffFilter(&matchSet,images,300);
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
       demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
