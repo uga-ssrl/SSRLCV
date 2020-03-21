@@ -183,6 +183,7 @@ int main(int argc, char *argv[]){
       ssrlcv::writePLY("out/unfiltered.ply",points);
 
       demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
+      demPoints.saveViewNumberCloud(&matchSet,images, "ViewNumbers");
 
       std::cout << "Initial Angular Error: " << *angularError << std::endl;
       ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors1");
