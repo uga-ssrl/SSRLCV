@@ -173,10 +173,34 @@ int main(int argc, char *argv[]){
       //
       std::cout << "Attempting N-view Triangulation" << std::endl;
 
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-      points = demPoints.nViewTriangulate(bundleSet);
+      // if we are checkout errors
+      errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
 
+      float* angularError = (float*)malloc(sizeof(float));
+      bundleSet = demPoints.generateBundles(&matchSet,images);
+      points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
+      ssrlcv::writePLY("out/unfiltered.ply",points);
+
+      demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
+      demPoints.saveViewNumberCloud(&matchSet,images, "ViewNumbers");
+
+      std::cout << "Initial Angular Error: " << *angularError << std::endl;
+      ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors1");
+
+      demPoints.linearCutoffFilter(&matchSet,images,300);
+      bundleSet = demPoints.generateBundles(&matchSet,images);
+
+      demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+      bundleSet = demPoints.generateBundles(&matchSet,images);
+      demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+      bundleSet = demPoints.generateBundles(&matchSet,images);
+
+      // now redo triangulation with the newlyfiltered boi
+      points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
+
+      ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors2");
       demPoints.saveDebugCloud(points, bundleSet, images);
+
     }
 
     std::cout << "writing final PLY ..." << std::endl;
