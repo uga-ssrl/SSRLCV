@@ -1590,6 +1590,84 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
   ssrlcv::writePLY(filename, cpoints, matchSet->matches->size());
 }
 
+/**
+ * Saves a colored point cloud where the colors correspond to the number of images matched in each color
+ * @param matchSet a group of matches
+ * @param images a group of images, used only for their stored camera parameters
+ * @param filename the name of the file that should be saved
+ */
+void saveViewNumberCloud(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, const char* filename){
+  // build the helpers to make the colors
+  uchar3 colors[2000];
+  float3 good = {108,255,221};
+  float3 meh  = {251,215,134};
+  float3 bad  = {247,121,125};
+  float3 gr1  = (meh - good)/1000;
+  float3 gr2  = (bad - meh )/1000;
+  // initialize the gradient "mapping"
+  float3 temp;
+  std::cout << "building gradient" << std::endl;
+  for (int i = 0; i < 2000; i++){
+    if (i < 1000){
+      temp = good + gr1*i;
+      colors[i].x = (unsigned char) floor(temp.x);
+      colors[i].y = (unsigned char) floor(temp.y);
+      colors[i].z = (unsigned char) floor(temp.z);
+    } else {
+      temp = meh  + gr2*i;
+      colors[i].x = (unsigned char) floor(temp.x);
+      colors[i].y = (unsigned char) floor(temp.y);
+      colors[i].z = (unsigned char) floor(temp.z);
+    }
+  }
+  std::cout << "the boiz" << std::endl;
+  float* linearError = (float*) malloc(sizeof(float));
+  *linearError = 0.0; // just something to start
+  float* linearErrorCutoff = (float*) malloc(sizeof(float));
+  *linearErrorCutoff = 1000000.0; // just somethihng to start
+
+  // the boiz
+  ssrlcv::BundleSet      bundleSet;
+  ssrlcv::Unity<float>*  errors;
+  ssrlcv::Unity<float3>* points;
+
+  // need bundles
+  bundleSet = generateBundles(matchSet,images);
+  // do an initial triangulation
+  errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+  struct colorPoint* cpoints = (colorPoint*)  malloc(matchSet->matches->size() * sizeof(struct colorPoint));
+
+  std::cout << "attempting guy" << std::endl;
+
+
+
+  //
+  // N-View Case
+  //
+
+  points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+  float max = images.size();
+  // now fill in the color point locations
+  for (int i = 0; i < points->size() - 1; i++){
+    // i assume that the errors and the points will have the same indices
+    cpoints[i].x = points->host[i].x; //
+    cpoints[i].y = points->host[i].y;
+    cpoints[i].z = points->host[i].z;
+
+    int j = floor(bundleSet.bundles->host[i].numLines * (2000 / max));
+    // int j = floor(errors->host[i] * (2000 / max));
+    // // std::cout << "j: " << j << "\t e: " << errors->host[i] << "\t ratio: " << (2000 / max) << "\t " << i << "/" << points->size() << std::endl;
+    cpoints[i].r = colors[j].x;
+    cpoints[i].g = colors[j].y;
+    cpoints[i].b = colors[j].z;
+  }
+
+
+
+  // save the file
+  ssrlcv::writePLY(filename, cpoints, matchSet->matches->size());
+}
+
 // =============================================================================================================
 //
 // Filtering Methods
@@ -1652,8 +1730,8 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
   }
   float variance = squared_sum / errors_sample->size();
   // std::cout << "Sample variance: " << variance << std::endl;
-  std::cout << "\tSigma Calculated As: " << sqrtf(variance) << std::endl;
-  std::cout << "\tLinear Error Cutoff Adjusted To: " << sigma * sqrtf(variance) << std::endl;
+  std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
+  std::cout << "\tLinear Error Cutoff Adjusted To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
   *linearErrorCutoff = sigma * sqrtf(variance);
 
   // do the two view version of this (easier for now)
@@ -2496,21 +2574,32 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, unsigned lo
     pointcloud[globalID] = point;
   }
 
-  // calculate the angle between the vectors
+  // float a_error = 0;
+  // for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+  //   float3 v = lines[i].vec;
+  //   normalize(v);
+  //   // the refrence vector
+  //   // we take the generated point and create a vector from it to the camera center
+  //   float3 r = lines[i].pnt - point;
+  //   normalize(r);
+  //
+  //   float3 er = v - r;
+  //   a_error += sqrtf(er.x*er.x + er.y*er.y + er.z*er.z);
+  // }
+
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
-    float3 v = lines[i].vec;
-    normalize(v);
-    // the refrence vector
-    // we take the generated point and create a vector from it to the camera center
-    float3 r = lines[i].pnt - point;
-    normalize(r);
-
-    float3 er = v - r;
-    a_error += sqrtf(er.x*er.x + er.y*er.y + er.z*er.z);
+    float3 a = lines[i].vec;
+    float3 b = lines[i].pnt - point;
+    float3 c = crossProduct(b,a);
+    // normalize(b);
+    // normalize(c);
+    float numer = magnitude(c);
+    float denom = magnitude(b);
+    a_error += numer / denom;
   }
 
-  // filtering would go here
+  a_error /= (float) bundles[globalID].numLines;
 
   // after calculating local error add it all up
   atomicAdd(&localSum,a_error);
@@ -2572,23 +2661,35 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* erro
     pointcloud[globalID] = point;
   }
 
-  // calculate the angle between the vectors
+
+  // float a_error = 0;
+  // for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+  //   float3 v = lines[i].vec;
+  //   normalize(v);
+  //   // the refrence vector
+  //   // we take the generated point and create a vector from it to the camera center
+  //   float3 r = lines[i].pnt - point;
+  //   normalize(r);
+  //
+  //   float3 er = v - r;
+  //   a_error += sqrtf(er.x*er.x + er.y*er.y + er.z*er.z);
+  // }
+
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
-    float3 v = lines[i].vec;
-    normalize(v);
-    // the refrence vector
-    // we take the generated point and create a vector from it to the camera center
-    float3 r = lines[i].pnt - point;
-    normalize(r);
-
-    float3 er = v - r;
-    a_error += sqrtf(er.x*er.x + er.y*er.y + er.z*er.z);
+    float3 a = lines[i].vec;
+    float3 b = lines[i].pnt - point;
+    float3 c = crossProduct(b,a);
+    // normalize(b);
+    // normalize(c);
+    float numer = magnitude(c);
+    float denom = magnitude(b);
+    a_error += numer / denom;
   }
 
-  errors[globalID] = a_error;
+  a_error /= (float) bundles[globalID].numLines;
 
-  // filtering would go here
+  errors[globalID] = a_error;
 
   // after calculating local error add it all up
   atomicAdd(&localSum,a_error);
@@ -2650,19 +2751,33 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* angu
     pointcloud[globalID] = point;
   }
 
-  // calculate the angle between the vectors
+  // float a_error = 0;
+  // for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+  //   float3 v = lines[i].vec;
+  //   normalize(v);
+  //   // the refrence vector
+  //   // we take the generated point and create a vector from it to the camera center
+  //   float3 r = lines[i].pnt - point;
+  //   normalize(r);
+  //
+  //   float3 er = v - r;
+  //   a_error += sqrtf(er.x*er.x + er.y*er.y + er.z*er.z);
+  // }
+
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
-    float3 v = lines[i].vec;
-    normalize(v);
-    // the refrence vector
-    // we take the generated point and create a vector from it to the camera center
-    float3 r = lines[i].pnt - point;
-    normalize(r);
-
-    float3 er = v - r;
-    a_error += sqrtf(er.x*er.x + er.y*er.y + er.z*er.z);
+    float3 a = lines[i].vec;
+    float3 b = lines[i].pnt - point;
+    float3 c = crossProduct(b,a);
+    // normalize(b);
+    // normalize(c);
+    float numer = magnitude(c);
+    float denom = magnitude(b);
+    a_error += numer / denom;
   }
+
+
+  a_error /= (float) bundles[globalID].numLines;
 
   errors[globalID] = a_error;
 

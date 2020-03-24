@@ -222,6 +222,14 @@ namespace ssrlcv{
      */
     void saveDebugLinearErrorCloud(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, const char* filename);
 
+    /**
+     * Saves a colored point cloud where the colors correspond to the number of images matched in each color
+     * @param matchSet a group of matches
+     * @param images a group of images, used only for their stored camera parameters
+     * @param filename the name of the file that should be saved
+     */
+    void saveViewNumberCloud(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, const char* filename);
+
     // =============================================================================================================
     //
     // Filtering Methods
