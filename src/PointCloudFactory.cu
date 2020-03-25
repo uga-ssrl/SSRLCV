@@ -829,8 +829,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // <---- Backwards
       temp[j].cam_pos.x = images[j].cam_pos.x; // reset for backwards
       temp[j].cam_pos.x -= h;
-      bundleTemp = demPoints.generateBundles(&matchSet,temp); // get the bundles for the new temp images
-      demPoints.twoViewTriangulate(bundleTemp, gradientError);
+      bundleTemp = generateBundles(&matchSet,temp); // get the bundles for the new temp images
+      twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
       gradient[j] = ( forward - backwards ) / ( 2*h );
@@ -849,8 +849,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // <---- Backwards
       temp[j].cam_pos.y = images[j].cam_pos.y; // reset for backwards
       temp[j].cam_pos.y -= h;
-      bundleTemp = demPoints.generateBundles(&matchSet,temp); // get the bundles for the new temp images
-      demPoints.twoViewTriangulate(bundleTemp, gradientError);
+      bundleTemp = generateBundles(&matchSet,temp); // get the bundles for the new temp images
+      twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
       gradient[j] = ( forward - backwards ) / ( 2*h );
@@ -869,8 +869,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // <---- Backwards
       temp[j].cam_pos.z = images[j].cam_pos.z; // reset for backwards
       temp[j].cam_pos.z -= h;
-      bundleTemp = demPoints.generateBundles(&matchSet,temp); // get the bundles for the new temp images
-      demPoints.twoViewTriangulate(bundleTemp, gradientError);
+      bundleTemp = generateBundles(&matchSet,temp); // get the bundles for the new temp images
+      twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
       gradient[j] = ( forward - backwards ) / ( 2*h );
@@ -889,8 +889,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // <---- Backwards
       temp[j].cam_rot.x = images[j].cam_rot.x; // reset for backwards
       temp[j].cam_rot.x -= h;
-      bundleTemp = demPoints.generateBundles(&matchSet,temp); // get the bundles for the new temp images
-      demPoints.twoViewTriangulate(bundleTemp, gradientError);
+      bundleTemp = generateBundles(&matchSet,temp); // get the bundles for the new temp images
+      twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
       gradient[j] = ( forward - backwards ) / ( 2*h );
@@ -903,14 +903,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // ----> Forward
       temp[j].cam_rot.y = images[j].cam_rot.y; // reset for forwards
       temp[j].cam_rot.y += h;
-      bundleTemp = demPoints.generateBundles(&matchSet,temp); // get the bundles for the new temp images
-      demPoints.twoViewTriangulate(bundleTemp, gradientError);
+      bundleTemp = generateBundles(&matchSet,temp); // get the bundles for the new temp images
+      twoViewTriangulate(bundleTemp, gradientError);
       float forward = *gradientError;
       // <---- Backwards
       temp[j].cam_rot.y = images[j].cam_rot.y; // reset for backwards
       temp[j].cam_rot.y -= h;
-      bundleTemp = demPoints.generateBundles(&matchSet,temp); // get the bundles for the new temp images
-      demPoints.twoViewTriangulate(bundleTemp, gradientError);
+      bundleTemp = generateBundles(&matchSet,temp); // get the bundles for the new temp images
+      twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
       gradient[j] = ( forward - backwards ) / ( 2*h );
@@ -923,14 +923,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // ----> Forward
       temp[j].cam_rot.z = images[j].cam_rot.z; // reset for forwards
       temp[j].cam_rot.z += h;
-      bundleTemp = demPoints.generateBundles(&matchSet,temp); // get the bundles for the new temp images
-      demPoints.twoViewTriangulate(bundleTemp, gradientError);
+      bundleTemp = generateBundles(&matchSet,temp); // get the bundles for the new temp images
+      twoViewTriangulate(bundleTemp, gradientError);
       float forward = *gradientError;
       // <---- Backwards
       temp[j].cam_rot.z = images[j].cam_rot.z; // reset for backwards
       temp[j].cam_rot.z -= h;
-      bundleTemp = demPoints.generateBundles(&matchSet,temp); // get the bundles for the new temp images
-      demPoints.twoViewTriangulate(bundleTemp, gradientError);
+      bundleTemp = generateBundles(&matchSet,temp); // get the bundles for the new temp images
+      twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
       gradient[j] = ( forward - backwards ) / ( 2*h );

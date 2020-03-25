@@ -151,7 +151,7 @@ int main(int argc, char *argv[]){
     ssrlcv::writePLY("out/noisey.ply",points);
 
     // now start the bundle adjustment 2-view loop
-
+    points = demPoints.BundleAdjustTwoView(&matchSet,images);
 
     // cleanup
     delete points;
