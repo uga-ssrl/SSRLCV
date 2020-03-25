@@ -125,7 +125,7 @@ int main(int argc, char *argv[]){
     // the point boi
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
     ssrlcv::Unity<float3>* points;
-    ssrlcv::Unity<float3>* errors;
+    ssrlcv::Unity<float>* errors;
     ssrlcv::BundleSet bundleSet;
 
     if (images.size() == 2){

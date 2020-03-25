@@ -42,6 +42,8 @@ int main(int argc, char *argv[]){
 
     // fake 2 images
 
+    std::vector<ssrlcv::Image*> images;
+
     ssrlcv::Image* image0 = new ssrlcv::Image();
     ssrlcv::Image* image1 = new ssrlcv::Image();
     images.push_back(image0);
@@ -53,12 +55,12 @@ int main(int argc, char *argv[]){
     images[0]->camera.cam_rot = {0.0, 0.0, 0.0};
     images[0]->camera.fov = {0.174532925199,0.174532925199};
     images[0]->camera.foc = 0.160000000000;
-    images[0]->id = 1;
-    images[0]->camera.size = {1024,1024};
-    images[0]->camera.cam_pos = {0.000000000000,3.472963553339,-19.696155060244};
-    images[0]->camera.cam_rot = {0.174532925199, 0.0, 0.0};
-    images[0]->camera.fov = {0.174532925199,0.174532925199};
-    images[0]->camera.foc = 0.160000000000;
+    images[1]->id = 1;
+    images[1]->camera.size = {1024,1024};
+    images[1]->camera.cam_pos = {0.000000000000,3.472963553339,-19.696155060244};
+    images[1]->camera.cam_rot = {0.174532925199, 0.0, 0.0};
+    images[1]->camera.fov = {0.174532925199,0.174532925199};
+    images[1]->camera.foc = 0.160000000000;
 
     // fake 2-view cube
 
@@ -104,6 +106,7 @@ int main(int argc, char *argv[]){
     //
     // 2 View Case
     //
+    ssrlcv::MatchSet matchSet;
     matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->size()*2,ssrlcv::cpu);
     matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->size(),ssrlcv::cpu);
     matches->setMemoryState(ssrlcv::cpu);
@@ -133,15 +136,24 @@ int main(int argc, char *argv[]){
     points = demPoints.twoViewTriangulate(bundleSet, linearError);
 
     std::cout << "initial linearError: " << *linearError << std::endl;
+    std::cout << "\t writing initial PLY ..." << std::endl;
+    ssrlcv::writePLY("out/initial.ply",points);
 
     //
     // now start a test of bundle adjustment
     //
 
     // start by messing up the initial paramters
-
+    // test moving the camera slightly
+    images[1]->camera.cam_pos.x += 1.0;
+    bundleSet = demPoints.generateBundles(&matchSet,images);
+    points = demPoints.twoViewTriangulate(bundleSet, linearError);
+    std::cout << "simulated with noise linearError: " << *linearError << std::endl;
+    std::cout << "\t writing noisy PLY ..." << std::endl;
+    ssrlcv::writePLY("out/noisey.ply",points);
 
     // now start the bundle adjustment 2-view loop
+
 
     // cleanup
     delete points;
@@ -150,10 +162,10 @@ int main(int argc, char *argv[]){
     delete matchSet.keyPoints;
     delete bundleSet.bundles;
     delete bundleSet.lines;
-    for(int i = 0; i < imagePaths.size(); ++i){
-      delete images[i];
-      delete allFeatures[i];
-    }
+    // for(int i = 0; i < imagePaths.size(); ++i){
+    //   delete images[i];
+    //   delete allFeatures[i];
+    // }
 
     return 0;
   }

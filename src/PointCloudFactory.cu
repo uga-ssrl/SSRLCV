@@ -1049,7 +1049,7 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
  * @param images a group of images, used only for their stored camera parameters
  * @param filename the name of the file that should be saved
  */
-void saveViewNumberCloud(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, const char* filename){
+void ssrlcv::PointCloudFactory::saveViewNumberCloud(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, const char* filename){
   // build the helpers to make the colors
   uchar3 colors[2000];
   float3 good = {108,255,221};
@@ -1634,7 +1634,7 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, unsigned l
   pointcloud[globalID] = point;
   bundles[globalID].invalid = false;
   // add the linaer errors locally within the block before
-  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));;
+  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));
   // if(error != 0.0f) error = sqrtf(error);
   atomicAdd(&localSum,error);
   __syncthreads();
