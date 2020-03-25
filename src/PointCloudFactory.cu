@@ -809,8 +809,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // begin iterative gradient decent
   for (int i = 0; i < max_iterations; i++){
     // the intialError from the cost function, or the f(x)
-    bundleTemp = demPoints.generateBundles(&matchSet,images);
-    points = demPoints.twoViewTriangulate(bundleSet, initialError);
+    bundleTemp = generateBundles(matchSet,images);
+    points = twoViewTriangulate(bundleSet, initialError);
 
     // calculate all of the graients with central difference
     // https://v8doc.sas.com/sashtml/ormp/chap5/sect28.htm
@@ -823,8 +823,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // ----> Forward
       temp[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x; // reset for forwards
       temp[j]->camera.cam_pos.x += h;
-      bundleTemp = demPoints.generateBundles(matchSet,temp); // get the bundles for the new temp images
-      demPoints.twoViewTriangulate(bundleTemp, gradientError);
+      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+      twoViewTriangulate(bundleTemp, gradientError);
       float forward = *gradientError;
       // <---- Backwards
       temp[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x; // reset for backwards
@@ -843,13 +843,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // ----> Forward
       temp[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y; // reset for forwards
       temp[j]->camera.cam_pos.y += h;
-      bundleTemp = demPoints.generateBundles(&matchSet,temp); // get the bundles for the new temp images
-      demPoints.twoViewTriangulate(bundleTemp, gradientError);
+      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+      twoViewTriangulate(bundleTemp, gradientError);
       float forward = *gradientError;
       // <---- Backwards
       temp[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y; // reset for backwards
       temp[j]->camera.cam_pos.y -= h;
-      bundleTemp = generateBundles(&matchSet,temp); // get the bundles for the new temp images
+      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
       twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
@@ -863,13 +863,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // ----> Forward
       temp[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z; // reset for forwards
       temp[j]->camera.cam_pos.z += h;
-      bundleTemp = demPoints.generateBundles(&matchSet,temp); // get the bundles for the new temp images
-      demPoints.twoViewTriangulate(bundleTemp, gradientError);
+      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+      twoViewTriangulate(bundleTemp, gradientError);
       float forward = *gradientError;
       // <---- Backwards
       temp[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z; // reset for backwards
       temp[j]->camera.cam_pos.z -= h;
-      bundleTemp = generateBundles(&matchSet,temp); // get the bundles for the new temp images
+      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
       twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
@@ -883,13 +883,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // ----> Forward
       temp[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x; // reset for forwards
       temp[j]->camera.cam_rot.x += h;
-      bundleTemp = demPoints.generateBundles(&matchSet,temp); // get the bundles for the new temp images
+      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
       demPoints.twoViewTriangulate(bundleTemp, gradientError);
       float forward = *gradientError;
       // <---- Backwards
       temp[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x; // reset for backwards
       temp[j]->camera.cam_rot.x -= h;
-      bundleTemp = generateBundles(&matchSet,temp); // get the bundles for the new temp images
+      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
       twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
@@ -903,13 +903,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // ----> Forward
       temp[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y; // reset for forwards
       temp[j]->camera.cam_rot.y += h;
-      bundleTemp = generateBundles(&matchSet,temp); // get the bundles for the new temp images
+      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
       twoViewTriangulate(bundleTemp, gradientError);
       float forward = *gradientError;
       // <---- Backwards
       temp[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y; // reset for backwards
       temp[j]->camera.cam_rot.y -= h;
-      bundleTemp = generateBundles(&matchSet,temp); // get the bundles for the new temp images
+      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
       twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
@@ -923,13 +923,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // ----> Forward
       temp[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z; // reset for forwards
       temp[j]->camera.cam_rot.z += h;
-      bundleTemp = generateBundles(&matchSet,temp); // get the bundles for the new temp images
+      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
       twoViewTriangulate(bundleTemp, gradientError);
       float forward = *gradientError;
       // <---- Backwards
       temp[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z; // reset for backwards
       temp[j]->camera.cam_rot.z -= h;
-      bundleTemp = generateBundles(&matchSet,temp); // get the bundles for the new temp images
+      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
       twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
@@ -939,7 +939,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // print of the gradients if debugging
     std::cout << "\t gradient calculated as: " << std::endl;
     for (int j = 0; j < images.size(); j++) {
-      std::cout << "\t\t     id : " << std::setprecision(12) << gradient[j] << std::endl;
+      std::cout << "\t\t     id : " << std::setprecision(12) << j << std::endl;
       std::cout << "\t\t size x [ " << std::setprecision(12) << gradient[j]->camera.size.x << " ]" << std::endl;
       std::cout << "\t\t size y [ " << std::setprecision(12) << gradient[j]->camera.size.y << " ]" << std::endl;
       std::cout << "\t\t  pos x [ " << std::setprecision(12) << gradient[j]->camera.cam_pos.x << " ]" << std::endl;
