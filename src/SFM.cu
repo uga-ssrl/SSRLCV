@@ -125,6 +125,7 @@ int main(int argc, char *argv[]){
     // the point boi
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
     ssrlcv::Unity<float3>* points;
+    ssrlcv::Unity<float3>* errors;
     ssrlcv::BundleSet bundleSet;
 
     if (images.size() == 2){
@@ -185,7 +186,7 @@ int main(int argc, char *argv[]){
       demPoints.saveViewNumberCloud(&matchSet,images, "ViewNumbers");
 
       std::cout << "Initial Angular Error: " << *angularError << std::endl;
-      ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors1");
+      //ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors1");
 
       demPoints.linearCutoffFilter(&matchSet,images,300);
       bundleSet = demPoints.generateBundles(&matchSet,images);
@@ -198,7 +199,7 @@ int main(int argc, char *argv[]){
       // now redo triangulation with the newlyfiltered boi
       points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
 
-      ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors2");
+      //ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors2");
       demPoints.saveDebugCloud(points, bundleSet, images);
 
     }
