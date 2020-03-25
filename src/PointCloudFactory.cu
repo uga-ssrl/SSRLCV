@@ -810,7 +810,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   for (int i = 0; i < max_iterations; i++){
     // the intialError from the cost function, or the f(x)
     bundleTemp = generateBundles(matchSet,images);
-    points = twoViewTriangulate(bundleSet, initialError);
+    points = twoViewTriangulate(bundleTemp, initialError);
 
     // calculate all of the graients with central difference
     // https://v8doc.sas.com/sashtml/ormp/chap5/sect28.htm
@@ -833,7 +833,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
-      gradient[j] = ( forward - backwards ) / ( 2*h );
+      gradient[j->camera.cam_pos.x] = ( forward - backwards ) / ( 2*h );
     }
 
     //
@@ -853,7 +853,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
-      gradient[j] = ( forward - backwards ) / ( 2*h );
+      gradient[j]->camera.cam_pos.y = ( forward - backwards ) / ( 2*h );
     }
 
     //
@@ -873,7 +873,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
-      gradient[j] = ( forward - backwards ) / ( 2*h );
+      gradient[j]->camera.cam_pos.z = ( forward - backwards ) / ( 2*h );
     }
 
     //
@@ -893,7 +893,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
-      gradient[j] = ( forward - backwards ) / ( 2*h );
+      gradient[j]->camera.cam_rot.x = ( forward - backwards ) / ( 2*h );
     }
 
     //
@@ -913,7 +913,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
-      gradient[j] = ( forward - backwards ) / ( 2*h );
+      gradient[j]->camera.cam_rot.y = ( forward - backwards ) / ( 2*h );
     }
 
     //
@@ -933,7 +933,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       twoViewTriangulate(bundleTemp, gradientError);
       float backwards = *gradientError;
       // calculate the gradient with central difference
-      gradient[j] = ( forward - backwards ) / ( 2*h );
+      gradient[j]->camera.cam_rot.z = ( forward - backwards ) / ( 2*h );
     }
 
     // print of the gradients if debugging
