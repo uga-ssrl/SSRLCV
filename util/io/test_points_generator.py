@@ -74,7 +74,7 @@ plane  = [0.0,0.0,alt+foc]
 
 # the degrees to rotates
 to_rotate   = 10
-num_cameras = 4 # so we can switch the
+num_cameras = 2  # so we can switch the
 
 # the final guy
 raw_match_set = []
