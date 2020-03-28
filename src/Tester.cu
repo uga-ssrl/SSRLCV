@@ -141,13 +141,13 @@ int main(int argc, char *argv[]){
 
       // ssrlcv::writePLY("out/unfiltered.ply",points);
 
-      std::cout << "Initial Total Linear Error: " << *linearError << "\t Total Points: " << point->size() << std::endl;
+      std::cout << "Initial Total Linear Error: " << *linearError << "\t Total Points: " << points->size() << std::endl;
 
       demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_temp, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
 
-      std::cout << "Total Linear Error: " << *linearError << "\t at: " << sigma_temp << "\t with total points: " << point->size() << std::endl;
+      std::cout << "Total Linear Error: " << *linearError << "\t at: " << sigma_temp << "\t with total points: " << points->size() << std::endl;
 
     } else {
       //
@@ -162,7 +162,7 @@ int main(int argc, char *argv[]){
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
 
-      std::cout << "Initial Total Linear Error: " << *linearError << "\t Total Points: " << point->size() << std::endl;
+      std::cout << "Initial Total Linear Error: " << *angularError << "\t Total Points: " << points->size() << std::endl;
 
       demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_temp, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
@@ -170,7 +170,7 @@ int main(int argc, char *argv[]){
       // now redo triangulation with the newlyfiltered boi
       points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
 
-      std::cout << "Total Linear Error: " << *linearError << "\t at: " << sigma_temp << "\t with total points: " << point->size() << std::endl;
+      std::cout << "Total Linear Error: " << *angularError << "\t at: " << sigma_temp << "\t with total points: " << points->size() << std::endl;
 
     }
 
