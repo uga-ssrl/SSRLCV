@@ -806,8 +806,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   float* gradientError = (float*) malloc(sizeof(float)); // this chaneges per iteration
 
   unsigned int max_iterations = 1;
-  int h_linear = 0.1; // gradient difference
-  int h_radial = 0.0001;
+  float gamma    = 0.001;// the initial stepsize
+  float h_linear = 0.1; // gradient difference
+  float h_radial = 0.0001;
 
   // begin iterative gradient decent
   for (int i = 0; i < max_iterations; i++){
@@ -818,6 +819,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // calculate all of the graients with central difference
     // https://v8doc.sas.com/sashtml/ormp/chap5/sect28.htm
     // we are only testing position and orientation gradients
+
+    if (i > 0) {
+      // calculate step size here
+
+    }
 
     //
     // X Position Gradients
@@ -955,6 +961,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       std::cout << "\t\t  fov y [ " << std::setprecision(12) << gradient[j]->camera.fov.y << " ]" << std::endl;
       std::cout << "\t\t    foc [ " << std::setprecision(12) << gradient[j]->camera.foc << " ]" << std::endl;
     }
+
+    // take a stepsize of gamma, currently only modify second view
+    
 
   }
 

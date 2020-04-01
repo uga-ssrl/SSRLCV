@@ -135,7 +135,7 @@ int main(int argc, char *argv[]){
 
     std::cout << "initial linearError: " << *linearError << std::endl;
     std::cout << "\t writing initial PLY ..." << std::endl;
-    ssrlcv::writePLY("out/initial.ply",points);
+    demPoints.saveDebugCloud(points, bundleSet, images, "initial");
 
     //
     // now start a test of bundle adjustment
@@ -148,7 +148,7 @@ int main(int argc, char *argv[]){
     points = demPoints.twoViewTriangulate(bundleSet, linearError);
     std::cout << "simulated with noise linearError: " << *linearError << std::endl;
     std::cout << "\t writing noisy PLY ..." << std::endl;
-    ssrlcv::writePLY("out/noisey.ply",points);
+    demPoints.saveDebugCloud(points, bundleSet, images, "noisey");
 
     // now start the bundle adjustment 2-view loop
     points = demPoints.BundleAdjustTwoView(&matchSet,images);
