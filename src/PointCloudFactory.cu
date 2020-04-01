@@ -1051,14 +1051,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     if(i > 0){
       struct CamAdjust2 xtemp;
       xtemp.cam_pos0 = x1.cam_pos0 - x0.cam_pos0;
-      // xtemp.cam_rot0 = x1.cam_rot0 - x0.cam_rot0;
+      xtemp.cam_rot0 = x1.cam_rot0 - x0.cam_rot0;
       xtemp.cam_pos1 = x1.cam_pos1 - x0.cam_pos1;
-      // xtemp.cam_rot1 = x1.cam_rot1 - x0.cam_rot1;
+      xtemp.cam_rot1 = x1.cam_rot1 - x0.cam_rot1;
       struct CamAdjust2 gtemp;
       gtemp.cam_pos0 = g1.cam_pos0 - g0.cam_pos0;
-      // gtemp.cam_rot0 = g1.cam_rot0 - g0.cam_rot0;
+      gtemp.cam_rot0 = g1.cam_rot0 - g0.cam_rot0;
       gtemp.cam_pos1 = g1.cam_pos1 - g0.cam_pos1;
-      // gtemp.cam_rot1 = g1.cam_rot1 - g0.cam_rot1;
+      gtemp.cam_rot1 = g1.cam_rot1 - g0.cam_rot1;
       // float numer  = (xtemp.cam_pos0.x * gtemp.cam_pos0.x) + (xtemp.cam_pos0.y * gtemp.cam_pos0.y) + (xtemp.cam_pos0.z * gtemp.cam_pos0.z);
             // numer += (xtemp.cam_rot0.x * gtemp.cam_rot0.x) + (xtemp.cam_rot0.y * gtemp.cam_rot0.y) + (xtemp.cam_rot0.z * gtemp.cam_rot0.z);
             float numer = (xtemp.cam_pos1.x * gtemp.cam_pos1.x) + (xtemp.cam_pos1.y * gtemp.cam_pos1.y) + (xtemp.cam_pos1.z * gtemp.cam_pos1.z);
