@@ -805,13 +805,15 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   float* initialError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
   float* gradientError = (float*) malloc(sizeof(float)); // this chaneges per iteration
 
-  unsigned int max_iterations = 1;
+  unsigned int max_iterations = 2;
   float gamma    = 0.000001;// the initial stepsize
-  float h_linear = 0.1; // gradient difference
+  float h_linear = 0.01; // gradient difference
   float h_radial = 0.0001;
 
   struct CamAdjust2 x0;
   struct CamAdjust2 x1;
+  struct CamAdjust2 g0;
+  struct CamAdjust2 g1;
   struct CamAdjust2 adjustment;
 
   // begin iterative gradient decent
@@ -823,11 +825,6 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // calculate all of the graients with central difference
     // https://v8doc.sas.com/sashtml/ormp/chap5/sect28.htm
     // we are only testing position and orientation gradients
-
-    if (i > 0) {
-      // calculate Barzilai–Borwein step size here
-
-    }
 
     //
     // X Position Gradients
@@ -961,27 +958,28 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // print of the gradients if debugging
     std::cout << "\t gradient calculated as: " << std::endl;
-    for (int j = 0; j < images.size(); j++) {
-      std::cout << "\t\t     id : " << std::setprecision(12) << j << std::endl;
-      std::cout << "\t\t size x [ " << std::setprecision(12) << gradient[j]->camera.size.x << " ]" << std::endl;
-      std::cout << "\t\t size y [ " << std::setprecision(12) << gradient[j]->camera.size.y << " ]" << std::endl;
-      std::cout << "\t\t  pos x [ " << std::setprecision(12) << gradient[j]->camera.cam_pos.x << " ]" << std::endl;
-      std::cout << "\t\t  pos y [ " << std::setprecision(12) << gradient[j]->camera.cam_pos.y << " ]" << std::endl;
-      std::cout << "\t\t  pos z [ " << std::setprecision(12) << gradient[j]->camera.cam_pos.z << " ]" << std::endl;
-      std::cout << "\t\t  rot x [ " << std::setprecision(12) << gradient[j]->camera.cam_rot.x << " ]" << std::endl;
-      std::cout << "\t\t  rot y [ " << std::setprecision(12) << gradient[j]->camera.cam_rot.y << " ]" << std::endl;
-      std::cout << "\t\t  rot z [ " << std::setprecision(12) << gradient[j]->camera.cam_rot.z << " ]" << std::endl;
-      std::cout << "\t\t  fov x [ " << std::setprecision(12) << gradient[j]->camera.fov.x << " ]" << std::endl;
-      std::cout << "\t\t  fov y [ " << std::setprecision(12) << gradient[j]->camera.fov.y << " ]" << std::endl;
-      std::cout << "\t\t    foc [ " << std::setprecision(12) << gradient[j]->camera.foc << " ]" << std::endl;
+    if (true){
+      for (int j = 0; j < images.size(); j++) {
+        std::cout << "\t\t     id : " << std::setprecision(12) << j << std::endl;
+        std::cout << "\t\t size x [ " << std::setprecision(12) << gradient[j]->camera.size.x << " ]" << std::endl;
+        std::cout << "\t\t size y [ " << std::setprecision(12) << gradient[j]->camera.size.y << " ]" << std::endl;
+        std::cout << "\t\t  pos x [ " << std::setprecision(12) << gradient[j]->camera.cam_pos.x << " ]" << std::endl;
+        std::cout << "\t\t  pos y [ " << std::setprecision(12) << gradient[j]->camera.cam_pos.y << " ]" << std::endl;
+        std::cout << "\t\t  pos z [ " << std::setprecision(12) << gradient[j]->camera.cam_pos.z << " ]" << std::endl;
+        std::cout << "\t\t  rot x [ " << std::setprecision(12) << gradient[j]->camera.cam_rot.x << " ]" << std::endl;
+        std::cout << "\t\t  rot y [ " << std::setprecision(12) << gradient[j]->camera.cam_rot.y << " ]" << std::endl;
+        std::cout << "\t\t  rot z [ " << std::setprecision(12) << gradient[j]->camera.cam_rot.z << " ]" << std::endl;
+        std::cout << "\t\t  fov x [ " << std::setprecision(12) << gradient[j]->camera.fov.x << " ]" << std::endl;
+        std::cout << "\t\t  fov y [ " << std::setprecision(12) << gradient[j]->camera.fov.y << " ]" << std::endl;
+        std::cout << "\t\t    foc [ " << std::setprecision(12) << gradient[j]->camera.foc << " ]" << std::endl;
+      }
     }
 
-    // fill in the previous step's struct
-    // TODO do not fill with gradient, fill with image
-    // x0.cam_pos0 = gradient[0]->camera.cam_pos;
-    // x0.cam_rot0 = gradient[0]->camera.cam_rot;
-    // x0.cam_pos1 = gradient[1]->camera.cam_pos;
-    // x0.cam_rot1 = gradient[1]->camera.cam_rot;
+    // fill in the previous step's params
+    x0.cam_pos0 = images[0]->camera.cam_pos;
+    x0.cam_rot0 = images[0]->camera.cam_rot;
+    x0.cam_pos1 = images[1]->camera.cam_pos;
+    x0.cam_rot1 = images[1]->camera.cam_rot;
 
     // calculating the real adjustment
     adjustment.cam_pos0 = gamma * gradient[0]->camera.cam_pos;
@@ -991,37 +989,85 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // print the adjustment
     // TODO remove this later
-    std::cout << "\t adjustment calculated as: " << std::endl;
-    std::cout << "\t\t  0" << std::endl;
-    std::cout << "\t\t  pos x [ " << std::setprecision(12) << adjustment.cam_pos0.x << " ]" << std::endl;
-    std::cout << "\t\t  pos y [ " << std::setprecision(12) << adjustment.cam_pos0.y << " ]" << std::endl;
-    std::cout << "\t\t  pos z [ " << std::setprecision(12) << adjustment.cam_pos0.z << " ]" << std::endl;
-    std::cout << "\t\t  rot x [ " << std::setprecision(12) << adjustment.cam_rot0.x << " ]" << std::endl;
-    std::cout << "\t\t  rot y [ " << std::setprecision(12) << adjustment.cam_rot0.y << " ]" << std::endl;
-    std::cout << "\t\t  rot z [ " << std::setprecision(12) << adjustment.cam_rot0.z << " ]" << std::endl;
-    std::cout << "\t\t  1" << std::endl;
-    std::cout << "\t\t  pos x [ " << std::setprecision(12) << adjustment.cam_pos1.x << " ]" << std::endl;
-    std::cout << "\t\t  pos y [ " << std::setprecision(12) << adjustment.cam_pos1.y << " ]" << std::endl;
-    std::cout << "\t\t  pos z [ " << std::setprecision(12) << adjustment.cam_pos1.z << " ]" << std::endl;
-    std::cout << "\t\t  rot x [ " << std::setprecision(12) << adjustment.cam_rot1.x << " ]" << std::endl;
-    std::cout << "\t\t  rot y [ " << std::setprecision(12) << adjustment.cam_rot1.y << " ]" << std::endl;
-    std::cout << "\t\t  rot z [ " << std::setprecision(12) << adjustment.cam_rot1.z << " ]" << std::endl;
+    if (true){
+      std::cout << "\t adjustment calculated as: " << std::endl;
+      std::cout << "\t\t  0" << std::endl;
+      std::cout << "\t\t  pos x [ " << std::setprecision(12) << adjustment.cam_pos0.x << " ]" << std::endl;
+      std::cout << "\t\t  pos y [ " << std::setprecision(12) << adjustment.cam_pos0.y << " ]" << std::endl;
+      std::cout << "\t\t  pos z [ " << std::setprecision(12) << adjustment.cam_pos0.z << " ]" << std::endl;
+      std::cout << "\t\t  rot x [ " << std::setprecision(12) << adjustment.cam_rot0.x << " ]" << std::endl;
+      std::cout << "\t\t  rot y [ " << std::setprecision(12) << adjustment.cam_rot0.y << " ]" << std::endl;
+      std::cout << "\t\t  rot z [ " << std::setprecision(12) << adjustment.cam_rot0.z << " ]" << std::endl;
+      std::cout << "\t\t  1" << std::endl;
+      std::cout << "\t\t  pos x [ " << std::setprecision(12) << adjustment.cam_pos1.x << " ]" << std::endl;
+      std::cout << "\t\t  pos y [ " << std::setprecision(12) << adjustment.cam_pos1.y << " ]" << std::endl;
+      std::cout << "\t\t  pos z [ " << std::setprecision(12) << adjustment.cam_pos1.z << " ]" << std::endl;
+      std::cout << "\t\t  rot x [ " << std::setprecision(12) << adjustment.cam_rot1.x << " ]" << std::endl;
+      std::cout << "\t\t  rot y [ " << std::setprecision(12) << adjustment.cam_rot1.y << " ]" << std::endl;
+      std::cout << "\t\t  rot z [ " << std::setprecision(12) << adjustment.cam_rot1.z << " ]" << std::endl;
+    }
 
     // take a step along along the gradient with a magnitude of gamma
-    images[0]->camera.cam_pos -= adjustment.cam_pos0;
-    images[0]->camera.cam_rot -= adjustment.cam_pos0;
-    images[1]->camera.cam_pos -= adjustment.cam_pos1;
-    images[1]->camera.cam_rot -= adjustment.cam_pos1;
+    images[0]->camera.cam_pos = images[0]->camera.cam_pos - adjustment.cam_pos0;
+    images[0]->camera.cam_rot = images[0]->camera.cam_rot - adjustment.cam_pos0;
+    images[1]->camera.cam_pos = images[1]->camera.cam_pos - adjustment.cam_pos1;
+    images[1]->camera.cam_rot = images[1]->camera.cam_rot - adjustment.cam_pos1;
+
+    // fill in the new iteration's params
+    x1.cam_pos0 = images[0]->camera.cam_pos;
+    x1.cam_rot0 = images[0]->camera.cam_rot;
+    x1.cam_pos1 = images[1]->camera.cam_pos;
+    x1.cam_rot1 = images[1]->camera.cam_rot;
+
+    // store the gradient
+    if (i > 0){
+      g0 = g1;
+      // -- set the old iteration
+      g1.cam_pos0 = gradient[0]->camera.cam_pos;
+      g1.cam_rot0 = gradient[0]->camera.cam_rot;
+      g1.cam_pos1 = gradient[1]->camera.cam_pos;
+      g1.cam_rot1 = gradient[1]->camera.cam_rot;
+    } else {
+      g1.cam_pos0 = gradient[0]->camera.cam_pos;
+      g1.cam_rot0 = gradient[0]->camera.cam_rot;
+      g1.cam_pos1 = gradient[1]->camera.cam_pos;
+      g1.cam_rot1 = gradient[1]->camera.cam_rot;
+    }
+
+    // calculate new gamma
+    if(i > 0){
+      struct CamAdjust2 xtemp;
+      xtemp.cam_pos0 = x1.cam_pos0 - x0.cam_pos0;
+      xtemp.cam_rot0 = x1.cam_rot0 - x0.cam_rot0;
+      xtemp.cam_pos1 = x1.cam_pos1 - x0.cam_pos1;
+      xtemp.cam_rot1 = x1.cam_rot1 - x0.cam_rot1;
+      struct CamAdjust2 gtemp;
+      gtemp.cam_pos0 = g1.cam_pos0 - g0.cam_pos0;
+      gtemp.cam_rot0 = g1.cam_rot0 - g0.cam_rot0;
+      gtemp.cam_pos1 = g1.cam_pos1 - g0.cam_pos1;
+      gtemp.cam_rot1 = g1.cam_rot1 - g0.cam_rot1;
+      float numer  = (xtemp.cam_pos0.x * gtemp.cam_pos0.x) + (xtemp.cam_pos0.y * gtemp.cam_pos0.y) + (xtemp.cam_pos0.z * gtemp.cam_pos0.z);
+            numer += (xtemp.cam_rot0.x * gtemp.cam_rot0.x) + (xtemp.cam_rot0.y * gtemp.cam_rot0.y) + (xtemp.cam_rot0.z * gtemp.cam_rot0.z);
+            numer += (xtemp.cam_pos1.x * gtemp.cam_pos1.x) + (xtemp.cam_pos1.y * gtemp.cam_pos1.y) + (xtemp.cam_pos1.z * gtemp.cam_pos1.z);
+            numer += (xtemp.cam_rot1.x * gtemp.cam_rot1.x) + (xtemp.cam_rot1.y * gtemp.cam_rot1.y) + (xtemp.cam_rot1.z * gtemp.cam_rot1.z);
+      float denom  = (gtemp.cam_pos0.x * gtemp.cam_pos0.x) + (gtemp.cam_pos0.y * gtemp.cam_pos0.y) + (gtemp.cam_pos0.z * gtemp.cam_pos0.z);
+            numer += (gtemp.cam_rot0.x * gtemp.cam_rot0.x) + (gtemp.cam_rot0.y * gtemp.cam_rot0.y) + (gtemp.cam_rot0.z * gtemp.cam_rot0.z);
+            numer += (gtemp.cam_pos1.x * gtemp.cam_pos1.x) + (gtemp.cam_pos1.y * gtemp.cam_pos1.y) + (gtemp.cam_pos1.z * gtemp.cam_pos1.z);
+            numer += (gtemp.cam_rot1.x * gtemp.cam_rot1.x) + (gtemp.cam_rot1.y * gtemp.cam_rot1.y) + (gtemp.cam_rot1.z * gtemp.cam_rot1.z);
+      float denom  = sqrtf(denom);
+      gamma = numer / denom;
+    }
 
     // print the new error after the step
     bundleTemp = generateBundles(matchSet,images);
     points = twoViewTriangulate(bundleTemp, initialError);
     std::cout << "\t adjusted error: " << *initialError << std::endl;
+    std::cout << "\t\t new gamma: " << gamma << std::endl;
 
   }
 
   // take a step, a newtonian iteration
-  // https://en.wikipedia.org/wiki/Gradient_descent#Description
+  // https://en.wikipedia.org/wiki/Gradient_descent#Description./
 
 
   return points;
