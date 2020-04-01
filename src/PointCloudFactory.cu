@@ -1079,10 +1079,12 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     if (!const_step){
         std::cout << "\t\t new gamma: "    << std::setprecision(12)<< gamma << std::endl;
     }
-  }
+    errorTracker.push_back(*initialError);
+  } // end bundle adjustment loop
 
-  // take a step, a newtonian iteration
-  // https://en.wikipedia.org/wiki/Gradient_descent#Description./
+
+  // write linearError chagnes to a CSV
+  writeCSV(errorTracker, "totalErrorOverIterations");
 
 
   return points;
@@ -1302,7 +1304,7 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
         max = errors->host[i];
       }
     }
-    std::cout << "found max" << std::endl;
+    std::cout << "found max: " << max << std::endl;
     // now fill in the color point locations
     for (int i = 0; i < points->size() - 1; i++){
       // i assume that the errors and the points will have the same indices
@@ -1328,7 +1330,7 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
         max = errors->host[i];
       }
     }
-    std::cout << "found max" << std::endl;
+    std::cout << "found max: " << max << std::endl;
     // now fill in the color point locations
     for (int i = 0; i < points->size() - 1; i++){
       // i assume that the errors and the points will have the same indices
@@ -1465,12 +1467,31 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
   ssrlcv::Unity<float>*    errors_sample;
   ssrlcv::Unity<float3>*   points;
 
+  // This is for error tracking and printing later
+  std::vector<float> errorTracker;
+
   // need bundles
   bundleSet = generateBundles(matchSet,images);
   // do an initial triangulation
   errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
 
   std::cout << "Starting Determinstic Statistical Filter ..." << std::endl;
+
+  // do an initial triangulate
+
+  if (images.size() == 2){
+    //
+    // This is the 2-View case
+    //
+
+    points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+  } else {
+    //
+    // This is the N-View case
+    //
+
+    points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+  }
 
   // the assumption is that choosing every ""stableJump"" indexes is random enough
   // https://en.wikipedia.org/wiki/Variance#Sample_variance
@@ -1482,12 +1503,14 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     sample_sum += errors->host[k*sampleJump];
   }
   float sample_mean = sample_sum / errors_sample->size();
+  std::cout << "\tSample Sum: " << std::setprecision(32) << sample_sum << std::endl;
+  std::cout << "\tSample Mean: " << std::setprecision(32) << sample_mean << std::endl;
   float squared_sum = 0;
   for (int k = 0; k < sample_size; k++){
     squared_sum += (errors_sample->host[k] - sample_mean)*(errors_sample->host[k] - sample_mean);
   }
   float variance = squared_sum / errors_sample->size();
-  // std::cout << "Sample variance: " << variance << std::endl;
+  std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
   std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
   std::cout << "\tLinear Error Cutoff Adjusted To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
   *linearErrorCutoff = sigma * sqrtf(variance);

@@ -173,6 +173,7 @@ int main(int argc, char *argv[]){
       std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
       points = demPoints.BundleAdjustTwoView(&matchSet,images);
 
+
     } else {
       //
       // N View Case
