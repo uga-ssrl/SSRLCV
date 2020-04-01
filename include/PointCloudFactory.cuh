@@ -37,13 +37,23 @@ namespace ssrlcv{
   };
 
 
-  /*
+  /**
    * \brief a set of lines in point vector format, and indexes (stored as bundles) that represent bundled lines for reprojection
    */
   struct BundleSet{
     Unity<Bundle::Line>* lines;
     Unity<Bundle>* bundles;
   };
+
+  /**
+   * \brief basically the same as the line but for camera adjustments in a view view bundle adjustment
+   */
+   struct CamAdjust2{
+     float3 cam_pos0;
+     float3 cam_rot0;
+     float3 cam_pos1;
+     float3 cam_rot1;
+   };
 
   /**
   * \brief This class contains methods to generate point clouds from a set of Match structs.

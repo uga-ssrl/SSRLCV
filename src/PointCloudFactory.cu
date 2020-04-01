@@ -810,6 +810,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   float h_linear = 0.1; // gradient difference
   float h_radial = 0.0001;
 
+  struct CamAdjust2 x0;
+  struct CamAdjust2 x1;
+  struct CamAdjust2 adjustment;
+
   // begin iterative gradient decent
   for (int i = 0; i < max_iterations; i++){
     // the intialError from the cost function, or the f(x)
@@ -821,7 +825,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // we are only testing position and orientation gradients
 
     if (i > 0) {
-      // calculate step size here
+      // calculate Barzilai–Borwein step size here
 
     }
 
@@ -972,8 +976,47 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       std::cout << "\t\t    foc [ " << std::setprecision(12) << gradient[j]->camera.foc << " ]" << std::endl;
     }
 
-    // take a stepsize of gamma, currently only modify second view
+    // fill in the previous step's struct
+    // TODO do not fill with gradient, fill with image
+    // x0.cam_pos0 = gradient[0]->camera.cam_pos;
+    // x0.cam_rot0 = gradient[0]->camera.cam_rot;
+    // x0.cam_pos1 = gradient[1]->camera.cam_pos;
+    // x0.cam_rot1 = gradient[1]->camera.cam_rot;
 
+    // calculating the real adjustment
+    adjustment.cam_pos0 = gamma * gradient[0]->camera.cam_pos;
+    adjustment.cam_rot0 = gamma * gradient[0]->camera.cam_rot;
+    adjustment.cam_pos1 = gamma * gradient[1]->camera.cam_pos;
+    adjustment.cam_rot1 = gamma * gradient[1]->camera.cam_rot;
+
+    // print the adjustment
+    // TODO remove this later
+    std::cout << "\t adjustment calculated as: " << std::endl;
+    std::cout << "\t\t  0" << std::endl;
+    std::cout << "\t\t  pos x [ " << std::setprecision(12) << adjustment.cam_pos0.x << " ]" << std::endl;
+    std::cout << "\t\t  pos y [ " << std::setprecision(12) << adjustment.cam_pos0.y << " ]" << std::endl;
+    std::cout << "\t\t  pos z [ " << std::setprecision(12) << adjustment.cam_pos0.z << " ]" << std::endl;
+    std::cout << "\t\t  rot x [ " << std::setprecision(12) << adjustment.cam_rot0.x << " ]" << std::endl;
+    std::cout << "\t\t  rot y [ " << std::setprecision(12) << adjustment.cam_rot0.y << " ]" << std::endl;
+    std::cout << "\t\t  rot z [ " << std::setprecision(12) << adjustment.cam_rot0.z << " ]" << std::endl;
+    std::cout << "\t\t  1" << std::endl;
+    std::cout << "\t\t  pos x [ " << std::setprecision(12) << adjustment.cam_pos1.x << " ]" << std::endl;
+    std::cout << "\t\t  pos y [ " << std::setprecision(12) << adjustment.cam_pos1.y << " ]" << std::endl;
+    std::cout << "\t\t  pos z [ " << std::setprecision(12) << adjustment.cam_pos1.z << " ]" << std::endl;
+    std::cout << "\t\t  rot x [ " << std::setprecision(12) << adjustment.cam_rot1.x << " ]" << std::endl;
+    std::cout << "\t\t  rot y [ " << std::setprecision(12) << adjustment.cam_rot1.y << " ]" << std::endl;
+    std::cout << "\t\t  rot z [ " << std::setprecision(12) << adjustment.cam_rot1.z << " ]" << std::endl;
+
+    // take a step along along the gradient with a magnitude of gamma
+    images[0]->camera.cam_pos -= adjustment.cam_pos0;
+    images[0]->camera.cam_rot -= adjustment.cam_pos0;
+    images[1]->camera.cam_pos -= adjustment.cam_pos1;
+    images[1]->camera.cam_rot -= adjustment.cam_pos1;
+
+    // print the new error after the step
+    bundleTemp = generateBundles(matchSet,images);
+    points = twoViewTriangulate(bundleTemp, initialError);
+    std::cout << "\t adjusted error: " << *initialError << std::endl;
 
   }
 
