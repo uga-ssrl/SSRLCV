@@ -805,10 +805,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   float* initialError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
   float* gradientError = (float*) malloc(sizeof(float)); // this chaneges per iteration
 
-  unsigned int max_iterations = 1000000;
+  // This is for error tracking and printing later
+  std::vector<float> errorTracker;
+
+  unsigned int max_iterations = 200;
   bool local_debug = false;
   bool const_step = true;
-  float gamma    = 0.00000001;// the initial stepsize
+  float gamma    = 0.000001;// the initial stepsize
   float h_linear = 0.001; // gradient difference
   float h_radial = 0.0000001;
 
@@ -1466,9 +1469,6 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
   ssrlcv::Unity<float>*    errors;
   ssrlcv::Unity<float>*    errors_sample;
   ssrlcv::Unity<float3>*   points;
-
-  // This is for error tracking and printing later
-  std::vector<float> errorTracker;
 
   // need bundles
   bundleSet = generateBundles(matchSet,images);

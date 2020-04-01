@@ -66,7 +66,7 @@ int main(int argc, char *argv[]){
 
 
     // fake 2-view cube
-
+    /*
     ssrlcv::Match* matches_host = new ssrlcv::Match[9];
     ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 9, ssrlcv::cpu);
     matches->host[0].keyPoints[0].parentId = 0;
@@ -105,21 +105,22 @@ int main(int argc, char *argv[]){
     matches->host[8].keyPoints[0].loc = {512.0,512.0};
     matches->host[8].keyPoints[1].parentId = 1;
     matches->host[8].keyPoints[1].loc = {512.0,512.0};
-
+    */
 
     // center point tests
-    /*
+
     ssrlcv::Match* matches_host = new ssrlcv::Match[1];
     ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 1, ssrlcv::cpu);
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[0].loc = {512.0,512.0};
     matches->host[0].keyPoints[1].parentId = 1;
     matches->host[0].keyPoints[1].loc = {512.0,512.0};
-    */
+
 
     //
     // 2 View Case
     //
+
     ssrlcv::MatchSet matchSet;
     matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->size()*2,ssrlcv::cpu);
     matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->size(),ssrlcv::cpu);
@@ -142,6 +143,7 @@ int main(int argc, char *argv[]){
     //
     // 2-view test
     //
+    /*
     std::cout << "Attempting 2-view Triangulation" << std::endl;
 
     float* linearError = (float*)malloc(sizeof(float));
@@ -170,6 +172,46 @@ int main(int argc, char *argv[]){
     std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
     // now start the bundle adjustment 2-view loop
     points = demPoints.BundleAdjustTwoView(&matchSet,images);
+    */
+
+    float OG_y = images[1]->camera.cam_pos.y;
+
+    // sensitivity test
+    float linearRange   = 2.0;    // +/- linear Range
+    float angularRange  = PI/4.0; // +/- angular Range
+    float deltaX = 0.0001;       // simulates stepsize
+    float deltaT = 0.00001;     // simulates stpesize
+
+    float* linearError = (float*)malloc(sizeof(float));
+    float* angularError = (float*)malloc(sizeof(float));
+
+    std::vector<float> linearTracker;
+    std::vector<float> angularTracker;
+
+    // get the linear range
+    std::cout << "calculating linear sensitivity ..." << std::endl;
+    images[1]->camera.cam_pos.y = OG_y - linearRange;
+    while (images[1]->camera.cam_pos.y < OG_y + linearRange){
+      bundleSet = demPoints.generateBundles(&matchSet,images);
+      points = demPoints.twoViewTriangulate(bundleSet, linearError);
+      images[1]->camera.cam_pos.y += deltaX;
+      errorTracker.push_back(*linearError);
+    }
+
+    // get the angular range
+    std::cout << "calculating angular sensitivity ..." << std::endl;
+    images[1]->camera.cam_pos.y = OG_y - angularRange;
+    while (images[1]->camera.cam_pos.y < OG_y + angularRange){
+      bundleSet = demPoints.generateBundles(&matchSet,images);
+      points = demPoints.twoViewTriangulate(bundleSet, angularRange);
+      images[1]->camera.cam_pos.y += deltaT;
+      errorTracker.push_back(*angularError);
+    }
+
+
+    // save the sensitivity data
+    writeCSV(linearTracker, "linearSensitivity");
+    writeCSV(angularTracker, "angularSensitivity");
 
     // cleanup
     delete points;
