@@ -904,7 +904,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // calculate the gradient with central difference
       gradient[j]->camera.cam_rot.x = ( forward - backwards ) / ( 2*h_radial );
       if (gradient[j]->camera.cam_rot.x > (2*PI)){
-        gradient[j]->camera.cam_rot.x = gradient[j]->camera.cam_rot.x - floor((gradient[j]->camera.cam_rot.x/(2*PI)));
+        gradient[j]->camera.cam_rot.x -= floor((gradient[j]->camera.cam_rot.x/(2*PI)))*(2*PI);
       }
     }
 
@@ -928,7 +928,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       gradient[j]->camera.cam_rot.y = ( forward - backwards ) / ( 2*h_radial );
       // adjust to be within bounds if needed
       if (gradient[j]->camera.cam_rot.y > (2*PI)){
-        gradient[j]->camera.cam_rot.y = gradient[j]->camera.cam_rot.y - floor((gradient[j]->camera.cam_rot.y/(2*PI)));
+        gradient[j]->camera.cam_rot.y -= floor((gradient[j]->camera.cam_rot.y/(2*PI)))*(2*PI);
       }
     }
 
@@ -951,7 +951,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // calculate the gradient with central difference
       gradient[j]->camera.cam_rot.z = ( forward - backwards ) / ( 2*h_radial );
       if (gradient[j]->camera.cam_rot.z > (2*PI)){
-        gradient[j]->camera.cam_rot.z = gradient[j]->camera.cam_rot.z - floor((gradient[j]->camera.cam_rot.z/(2*PI)));
+        gradient[j]->camera.cam_rot.z -= floor((gradient[j]->camera.cam_rot.z/(2*PI)))*(2*PI);
       }
     }
 
