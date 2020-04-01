@@ -143,13 +143,14 @@ int main(int argc, char *argv[]){
 
     // start by messing up the initial paramters
     // test moving the camera slightly
-    images[1]->camera.cam_pos.x += 1.0;
+    images[1]->camera.cam_pos.y += 0.001;
     bundleSet = demPoints.generateBundles(&matchSet,images);
     points = demPoints.twoViewTriangulate(bundleSet, linearError);
     std::cout << "simulated with noise linearError: " << *linearError << std::endl;
     std::cout << "\t writing noisy PLY ..." << std::endl;
     demPoints.saveDebugCloud(points, bundleSet, images, "noisey");
 
+    std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
     // now start the bundle adjustment 2-view loop
     points = demPoints.BundleAdjustTwoView(&matchSet,images);
 

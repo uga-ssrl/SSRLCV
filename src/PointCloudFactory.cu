@@ -806,7 +806,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   float* gradientError = (float*) malloc(sizeof(float)); // this chaneges per iteration
 
   unsigned int max_iterations = 1;
-  float gamma    = 0.001;// the initial stepsize
+  float gamma    = 0.000001;// the initial stepsize
   float h_linear = 0.1; // gradient difference
   float h_radial = 0.0001;
 
@@ -903,6 +903,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       float backwards = *gradientError;
       // calculate the gradient with central difference
       gradient[j]->camera.cam_rot.x = ( forward - backwards ) / ( 2*h_radial );
+      if (gradient[j]->camera.cam_rot.x > (2*PI)){
+        gradient[j]->camera.cam_rot.x = gradient[j]->camera.cam_rot.x - floor((gradient[j]->camera.cam_rot.x/(2*PI)));
+      }
     }
 
     //
@@ -923,6 +926,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       float backwards = *gradientError;
       // calculate the gradient with central difference
       gradient[j]->camera.cam_rot.y = ( forward - backwards ) / ( 2*h_radial );
+      // adjust to be within bounds if needed
+      if (gradient[j]->camera.cam_rot.y > (2*PI)){
+        gradient[j]->camera.cam_rot.y = gradient[j]->camera.cam_rot.y - floor((gradient[j]->camera.cam_rot.y/(2*PI)));
+      }
     }
 
     //
@@ -943,6 +950,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       float backwards = *gradientError;
       // calculate the gradient with central difference
       gradient[j]->camera.cam_rot.z = ( forward - backwards ) / ( 2*h_radial );
+      if (gradient[j]->camera.cam_rot.z > (2*PI)){
+        gradient[j]->camera.cam_rot.z = gradient[j]->camera.cam_rot.z - floor((gradient[j]->camera.cam_rot.z/(2*PI)));
+      }
     }
 
     // print of the gradients if debugging
@@ -963,7 +973,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     }
 
     // take a stepsize of gamma, currently only modify second view
-    
+
 
   }
 
