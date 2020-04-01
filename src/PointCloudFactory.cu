@@ -805,9 +805,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   float* initialError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
   float* gradientError = (float*) malloc(sizeof(float)); // this chaneges per iteration
 
-  unsigned int max_iterations = 500;
-  bool local_debug = false;
-  float gamma    = 0.000001;// the initial stepsize
+  unsigned int max_iterations = 5;
+  bool local_debug = true;
+  bool const_step = true;
+  float gamma    = 0.001;// the initial stepsize
   float h_linear = 0.000001; // gradient difference
   float h_radial = 0.0001;
 
@@ -1048,7 +1049,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     }
 
     // calculate new gamma
-    if(i > 0){
+    if(i > 0 && !const_step){
       struct CamAdjust2 xtemp;
       xtemp.cam_pos0 = x1.cam_pos0 - x0.cam_pos0;
       xtemp.cam_rot0 = x1.cam_rot0 - x0.cam_rot0;
@@ -1067,7 +1068,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
             // denom += (gtemp.cam_rot0.x * gtemp.cam_rot0.x) + (gtemp.cam_rot0.y * gtemp.cam_rot0.y) + (gtemp.cam_rot0.z * gtemp.cam_rot0.z);
             float denom = (gtemp.cam_pos1.x * gtemp.cam_pos1.x) + (gtemp.cam_pos1.y * gtemp.cam_pos1.y) + (gtemp.cam_pos1.z * gtemp.cam_pos1.z);
             // denom += (gtemp.cam_rot1.x * gtemp.cam_rot1.x) + (gtemp.cam_rot1.y * gtemp.cam_rot1.y) + (gtemp.cam_rot1.z * gtemp.cam_rot1.z);
-            // denom  = sqrtf(denom);
+            denom  = sqrtf(denom);
       gamma = abs(numer) / denom;
     }
 

@@ -49,22 +49,7 @@ int main(int argc, char *argv[]){
     images.push_back(image1);
 
     // cube camera params
-    /*
-    images[0]->id = 0;
-    images[0]->camera.size = {1024,1024};
-    images[0]->camera.cam_pos = {0.000000000000,0.000000000000,-400.000000000000};
-    images[0]->camera.cam_rot = {0.0, 0.0, 0.0};
-    images[0]->camera.fov = {0.0593411945678,0.0593411945678};
-    images[0]->camera.foc = 0.160000000000;
-    images[1]->id = 1;
-    images[1]->camera.size = {1024,1024};
-    images[1]->camera.cam_pos = {0.000000000000,69.459271066772,-393.923101204883};
-    images[1]->camera.cam_rot = {0.174532925199, 0.0, 0.0};
-    images[1]->camera.fov = {0.0593411945678,0.0593411945678};
-    images[1]->camera.foc = 0.160000000000;
-    */
 
-    // point tests params
     images[0]->id = 0;
     images[0]->camera.size = {1024,1024};
     images[0]->camera.cam_pos = {0.000000000000,0.000000000000,-400.000000000000};
@@ -77,6 +62,7 @@ int main(int argc, char *argv[]){
     images[1]->camera.cam_rot = {0.174532925199, 0.0, 0.0};
     images[1]->camera.fov = {0.0593411945678,0.0593411945678};
     images[1]->camera.foc = 0.160000000000;
+
 
 
     // fake 2-view cube
@@ -119,7 +105,7 @@ int main(int argc, char *argv[]){
     matches->host[8].keyPoints[0].loc = {512.0,512.0};
     matches->host[8].keyPoints[1].parentId = 1;
     matches->host[8].keyPoints[1].loc = {512.0,512.0};
-    */
+
 
     // center point tests
     /*
@@ -174,6 +160,7 @@ int main(int argc, char *argv[]){
     // start by messing up the initial paramters
     // test moving the camera slightly
     images[1]->camera.cam_pos.y += 10.0;
+    images[1]->camera.cam_pos.x += 10.0;
     bundleSet = demPoints.generateBundles(&matchSet,images);
     points = demPoints.twoViewTriangulate(bundleSet, linearError);
     std::cout << "simulated with noise linearError: " << *linearError << std::endl;
