@@ -150,7 +150,7 @@ int main(int argc, char *argv[]){
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
       ssrlcv::writePLY("out/linearCutoff.ply",points);
       // here you can filter points in a number of ways before bundle adjustment or triangulation
-      demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+      demPoints.deterministicStatisticalFilter(&matchSet,images, 1.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
       /*

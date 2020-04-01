@@ -808,9 +808,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   unsigned int max_iterations = 1000000;
   bool local_debug = false;
   bool const_step = true;
-  float gamma    = 0.001;// the initial stepsize
+  float gamma    = 0.00000001;// the initial stepsize
   float h_linear = 0.001; // gradient difference
-  float h_radial = 0.0001;
+  float h_radial = 0.0000001;
 
   struct CamAdjust2 x0;
   struct CamAdjust2 x1;
@@ -1023,9 +1023,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // take a step along along the gradient with a magnitude of gamma
     images[0]->camera.cam_pos = images[0]->camera.cam_pos - adjustment.cam_pos0;
-    images[0]->camera.cam_rot = images[0]->camera.cam_rot - adjustment.cam_rot0;
+    // images[0]->camera.cam_rot = images[0]->camera.cam_rot - adjustment.cam_rot0;
     images[1]->camera.cam_pos = images[1]->camera.cam_pos - adjustment.cam_pos1;
-    images[1]->camera.cam_rot = images[1]->camera.cam_rot - adjustment.cam_rot1;
+    // images[1]->camera.cam_rot = images[1]->camera.cam_rot - adjustment.cam_rot1;
 
     // fill in the new iteration's params
     x1.cam_pos0 = images[0]->camera.cam_pos;
@@ -1061,13 +1061,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       gtemp.cam_pos1 = g1.cam_pos1 - g0.cam_pos1;
       gtemp.cam_rot1 = g1.cam_rot1 - g0.cam_rot1;
       float numer  = (xtemp.cam_pos0.x * gtemp.cam_pos0.x) + (xtemp.cam_pos0.y * gtemp.cam_pos0.y) + (xtemp.cam_pos0.z * gtemp.cam_pos0.z);
-            numer += (xtemp.cam_rot0.x * gtemp.cam_rot0.x) + (xtemp.cam_rot0.y * gtemp.cam_rot0.y) + (xtemp.cam_rot0.z * gtemp.cam_rot0.z);
+            // numer += (xtemp.cam_rot0.x * gtemp.cam_rot0.x) + (xtemp.cam_rot0.y * gtemp.cam_rot0.y) + (xtemp.cam_rot0.z * gtemp.cam_rot0.z);
             numer += (xtemp.cam_pos1.x * gtemp.cam_pos1.x) + (xtemp.cam_pos1.y * gtemp.cam_pos1.y) + (xtemp.cam_pos1.z * gtemp.cam_pos1.z);
-            numer += (xtemp.cam_rot1.x * gtemp.cam_rot1.x) + (xtemp.cam_rot1.y * gtemp.cam_rot1.y) + (xtemp.cam_rot1.z * gtemp.cam_rot1.z);
+            // numer += (xtemp.cam_rot1.x * gtemp.cam_rot1.x) + (xtemp.cam_rot1.y * gtemp.cam_rot1.y) + (xtemp.cam_rot1.z * gtemp.cam_rot1.z);
       float denom  = (gtemp.cam_pos0.x * gtemp.cam_pos0.x) + (gtemp.cam_pos0.y * gtemp.cam_pos0.y) + (gtemp.cam_pos0.z * gtemp.cam_pos0.z);
-            denom += (gtemp.cam_rot0.x * gtemp.cam_rot0.x) + (gtemp.cam_rot0.y * gtemp.cam_rot0.y) + (gtemp.cam_rot0.z * gtemp.cam_rot0.z);
+            // denom += (gtemp.cam_rot0.x * gtemp.cam_rot0.x) + (gtemp.cam_rot0.y * gtemp.cam_rot0.y) + (gtemp.cam_rot0.z * gtemp.cam_rot0.z);
             denom += (gtemp.cam_pos1.x * gtemp.cam_pos1.x) + (gtemp.cam_pos1.y * gtemp.cam_pos1.y) + (gtemp.cam_pos1.z * gtemp.cam_pos1.z);
-            denom += (gtemp.cam_rot1.x * gtemp.cam_rot1.x) + (gtemp.cam_rot1.y * gtemp.cam_rot1.y) + (gtemp.cam_rot1.z * gtemp.cam_rot1.z);
+            // denom += (gtemp.cam_rot1.x * gtemp.cam_rot1.x) + (gtemp.cam_rot1.y * gtemp.cam_rot1.y) + (gtemp.cam_rot1.z * gtemp.cam_rot1.z);
             denom  = sqrtf(denom);
       gamma = abs(numer) / denom;
     }
@@ -1075,8 +1075,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // print the new error after the step
     bundleTemp = generateBundles(matchSet,images);
     points = twoViewTriangulate(bundleTemp, initialError);
-    std::cout << "[" << i << "]\t adjusted error: " << std::setprecision(12) << *initialError << std::endl;
-    if (const_step){
+    std::cout << "[" << i << "]\t adjusted error: " << std::setprecision(32) << *initialError << std::endl;
+    if (!const_step){
         std::cout << "\t\t new gamma: "    << std::setprecision(12)<< gamma << std::endl;
     }
   }
@@ -1684,7 +1684,12 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
          bad_bundles++;
       }
     }
-    if (bad_bundles) std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
+    if (bad_bundles) {
+      std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
+    } else {
+      std::cout << "No points removed! all are less than " << cutoff << std::endl;
+      return;
+    }
     // Need to generated and adjustment match set
     // make a temporary match set
     delete tempMatchSet.keyPoints;
