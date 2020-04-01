@@ -805,11 +805,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   float* initialError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
   float* gradientError = (float*) malloc(sizeof(float)); // this chaneges per iteration
 
-  unsigned int max_iterations = 5;
-  bool local_debug = true;
+  unsigned int max_iterations = 1000000;
+  bool local_debug = false;
   bool const_step = true;
   float gamma    = 0.001;// the initial stepsize
-  float h_linear = 0.000001; // gradient difference
+  float h_linear = 0.001; // gradient difference
   float h_radial = 0.0001;
 
   struct CamAdjust2 x0;
@@ -1075,9 +1075,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // print the new error after the step
     bundleTemp = generateBundles(matchSet,images);
     points = twoViewTriangulate(bundleTemp, initialError);
-    std::cout << "\t adjusted error: " << std::setprecision(12) << *initialError << std::endl;
-    std::cout << "\t\t new gamma: "    << std::setprecision(12)<< gamma << std::endl;
-
+    std::cout << "[" << i << "]\t adjusted error: " << std::setprecision(12) << *initialError << std::endl;
+    if (const_step){
+        std::cout << "\t\t new gamma: "    << std::setprecision(12)<< gamma << std::endl;
+    }
   }
 
   // take a step, a newtonian iteration
