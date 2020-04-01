@@ -143,7 +143,7 @@ int main(int argc, char *argv[]){
 
     // start by messing up the initial paramters
     // test moving the camera slightly
-    images[1]->camera.cam_pos.y += 1.0;
+    images[1]->camera.cam_pos.y += 10.0;
     bundleSet = demPoints.generateBundles(&matchSet,images);
     points = demPoints.twoViewTriangulate(bundleSet, linearError);
     std::cout << "simulated with noise linearError: " << *linearError << std::endl;

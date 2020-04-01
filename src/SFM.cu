@@ -168,6 +168,11 @@ int main(int argc, char *argv[]){
 
       // save an error cloud just for testing
       demPoints.saveDebugLinearErrorCloud(&matchSet,images,"LinearErrorsVisualized");
+
+      // starting bundle adjustment here
+      std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
+      points = demPoints.BundleAdjustTwoView(&matchSet,images);
+
     } else {
       //
       // N View Case

@@ -805,7 +805,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   float* initialError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
   float* gradientError = (float*) malloc(sizeof(float)); // this chaneges per iteration
 
-  unsigned int max_iterations = 2;
+  unsigned int max_iterations = 3;
+  bool local_debug = true;
   float gamma    = 0.000001;// the initial stepsize
   float h_linear = 0.01; // gradient difference
   float h_radial = 0.0001;
@@ -957,7 +958,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     }
 
     // print of the gradients if debugging
-    if (true){
+    if (local_debug){
       std::cout << "\t gradient calculated as: " << std::endl;
       for (int j = 0; j < images.size(); j++) {
         std::cout << "\t\t     id : " << std::setprecision(12) << j << std::endl;
@@ -989,7 +990,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // print the adjustment
     // TODO remove this later
-    if (true){
+    if (local_debug){
       std::cout << "\t adjustment calculated as: " << std::endl;
       std::cout << "\t\t  0" << std::endl;
       std::cout << "\t\t  pos x [ " << std::setprecision(12) << adjustment.cam_pos0.x << " ]" << std::endl;
@@ -1055,7 +1056,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
             float denom = (gtemp.cam_pos1.x * gtemp.cam_pos1.x) + (gtemp.cam_pos1.y * gtemp.cam_pos1.y) + (gtemp.cam_pos1.z * gtemp.cam_pos1.z);
             // denom += (gtemp.cam_rot1.x * gtemp.cam_rot1.x) + (gtemp.cam_rot1.y * gtemp.cam_rot1.y) + (gtemp.cam_rot1.z * gtemp.cam_rot1.z);
             denom  = sqrtf(denom);
-      gamma = numer / denom;
+      gamma = abs(numer) / denom;
     }
 
     // print the new error after the step
