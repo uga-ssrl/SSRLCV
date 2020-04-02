@@ -169,6 +169,11 @@ int main(int argc, char *argv[]){
       // save an error cloud just for testing
       demPoints.saveDebugLinearErrorCloud(&matchSet,images,"LinearErrorsVisualized");
 
+      // OPTIONAL
+      // a sensitivity analysis allows one to view the functions and camera parameter derivates pre bundles adjustment
+      // this should not be used in produciton and is really only useful for debugging optimizers used in bundle adjustment
+      demPoints.generateSensitivityFunctions(&matchSet,images,"sensitivity");
+
       // starting bundle adjustment here
       std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
       points = demPoints.BundleAdjustTwoView(&matchSet,images);

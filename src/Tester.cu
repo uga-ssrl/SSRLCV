@@ -178,9 +178,9 @@ int main(int argc, char *argv[]){
     float OG_a = images[1]->camera.cam_rot.y;
 
     // sensitivity test
-    float linearRange   = 2.0;    // +/- linear Range
-    float angularRange  = PI/4.0; // +/- angular Range
-    float deltaX = 0.0001;       // simulates stepsize
+    float linearRange   = 10.0;    // +/- linear Range
+    float angularRange  = PI; // +/- angular Range
+    float deltaX = 0.01;       // simulates stepsize
     float deltaT = 0.0001;     // simulates stpesize
 
     float* linearError = (float*)malloc(sizeof(float));

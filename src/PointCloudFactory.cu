@@ -1431,6 +1431,104 @@ void ssrlcv::PointCloudFactory::saveViewNumberCloud(ssrlcv::MatchSet* matchSet, 
   ssrlcv::writePLY(filename, cpoints, matchSet->matches->size());
 }
 
+/**
+ * Saves several CSV's which have (x,y) coordinates representing step the step from an intial condution and
+ * the output error for that condition, this should be graphed
+ * @param matchSet a group of matches
+ * @param images a group of images, used only for their stored camera parameters
+ * @param filename the name of the file that should be saved
+ */
+void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, const char* filename){
+
+  // the main boiz
+  Unity<float3>* points;
+  BundleSet bundleSet;
+
+  // the ranges and step sizes
+  float2 linearRange   = {-10.0, 10.0};       // +/- linear Range
+  float2 angularRange  = {(-1.0 * PI), PI};   // +/- angular Range
+  float deltaL = 0.01;          // linearRange stepsize
+  float deltaA = 0.001;        // angular stpesize
+
+  // the temp error to be stored
+  float* currError = (float*)malloc(sizeof(float));
+  float curr = 0.0f;
+
+  // TRACKERS
+  std::vector<float> trackerXL;
+  std::vector<float> trackerYL;
+  std::vector<float> trackerZL;
+  std::vector<float> trackerXA;
+  std::vector<float> trackerYA;
+  std::vector<float> trackerZA;
+
+  // the temp cameras
+  std::vector<ssrlcv::Image*> temp;
+  for (int i = 0; i < images.size(); i++){
+    temp.push_back(images[i]); // fill in the initial images
+  }
+
+
+  if (images.size() == 2){
+    //
+    // 2-View Case
+    //
+
+    std::cout << "WARNING!!!"
+    std::cout << "WARNING: Starting an intesive debug feature, this should be disabled in production" << std::endl;
+    std::cout << "WARNING: DISABLE GENERATE SENSITIVITY FUNCTIONS IN PRODUCTION!!" << std::endl;
+
+    //
+    // DELTA X Linear
+    //
+    curr = linearRange.x;
+    while (curr < linearRange.y){
+      bundleSet = generateBundles(&matchSet,temp);
+      points = twoViewTriangulate(bundleSet, currError);
+      temp[1]->camera.cam_pos.x = curr;
+      trackerXL.push_back(*currError);
+      curr += deltaL; // step
+    }
+    // reset
+    temp[1]->camera.cam_pos.x = images[1]->camera.cam_pos.x;
+    // save the file
+    std::string name = filename + "_DeltaXLinear";
+    writeCSV(linearTracker, name);
+
+    //
+    // DELTA Y Linear
+    //
+
+
+    //
+    // DELTA Z Linear
+    //
+
+    //
+    // DELTA X Angular
+    //
+
+    //
+    // DELTA Y Angular
+    //
+
+    //
+    // DELTA Z Angular
+    //
+
+  } else {
+    //
+    // N-View Case
+    //
+
+    std::cerr << "ERROR: sensitivity generation not yet implemented for N-view" << std::endl;
+    return;
+  }
+
+
+
+}
+
 // =============================================================================================================
 //
 // Filtering Methods
