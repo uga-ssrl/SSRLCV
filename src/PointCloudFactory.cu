@@ -1487,14 +1487,15 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
   BundleSet bundleSet;
 
   // the ranges and step sizes
-  float2 linearRange   = 10.0;     //   +/- linear Range
-  float2 angularRange  = (PI/4);   //   +/- angular Range
+  float linearRange   = 10.0;     //   +/- linear Range
+  float angularRange  = (PI/4);   //   +/- angular Range
   float deltaL = 0.1;          // linearRange stepsize
   float deltaA = 0.001;        // angular stpesize
 
   // the temp error to be stored
   float* currError = (float*)malloc(sizeof(float));
-  float curr = 0.0f;
+  float start;
+  float end;
 
   // TRACKERS
   std::vector<float> trackerValue;
@@ -1506,7 +1507,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     temp.push_back(images[i]); // fill in the initial images
   }
 
-  if (images.size() == 2){
+  if (images.size() == 2){     
     //
     // 2-View Case
     //
@@ -1521,8 +1522,8 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // DELTA X Linear
     //
     std::cout << "\tTesting x linear sensitivity ..." << std::endl;
-    float start = temp[1]->camera.cam_pos.x - linearRange;
-    float end   = temp[1]->camera.cam_pos.x + linearRange;
+    start = temp[1]->camera.cam_pos.x - linearRange;
+    end   = temp[1]->camera.cam_pos.x + linearRange;
     temp[1]->camera.cam_pos.x = start;
     while (temp[1]->camera.cam_pos.x < end){
       bundleSet = generateBundles(matchSet,temp);
@@ -1545,8 +1546,8 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // DELTA Y Linear
     //
     std::cout << "\tTesting y linear sensitivity ..." << std::endl;
-    float start = temp[1]->camera.cam_pos.y - linearRange;
-    float end   = temp[1]->camera.cam_pos.y + linearRange;
+    start = temp[1]->camera.cam_pos.y - linearRange;
+    end   = temp[1]->camera.cam_pos.y + linearRange;
     temp[1]->camera.cam_pos.y = start;
     while (temp[1]->camera.cam_pos.y < end){
       bundleSet = generateBundles(matchSet,temp);
@@ -1569,8 +1570,8 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // DELTA Z Linear
     //
     std::cout << "\tTesting z linear sensitivity ..." << std::endl;
-    float start = temp[1]->camera.cam_pos.z - linearRange;
-    float end   = temp[1]->camera.cam_pos.z + linearRange;
+    start = temp[1]->camera.cam_pos.z - linearRange;
+    end   = temp[1]->camera.cam_pos.z + linearRange;
     temp[1]->camera.cam_pos.y = start;
     while (temp[1]->camera.cam_pos.z < end){
       bundleSet = generateBundles(matchSet,temp);
@@ -1593,8 +1594,8 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // DELTA X Angular
     //
     std::cout << "\tTesting x angular sensitivity ..." << std::endl;
-    float start = temp[1]->camera.cam_rot.x - linearRange;
-    float end   = temp[1]->camera.cam_rot.x + linearRange;
+    start = temp[1]->camera.cam_rot.x - angularRange;
+    end   = temp[1]->camera.cam_rot.x + angularRange;
     temp[1]->camera.cam_rot.x = start;
     while (temp[1]->camera.cam_rot.x < end){
       bundleSet = generateBundles(matchSet,temp);
@@ -1617,8 +1618,8 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // DELTA Y Angular
     //
     std::cout << "\tTesting y angular sensitivity ..." << std::endl;
-    float start = temp[1]->camera.cam_rot.y - linearRange;
-    float end   = temp[1]->camera.cam_rot.y + linearRange;
+    start = temp[1]->camera.cam_rot.y - angularRange;
+    end   = temp[1]->camera.cam_rot.y + angularRange;
     temp[1]->camera.cam_rot.y = start;
     while (temp[1]->camera.cam_rot.y < end){
       bundleSet = generateBundles(matchSet,temp);
@@ -1641,8 +1642,8 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // DELTA Z Angular
     //
     std::cout << "\tTesting z angular sensitivity ..." << std::endl;
-    float start = temp[1]->camera.cam_rot.z - linearRange;
-    float end   = temp[1]->camera.cam_rot.z + linearRange;
+    start = temp[1]->camera.cam_rot.z - angularRange;
+    end   = temp[1]->camera.cam_rot.z + angularRange;
     temp[1]->camera.cam_rot.z = start;
     while (temp[1]->camera.cam_rot.z < end){
       bundleSet = generateBundles(matchSet,temp);
