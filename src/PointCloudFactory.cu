@@ -1489,6 +1489,9 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
   std::vector<float> trackerValue;
   std::vector<float> trackerError;
 
+  // the camera to refrence when doing the sensitivity test
+  int ref_cam = 0;
+
   // the temp cameras
   std::vector<ssrlcv::Image*> temp;
   for (int i = 0; i < images.size(); i++){
@@ -1510,15 +1513,15 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // DELTA X Linear
     //
     std::cout << "\tTesting x linear sensitivity ..." << std::endl;
-    start = temp[1]->camera.cam_pos.x - linearRange;
-    end   = temp[1]->camera.cam_pos.x + linearRange;
-    temp[1]->camera.cam_pos.x = start;
-    while (temp[1]->camera.cam_pos.x < end){
+    start = temp[ref_cam]->camera.cam_pos.x - linearRange;
+    end   = temp[ref_cam]->camera.cam_pos.x + linearRange;
+    temp[ref_cam]->camera.cam_pos.x = start;
+    while (temp[ref_cam]->camera.cam_pos.x < end){
       bundleSet = generateBundles(matchSet,temp);
       voidTwoViewTriangulate(bundleSet, currError);
-      trackerValue.push_back(temp[1]->camera.cam_pos.x);
+      trackerValue.push_back(temp[ref_cam]->camera.cam_pos.x);
       trackerError.push_back(*currError);
-      temp[1]->camera.cam_pos.x += deltaL;
+      temp[ref_cam]->camera.cam_pos.x += deltaL;
       // free up Memory
       delete bundleSet.bundles;
       delete bundleSet.lines;
@@ -1526,7 +1529,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // save the file
     writeCSV(trackerValue, trackerError, filename + "_DeltaXLinear");
     // reset
-    temp[1]->camera.cam_pos.x = images[1]->camera.cam_pos.x;
+    temp[ref_cam]->camera.cam_pos.x = images[ref_cam]->camera.cam_pos.x;
     // free up memory
     trackerValue.clear();
     trackerError.clear();
@@ -1535,15 +1538,15 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // DELTA Y Linear
     //
     std::cout << "\tTesting y linear sensitivity ..." << std::endl;
-    start = temp[1]->camera.cam_pos.y - linearRange;
-    end   = temp[1]->camera.cam_pos.y + linearRange;
-    temp[1]->camera.cam_pos.y = start;
-    while (temp[1]->camera.cam_pos.y < end){
+    start = temp[ref_cam]->camera.cam_pos.y - linearRange;
+    end   = temp[ref_cam]->camera.cam_pos.y + linearRange;
+    temp[ref_cam]->camera.cam_pos.y = start;
+    while (temp[ref_cam]->camera.cam_pos.y < end){
       bundleSet = generateBundles(matchSet,temp);
       voidTwoViewTriangulate(bundleSet, currError);
-      trackerValue.push_back(temp[1]->camera.cam_pos.y);
+      trackerValue.push_back(temp[ref_cam]->camera.cam_pos.y);
       trackerError.push_back(*currError);
-      temp[1]->camera.cam_pos.y += deltaL;
+      temp[ref_cam]->camera.cam_pos.y += deltaL;
       // free up Memory
       delete bundleSet.bundles;
       delete bundleSet.lines;
@@ -1551,7 +1554,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // save the file
     writeCSV(trackerValue, trackerError, filename + "_DeltaYLinear");
     // reset
-    temp[1]->camera.cam_pos.y = images[1]->camera.cam_pos.y;
+    temp[ref_cam]->camera.cam_pos.y = images[ref_cam]->camera.cam_pos.y;
     // free up memory
     trackerValue.clear();
     trackerError.clear();
@@ -1560,15 +1563,15 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // DELTA Z Linear
     //
     std::cout << "\tTesting z linear sensitivity ..." << std::endl;
-    start = temp[1]->camera.cam_pos.z - linearRange;
-    end   = temp[1]->camera.cam_pos.z + linearRange;
-    temp[1]->camera.cam_pos.y = start;
-    while (temp[1]->camera.cam_pos.z < end){
+    start = temp[ref_cam]->camera.cam_pos.z - linearRange;
+    end   = temp[ref_cam]->camera.cam_pos.z + linearRange;
+    temp[ref_cam]->camera.cam_pos.y = start;
+    while (temp[ref_cam]->camera.cam_pos.z < end){
       bundleSet = generateBundles(matchSet,temp);
       voidTwoViewTriangulate(bundleSet, currError);
-      trackerValue.push_back(temp[1]->camera.cam_pos.z);
+      trackerValue.push_back(temp[ref_cam]->camera.cam_pos.z);
       trackerError.push_back(*currError);
-      temp[1]->camera.cam_pos.z += deltaL;
+      temp[ref_cam]->camera.cam_pos.z += deltaL;
       // free up Memory
       delete bundleSet.bundles;
       delete bundleSet.lines;
@@ -1576,7 +1579,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // save the file
     writeCSV(trackerValue, trackerError, filename + "_DeltaZLinear");
     // reset
-    temp[1]->camera.cam_pos.y = images[1]->camera.cam_pos.y;
+    temp[ref_cam]->camera.cam_pos.y = images[ref_cam]->camera.cam_pos.y;
     // free up memory
     trackerValue.clear();
     trackerError.clear();
@@ -1585,15 +1588,15 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // DELTA X Angular
     //
     std::cout << "\tTesting x angular sensitivity ..." << std::endl;
-    start = temp[1]->camera.cam_rot.x - angularRange;
-    end   = temp[1]->camera.cam_rot.x + angularRange;
-    temp[1]->camera.cam_rot.x = start;
-    while (temp[1]->camera.cam_rot.x < end){
+    start = temp[ref_cam]->camera.cam_rot.x - angularRange;
+    end   = temp[ref_cam]->camera.cam_rot.x + angularRange;
+    temp[ref_cam]->camera.cam_rot.x = start;
+    while (temp[ref_cam]->camera.cam_rot.x < end){
       bundleSet = generateBundles(matchSet,temp);
       voidTwoViewTriangulate(bundleSet, currError);
-      trackerValue.push_back(temp[1]->camera.cam_rot.x);
+      trackerValue.push_back(temp[ref_cam]->camera.cam_rot.x);
       trackerError.push_back(*currError);
-      temp[1]->camera.cam_rot.x += deltaA;
+      temp[ref_cam]->camera.cam_rot.x += deltaA;
       // free up Memory
       delete bundleSet.bundles;
       delete bundleSet.lines;
@@ -1601,7 +1604,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // save the file
     writeCSV(trackerValue, trackerError, filename + "_DeltaXAngular");
     // reset
-    temp[1]->camera.cam_rot.x = images[1]->camera.cam_rot.x;
+    temp[ref_cam]->camera.cam_rot.x = images[ref_cam]->camera.cam_rot.x;
     // free up memory
     trackerValue.clear();
     trackerError.clear();
@@ -1610,15 +1613,15 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // DELTA Y Angular
     //
     std::cout << "\tTesting y angular sensitivity ..." << std::endl;
-    start = temp[1]->camera.cam_rot.y - angularRange;
-    end   = temp[1]->camera.cam_rot.y + angularRange;
-    temp[1]->camera.cam_rot.y = start;
-    while (temp[1]->camera.cam_rot.y < end){
+    start = temp[ref_cam]->camera.cam_rot.y - angularRange;
+    end   = temp[ref_cam]->camera.cam_rot.y + angularRange;
+    temp[ref_cam]->camera.cam_rot.y = start;
+    while (temp[ref_cam]->camera.cam_rot.y < end){
       bundleSet = generateBundles(matchSet,temp);
       voidTwoViewTriangulate(bundleSet, currError);
-      trackerValue.push_back(temp[1]->camera.cam_rot.y);
+      trackerValue.push_back(temp[ref_cam]->camera.cam_rot.y);
       trackerError.push_back(*currError);
-      temp[1]->camera.cam_rot.y += deltaA;
+      temp[ref_cam]->camera.cam_rot.y += deltaA;
       // free up Memory
       delete bundleSet.bundles;
       delete bundleSet.lines;
@@ -1626,7 +1629,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // save the file
     writeCSV(trackerValue, trackerError, filename + "_DeltaYAngular");
     // reset
-    temp[1]->camera.cam_rot.y = images[1]->camera.cam_rot.y;
+    temp[ref_cam]->camera.cam_rot.y = images[ref_cam]->camera.cam_rot.y;
     // free up memory
     trackerValue.clear();
     trackerError.clear();
@@ -1635,15 +1638,15 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // DELTA Z Angular
     //
     std::cout << "\tTesting z angular sensitivity ..." << std::endl;
-    start = temp[1]->camera.cam_rot.z - angularRange;
-    end   = temp[1]->camera.cam_rot.z + angularRange;
-    temp[1]->camera.cam_rot.z = start;
-    while (temp[1]->camera.cam_rot.z < end){
+    start = temp[ref_cam]->camera.cam_rot.z - angularRange;
+    end   = temp[ref_cam]->camera.cam_rot.z + angularRange;
+    temp[ref_cam]->camera.cam_rot.z = start;
+    while (temp[ref_cam]->camera.cam_rot.z < end){
       bundleSet = generateBundles(matchSet,temp);
       voidTwoViewTriangulate(bundleSet, currError);
-      trackerValue.push_back(temp[1]->camera.cam_rot.z);
+      trackerValue.push_back(temp[ref_cam]->camera.cam_rot.z);
       trackerError.push_back(*currError);
-      temp[1]->camera.cam_rot.z += deltaA;
+      temp[ref_cam]->camera.cam_rot.z += deltaA;
       // free up Memory
       delete bundleSet.bundles;
       delete bundleSet.lines;
@@ -1651,7 +1654,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // save the file
     writeCSV(trackerValue, trackerError, filename + "_DeltaZAngular");
     // reset
-    temp[1]->camera.cam_rot.z = images[1]->camera.cam_rot.z;
+    temp[ref_cam]->camera.cam_rot.z = images[ref_cam]->camera.cam_rot.z;
     // free up memory
     trackerValue.clear();
     trackerError.clear();
