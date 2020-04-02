@@ -108,14 +108,14 @@ int main(int argc, char *argv[]){
 
 
     // center point tests
-
+    /*
     ssrlcv::Match* matches_host = new ssrlcv::Match[1];
     ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 1, ssrlcv::cpu);
     matches->host[0].keyPoints[0].parentId = 0;
     matches->host[0].keyPoints[0].loc = {512.0,512.0};
     matches->host[0].keyPoints[1].parentId = 1;
     matches->host[0].keyPoints[1].loc = {512.0,512.0};
-
+    */
 
     //
     // 2 View Case
