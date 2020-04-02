@@ -664,7 +664,7 @@ void ssrlcv::writeCSV(float* values, int num, std::string filename){
   outfile.open("out/" + filename + ".csv");
   // the stupid method of doing this would be to just write it all on the same line ... that's what I'm going to do!
   // other overloaded versions of this method will handle more robust types of inputs and saving and so on.
-  for(int i = 0; i < num; i++) outfile << std::setprecision(32) << std::to_string(values[i]) << ",";
+  for(int i = 0; i < num; i++) outfile << std::fixed << std::setprecision(32) << std::to_string(values[i]) << ",";
   outfile.close();
 }
 
@@ -676,13 +676,31 @@ void ssrlcv::writeCSV(float* values, int num, std::string filename){
 void ssrlcv::writeCSV(std::vector<float> v, std::string filename){
   std::ofstream outfile;
   outfile.open("out/" + filename + ".csv");
-  for (int i = 0; i < v.size(); i++) outfile << std::setprecision(32) << v[i] << ",";
+  for (int i = 0; i < v.size(); i++) outfile << std::fixed << std::setprecision(32) << v[i] << ",";
   outfile.close();
 }
 
-//
-// Binary files - Gitlab #58
-//
+/*
+ * Takes in two c++ vectors and writes their values as:
+ * `x,y` on a single line for all values in a CSV encoeded format
+ * all pairs are on a new line. Assumes the vectors are the same size
+ * @param x a vector of x float values
+ * @param y a vector of y float values
+ * @param filename a string representing the desired filename of the csv output
+ */
+void ssrlcv::writeCSV(std::vector<float> x, std::vector<float> y, std::string filename){
+  if (x.size() != y.size()){
+    std::cerr << "CSV ERROR: Vectors are not the same size!" << std::endl;
+    return;
+  }
+  std::ofstream outfile;
+  outfile.open("out/" + filename + ".csv");
+  for (int i = 0; i < x.size(); i++) {
+      outfile << std::fixed << std::setprecision(32) << x[i] << "," << y[i] << std::endl;
+  }
+  outfile.close();
+}
+
 
 
 

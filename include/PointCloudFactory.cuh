@@ -123,6 +123,14 @@ namespace ssrlcv{
      * @param bundleSet a set of lines and bundles that should be triangulated
      * @param the individual linear errors (for use in debugging and histogram)
      * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
+     */
+    void voidTwoViewTriangulate(BundleSet bundleSet, float* linearError);
+
+    /**
+     * Same method as two view triangulation, but all that is desired fro this method is a calculation of the linearError
+     * @param bundleSet a set of lines and bundles that should be triangulated
+     * @param the individual linear errors (for use in debugging and histogram)
+     * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
      * @param linearErrorCutoff is a value that all linear errors should be less than. points with larger errors are discarded.
      */
     void voidTwoViewTriangulate(BundleSet bundleSet, float* linearError, float* linearErrorCutof);

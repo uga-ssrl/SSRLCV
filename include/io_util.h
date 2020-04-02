@@ -289,6 +289,16 @@ struct arg
    */
   void writeCSV(std::vector<float> v, std::string filename);
 
+  /*
+   * Takes in two c++ vectors and writes their values as:
+   * `x,y` on a single line for all values in a CSV encoeded format
+   * all pairs are on a new line. Assumes the vectors are the same size
+   * @param x a vector of x float values
+   * @param y a vector of y float values
+   * @param filename a string representing the desired filename of the csv output
+   */
+  void writeCSV(std::vector<float> x, std::vector<float> y, std::string filename);
+
   //
   // Binary files - Gitlab #58
   //
