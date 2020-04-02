@@ -172,7 +172,8 @@ int main(int argc, char *argv[]){
       // OPTIONAL
       // a sensitivity analysis allows one to view the functions and camera parameter derivates pre bundles adjustment
       // this should not be used in produciton and is really only useful for debugging optimizers used in bundle adjustment
-      demPoints.generateSensitivityFunctions(&matchSet,images,"sensitivity");
+      std::string temp_filename = "sensitivity";
+      demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename);
 
       // starting bundle adjustment here
       std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;

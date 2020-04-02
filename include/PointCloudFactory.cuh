@@ -247,7 +247,7 @@ namespace ssrlcv{
      * @param images a group of images, used only for their stored camera parameters
      * @param filename the name of the file that should be saved
      */
-    void generateSensitivityFunctions(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, const char* filename);
+    void generateSensitivityFunctions(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, std::string filename);
 
     // =============================================================================================================
     //

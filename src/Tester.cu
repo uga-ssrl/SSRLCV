@@ -66,7 +66,7 @@ int main(int argc, char *argv[]){
 
 
     // fake 2-view cube
-    /*
+
     ssrlcv::Match* matches_host = new ssrlcv::Match[9];
     ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 9, ssrlcv::cpu);
     matches->host[0].keyPoints[0].parentId = 0;
@@ -105,7 +105,7 @@ int main(int argc, char *argv[]){
     matches->host[8].keyPoints[0].loc = {512.0,512.0};
     matches->host[8].keyPoints[1].parentId = 1;
     matches->host[8].keyPoints[1].loc = {512.0,512.0};
-    */
+
 
     // center point tests
 
@@ -143,7 +143,7 @@ int main(int argc, char *argv[]){
     //
     // 2-view test
     //
-    /*
+
     std::cout << "Attempting 2-view Triangulation" << std::endl;
 
     float* linearError = (float*)malloc(sizeof(float));
@@ -155,6 +155,12 @@ int main(int argc, char *argv[]){
     std::cout << "\t writing initial PLY ..." << std::endl;
     demPoints.saveDebugCloud(points, bundleSet, images, "initial");
 
+    // Test SENSITIVITY
+    std::string temp_filename = "sensitivity";
+    demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename);
+
+
+    /*
     //
     // now start a test of bundle adjustment
     //
@@ -174,65 +180,6 @@ int main(int argc, char *argv[]){
     points = demPoints.BundleAdjustTwoView(&matchSet,images);
     */
 
-    float OG_y = images[1]->camera.cam_pos.y;
-    float OG_a = images[1]->camera.cam_rot.y;
-
-    // sensitivity test
-    float linearRange   = 10.0;    // +/- linear Range
-    float angularRange  = PI; // +/- angular Range
-    float deltaX = 0.01;       // simulates stepsize
-    float deltaT = 0.0001;     // simulates stpesize
-
-    float* linearError = (float*)malloc(sizeof(float));
-    float* angularError = (float*)malloc(sizeof(float));
-    float* doubleAngleError = (float*)malloc(sizeof(float));
-    *linearError  = 0.0f;
-    *angularError = 0.0f;
-    *doubleAngleError = 0.0f;
-
-    std::vector<float> linearTracker;
-    std::vector<float> angularTracker;
-    std::vector<float> dubAngularTracker;
-
-    // get the linear range
-    std::cout << "calculating linear sensitivity ..." << std::endl;
-    images[1]->camera.cam_pos.y = OG_y - linearRange;
-    while (images[1]->camera.cam_pos.y < OG_y + linearRange){
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-      points = demPoints.twoViewTriangulate(bundleSet, linearError);
-      images[1]->camera.cam_pos.y += deltaX;
-      linearTracker.push_back(*linearError);
-    }
-
-    // get the angular range
-    std::cout << "calculating angular sensitivity ..." << std::endl;
-    images[1]->camera.cam_pos.y = OG_y;
-    images[1]->camera.cam_rot.y -= angularRange;
-    while (images[1]->camera.cam_rot.y < OG_a + angularRange){
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-      points = demPoints.twoViewTriangulate(bundleSet, angularError);
-      images[1]->camera.cam_rot.y += deltaT;
-      angularTracker.push_back(*angularError);
-    }
-
-    // get the angular range
-    std::cout << "calculating double angular sensitivity ..." << std::endl;
-    images[1]->camera.cam_pos.y = OG_y;
-    images[1]->camera.cam_rot.y = OG_a;
-    images[1]->camera.cam_rot.y -= angularRange;
-    while (images[1]->camera.cam_rot.y < OG_a + angularRange){
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-      points = demPoints.twoViewTriangulate(bundleSet, doubleAngleError);
-      images[1]->camera.cam_rot.y += deltaT;
-      images[1]->camera.cam_rot.z += deltaT;
-      dubAngularTracker.push_back(*doubleAngleError);
-    }
-
-
-    // save the sensitivity data
-    ssrlcv::writeCSV(linearTracker, "linearSensitivity");
-    ssrlcv::writeCSV(angularTracker, "angularSensitivity");
-    ssrlcv::writeCSV(dubAngularTracker, "dubAngularSensitivity");
 
     // cleanup
     delete points;

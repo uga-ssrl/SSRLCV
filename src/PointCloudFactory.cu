@@ -1438,7 +1438,7 @@ void ssrlcv::PointCloudFactory::saveViewNumberCloud(ssrlcv::MatchSet* matchSet, 
  * @param images a group of images, used only for their stored camera parameters
  * @param filename the name of the file that should be saved
  */
-void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, const char* filename){
+void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, std::string filename){
 
   // the main boiz
   Unity<float3>* points;
@@ -1474,16 +1474,17 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // 2-View Case
     //
 
-    std::cout << "WARNING!!!"
+    std::cout << "WARNING!!!" << std::endl;
     std::cout << "WARNING: Starting an intesive debug feature, this should be disabled in production" << std::endl;
     std::cout << "WARNING: DISABLE GENERATE SENSITIVITY FUNCTIONS IN PRODUCTION!!" << std::endl;
 
     //
     // DELTA X Linear
     //
+    std::cout << "Testing x linear sensitivity ..." << std::endl;
     curr = linearRange.x;
     while (curr < linearRange.y){
-      bundleSet = generateBundles(&matchSet,temp);
+      bundleSet = generateBundles(matchSet,temp);
       points = twoViewTriangulate(bundleSet, currError);
       temp[1]->camera.cam_pos.x = curr;
       trackerXL.push_back(*currError);
@@ -1492,17 +1493,41 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // reset
     temp[1]->camera.cam_pos.x = images[1]->camera.cam_pos.x;
     // save the file
-    std::string name = filename + "_DeltaXLinear";
-    writeCSV(linearTracker, name);
+    writeCSV(trackerXL, filename + "_DeltaXLinear");
 
     //
     // DELTA Y Linear
     //
-
+    std::cout << "Testing y linear sensitivity ..." << std::endl;
+    curr = linearRange.x;
+    while (curr < linearRange.y){
+      bundleSet = generateBundles(matchSet,temp);
+      points = twoViewTriangulate(bundleSet, currError);
+      temp[1]->camera.cam_pos.y = curr;
+      trackerYL.push_back(*currError);
+      curr += deltaL; // step
+    }
+    // reset
+    temp[1]->camera.cam_pos.y = images[1]->camera.cam_pos.y;
+    // save the file
+    writeCSV(trackerYL, filename + "_DeltaYLinear");
 
     //
     // DELTA Z Linear
     //
+    std::cout << "Testing z linear sensitivity ..." << std::endl;
+    curr = linearRange.x;
+    while (curr < linearRange.y){
+      bundleSet = generateBundles(matchSet,temp);
+      points = twoViewTriangulate(bundleSet, currError);
+      temp[1]->camera.cam_pos.z = curr;
+      trackerZL.push_back(*currError);
+      curr += deltaL; // step
+    }
+    // reset
+    temp[1]->camera.cam_pos.z = images[1]->camera.cam_pos.z;
+    // save the file
+    writeCSV(trackerZL, filename + "_DeltaZLinear");
 
     //
     // DELTA X Angular
