@@ -472,9 +472,6 @@ void ssrlcv::PointCloudFactory::voidTwoViewTriangulate(BundleSet bundleSet, floa
   bundleSet.lines->transferMemoryTo(gpu);
   bundleSet.bundles->transferMemoryTo(gpu);
 
-  // Unity<float3>* pointcloud = new Unity<float3>(nullptr,2*bundleSet.bundles->numElements,gpu);
-  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
-
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(float*, unsigned long, Bundle::Line*, Bundle*) = &voidComputeTwoViewTriangulate;
@@ -485,9 +482,6 @@ void ssrlcv::PointCloudFactory::voidTwoViewTriangulate(BundleSet bundleSet, floa
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  // transfer the poitns back to the CPU
-  pointcloud->transferMemoryTo(cpu);
-  pointcloud->clear(gpu);
   // clear the other boiz
   bundleSet.lines->clear(gpu);
   bundleSet.bundles->clear(gpu);
@@ -521,9 +515,6 @@ void ssrlcv::PointCloudFactory::voidTwoViewTriangulate(BundleSet bundleSet, floa
   bundleSet.lines->transferMemoryTo(gpu);
   bundleSet.bundles->transferMemoryTo(gpu);
 
-  // Unity<float3>* pointcloud = new Unity<float3>(nullptr,2*bundleSet.bundles->numElements,gpu);
-  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
-
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(float*, float*, unsigned long, Bundle::Line*, Bundle*) = &voidComputeTwoViewTriangulate;
@@ -534,9 +525,6 @@ void ssrlcv::PointCloudFactory::voidTwoViewTriangulate(BundleSet bundleSet, floa
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  // transfer the poitns back to the CPU
-  pointcloud->transferMemoryTo(cpu);
-  pointcloud->clear(gpu);
   // clear the other boiz
   bundleSet.lines->clear(gpu);
   bundleSet.bundles->clear(gpu);
@@ -1488,8 +1476,8 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
 
   // the ranges and step sizes
   float linearRange   = 10.0;     //   +/- linear Range
-  float angularRange  = (PI/4);   //   +/- angular Range
-  float deltaL = 0.1;          // linearRange stepsize
+  float angularRange  = (PI);   //   +/- angular Range
+  float deltaL = 0.01;          // linearRange stepsize
   float deltaA = 0.001;        // angular stpesize
 
   // the temp error to be stored
@@ -1507,7 +1495,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     temp.push_back(images[i]); // fill in the initial images
   }
 
-  if (images.size() == 2){     
+  if (images.size() == 2){
     //
     // 2-View Case
     //
@@ -1531,6 +1519,9 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
       trackerValue.push_back(temp[1]->camera.cam_pos.x);
       trackerError.push_back(*currError);
       temp[1]->camera.cam_pos.x += deltaL;
+      // free up Memory
+      delete bundleSet.bundles;
+      delete bundleSet.lines;
     }
     // save the file
     writeCSV(trackerValue, trackerError, filename + "_DeltaXLinear");
@@ -1539,8 +1530,6 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // free up memory
     trackerValue.clear();
     trackerError.clear();
-    delete bundleSet.bundles;
-    delete bundleSet.lines;
 
     //
     // DELTA Y Linear
@@ -1555,6 +1544,9 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
       trackerValue.push_back(temp[1]->camera.cam_pos.y);
       trackerError.push_back(*currError);
       temp[1]->camera.cam_pos.y += deltaL;
+      // free up Memory
+      delete bundleSet.bundles;
+      delete bundleSet.lines;
     }
     // save the file
     writeCSV(trackerValue, trackerError, filename + "_DeltaYLinear");
@@ -1563,8 +1555,6 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // free up memory
     trackerValue.clear();
     trackerError.clear();
-    delete bundleSet.bundles;
-    delete bundleSet.lines;
 
     //
     // DELTA Z Linear
@@ -1579,6 +1569,9 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
       trackerValue.push_back(temp[1]->camera.cam_pos.z);
       trackerError.push_back(*currError);
       temp[1]->camera.cam_pos.z += deltaL;
+      // free up Memory
+      delete bundleSet.bundles;
+      delete bundleSet.lines;
     }
     // save the file
     writeCSV(trackerValue, trackerError, filename + "_DeltaZLinear");
@@ -1587,8 +1580,6 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // free up memory
     trackerValue.clear();
     trackerError.clear();
-    delete bundleSet.bundles;
-    delete bundleSet.lines;
 
     //
     // DELTA X Angular
@@ -1603,6 +1594,9 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
       trackerValue.push_back(temp[1]->camera.cam_rot.x);
       trackerError.push_back(*currError);
       temp[1]->camera.cam_rot.x += deltaA;
+      // free up Memory
+      delete bundleSet.bundles;
+      delete bundleSet.lines;
     }
     // save the file
     writeCSV(trackerValue, trackerError, filename + "_DeltaXAngular");
@@ -1611,8 +1605,6 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // free up memory
     trackerValue.clear();
     trackerError.clear();
-    delete bundleSet.bundles;
-    delete bundleSet.lines;
 
     //
     // DELTA Y Angular
@@ -1627,6 +1619,9 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
       trackerValue.push_back(temp[1]->camera.cam_rot.y);
       trackerError.push_back(*currError);
       temp[1]->camera.cam_rot.y += deltaA;
+      // free up Memory
+      delete bundleSet.bundles;
+      delete bundleSet.lines;
     }
     // save the file
     writeCSV(trackerValue, trackerError, filename + "_DeltaYAngular");
@@ -1635,8 +1630,6 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // free up memory
     trackerValue.clear();
     trackerError.clear();
-    delete bundleSet.bundles;
-    delete bundleSet.lines;
 
     //
     // DELTA Z Angular
@@ -1651,6 +1644,9 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
       trackerValue.push_back(temp[1]->camera.cam_rot.z);
       trackerError.push_back(*currError);
       temp[1]->camera.cam_rot.z += deltaA;
+      // free up Memory
+      delete bundleSet.bundles;
+      delete bundleSet.lines;
     }
     // save the file
     writeCSV(trackerValue, trackerError, filename + "_DeltaZAngular");
@@ -1659,8 +1655,6 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // free up memory
     trackerValue.clear();
     trackerError.clear();
-    delete bundleSet.bundles;
-    delete bundleSet.lines;
 
   } else {
     //

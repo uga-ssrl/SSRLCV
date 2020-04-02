@@ -156,8 +156,20 @@ int main(int argc, char *argv[]){
     demPoints.saveDebugCloud(points, bundleSet, images, "initial");
 
     // Test SENSITIVITY
-    std::string temp_filename = "sensitivity";
-    demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename);
+    std::string temp_filename1 = "pre-noise";
+    demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename1);
+
+    // add some noisey stuff to the image to see the heck is up
+    images[1]->camera.cam_pos.x += 1.0;
+    images[1]->camera.cam_pos.y += 0.4;
+    images[1]->camera.cam_pos.z -= 0.7;
+    images[1]->camera.cam_rot.x += (PI/16);
+    images[1]->camera.cam_rot.y -= (PI/20);
+    images[1]->camera.cam_rot.z += (PI/40);
+
+    // Test SENSITIVITY
+    std::string temp_filename2 = "post-noise";
+    demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename2);
 
 
     /*
