@@ -343,6 +343,8 @@ namespace ssrlcv{
 
   __global__ void computeTwoViewTriangulate_b(float* linearError, float* linearErrorCutoff, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3_b* pointcloud);
 
+  __global__ void voidComputeTwoViewTriangulate(float* linearError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles);
+
   __global__ void voidComputeTwoViewTriangulate(float* linearError, float* linearErrorCutoff, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles);
 
   __global__ void two_view_reproject(int numMatches, float4* matches, float cam1C[3],
