@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 if (len(sys.argv) < 3):
     print("NOT ENOUGH ARGUMENTS")
     print("USAGE:")
-    print("\npython3 2dplotcsv.py file/path/to/file.csv xlabel ylabel\n")
+    print("\npython3 plot-x-y.py file/path/to/file.csv xlabel ylabel\n")
     print("\t <> file.csv -- a path to a csv file that you want to graph")
     print("\t <> xlabel   -- a string to label the x axis")
     print("\t <> ylabel   -- a string to label the y axis")
@@ -23,18 +23,13 @@ if (len(sys.argv) < 3):
 
 x=[]
 y=[]
-boi = 0;
 
-with open(str(sys.argv[1])) as csvfile:
-    readCSV = csv.reader(csvfile, delimiter=',')
-    for i in readCSV:
-        for j in i:
-            if (len(j) > 0):
-                # print(j)
-                x.append(float(boi))
-                y.append(float(j))
-                boi += 1.0;
+raw_file = open(str(sys.argv[1]),'r',newline='')
+raw_data = csv.reader(raw_file);
 
+for point in raw_data:
+    x.append(float(point[0]))
+    y.append(float(point[1]))
 
 plt.plot(x,y, marker='o')
 

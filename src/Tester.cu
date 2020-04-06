@@ -47,6 +47,9 @@ int main(int argc, char *argv[]){
     images.push_back(image0);
     ssrlcv::Image* image1 = new ssrlcv::Image();
     images.push_back(image1);
+
+    // cube camera params
+
     images[0]->id = 0;
     images[0]->camera.size = {1024,1024};
     images[0]->camera.cam_pos = {0.000000000000,0.000000000000,-400.000000000000};
@@ -59,6 +62,8 @@ int main(int argc, char *argv[]){
     images[1]->camera.cam_rot = {0.174532925199, 0.0, 0.0};
     images[1]->camera.fov = {0.0593411945678,0.0593411945678};
     images[1]->camera.foc = 0.160000000000;
+
+
 
     // fake 2-view cube
 
@@ -101,9 +106,21 @@ int main(int argc, char *argv[]){
     matches->host[8].keyPoints[1].parentId = 1;
     matches->host[8].keyPoints[1].loc = {512.0,512.0};
 
+
+    // center point tests
+    /*
+    ssrlcv::Match* matches_host = new ssrlcv::Match[1];
+    ssrlcv::Unity<ssrlcv::Match>* matches = new ssrlcv::Unity<ssrlcv::Match>(matches_host, 1, ssrlcv::cpu);
+    matches->host[0].keyPoints[0].parentId = 0;
+    matches->host[0].keyPoints[0].loc = {512.0,512.0};
+    matches->host[0].keyPoints[1].parentId = 1;
+    matches->host[0].keyPoints[1].loc = {512.0,512.0};
+    */
+
     //
     // 2 View Case
     //
+
     ssrlcv::MatchSet matchSet;
     matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->size()*2,ssrlcv::cpu);
     matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->size(),ssrlcv::cpu);
@@ -126,6 +143,7 @@ int main(int argc, char *argv[]){
     //
     // 2-view test
     //
+
     std::cout << "Attempting 2-view Triangulation" << std::endl;
 
     float* linearError = (float*)malloc(sizeof(float));
@@ -135,23 +153,67 @@ int main(int argc, char *argv[]){
 
     std::cout << "initial linearError: " << *linearError << std::endl;
     std::cout << "\t writing initial PLY ..." << std::endl;
-    ssrlcv::writePLY("out/initial.ply",points);
+    demPoints.saveDebugCloud(points, bundleSet, images, "initial");
+
+    /*
+    // Test SENSITIVITY
+    std::string temp_filename1 = "pre-noise";
+    demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename1);
+    */
+
+    /*
+    // add some noisey stuff to the image to see the heck is up
+    images[1]->camera.cam_pos.x += 1.0;
+    images[1]->camera.cam_pos.y += 0.4;
+    images[1]->camera.cam_pos.z -= 0.7;
+    images[1]->camera.cam_rot.x += (PI/16);
+    images[1]->camera.cam_rot.y -= (PI/20);
+    images[1]->camera.cam_rot.z += (PI/40);
+
+    // Test SENSITIVITY
+    std::string temp_filename2 = "post-noise";
+    demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename2);
+    */
+
+
 
     //
     // now start a test of bundle adjustment
     //
 
+    // Save for a before and after:
+    // this temp vector is only used for the +/- h steps when calculating the gradients
+    std::vector<ssrlcv::Image*> temp;
+    for (int i = 0; i < images.size(); i++){
+      temp.push_back(images[i]); // fill in the initial images
+    }
+
     // start by messing up the initial paramters
     // test moving the camera slightly
+    images[1]->camera.cam_pos.y += 1.0;
     images[1]->camera.cam_pos.x += 1.0;
     bundleSet = demPoints.generateBundles(&matchSet,images);
     points = demPoints.twoViewTriangulate(bundleSet, linearError);
     std::cout << "simulated with noise linearError: " << *linearError << std::endl;
     std::cout << "\t writing noisy PLY ..." << std::endl;
-    ssrlcv::writePLY("out/noisey.ply",points);
+    demPoints.saveDebugCloud(points, bundleSet, images, "noisey");
 
+    std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
     // now start the bundle adjustment 2-view loop
-    points = demPoints.BundleAdjustTwoView(&matchSet,images);
+    points = demPoints.BundleAdjustTwoView(&matchSet,images, 2000);
+    // points = demPoints.twoViewTriangulate(bundleSet, linearError); // one last time!
+    // std::cout << "final adjusted cloud has linearError: " << *linearError << std::endl;
+    std::cout << "\t writing adjusted PLY ..." << std::endl;
+    demPoints.saveDebugCloud(points, bundleSet, images, "adjusted");
+
+    // print off the befores and afters of image params
+    for (int i = 0; i < images.size(); i++){
+      std::cout << "Cam " << i << " locations:" << std::endl;
+      std::cout << "[" << temp[i]->camera.cam_pos.x << ", " << temp[i]->camera.cam_pos.y << ", " << temp[i]->camera.cam_pos.z << "]  -> ";
+      std::cout << "[" << (temp[i]->camera.cam_pos.x + 1.0) << ", " << (temp[i]->camera.cam_pos.y + 1.0) << ", " << temp[i]->camera.cam_pos.z << "]  -> ";
+      std::cout << "[" << images[i]->camera.cam_pos.x << ", " << images[i]->camera.cam_pos.y << ", " << images[i]->camera.cam_pos.z << "]  -> ";
+      std::cout << std::endl;
+    }
 
     // cleanup
     delete points;

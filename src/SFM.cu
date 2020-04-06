@@ -150,7 +150,7 @@ int main(int argc, char *argv[]){
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
       ssrlcv::writePLY("out/linearCutoff.ply",points);
       // here you can filter points in a number of ways before bundle adjustment or triangulation
-      demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+      demPoints.deterministicStatisticalFilter(&matchSet,images, 1.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
       /*
@@ -168,6 +168,20 @@ int main(int argc, char *argv[]){
 
       // save an error cloud just for testing
       demPoints.saveDebugLinearErrorCloud(&matchSet,images,"LinearErrorsVisualized");
+
+      /*
+      // OPTIONAL
+      // a sensitivity analysis allows one to view the functions and camera parameter derivates pre bundles adjustment
+      // this should not be used in produciton and is really only useful for debugging optimizers used in bundle adjustment
+      std::string temp_filename = "sensitivity";
+      demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename);
+      */
+
+      // starting bundle adjustment here
+      std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
+      points = demPoints.BundleAdjustTwoView(&matchSet,images, 1000);
+
+
     } else {
       //
       // N View Case

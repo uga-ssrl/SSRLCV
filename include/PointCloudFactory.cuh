@@ -37,13 +37,23 @@ namespace ssrlcv{
   };
 
 
-  /*
+  /**
    * \brief a set of lines in point vector format, and indexes (stored as bundles) that represent bundled lines for reprojection
    */
   struct BundleSet{
     Unity<Bundle::Line>* lines;
     Unity<Bundle>* bundles;
   };
+
+  /**
+   * \brief basically the same as the line but for camera adjustments in a view view bundle adjustment
+   */
+   struct CamAdjust2{
+     float3 cam_pos0;
+     float3 cam_rot0;
+     float3 cam_pos1;
+     float3 cam_rot1;
+   };
 
   /**
   * \brief This class contains methods to generate point clouds from a set of Match structs.
@@ -113,6 +123,14 @@ namespace ssrlcv{
      * @param bundleSet a set of lines and bundles that should be triangulated
      * @param the individual linear errors (for use in debugging and histogram)
      * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
+     */
+    void voidTwoViewTriangulate(BundleSet bundleSet, float* linearError);
+
+    /**
+     * Same method as two view triangulation, but all that is desired fro this method is a calculation of the linearError
+     * @param bundleSet a set of lines and bundles that should be triangulated
+     * @param the individual linear errors (for use in debugging and histogram)
+     * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
      * @param linearErrorCutoff is a value that all linear errors should be less than. points with larger errors are discarded.
      */
     void voidTwoViewTriangulate(BundleSet bundleSet, float* linearError, float* linearErrorCutof);
@@ -174,7 +192,7 @@ namespace ssrlcv{
      * @param a group of images, used only for their stored camera parameters
      * @return a bundle adjusted point cloud
      */
-    ssrlcv::Unity<float3>* BundleAdjustTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images);
+    ssrlcv::Unity<float3>* BundleAdjustTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations);
 
     // =============================================================================================================
     //
@@ -229,6 +247,15 @@ namespace ssrlcv{
      * @param filename the name of the file that should be saved
      */
     void saveViewNumberCloud(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, const char* filename);
+
+    /**
+     * Saves several CSV's which have (x,y) coordinates representing step the step from an intial condution and
+     * the output error for that condition, this should be graphed
+     * @param matchSet a group of matches
+     * @param images a group of images, used only for their stored camera parameters
+     * @param filename the name of the file that should be saved
+     */
+    void generateSensitivityFunctions(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, std::string filename);
 
     // =============================================================================================================
     //
@@ -315,6 +342,8 @@ namespace ssrlcv{
   __global__ void computeTwoViewTriangulate(float* linearError, float* linearErrorCutoff, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 
   __global__ void computeTwoViewTriangulate_b(float* linearError, float* linearErrorCutoff, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3_b* pointcloud);
+
+  __global__ void voidComputeTwoViewTriangulate(float* linearError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles);
 
   __global__ void voidComputeTwoViewTriangulate(float* linearError, float* linearErrorCutoff, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles);
 
