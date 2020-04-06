@@ -1063,17 +1063,19 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       }
     }
 
-    // fill in the previous step's params
-    x0.cam_pos0 = images[0]->camera.cam_pos;
-    x0.cam_rot0 = images[0]->camera.cam_rot;
-    x0.cam_pos1 = images[1]->camera.cam_pos;
-    x0.cam_rot1 = images[1]->camera.cam_rot;
+    // // fill in the previous step's params
+    // x0.cam_pos0 = images[0]->camera.cam_pos;
+    // // x0.cam_rot0 = images[0]->camera.cam_rot;
+    // x0.cam_pos1 = images[1]->camera.cam_pos;
+    // // x0.cam_rot1 = images[1]->camera.cam_rot;
+    //
 
     // calculating the real adjustment
-    adjustment.cam_pos0 = gamma * gradient[0]->camera.cam_pos;
-    adjustment.cam_rot0 = gamma * gradient[0]->camera.cam_rot;
-    adjustment.cam_pos1 = gamma * gradient[1]->camera.cam_pos;
-    adjustment.cam_rot1 = gamma * gradient[1]->camera.cam_rot;
+    adjustment.cam_pos0 = *initialError / gradient[0]->camera.cam_pos;
+    // adjustment.cam_rot0 = *initialError / gradient[0]->camera.cam_rot;
+    adjustment.cam_pos1 = *initialError / gradient[1]->camera.cam_pos;
+    // adjustment.cam_rot1 = *initialError / gradient[1]->camera.cam_rot;
+
 
     // print the adjustment
     // TODO remove this later
@@ -1100,51 +1102,51 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // images[0]->camera.cam_rot = images[0]->camera.cam_rot - adjustment.cam_rot0;
     images[1]->camera.cam_pos = images[1]->camera.cam_pos - adjustment.cam_pos1;
     // images[1]->camera.cam_rot = images[1]->camera.cam_rot - adjustment.cam_rot1;
-
-    // fill in the new iteration's params
-    x1.cam_pos0 = images[0]->camera.cam_pos;
-    x1.cam_rot0 = images[0]->camera.cam_rot;
-    x1.cam_pos1 = images[1]->camera.cam_pos;
-    x1.cam_rot1 = images[1]->camera.cam_rot;
-
-    // store the gradient
-    if (i > 0){
-      g0 = g1;
-      // -- set the old iteration
-      g1.cam_pos0 = gradient[0]->camera.cam_pos;
-      g1.cam_rot0 = gradient[0]->camera.cam_rot;
-      g1.cam_pos1 = gradient[1]->camera.cam_pos;
-      g1.cam_rot1 = gradient[1]->camera.cam_rot;
-    } else {
-      g1.cam_pos0 = gradient[0]->camera.cam_pos;
-      g1.cam_rot0 = gradient[0]->camera.cam_rot;
-      g1.cam_pos1 = gradient[1]->camera.cam_pos;
-      g1.cam_rot1 = gradient[1]->camera.cam_rot;
-    }
-
-    // calculate new gamma
-    if(i > 0 && !const_step){
-      struct CamAdjust2 xtemp;
-      xtemp.cam_pos0 = x1.cam_pos0 - x0.cam_pos0;
-      xtemp.cam_rot0 = x1.cam_rot0 - x0.cam_rot0;
-      xtemp.cam_pos1 = x1.cam_pos1 - x0.cam_pos1;
-      xtemp.cam_rot1 = x1.cam_rot1 - x0.cam_rot1;
-      struct CamAdjust2 gtemp;
-      gtemp.cam_pos0 = g1.cam_pos0 - g0.cam_pos0;
-      gtemp.cam_rot0 = g1.cam_rot0 - g0.cam_rot0;
-      gtemp.cam_pos1 = g1.cam_pos1 - g0.cam_pos1;
-      gtemp.cam_rot1 = g1.cam_rot1 - g0.cam_rot1;
-      float numer  = (xtemp.cam_pos0.x * gtemp.cam_pos0.x) + (xtemp.cam_pos0.y * gtemp.cam_pos0.y) + (xtemp.cam_pos0.z * gtemp.cam_pos0.z);
-            // numer += (xtemp.cam_rot0.x * gtemp.cam_rot0.x) + (xtemp.cam_rot0.y * gtemp.cam_rot0.y) + (xtemp.cam_rot0.z * gtemp.cam_rot0.z);
-            numer += (xtemp.cam_pos1.x * gtemp.cam_pos1.x) + (xtemp.cam_pos1.y * gtemp.cam_pos1.y) + (xtemp.cam_pos1.z * gtemp.cam_pos1.z);
-            // numer += (xtemp.cam_rot1.x * gtemp.cam_rot1.x) + (xtemp.cam_rot1.y * gtemp.cam_rot1.y) + (xtemp.cam_rot1.z * gtemp.cam_rot1.z);
-      float denom  = (gtemp.cam_pos0.x * gtemp.cam_pos0.x) + (gtemp.cam_pos0.y * gtemp.cam_pos0.y) + (gtemp.cam_pos0.z * gtemp.cam_pos0.z);
-            // denom += (gtemp.cam_rot0.x * gtemp.cam_rot0.x) + (gtemp.cam_rot0.y * gtemp.cam_rot0.y) + (gtemp.cam_rot0.z * gtemp.cam_rot0.z);
-            denom += (gtemp.cam_pos1.x * gtemp.cam_pos1.x) + (gtemp.cam_pos1.y * gtemp.cam_pos1.y) + (gtemp.cam_pos1.z * gtemp.cam_pos1.z);
-            // denom += (gtemp.cam_rot1.x * gtemp.cam_rot1.x) + (gtemp.cam_rot1.y * gtemp.cam_rot1.y) + (gtemp.cam_rot1.z * gtemp.cam_rot1.z);
-            denom  = sqrtf(denom);
-      gamma = abs(numer) / denom;
-    }
+    //
+    // // fill in the new iteration's params
+    // x1.cam_pos0 = images[0]->camera.cam_pos;
+    // // x1.cam_rot0 = images[0]->camera.cam_rot;
+    // x1.cam_pos1 = images[1]->camera.cam_pos;
+    // // x1.cam_rot1 = images[1]->camera.cam_rot;
+    //
+    // // store the gradient
+    // if (i > 0){
+    //   g0 = g1;
+    //   // -- set the old iteration
+    //   g1.cam_pos0 = gradient[0]->camera.cam_pos;
+    //   // g1.cam_rot0 = gradient[0]->camera.cam_rot;
+    //   g1.cam_pos1 = gradient[1]->camera.cam_pos;
+    //   // g1.cam_rot1 = gradient[1]->camera.cam_rot;
+    // } else {
+    //   g1.cam_pos0 = gradient[0]->camera.cam_pos;
+    //   // g1.cam_rot0 = gradient[0]->camera.cam_rot;
+    //   g1.cam_pos1 = gradient[1]->camera.cam_pos;
+    //   // g1.cam_rot1 = gradient[1]->camera.cam_rot;
+    // }
+    //
+    // // calculate new gamma
+    // if(i > 0 && !const_step){
+    //   struct CamAdjust2 xtemp;
+    //   xtemp.cam_pos0 = x1.cam_pos0 - x0.cam_pos0;
+    //   // xtemp.cam_rot0 = x1.cam_rot0 - x0.cam_rot0;
+    //   xtemp.cam_pos1 = x1.cam_pos1 - x0.cam_pos1;
+    //   // xtemp.cam_rot1 = x1.cam_rot1 - x0.cam_rot1;
+    //   struct CamAdjust2 gtemp;
+    //   gtemp.cam_pos0 = g1.cam_pos0 - g0.cam_pos0;
+    //   // gtemp.cam_rot0 = g1.cam_rot0 - g0.cam_rot0;
+    //   gtemp.cam_pos1 = g1.cam_pos1 - g0.cam_pos1;
+    //   // gtemp.cam_rot1 = g1.cam_rot1 - g0.cam_rot1;
+    //   float numer  = (xtemp.cam_pos0.x * gtemp.cam_pos0.x) + (xtemp.cam_pos0.y * gtemp.cam_pos0.y) + (xtemp.cam_pos0.z * gtemp.cam_pos0.z);
+    //         // numer += (xtemp.cam_rot0.x * gtemp.cam_rot0.x) + (xtemp.cam_rot0.y * gtemp.cam_rot0.y) + (xtemp.cam_rot0.z * gtemp.cam_rot0.z);
+    //         numer += (xtemp.cam_pos1.x * gtemp.cam_pos1.x) + (xtemp.cam_pos1.y * gtemp.cam_pos1.y) + (xtemp.cam_pos1.z * gtemp.cam_pos1.z);
+    //         // numer += (xtemp.cam_rot1.x * gtemp.cam_rot1.x) + (xtemp.cam_rot1.y * gtemp.cam_rot1.y) + (xtemp.cam_rot1.z * gtemp.cam_rot1.z);
+    //   float denom  = (gtemp.cam_pos0.x * gtemp.cam_pos0.x) + (gtemp.cam_pos0.y * gtemp.cam_pos0.y) + (gtemp.cam_pos0.z * gtemp.cam_pos0.z);
+    //         // denom += (gtemp.cam_rot0.x * gtemp.cam_rot0.x) + (gtemp.cam_rot0.y * gtemp.cam_rot0.y) + (gtemp.cam_rot0.z * gtemp.cam_rot0.z);
+    //         denom += (gtemp.cam_pos1.x * gtemp.cam_pos1.x) + (gtemp.cam_pos1.y * gtemp.cam_pos1.y) + (gtemp.cam_pos1.z * gtemp.cam_pos1.z);
+    //         // denom += (gtemp.cam_rot1.x * gtemp.cam_rot1.x) + (gtemp.cam_rot1.y * gtemp.cam_rot1.y) + (gtemp.cam_rot1.z * gtemp.cam_rot1.z);
+    //         denom  = sqrtf(denom);
+    //   gamma = abs(numer) / denom;
+    // }
 
     // print the new error after the step
     bundleTemp = generateBundles(matchSet,images);
