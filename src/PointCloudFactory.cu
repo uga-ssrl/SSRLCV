@@ -841,7 +841,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
   unsigned int max_iterations = iterations;
   bool local_debug = false;
-  bool const_step = true;
+  bool const_step = false;
   // TODO hangle linear stepsize differently than radial stepsize
   float gamma    = 0.0001;// the initial stepsize
   float h_linear = 0.001; // gradient difference

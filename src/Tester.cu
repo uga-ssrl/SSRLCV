@@ -176,7 +176,7 @@ int main(int argc, char *argv[]){
     */
 
 
-    /*
+
     //
     // now start a test of bundle adjustment
     //
@@ -215,7 +215,7 @@ int main(int argc, char *argv[]){
       std::cout << std::endl;
     }
 
-    */
+    
 
     // cleanup
     delete points;
