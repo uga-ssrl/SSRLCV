@@ -155,10 +155,13 @@ int main(int argc, char *argv[]){
     std::cout << "\t writing initial PLY ..." << std::endl;
     demPoints.saveDebugCloud(points, bundleSet, images, "initial");
 
+    /*
     // Test SENSITIVITY
     std::string temp_filename1 = "pre-noise";
     demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename1);
+    */
 
+    /*
     // add some noisey stuff to the image to see the heck is up
     images[1]->camera.cam_pos.x += 1.0;
     images[1]->camera.cam_pos.y += 0.4;
@@ -170,17 +173,18 @@ int main(int argc, char *argv[]){
     // Test SENSITIVITY
     std::string temp_filename2 = "post-noise";
     demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename2);
+    */
 
 
-    /*
+
     //
     // now start a test of bundle adjustment
     //
 
     // start by messing up the initial paramters
     // test moving the camera slightly
-    images[1]->camera.cam_pos.y += 10.0;
-    images[1]->camera.cam_pos.x += 10.0;
+    images[1]->camera.cam_pos.y += 1.0;
+    images[1]->camera.cam_pos.x += 1.0;
     bundleSet = demPoints.generateBundles(&matchSet,images);
     points = demPoints.twoViewTriangulate(bundleSet, linearError);
     std::cout << "simulated with noise linearError: " << *linearError << std::endl;
@@ -190,7 +194,7 @@ int main(int argc, char *argv[]){
     std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
     // now start the bundle adjustment 2-view loop
     points = demPoints.BundleAdjustTwoView(&matchSet,images);
-    */
+
 
 
     // cleanup
