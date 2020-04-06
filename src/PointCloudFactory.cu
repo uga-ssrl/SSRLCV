@@ -1162,7 +1162,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
   // update the images that were passed in with the final image parameters
   for (int i = 0; i < images.size(); i++){
-    images[i].cam_pos = temp[i].cam_pos; // Updates the positions
+    images[i]->camera.cam_pos = temp[i]->camera.cam_pos; // Updates the positions
     // TODO update the orientations
   }
 

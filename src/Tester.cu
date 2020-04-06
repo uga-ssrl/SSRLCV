@@ -200,18 +200,18 @@ int main(int argc, char *argv[]){
 
     std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
     // now start the bundle adjustment 2-view loop
-    points = demPoints.BundleAdjustTwoView(&matchSet,images, 1000);
-    points = demPoints.twoViewTriangulate(bundleSet, linearError); // one last time!
-    std::cout << "final adjusted cloud has linearError: " << *linearError << std::endl;
+    points = demPoints.BundleAdjustTwoView(&matchSet,images, 2000);
+    // points = demPoints.twoViewTriangulate(bundleSet, linearError); // one last time!
+    // std::cout << "final adjusted cloud has linearError: " << *linearError << std::endl;
     std::cout << "\t writing adjusted PLY ..." << std::endl;
     demPoints.saveDebugCloud(points, bundleSet, images, "adjusted");
 
     // print off the befores and afters of image params
     for (int i = 0; i < images.size(); i++){
-      std::cout << "Cam " << i " locations:" << std::endl;
-      std::cout << "[" << temp[i]->camera.cam_pos.x << ", " << temp[i]->camera.cam_pos.y << ", " temp[i]->camera.cam_pos.z << "]  -> ";
-      std::cout << "[" << (temp[i]->camera.cam_pos.x + 1.0) << ", " << (temp[i]->camera.cam_pos.y + 1.0) << ", " temp[i]->camera.cam_pos.z << "]  -> ";
-      std::cout << "[" << images[i]->camera.cam_pos.x << ", " << images[i]->camera.cam_pos.y << ", " images[i]->camera.cam_pos.z << "]  -> ";
+      std::cout << "Cam " << i << " locations:" << std::endl;
+      std::cout << "[" << temp[i]->camera.cam_pos.x << ", " << temp[i]->camera.cam_pos.y << ", " << temp[i]->camera.cam_pos.z << "]  -> ";
+      std::cout << "[" << (temp[i]->camera.cam_pos.x + 1.0) << ", " << (temp[i]->camera.cam_pos.y + 1.0) << ", " << temp[i]->camera.cam_pos.z << "]  -> ";
+      std::cout << "[" << images[i]->camera.cam_pos.x << ", " << images[i]->camera.cam_pos.y << ", " << images[i]->camera.cam_pos.z << "]  -> ";
       std::cout << std::endl;
     }
 

@@ -179,7 +179,7 @@ int main(int argc, char *argv[]){
 
       // starting bundle adjustment here
       std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
-      points = demPoints.BundleAdjustTwoView(&matchSet,images);
+      points = demPoints.BundleAdjustTwoView(&matchSet,images, 1000);
 
 
     } else {
