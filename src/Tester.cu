@@ -176,7 +176,7 @@ int main(int argc, char *argv[]){
     */
 
 
-
+    /*
     //
     // now start a test of bundle adjustment
     //
@@ -214,6 +214,8 @@ int main(int argc, char *argv[]){
       std::cout << "[" << images[i]->camera.cam_pos.x << ", " << images[i]->camera.cam_pos.y << ", " << images[i]->camera.cam_pos.z << "]  -> ";
       std::cout << std::endl;
     }
+
+    */
 
     // cleanup
     delete points;

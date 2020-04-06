@@ -1520,7 +1520,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
   BundleSet bundleSet;
 
   // the ranges and step sizes
-  float linearRange   = 10.0;     //   +/- linear Range
+  float linearRange   = 4.0;     //   +/- linear Range
   float angularRange  = (PI);   //   +/- angular Range
   float deltaL = 0.01;          // linearRange stepsize
   float deltaA = 0.001;        // angular stpesize
@@ -2253,7 +2253,7 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, unsigned l
   pointcloud[globalID] = point;
   bundles[globalID].invalid = false;
   // add the linaer errors locally within the block before
-  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));
+  float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
   // if(error != 0.0f) error = sqrtf(error);
   atomicAdd(&localSum,error);
   __syncthreads();
@@ -2303,7 +2303,7 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* err
   pointcloud[globalID] = point;
 
   // add the linaer errors locally within the block before
-  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));
+  float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
   // if(error != 0.0f) error = sqrtf(error);
   errors[globalID] = error;
   bundles[globalID].invalid = false;
@@ -2389,7 +2389,7 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* lin
   // fill in the value for the point cloud
   pointcloud[globalID] = point;
 
-  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));
+  float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
 
   errors[globalID] = error;
   // only add the errors that we like
@@ -2514,7 +2514,7 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, unsign
   float3 point = (s1 + s2)/2.0;
 
   // add the linear errors locally within the block before
-  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));
+  float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
   //float error = dotProduct(s1,s2)*dotProduct(s1,s2);
   //if(error != 0.0f) error = sqrtf(error);
   // only add errors that we like
@@ -2569,7 +2569,7 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   float3 point = (s1 + s2)/2.0;
 
   // add the linear errors locally within the block before
-  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));
+  float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
   //float error = dotProduct(s1,s2)*dotProduct(s1,s2);
   //if(error != 0.0f) error = sqrtf(error);
   // only add errors that we like
