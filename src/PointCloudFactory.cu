@@ -807,7 +807,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
  * @param a group of images, used only for their stored camera parameters
  * @return a bundle adjusted point cloud
  */
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations){
 
   // local variabels for function
   ssrlcv::Unity<float3>* points;
@@ -839,11 +839,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // This is for error tracking and printing later
   std::vector<float> errorTracker;
 
-  unsigned int max_iterations = 2000;
+  unsigned int max_iterations = iterations;
   bool local_debug = false;
   bool const_step = true;
   // TODO hangle linear stepsize differently than radial stepsize
-  float gamma    = 0.001;// the initial stepsize
+  float gamma    = 0.0001;// the initial stepsize
   float h_linear = 0.001; // gradient difference
   float h_radial = 0.0000001;
 
@@ -1156,13 +1156,18 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     errorTracker.push_back(*initialError);
   } // end bundle adjustment loop
 
-
+  // TODO only do if debugging
   // write linearError chagnes to a CSV
   writeCSV(errorTracker, "totalErrorOverIterations");
 
+  // update the images that were passed in with the final image parameters
+  for (int i = 0; i < images.size(); i++){
+    images[i].cam_pos = temp[i].cam_pos; // Updates the positions
+    // TODO update the orientations
+  }
 
+  // return the new points
   return points;
-
 }
 
 

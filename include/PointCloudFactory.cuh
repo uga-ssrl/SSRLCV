@@ -192,7 +192,7 @@ namespace ssrlcv{
      * @param a group of images, used only for their stored camera parameters
      * @return a bundle adjusted point cloud
      */
-    ssrlcv::Unity<float3>* BundleAdjustTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images);
+    ssrlcv::Unity<float3>* BundleAdjustTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations);
 
     // =============================================================================================================
     //

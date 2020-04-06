@@ -181,6 +181,13 @@ int main(int argc, char *argv[]){
     // now start a test of bundle adjustment
     //
 
+    // Save for a before and after:
+    // this temp vector is only used for the +/- h steps when calculating the gradients
+    std::vector<ssrlcv::Image*> temp;
+    for (int i = 0; i < images.size(); i++){
+      temp.push_back(images[i]); // fill in the initial images
+    }
+
     // start by messing up the initial paramters
     // test moving the camera slightly
     images[1]->camera.cam_pos.y += 1.0;
@@ -193,9 +200,20 @@ int main(int argc, char *argv[]){
 
     std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
     // now start the bundle adjustment 2-view loop
-    points = demPoints.BundleAdjustTwoView(&matchSet,images);
+    points = demPoints.BundleAdjustTwoView(&matchSet,images, 1000);
+    points = demPoints.twoViewTriangulate(bundleSet, linearError); // one last time!
+    std::cout << "final adjusted cloud has linearError: " << *linearError << std::endl;
+    std::cout << "\t writing adjusted PLY ..." << std::endl;
+    demPoints.saveDebugCloud(points, bundleSet, images, "adjusted");
 
-
+    // print off the befores and afters of image params
+    for (int i = 0; i < images.size(); i++){
+      std::cout << "Cam " << i " locations:" << std::endl;
+      std::cout << "[" << temp[i]->camera.cam_pos.x << ", " << temp[i]->camera.cam_pos.y << ", " temp[i]->camera.cam_pos.z << "]  -> ";
+      std::cout << "[" << (temp[i]->camera.cam_pos.x + 1.0) << ", " << (temp[i]->camera.cam_pos.y + 1.0) << ", " temp[i]->camera.cam_pos.z << "]  -> ";
+      std::cout << "[" << images[i]->camera.cam_pos.x << ", " << images[i]->camera.cam_pos.y << ", " images[i]->camera.cam_pos.z << "]  -> ";
+      std::cout << std::endl;
+    }
 
     // cleanup
     delete points;
