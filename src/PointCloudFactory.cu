@@ -1045,10 +1045,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   ssrlcv::BundleSet bundleTemp;
   // This is for error tracking and printing later
   std::vector<float> errorTracker;
-  gradient = new ssrlcv::Unity<float>(nullptr,(3 * images.size()),ssrlcv::cpu);
 
   // allocate memory
   float* localError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
+  gradient = new ssrlcv::Unity<float>(nullptr,(3 * images.size()),ssrlcv::cpu);
+
+  // for debug
+  bool local_debug = false;
 
   // temp step
   float step = 0.000001;
@@ -1059,20 +1062,23 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
 
     // NOTE gradients calculated here
-    std::cout << "\tCalculating Gradient ..." << std::endl;
+    if (local_debug) std::cout << "\tCalculating Gradient ..." << std::endl;
     calculateImageGradient(matchSet,images,gradient);
 
     // for debug
-    std::cout << "[ ";
-    for (int j = 0; j < gradient->size(); j++){
-      std::cout << gradient[j] << ", ";
+    if (local_debug){
+      std::cout << "[ ";
+      for (int j = 0; j < gradient->size(); j++){
+        std::cout << gradient->host[j] << ", ";
+      }
+      std::cout << "]" << std::endl;
     }
-    std::cout << "]" << std::endl;
 
     // TODO hessians calculated here
-    std::cout << "\tCalculating Hessian ..." << std::endl;
+    if (local_debug) std::cout << "\tCalculating Hessian ..." << std::endl;
 
     // TODO invert hessian here
+    if (local_debug) std::cout << "\tInverting Hessian ..." << std::endl;
 
     // TODO calculate new stepsize here
 
@@ -1080,14 +1086,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // TODO calculate real step above and change that here
     int g_j = 0;
     for (int j = 0; j < images.size(); j++){
-      images[j] = images[j]->camera.cam_pos.x - step * gradient[g_j    ];
-      images[j] = images[j]->camera.cam_pos.y - step * gradient[g_j + 1];
-      images[j] = images[j]->camera.cam_pos.z - step * gradient[g_j + 2];
+      images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - step * gradient->host[g_j    ];
+      images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - step * gradient->host[g_j + 1];
+      images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - step * gradient->host[g_j + 2];
       g_j += 3;
     }
 
     // NOTE print off new error
-    bundleTemp = generateBundles(matchSet,temp);
+    bundleTemp = generateBundles(matchSet,images);
     voidTwoViewTriangulate(bundleTemp, localError);
     std::cout << "[" << i << "] \terror: " << *localError << std::endl;
 
@@ -1101,10 +1107,16 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // write linearError chagnes to a CSV
   // writeCSV(errorTracker, "totalErrorOverIterations");
 
+  bundleTemp = generateBundles(matchSet,images);
+  points = twoViewTriangulate(bundleTemp, localError);
+
   // cleanup memory
   delete gradient;
+  delete bundleTemp.bundles;
+  delete bundleTemp.lines;
 
   // return the new points
+  bundleTemp = generateBundles(matchSet,images);
   return points;
 }
 
