@@ -807,7 +807,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
  * @param a group of images, used only for their stored camera parameters
  * @return gradients the image gradients for the given inputs
  */
-ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
+void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
 
   float h_linear = 0.001;      // gradient difference
   float h_radial = 0.0000001;  // graident diff
@@ -1018,22 +1018,17 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::
     }
   }
 
-  // allocate the space and fill in the gradient
-  ssrlcv::Unity<float3>* g = 3 *  (float*) malloc( images.size() * sizeof(float));
   // TODO add angular gradients in here too
   int g_j = 0;
   for (int j = 0; j < images.size(); j++){
-    *g[g_j    ] = gradient[j]->camera.cam_pos.x;
-    *g[g_j + 1] = gradient[j]->camera.cam_pos.x;
-    *g[g_j + 2] = gradient[j]->camera.cam_pos.x;
+    gradient->host[g_j    ] = gradient[j]->camera.cam_pos.x;
+    gradient->host[g_j + 1] = gradient[j]->camera.cam_pos.x;
+    gradient->host[g_j + 2] = gradient[j]->camera.cam_pos.x;
     g_j += 3;
   }
 
   // free the temp memory
   temp.clear();
-  gradient.clear();
-
-  return g;
 }
 
 /**
@@ -1047,11 +1042,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // local variabels for function
   ssrlcv::Unity<float3>* points;
   ssrlcv::Unity<float>* gradient;
-
-  float* initialError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
-
   // This is for error tracking and printing later
   std::vector<float> errorTracker;
+  gradient = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,(3 * images.size()),ssrlcv::cpu);
+
+  // allocate memory
+  float* initialError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
+
 
   // begin iterative gradient decent
   for (int i = 0; i < iterations; i++){
@@ -1060,7 +1057,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // TODO gradients calculated here
     std::cout << "Calculating Gradient ..." << std::endl;
-    gradient = calculateImageGradient(matchSet,images);
+    calculateImageGradient(matchSet,images,gradient);
 
     // TODO hessians calculated here
     std::cout << "Calculating Hessian ..." << std::endl;
@@ -1068,6 +1065,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // TODO take a newton step here
 
 
+    // clean up memory
 
   } // end bundle adjustment loop
 
