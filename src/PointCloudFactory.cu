@@ -807,7 +807,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
  * @param a group of images, used only for their stored camera parameters
  * @param gradients the image gradients for the given inputs
  */
-void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* gradient){
+void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* g){
 
   float h_linear = 0.001;      // gradient difference
   float h_radial = 0.0000001;  // graident diff
@@ -1021,9 +1021,9 @@ void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSe
   // TODO add angular gradients in here too
   int g_j = 0;
   for (int j = 0; j < images.size(); j++){
-    *gradient->host[g_j    ] = gradient[j]->camera.cam_pos.x;
-    *gradient->host[g_j + 1] = gradient[j]->camera.cam_pos.x;
-    *gradient->host[g_j + 2] = gradient[j]->camera.cam_pos.x;
+    g->host[g_j    ] = gradient[j]->camera.cam_pos.x;
+    g->host[g_j + 1] = gradient[j]->camera.cam_pos.y;
+    g->host[g_j + 2] = gradient[j]->camera.cam_pos.z;
     g_j += 3;
   }
 
@@ -1042,30 +1042,58 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // local variabels for function
   ssrlcv::Unity<float3>* points;
   ssrlcv::Unity<float>* gradient;
+  ssrlcv::BundleSet bundleTemp;
   // This is for error tracking and printing later
   std::vector<float> errorTracker;
   gradient = new ssrlcv::Unity<float>(nullptr,(3 * images.size()),ssrlcv::cpu);
 
   // allocate memory
-  float* initialError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
+  float* localError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
 
+  // temp step
+  float step = 0.000001;
 
   // begin iterative gradient decent
   for (int i = 0; i < iterations; i++){
     // the intialError from the cost function, or the f(x)
 
 
-    // TODO gradients calculated here
-    std::cout << "Calculating Gradient ..." << std::endl;
+    // NOTE gradients calculated here
+    std::cout << "\tCalculating Gradient ..." << std::endl;
     calculateImageGradient(matchSet,images,gradient);
 
+    // for debug
+    std::cout << "[ ";
+    for (int j = 0; j < gradient->size(); j++){
+      std::cout << gradient[j] << ", ";
+    }
+    std::cout << "]" << std::endl;
+
     // TODO hessians calculated here
-    std::cout << "Calculating Hessian ..." << std::endl;
+    std::cout << "\tCalculating Hessian ..." << std::endl;
 
-    // TODO take a newton step here
+    // TODO invert hessian here
 
+    // TODO calculate new stepsize here
+
+    // NOTE take a newton step here
+    // TODO calculate real step above and change that here
+    int g_j = 0;
+    for (int j = 0; j < images.size(); j++){
+      images[j] = images[j]->camera.cam_pos.x - step * gradient[g_j    ];
+      images[j] = images[j]->camera.cam_pos.y - step * gradient[g_j + 1];
+      images[j] = images[j]->camera.cam_pos.z - step * gradient[g_j + 2];
+      g_j += 3;
+    }
+
+    // NOTE print off new error
+    bundleTemp = generateBundles(matchSet,temp);
+    voidTwoViewTriangulate(bundleTemp, localError);
+    std::cout << "[" << i << "] \terror: " << *localError << std::endl;
 
     // clean up memory
+    delete bundleTemp.bundles;
+    delete bundleTemp.lines;
 
   } // end bundle adjustment loop
 

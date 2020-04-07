@@ -191,7 +191,7 @@ namespace ssrlcv{
      * @param a group of images, used only for their stored camera parameters
      * @param gradient the image gradients for the given inputs
      */
-    void calculateImageGradient(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* gradient);
+    void calculateImageGradient(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* g);
 
     /**
      * A Naive bundle adjustment based on a two-view triangulation and a first order descrete gradient decent
