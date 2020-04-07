@@ -1,5 +1,11 @@
 #include "Image.cuh"
 
+// =============================================================================================================
+//
+// Constructors and Destructors
+//
+// =============================================================================================================
+
 __device__ __host__ ssrlcv::Image::Camera::Camera(){
   this->cam_rot = {0.0f,0.0f,0.0f};
   this->cam_pos = {0.0f,0.0f,0.0f};
@@ -144,6 +150,12 @@ ssrlcv::Image::~Image(){
     delete this->pixels;
   }
 }
+
+// =============================================================================================================
+//
+// Host Methods
+//
+// =============================================================================================================
 
 void ssrlcv::Image::convertColorDepthTo(unsigned int colorDepth){
   std::cout<<"Converting pixel depth to "<<colorDepth<<" from "<<this->colorDepth<<std::endl;
@@ -854,6 +866,67 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<float>* pixels, in
   }
   return convolvedImage;
 }
+
+/**
+* retuns the camera paramters as a float vector where all data types are cast to floats
+* removes the unix time stamp
+* @returns array of floats representing the camera parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
+*/
+ssrlcv::Unity<float>* ssrlcv::getFloatVector(){
+  params = new ssrlcv::Unity<float>(nullptr,11,ssrlcv::cpu);
+  params->host[0 ] = this->camera.cam_pos.x;
+  params->host[1 ] = this->camera.cam_pos.y;
+  params->host[2 ] = this->camera.cam_pos.z;
+  params->host[3 ] = this->camera.cam_rot.x;
+  params->host[4 ] = this->camera.cam_rot.y;
+  params->host[5 ] = this->camera.cam_rot.z;
+  params->host[6 ] = this->camera.fov.x    ;
+  params->host[7 ] = this->camera.fov.y    ;
+  params->host[8 ] = this->camera.foc      ;
+  params->host[9 ] = this->camera.dpix.x   ;
+  params->host[10] = this->camera.dpix.y   ;
+  return params;
+}
+
+/**
+* updates the camera parameters from a float vector representing camera parameters
+* if there are less than 11 params the camera will still be updated, retaining values for params not included
+* @param array of floats which should update the current parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
+*/
+void ssrlcv::setFloatVector(Unity<float>* params){
+  switch(params.size()){
+    case 11:
+      this->camera.dpix.x    = params->host[10];
+    case 10:
+      this->camera.dpix.x    = params->host[9];
+    case 9:
+      this->camera.foc       = params->host[8];
+    case 8:
+      this->camera.fov.y     = params->host[7];
+    case 7:
+      this->camera.fov.x     = params->host[6];
+    case 6:
+      this->camera.cam_rot.z = params->host[5];
+    case 5:
+      this->camera.cam_rot.y = params->host[4];
+    case 4:
+      this->camera.cam_rot.x = params->host[3];
+    case 3:
+      this->camera.cam_pos.z = params->host[2];
+    case 2:
+      this->camera.cam_pos.y = params->host[1];
+    case 1:
+      this->camera.cam_pos.x = params->host[0];
+    default:
+      break;
+  }
+}
+
+// =============================================================================================================
+//
+// Device Kernels
+//
+// =============================================================================================================
 
 __device__ __host__ __forceinline__ int ssrlcv::getSymmetrizedCoord(int i, unsigned int l){
   int ll = 2*l;

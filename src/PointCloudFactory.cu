@@ -1129,16 +1129,16 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
       } else { // X with respect to some other variable
         // ----> First evaluation, A
         temp[j]->camera.cam_pos.x         = images[j]->camera.cam_pos.x; // reset
-        temp[j]->camera.cam_pos[k - 3*j]  = images[j]->camera.cam_pos[k - 3*j]; // reset
+        // temp[j]->camera.cam_pos[k - 3*j]  = images[j]->camera.cam_pos[k - 3*j]; // reset
         temp[j]->camera.cam_pos.x        += h_linear;
-        temp[j]->camera.cam_pos[k - 3*j] += h_linear
+        // temp[j]->camera.cam_pos[k - 3*j] += h_linear;
         bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
         voidTwoViewTriangulate(bundleTemp, gradientError);
         A = *gradientError;
 
 
         // update the hessian
-        h->host[h_i] = numer / denom;
+        // h->host[h_i] = numer / denom;
       }
       // iterate the hessian index
       h_i++;

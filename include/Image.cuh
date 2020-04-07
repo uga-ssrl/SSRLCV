@@ -1,4 +1,4 @@
-/** 
+/**
 * \file Image.cuh
 * \brief Image related structs, methods and CUDA kernels
 * \todo Convert all methods and struct to allow any arithmetic type for pixel values.
@@ -18,14 +18,14 @@
 
 namespace ssrlcv{
   /**
-  * \defgroup image_manipulation 
+  * \defgroup image_manipulation
   * \{
   */
 
   /**
   * \brief This class holds the information necessary to describe an image.
-  * \details This class hold camera paramters for an image as well as the pixels 
-  * themselves. All utility methods assume that pixels are flattened row-wise. 
+  * \details This class hold camera paramters for an image as well as the pixels
+  * themselves. All utility methods assume that pixels are flattened row-wise.
   * \todo template this to hold any arithmetic type in pixels
   * \todo consolidate Camera and Image variable (current has redundant information)
   */
@@ -62,59 +62,59 @@ namespace ssrlcv{
     /**
     * \brief Constructor utilizing already read images.
     * \details This constructor exists to allow users
-    * to read in images in their own way and instantiate an Image. 
-    * It is always assumed in utility methods and other methods within 
+    * to read in images in their own way and instantiate an Image.
+    * It is always assumed in utility methods and other methods within
     * the ssrlcv namespace that the pixels are flattened row-wise.
     * \param size - {width, height} of image in pixels
-    * \param colorDepth - number of values per pixel 
+    * \param colorDepth - number of values per pixel
     * \param pixels - pixel values flattened row-wise within a Unity structure
     * \see Unity
     */
     Image(uint2 size, unsigned int colorDepth, Unity<unsigned char>* pixels);
     /**
-    * \brief Primary constructor utilizing ssrlcv image io. 
-    * \details This constructor uses a file path to a jpg/jpeg, png or tif/tiff 
-    * to fill in the pixel array. 
+    * \brief Primary constructor utilizing ssrlcv image io.
+    * \details This constructor uses a file path to a jpg/jpeg, png or tif/tiff
+    * to fill in the pixel array.
     * \param filePath - path to image
     * \param id - id of image for referencing with multiple images (optional, defaults to -1)
     */
     Image(std::string filePath, int id = -1);
     /**
-    * \brief Constructor utilizing ssrlcv image io and allowing immediate color conversion. 
-    * \details This constructor uses a file path to a jpg/jpeg, png or tif/tiff 
-    * to fill in the pixel array and then allows the user to specify the target colorDepth 
-    * after reading in the image. 
+    * \brief Constructor utilizing ssrlcv image io and allowing immediate color conversion.
+    * \details This constructor uses a file path to a jpg/jpeg, png or tif/tiff
+    * to fill in the pixel array and then allows the user to specify the target colorDepth
+    * after reading in the image.
     * \param filePath - path to image
-    * \param convertColorDepthTo - target colorDepth of image after reading 
+    * \param convertColorDepthTo - target colorDepth of image after reading
     * \param id - id of image for referencing with multiple images (optional, defaults to -1)
     * \see Image::convertColorDepthTo
     * \warning it is only recommened to convert color down (rgb -> grayscale) and not the other way
     */
     Image(std::string filePath, unsigned int convertColorDepthTo, int id = -1);
-    ~Image();///< destructor 
+    ~Image();///< destructor
 
     /**
     * \brief Convert this->pixels to a specified colorDepth.
-    * \details This method is used to change the number of values 
+    * \details This method is used to change the number of values
     * associated with one pixel. This currently only support "to grayscale" and "to rgb" conversion.
     * \see convertToBW
-    * \see convertToRGB 
+    * \see convertToRGB
     * \warning it is only recommened to convert color down (rgb -> grayscale) and not the other way
     */
     void convertColorDepthTo(unsigned int colorDepth);
     /**
-    * \brief Generate pixel gradients from this->pixels. 
-    * \details This method calls generatePixelGradients() to generate int2s 
-    * that signify {x,y} gradients. 
+    * \brief Generate pixel gradients from this->pixels.
+    * \details This method calls generatePixelGradients() to generate int2s
+    * that signify {x,y} gradients.
     * \returns Unity<int2>* gradients in the form of {x,y}
     * \see generatePixelGradients
-    * \see Unity 
+    * \see Unity
     */
     Unity<int2>* getPixelGradients();
     /**
     * \brief Scale an image by factors of 2.
-    * \details This method will scale an image by a set factor of 2. Scaling will occur 
-    * abs(scalingFactor) times with sign of scalingFactor determining upsampling (0 >) or downsampling (< 0). 
+    * \details This method will scale an image by a set factor of 2. Scaling will occur
+    * abs(scalingFactor) times with sign of scalingFactor determining upsampling (0 >) or downsampling (< 0).
     * \param scalingFactor - abs(scalingFactor) = scaling degree, > 0 = downsample, < 0 = upsample
     * \see upsample
     * \see downsample
@@ -141,11 +141,11 @@ namespace ssrlcv{
 
   };
   /**
-  * \brief Generate a new image with a border. 
-  * \details This method takes in a Unity<unsigned char> pixel array and will add 
-  * a border to it. If the border is positive, it will return a larger image 
-  * with 0'd pixels added as the border. If the border is negative, it will 
-  * remove pixels from the image and return a smaller image. 
+  * \brief Generate a new image with a border.
+  * \details This method takes in a Unity<unsigned char> pixel array and will add
+  * a border to it. If the border is positive, it will return a larger image
+  * with 0'd pixels added as the border. If the border is negative, it will
+  * remove pixels from the image and return a smaller image.
   * \param size - size of image {width,height}
   * \param pixels - pixels flattened row-wise
   * \param border - border to apply to pixels {x,y}
@@ -154,11 +154,11 @@ namespace ssrlcv{
   */
   Unity<unsigned char>* addBufferBorder(uint2 size, ssrlcv::Unity<unsigned char>* pixels, int2 border);
   /**
-  * \brief Generate a new image with a border. 
-  * \details This method takes in a Unity<unsigned char> pixel array and will add 
-  * a border to it. If the border is positive, it will return a larger image 
-  * with 0'd pixels added as the border. If the border is negative, it will 
-  * remove pixels from the image and return a smaller image. 
+  * \brief Generate a new image with a border.
+  * \details This method takes in a Unity<unsigned char> pixel array and will add
+  * a border to it. If the border is positive, it will return a larger image
+  * with 0'd pixels added as the border. If the border is negative, it will
+  * remove pixels from the image and return a smaller image.
   * \param size - size of image {width,height}
   * \param pixels - pixels flattened row-wise
   * \param border - border to apply to pixels {x,y}
@@ -167,10 +167,10 @@ namespace ssrlcv{
   */
   Unity<float>* addBufferBorder(uint2 size, ssrlcv::Unity<float>* pixels, int2 border);
   /**
-  * \brief Convert Unity<float>* to Unity<unsigned char>* 
-  * \details This method will determine min and max pixel values 
-  * and use those to convert the float set to unsigned char values 
-  * between 0-255, where 0 is min and 255 is max. 
+  * \brief Convert Unity<float>* to Unity<unsigned char>*
+  * \details This method will determine min and max pixel values
+  * and use those to convert the float set to unsigned char values
+  * between 0-255, where 0 is min and 255 is max.
   * \param pixels - pixels in float representation
   * \returns copied pixels scaled between 0-255 in unsigned char representation
   * \see Unity
@@ -179,8 +179,8 @@ namespace ssrlcv{
   Unity<unsigned char>* convertImageToChar(Unity<float>* pixels);
   /**
   * \brief Convert Unity<unsigned char>* to Unity<float>*
-  * \details This method will simply convert unsigned char values to 
-  * floats without changing the information at all. 
+  * \details This method will simply convert unsigned char values to
+  * floats without changing the information at all.
   * \param pixels - pixels in unsigned char representation
   * \returns copied pixels in float representation
   * \see Unity
@@ -189,7 +189,7 @@ namespace ssrlcv{
   Unity<float>* convertImageToFlt(Unity<unsigned char>* pixels);
   /**
   * \brief Normalize float values in Unity from 0-1.
-  * \details This method will determine min and max for the values 
+  * \details This method will determine min and max for the values
   * in the Unity<float>* and then normalize between 0 and 1.
   * \param pixels - float values
   * \see Unity
@@ -199,211 +199,211 @@ namespace ssrlcv{
   void normalizeImage(Unity<float>* pixels);
   /**
   * \brief Normalize float values in Unity from 0-1.
-  * \details This method will use the provided min and max for the values 
+  * \details This method will use the provided min and max for the values
   * in the Unity<float>* and then normalize between 0 and 1.
   * \param pixels - float values
   * \param minMax - minimum and maximum float values {min,max}
   * \see Unity
   * \see normalize(unsigned long, float*, float2)
   * \todo add option to normalize between two numbers
-  * \warning if the minMax values here are incorrect then normalization will 
+  * \warning if the minMax values here are incorrect then normalization will
   * be incorrect
   */
   void normalizeImage(Unity<float>* pixels, float2 minMax);
   /**
   * \brief Convert pixel values to grayscale.
-  * \details This method will take pixels of a higher colorDepth and 
-  * convert them to 1, making each pixel value just one unsigned char. 
-  * \param pixels - The pixel values flattened row-wise to be converted. 
-  * \param colorDepth - The original colorDepth of the pixels. 
+  * \details This method will take pixels of a higher colorDepth and
+  * convert them to 1, making each pixel value just one unsigned char.
+  * \param pixels - The pixel values flattened row-wise to be converted.
+  * \param colorDepth - The original colorDepth of the pixels.
   * \see Unity
   * \see generateBW
   */
   void convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth);
   /**
   * \brief Convert pixel values to RGB.
-  * \details This method will take pixels and 
-  * convert their colorDepth to 3, making each pixel value three unsigned char. 
-  * \param pixels - The pixel values flattened row-wise to be converted. 
-  * \param colorDepth - The original colorDepth of the pixels. 
+  * \details This method will take pixels and
+  * convert their colorDepth to 3, making each pixel value three unsigned char.
+  * \param pixels - The pixel values flattened row-wise to be converted.
+  * \param colorDepth - The original colorDepth of the pixels.
   * \see Unity
   * \see generateRGB
-  * \note going from a colorDepth of 1 or 2 is permitted but will not be perfect. 
+  * \note going from a colorDepth of 1 or 2 is permitted but will not be perfect.
   * \todo improve colorDepth upsample procedur
   */
   void convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth);
 
   /**
-  * \brief Generate 3x3 fundamental matrix from 2 camera matrices. 
-  * \details This method will generate a fundamental matrix 
-  * for epipolar line calculations utilizing camera matrices 
+  * \brief Generate 3x3 fundamental matrix from 2 camera matrices.
+  * \details This method will generate a fundamental matrix
+  * for epipolar line calculations utilizing camera matrices
   * from 2 images.
   * \param cam0 - camera matrix for first camera
   * \param cam1 - camera matrix for second camera
-  * \param F - passed-by-reference matrix to fill in 
+  * \param F - passed-by-reference matrix to fill in
   * \todo implement!!!!!
   */
   void calcFundamentalMatrix_2View(float cam0[3][3], float cam1[3][3], float (&F)[3][3]);
   /**
-  * \brief Generate float3[3] fundamental matrix from 2 images. 
-  * \details This method takes in two images and uses their camera variables to 
+  * \brief Generate float3[3] fundamental matrix from 2 images.
+  * \details This method takes in two images and uses their camera variables to
   * calculate a fundamental matrix for epipolar line calculations.
   * \param query - primary image in this calculation
-  * \param target - image that is being related to primary image 
+  * \param target - image that is being related to primary image
   * \param F - passed-by-reference matrix to fill in
   * \see Image
   * \see Image::Camera
   */
   void calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F)[3]);
   /**
-  * \brief 
-  * \details 
+  * \brief
+  * \details
   * \todo fill in doxy for this method
   */
   void get_cam_params2view(Image* cam1, Image* cam2, std::string infile);
 
   /**
-  * \brief Generate gradients for an unsigned char image. 
-  * \details This method generates int2 gradients {x,y} for every pixel with borders 
-  * being symmetrized with an offset inward. The symmetrization is based on finite 
-  * difference and gradient approximation methods for images. 
+  * \brief Generate gradients for an unsigned char image.
+  * \details This method generates int2 gradients {x,y} for every pixel with borders
+  * being symmetrized with an offset inward. The symmetrization is based on finite
+  * difference and gradient approximation methods for images.
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise
   * \returns Unity<int2>* that has gradients {x,y} stored in same order as pixel
-  * \see Unity 
+  * \see Unity
   * \see calculatePixelGradients(uint2,unsigned char*,int2*)
-  * \note No need to pass in colorDepth as that can be determined by 
+  * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
   Unity<int2>* generatePixelGradients(uint2 imageSize, Unity<unsigned char>* pixels);
   /**
-  * \brief Generate gradients for float image. 
-  * \details This method generates float2 gradients {x,y} for every pixel with borders 
-  * being symmetrized with an offset inward. The symmetrization is based on finite 
-  * difference and gradient approximation methods for images. 
+  * \brief Generate gradients for float image.
+  * \details This method generates float2 gradients {x,y} for every pixel with borders
+  * being symmetrized with an offset inward. The symmetrization is based on finite
+  * difference and gradient approximation methods for images.
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise.
   * \returns Unity<float2>* that has gradients {x,y} stored in same order as pixel
-  * \see Unity 
+  * \see Unity
   * \see calculatePixelGradients(uint2,float*,int2*)
-  * \note No need to pass in colorDepth as that can be determined by 
+  * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
   Unity<float2>* generatePixelGradients(uint2 imageSize, Unity<float>* pixels);
 
   /**
-  * \brief Ensure that an unsigned char image can be binned to a certain depth. 
-  * \details This method is used to ensure that the an image can be 
-  * binned to a certain depth. Due to odd valued side lengths of original image 
-  * or a later binning stage, this is necessary to avoid referencing issues and memory 
-  * errors associated with floating point dimensions of images. The basic concept is 
-  * to just add a border to allow for later binning. 
+  * \brief Ensure that an unsigned char image can be binned to a certain depth.
+  * \details This method is used to ensure that the an image can be
+  * binned to a certain depth. Due to odd valued side lengths of original image
+  * or a later binning stage, this is necessary to avoid referencing issues and memory
+  * errors associated with floating point dimensions of images. The basic concept is
+  * to just add a border to allow for later binning.
   * \param size - passed-by-reference {width,height} of image to be changed
   * \param pixels - pixels of image flattened row-wise
-  * \param plannedDepth - the number of times the image will be binned 
+  * \param plannedDepth - the number of times the image will be binned
   * \see Unity
   * \see addBufferBorder(uint2,ssrlcv::Unity<unsigned char>*,int2)
-  * \note No need to pass in colorDepth as that can be determined by 
+  * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
   void makeBinnable(uint2 &size, Unity<unsigned char>* pixels, int plannedDepth);
   /**
-  * \brief Ensure that a float image can be binned to a certain depth. 
-  * \details This method is used to ensure that the an image can be 
-  * binned to a certain depth. Due to odd valued side lengths of original image 
-  * or a later binning stage, this is necessary to avoid referencing issues and memory 
-  * errors associated with floating point dimensions of images. The basic concept is 
-  * to just add a border to allow for later binning. 
+  * \brief Ensure that a float image can be binned to a certain depth.
+  * \details This method is used to ensure that the an image can be
+  * binned to a certain depth. Due to odd valued side lengths of original image
+  * or a later binning stage, this is necessary to avoid referencing issues and memory
+  * errors associated with floating point dimensions of images. The basic concept is
+  * to just add a border to allow for later binning.
   * \param size - passed-by-reference {width,height} of image to be changed
   * \param pixels - pixels of image flattened row-wise
-  * \param plannedDepth - the number of times the image will be binned 
+  * \param plannedDepth - the number of times the image will be binned
   * \see Unity
   * \see addBufferBorder(uint2,ssrlcv::Unity<float>*,int2)
-  * \note No need to pass in colorDepth as that can be determined by 
+  * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
   void makeBinnable(uint2 &size, Unity<float>* pixels, int plannedDepth);
 
   /**
   * \brief Downsample an unsigned char image by a factor of 2.
-  * \details This method will generate an image from a provided image that 
-  * is half the width and half height of the original image. 
+  * \details This method will generate an image from a provided image that
+  * is half the width and half height of the original image.
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise
   * \returns - Unity<unsigned char>* holding the binned version of the provided image
   * \see Unity
   * \see binImage(uint2,unsigned int,unsigned char*,unsigned char*)
-  * \note No need to pass in colorDepth as that can be determined by 
+  * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
   Unity<unsigned char>* bin(uint2 imageSize, Unity<unsigned char>* pixels);
   /**
   * \brief Downsample an float image by a factor of 2.
-  * \details This method will generate an image from a provided image that 
-  * is half the width and half height of the original image. 
+  * \details This method will generate an image from a provided image that
+  * is half the width and half height of the original image.
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise
   * \returns - Unity<float>* holding the binned version of the provided image
   * \see Unity
   * \see binImage(uint2,unsigned int,float*,float*)
-  * \note No need to pass in colorDepth as that can be determined by 
+  * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
   Unity<float>* bin(uint2 imageSize, Unity<float>* pixels);
 
   /**
   * \brief Upsample an unsigned char image by a factor of 2.
-  * \details This method will generate an image from a provided image that 
-  * is double the width and half height of the original image. 
+  * \details This method will generate an image from a provided image that
+  * is double the width and half height of the original image.
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise
   * \returns - Unity<unsigned char>* holding the upsampled version of the provided image
   * \see Unity
   * \see upsampleImage(uint2,unsigned int,unsigned char*,unsigned char*)
-  * \note No need to pass in colorDepth as that can be determined by 
+  * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
   Unity<unsigned char>* upsample(uint2 imageSize, Unity<unsigned char>* pixels);  /**
   * \brief Upsample an float image by a factor of 2.
-  * \details This method will generate an image from a provided image that 
-  * is double the width and half height of the original image. 
+  * \details This method will generate an image from a provided image that
+  * is double the width and half height of the original image.
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise
   * \returns - Unity<float>* holding the upsampled version of the provided image
   * \see Unity
   * \see upsampleImage(uint2,unsigned int,float*,float*)
-  * \note No need to pass in colorDepth as that can be determined by 
+  * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
   Unity<float>* upsample(uint2 imageSize, Unity<float>* pixels);
 
   /**
   * \brief Scale an unsigned char image by a specified factor.
-  * \details This method will generate an image from a provided image that 
-  * is scaled to a specified pixel width in relation to the original image where pixel 
-  * width is 1. 
+  * \details This method will generate an image from a provided image that
+  * is scaled to a specified pixel width in relation to the original image where pixel
+  * width is 1.
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise
   * \param outputPixelWidth - the desired size of a pixel in the returned Unity
   * \returns - Unity<unsigned char>* holding the scaled version of the provided image
   * \see Unity
   * \see bilinearInterpolation(uint2,unsigned int,unsigned char*,unsigned char*,float)
-  * \note No need to pass in colorDepth as that can be determined by 
+  * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
   Unity<unsigned char>* scaleImage(uint2 imageSize, Unity<unsigned char>* pixels, float outputPixelWidth);
   /**
   * \brief Scale an float image by a specified factor.
-  * \details This method will generate an image from a provided image that 
-  * is scaled to a specified pixel width in relation to the original image where pixel 
-  * width is 1. 
+  * \details This method will generate an image from a provided image that
+  * is scaled to a specified pixel width in relation to the original image where pixel
+  * width is 1.
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise
   * \param outputPixelWidth - the desired size of a pixel in the returned Unity
   * \returns - Unity<float>* holding the scaled version of the provided image
   * \see Unity
   * \see bilinearInterpolation(uint2,unsigned int,float*,float*,float)
-  * \note No need to pass in colorDepth as that can be determined by 
+  * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
   Unity<float>* scaleImage(uint2 imageSize, Unity<float>* pixels, float outputPixelWidth);
@@ -411,15 +411,15 @@ namespace ssrlcv{
 
   /**
   * \brief Convolve an unsigned char image with a specified kernel.
-  * \details This method will convolve and image with a provided 
-  * kernel and return a Unity<float>* containing the convolved image. There 
-  * is an optional argument to specify that the convolution should or should not be 
-  * symmetric. It is assumed that it should be, meaning that border pixels will 
+  * \details This method will convolve and image with a provided
+  * kernel and return a Unity<float>* containing the convolved image. There
+  * is an optional argument to specify that the convolution should or should not be
+  * symmetric. It is assumed that it should be, meaning that border pixels will
   * still be convolved by symmetrizing coordinate references based on getSymmetrizedCoord.
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise
   * \param kernelSize - {width,height} of kernel (must have odd dimensions)
-  * \param kernel - kernel with floating point values to be convolved on every pixel 
+  * \param kernel - kernel with floating point values to be convolved on every pixel
   * \param symmetric - bool that specifies if convolution should be symmetric (optiona, defaults to true)
   * \returns convolved image of same size
   * \see convolveImage(uint2,unsigned char*,unsigned int,int2,float*,float*)
@@ -430,15 +430,15 @@ namespace ssrlcv{
   Unity<float>* convolve(uint2 imageSize, Unity<unsigned char>* pixels, int2 kernelSize, float* kernel, bool symmetric = true);
   /**
   * \brief Convolve an float image with a specified kernel.
-  * \details This method will convolve and image with a provided 
-  * kernel and return a Unity<float>* containing the convolved image. There 
-  * is an optional argument to specify that the convolution should or should not be 
-  * symmetric. It is assumed that it should be, meaning that border pixels will 
+  * \details This method will convolve and image with a provided
+  * kernel and return a Unity<float>* containing the convolved image. There
+  * is an optional argument to specify that the convolution should or should not be
+  * symmetric. It is assumed that it should be, meaning that border pixels will
   * still be convolved by symmetrizing coordinate references based on getSymmetrizedCoord.
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise
   * \param kernelSize - {width,height} of kernel (must have odd dimensions)
-  * \param kernel - kernel with floating point values to be convolved on every pixel 
+  * \param kernel - kernel with floating point values to be convolved on every pixel
   * \param symmetric - bool that specifies if convolution should be symmetric (optiona, defaults to true)
   * \returns convolved image of same size
   * \see convolveImage(uint2,float*,unsigned int,int2,float*,float*)
@@ -448,6 +448,19 @@ namespace ssrlcv{
   */
   Unity<float>* convolve(uint2 imageSize, Unity<float>* pixels, int2 kernelSize, float* kernel, bool symmetric = true);
 
+  /**
+  * retuns the camera paramters as a float vector where all data types are cast to floats
+  * removes the unix time stamp
+  * @returns array of floats representing the camera parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
+  */
+  Unity<float>* getFloatVector();
+
+  /**
+  * updates the camera parameters from a float vector representing camera parameters
+  * if there are less than 11 params the camera will still be updated, retaining values for params not included
+  * @param array of floats which should update the current parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
+  */
+  void setFloatVector(Unity<float>* params);
 
   /* CUDA variable, method and kernel defintions */
 
@@ -465,7 +478,7 @@ namespace ssrlcv{
   __device__ __host__ unsigned char bwaToBW(const uchar2 &color);
   __device__ __host__ unsigned char rgbToBW(const uchar3 &color);
   __device__ __host__ unsigned char rgbaToBW(const uchar4 &color);
-  
+
   __device__ __host__ uchar3 bwToRGB(const unsigned char &color);
   __device__ __host__ uchar3 bwaToRGB(const uchar2 &color);
   __device__ __host__ uchar3 rgbaToRGB(const uchar4 &color);
