@@ -185,6 +185,13 @@ namespace ssrlcv{
     */
     BundleSet generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images);
 
+    /**
+     * Caclulates the gradients for a given set of images and returns those gradients as a float array
+     * @param matchSet a group of matches
+     * @param a group of images, used only for their stored camera parameters
+     * @return gradients the image gradients for the given inputs
+     */
+    ssrlcv::Unity<float>* calculateImageGradient(MatchSet* matchSet, std::vector<ssrlcv::Image*> images);
 
     /**
      * A Naive bundle adjustment based on a two-view triangulation and a first order descrete gradient decent
