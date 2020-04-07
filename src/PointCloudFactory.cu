@@ -805,9 +805,9 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
  * Caclulates the gradients for a given set of images and returns those gradients as a float array
  * @param matchSet a group of matches
  * @param a group of images, used only for their stored camera parameters
- * @return gradients the image gradients for the given inputs
+ * @param gradients the image gradients for the given inputs
  */
-void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
+void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* gradient){
 
   float h_linear = 0.001;      // gradient difference
   float h_radial = 0.0000001;  // graident diff
@@ -1021,9 +1021,9 @@ void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSe
   // TODO add angular gradients in here too
   int g_j = 0;
   for (int j = 0; j < images.size(); j++){
-    gradient->host[g_j    ] = gradient[j]->camera.cam_pos.x;
-    gradient->host[g_j + 1] = gradient[j]->camera.cam_pos.x;
-    gradient->host[g_j + 2] = gradient[j]->camera.cam_pos.x;
+    *gradient->host[g_j    ] = gradient[j]->camera.cam_pos.x;
+    *gradient->host[g_j + 1] = gradient[j]->camera.cam_pos.x;
+    *gradient->host[g_j + 2] = gradient[j]->camera.cam_pos.x;
     g_j += 3;
   }
 
@@ -1044,7 +1044,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   ssrlcv::Unity<float>* gradient;
   // This is for error tracking and printing later
   std::vector<float> errorTracker;
-  gradient = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,(3 * images.size()),ssrlcv::cpu);
+  gradient = new ssrlcv::Unity<float>(nullptr,(3 * images.size()),ssrlcv::cpu);
 
   // allocate memory
   float* initialError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
