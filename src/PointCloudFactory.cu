@@ -813,9 +813,9 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
     for (int j = 0; j < params_per_cam; j++){
       temp_params->host[j] = params->host[i*params_per_cam + j];
     }
-    images[i].setFloatVector(temp_params);
+    images[i]->setFloatVector(temp_params);
   }
-  delete temp_params; // clean up 
+  delete temp_params; // clean up
 
   Unity<Bundle>* bundles = new Unity<Bundle>(nullptr,matchSet->matches->size(),gpu);
   Unity<Bundle::Line>* lines = new Unity<Bundle::Line>(nullptr,matchSet->keyPoints->size(),gpu);
@@ -1126,9 +1126,17 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
   ssrlcv::BundleSet bundleTemp;
 
   // this temp vector is only used for the +/- h steps when calculating the gradients
+  // convert the temp images to float vectors
+  num_params = 3; // 3 is just position, 6 position and orientation
+  ssrlcv::Unity<float>* params = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
   std::vector<ssrlcv::Image*> temp;
   for (int i = 0; i < images.size(); i++){
     temp.push_back(images[i]); // fill in the initial images
+    ssrlcv::Unity<float>* temp_params = temp->getFloatVector(num_params);
+    for (int j = 0; j < num_params; j++){
+      params->host[i*num_params + j] = temp_params->host[j];
+    }
+    delete temp_params;
   }
 
   // calculates all of the hessians with central difference
@@ -1220,6 +1228,7 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
 
   // cleanup memory
   temp.clear();
+  delete params;
 }
 
 /**

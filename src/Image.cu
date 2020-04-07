@@ -225,6 +225,45 @@ ssrlcv::Unity<float>* ssrlcv::Image::getFloatVector(){
 }
 
 /**
+* retuns the camera paramters as a float vector of length len, where all data types are cast to floats
+* removes the unix time stamp
+* @param len the desired lentgth of the vector, has the effect of extracting less parameters
+* @returns array of floats representing the camera parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
+*/
+ssrlcv::Unity<float>* ssrlcv::Image::getFloatVector(int len){
+  ssrlcv::Unity<float>* params = new ssrlcv::Unity<float>(nullptr,len,ssrlcv::cpu);
+  switch(len){
+    case 11:
+      params->host[10] = this->camera.dpix.y    ;
+    case 10:
+      params->host[9 ] = this->camera.dpix.x    ;
+    case 9:
+      params->host[8 ] = this->camera.foc       ;
+    case 8:
+      params->host[7 ] = this->camera.fov.y     ;
+    case 7:
+      params->host[6 ] = this->camera.fov.x     ;
+    case 6:
+      params->host[5 ] = this->camera.cam_rot.z ;
+    case 5:
+      params->host[4 ] = this->camera.cam_rot.y ;
+    case 4:
+      params->host[3 ] = this->camera.cam_rot.x ;
+    case 3:
+      params->host[2 ] = this->camera.cam_pos.z ;
+    case 2:
+      params->host[1 ] = this->camera.cam_pos.y ;
+    case 1:
+      params->host[0 ] = this->camera.cam_pos.x ;
+      break;
+    default:
+      std::cerr << "ERROR: the requested camera float vector is out of bounds or non-standard!" << std::endl; 
+      break;
+  }
+  return params;
+}
+
+/**
 * updates the camera parameters from a float vector representing camera parameters
 * if there are less than 11 params the camera will still be updated, retaining values for params not included
 * @param array of floats which should update the current parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
@@ -232,7 +271,7 @@ ssrlcv::Unity<float>* ssrlcv::Image::getFloatVector(){
 void ssrlcv::Image::setFloatVector(Unity<float>* params){
   switch(params->size()){
     case 11:
-      this->camera.dpix.x    = params->host[10];
+      this->camera.dpix.y    = params->host[10];
     case 10:
       this->camera.dpix.x    = params->host[9];
     case 9:

@@ -141,6 +141,14 @@ namespace ssrlcv{
     Unity<float>* getFloatVector();
 
     /**
+    * retuns the camera paramters as a float vector of length len, where all data types are cast to floats
+    * removes the unix time stamp
+    * @param len the desired lentgth of the vector, has the effect of extracting less parameters
+    * @returns array of floats representing the camera parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
+    */
+    Unity<float>* getFloatVector(int len);
+
+    /**
     * updates the camera parameters from a float vector representing camera parameters
     * if there are less than 11 params the camera will still be updated, retaining values for params not included
     * @param array of floats which should update the current parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
