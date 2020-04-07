@@ -230,7 +230,7 @@ ssrlcv::Unity<float>* ssrlcv::Image::getFloatVector(){
 * @param array of floats which should update the current parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
 */
 void ssrlcv::Image::setFloatVector(Unity<float>* params){
-  switch(params.size()){
+  switch(params->size()){
     case 11:
       this->camera.dpix.x    = params->host[10];
     case 10:

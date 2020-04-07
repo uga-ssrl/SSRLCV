@@ -181,9 +181,18 @@ namespace ssrlcv{
     * The CPU method that sets up the GPU enabled line generation, which stores lines
     * and sets of lines as bundles
     * @param matchSet a group of maches
-    * @param a group of images, used only for their stored camera parameters
+    * @param images a group of images, used only for their stored camera parameters
     */
     BundleSet generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images);
+
+    /**
+    * The CPU method that sets up the GPU enabled line generation, which stores lines
+    * and sets of lines as bundles
+    * @param matchSet a group of maches
+    * @param images a group of images, used only for their stored camera parameters
+    * @param params a unity of float's which store selected camera parameters for N many, this does not have to be completely full but each camera must have the same number of parameters. The expected order is X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y 
+    */
+    BundleSet generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* params);
 
     /**
      * Caclulates the gradients for a given set of images and returns those gradients as a float array

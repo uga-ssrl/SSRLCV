@@ -740,7 +740,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
 * The CPU method that sets up the GPU enabled line generation, which stores lines
 * and sets of lines as bundles
 * @param matchSet a group of maches
-* @param a group of images, used only for their stored camera parameters
+* @param images a group of images, used only for their stored camera parameters
 */
 ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
 
@@ -748,11 +748,78 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   Unity<Bundle>* bundles = new Unity<Bundle>(nullptr,matchSet->matches->size(),gpu);
   Unity<Bundle::Line>* lines = new Unity<Bundle::Line>(nullptr,matchSet->keyPoints->size(),gpu);
 
-  // std::cout << "starting bundle generation ..." << std::endl;
-  //MemoryState origin[2] = {matchSet->matches->getMemoryState(),matchSet->keyPoints->getMemoryState()};
-  //if(origin[0] == cpu) matchSet->matches->transferMemoryTo(gpu);
-  //if(origin[1] == cpu) matchSet->keyPoints->transferMemoryTo(gpu);
-  // std::cout << "set the matches ... " << std::endl;
+  matchSet->matches->transferMemoryTo(gpu);
+  matchSet->keyPoints->transferMemoryTo(gpu);
+
+  // the cameras
+  size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
+  // fill the cam boi
+  ssrlcv::Image::Camera* h_cameras;
+  h_cameras = (ssrlcv::Image::Camera*) malloc(cam_bytes);
+  for(int i = 0; i < images.size(); i++){
+    h_cameras[i] = images.at(i)->camera;
+  }
+  ssrlcv::Image::Camera* d_cameras;
+  // std::cout << "set the cameras ... " << std::endl;
+  CudaSafeCall(cudaMalloc(&d_cameras, cam_bytes));
+  // copy the othe guy
+  CudaSafeCall(cudaMemcpy(d_cameras, h_cameras, cam_bytes, cudaMemcpyHostToDevice));
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(bundles->size(),grid,block,generateBundle);
+
+  //in this kernel fill lines and bundles from keyPoints and matches
+  // std::cout << "Calling bundle generation kernel ..." << std::endl;
+  generateBundle<<<grid, block>>>(bundles->size(),bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
+  // std::cout << "Returned from bundle generation kernel ... \n" << std::endl;
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  // transfer and clear the match set information
+  matchSet->matches->setFore(gpu);
+  matchSet->keyPoints->setFore(gpu);
+  matchSet->matches->transferMemoryTo(cpu);
+  matchSet->keyPoints->transferMemoryTo(cpu);
+  matchSet->matches->clear(gpu);
+  matchSet->keyPoints->clear(gpu);
+
+  // transfer and clear the cpu information
+  bundles->transferMemoryTo(cpu);
+  bundles->clear(gpu);
+  lines->transferMemoryTo(cpu);
+  lines->clear(gpu);
+
+  BundleSet bundleSet = {lines,bundles};
+
+  return bundleSet;
+}
+
+/**
+* The CPU method that sets up the GPU enabled line generation, which stores lines
+* and sets of lines as bundles
+* @param matchSet a group of maches
+* @param images a group of images, used only for their stored camera parameters
+* @param params a unity of float's which store selected camera parameters for N many, this does not have to be completely full but each camera must have the same number of parameters. The expected order is X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
+*/
+ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* params){
+
+  // update the cameras in the images with the params
+  int params_per_cam = params->size() / images.size();
+  Unity<float>* temp_params = new Unity<float>(nullptr,params_per_cam,cpu);
+  for (int i = 0; i < images.size(); i++){
+    // fill up the vector
+    for (int j = 0; j < params_per_cam; j++){
+      temp_params->host[j] = params->host[i*params_per_cam + j];
+    }
+    images[i].setFloatVector(temp_params);
+  }
+  delete temp_params; // clean up 
+
+  Unity<Bundle>* bundles = new Unity<Bundle>(nullptr,matchSet->matches->size(),gpu);
+  Unity<Bundle::Line>* lines = new Unity<Bundle::Line>(nullptr,matchSet->keyPoints->size(),gpu);
+
   matchSet->matches->transferMemoryTo(gpu);
   matchSet->keyPoints->transferMemoryTo(gpu);
 
