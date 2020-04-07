@@ -194,6 +194,14 @@ namespace ssrlcv{
     void calculateImageGradient(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* g);
 
     /**
+     * Caclulates the hessian for a given set of images and returns those gradients as a float array
+     * @param matchSet a group of matches
+     * @param a group of images, used only for their stored camera parameters
+     * @param h the image hessian for the given inputs
+     */
+    void calculateImageHessian(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* h);
+
+    /**
      * A Naive bundle adjustment based on a two-view triangulation and a first order descrete gradient decent
      * @param matchSet a group of matches
      * @param a group of images, used only for their stored camera parameters
