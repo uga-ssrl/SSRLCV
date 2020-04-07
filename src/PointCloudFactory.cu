@@ -1040,10 +1040,10 @@ void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSe
 void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* h){
 
   // stepsize and indexing related variables
-  float h_linear = 0.001;      // gradient difference
-  float h_radial = 0.0000001;  // graident diff
-  float h[6]     = {0.001,0.001,0.001,0.000001,0.000001,0.000001}; // the step size vector
-  int   h_i      = 0;               // the hessian location index
+  float h_linear  = 0.001;      // gradient difference
+  float h_radial  = 0.0000001;  // graident diff
+  float h_step[6] = {0.001,0.001,0.001,0.000001,0.000001,0.000001}; // the step size vector
+  int   h_i       = 0;               // the hessian location index
 
   // temp variables within the loops
   float A;
@@ -1072,6 +1072,7 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
   // X Position with respect to others
   //
   for (int j = 0; j < images.size(); j++){ // iterates through images
+    h_i = 3 * j; // TODO update this when adding rotations
     for (int k = 0; k < 3 * images.size(); k++) { // iterates through variables
       // function evaluations
       // calculate the second order boiz
@@ -1122,10 +1123,19 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
         delete bundleTemp.lines;
         // calculate the result
         numer = -1.0*A + 16.0*B - 30.0*C + 16.0*D - E;
-        demon = 12 * h_linear * h_linear;
+        denom = 12 * h_linear * h_linear;
         // update the hessian
         h->host[h_i] = numer / denom;
       } else { // X with respect to some other variable
+        // ----> First evaluation, A
+        temp[j]->camera.cam_pos.x         = images[j]->camera.cam_pos.x; // reset
+        temp[j]->camera.cam_pos[k - 3*j]  = images[j]->camera.cam_pos[k - 3*j]; // reset
+        temp[j]->camera.cam_pos.x        += h_linear;
+        temp[j]->camera.cam_pos[k - 3*j] += h_linear
+        bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+        voidTwoViewTriangulate(bundleTemp, gradientError);
+        A = *gradientError;
+
 
         // update the hessian
         h->host[h_i] = numer / denom;
@@ -1133,9 +1143,6 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
       // iterate the hessian index
       h_i++;
     }
-
-  // TODO add rotations here
-
   }
 
   //
@@ -1184,6 +1191,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // TODO hessians calculated here
     if (local_debug) std::cout << "\tCalculating Hessian ..." << std::endl;
+    calculateImageHessian(matchSet,images,hessian);
 
     // TODO invert hessian here
     if (local_debug) std::cout << "\tInverting Hessian ..." << std::endl;
