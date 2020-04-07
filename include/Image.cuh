@@ -58,6 +58,12 @@ namespace ssrlcv{
     Camera camera;///<\brief Camera struct holding all camera parameters
     Unity<unsigned char>* pixels;///<\brief pixels of image flattened row-wise
 
+    // =============================================================================================================
+    //
+    // Constructors and Destructors
+    //
+    // =============================================================================================================
+
     Image();///< \brief default constructor
     /**
     * \brief Constructor utilizing already read images.
@@ -93,6 +99,12 @@ namespace ssrlcv{
     Image(std::string filePath, unsigned int convertColorDepthTo, int id = -1);
     ~Image();///< destructor
 
+    // =============================================================================================================
+    //
+    // Image Host Methods
+    //
+    // =============================================================================================================
+
     /**
     * \brief Convert this->pixels to a specified colorDepth.
     * \details This method is used to change the number of values
@@ -121,6 +133,20 @@ namespace ssrlcv{
     */
     void alterSize(int scalingFactor);
 
+    /**
+    * retuns the camera paramters as a float vector where all data types are cast to floats
+    * removes the unix time stamp
+    * @returns array of floats representing the camera parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
+    */
+    Unity<float>* getFloatVector();
+
+    /**
+    * updates the camera parameters from a float vector representing camera parameters
+    * if there are less than 11 params the camera will still be updated, retaining values for params not included
+    * @param array of floats which should update the current parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
+    */
+    void setFloatVector(Unity<float>* params);
+
     // Binary camera params [Gitlab #58]
     void bcp_in(bcpFormat data) {
       this->camera.cam_pos.x  = data.pos[0];
@@ -140,6 +166,13 @@ namespace ssrlcv{
     }
 
   };
+
+  // =============================================================================================================
+  //
+  // Other Host Methods
+  //
+  // =============================================================================================================
+
   /**
   * \brief Generate a new image with a border.
   * \details This method takes in a Unity<unsigned char> pixel array and will add
@@ -448,19 +481,11 @@ namespace ssrlcv{
   */
   Unity<float>* convolve(uint2 imageSize, Unity<float>* pixels, int2 kernelSize, float* kernel, bool symmetric = true);
 
-  /**
-  * retuns the camera paramters as a float vector where all data types are cast to floats
-  * removes the unix time stamp
-  * @returns array of floats representing the camera parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
-  */
-  Unity<float>* getFloatVector();
-
-  /**
-  * updates the camera parameters from a float vector representing camera parameters
-  * if there are less than 11 params the camera will still be updated, retaining values for params not included
-  * @param array of floats which should update the current parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
-  */
-  void setFloatVector(Unity<float>* params);
+  // =============================================================================================================
+  //
+  // Device Kernels
+  //
+  // =============================================================================================================
 
   /* CUDA variable, method and kernel defintions */
 
