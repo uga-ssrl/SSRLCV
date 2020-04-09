@@ -1285,38 +1285,62 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
 * @param h the image hessian
 * @return inverse the inverse hessian
 */
-ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Unity<float>* h){
+ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Unity<float>* hessian){
 
   // cublas housekeeping
   cublasHandle_t handle;
+  cublasStatus_t status;
   cublasCreate_v2(&handle);
+  // needed cublas variables
+  const unsigned int N = (unsigned int) sqrt(h->size());
+  const unsigned int P = 1;
 
-  // make the output
-  ssrlcv::Unity<float>* i = new ssrlcv::Unity<float>(nullptr,h->size(),ssrlcv::cpu);
+  // allocate new unity floats
+  ssrlcv::Unity<float>* inv   = new ssrlcv::Unity<float>(nullptr,h->size(),ssrlcv::cpu);
+  ssrlcv::Unity<float>* pivot = new ssrlcv::Unity<float>(nullptr,(N * P),ssrlcv::cpu);
+  ssrlcv::Unity<float>* info  = new ssrlcv::Unity<float>(nullptr,P,ssrlcv::cpu);
+
+  // Convert the Unity to collumn major storage and transfer to device
+  float **h_hessian = (float **)malloc(P * sizeof(float *));
+  for (int i = 0; i < P; i++){
+    // h_hessian[i] = (float *) ((char*)hessian->host + i * ((size_t) N * N ) * sizeof(float));
+    h_hessian[i] = hessian->device + i * N * N;
+  }
+  float **d_hessian;
+  CudaSafeCall(cudaMalloc(&d_hessian, P * sizeof(float *)));
+  CudaSafeCall(cudaMemcpy(d_hessian, h_hessian, P * sizeof(float *), cudaMemcpyHostToDevice));
+  free(h_hessian);
+
+  // compute LU decomposition of hessian
+  status = cublasSgetrfBatched(handle, N, d_hessian, N, pivot->device, info->device , P)
+  if (stat != CUBLAS_STATUS_SUCCESS) {
+    std::cerr << "ERROR: cuBLAS error when inverting hessian" << std::endl;
+    return nullptr;
+  }
+  info->setFore(gpu);
+  info->transferMemoryTo(cpu);
+  info->clear(gpu);
+  for (int i = 0; i < P; i++){
+    if (!info->host[i]){
+      std::cerr << "ERROR: cuBLAS info params have failed" << std::endl;
+      return nullptr;
+    }
+  }
+
+  // solve UL H^-1 = I
 
 
+  // convert back to unity
 
-  //
-  // // transfter to gpu
-  // h->transferMemoryTo(gpu);
-  // i->transferMemoryTo(gpu);
-  //
-  // dim3 grid = {1,1,1};
-  // dim3 block = {1,1,1};
-  // getFlatGridBlock(i->size(),grid,block,computeInverseHessian);
-  //
-  // computeInverseHessian<<<grid, block>>>(i->size(), h->device, i->device);
-  //
-  // h->setFore(gpu);
-  // i->setFore(gpu);
-  // h->transferMemoryTo(cpu);
-  // i->transferMemoryTo(cpu);
-  // h->clear(gpu);
-  // i->clear(gpu);
 
+  // cleanup Unity
+
+  // cleanup other memory
+
+  // cleanup cuBLAS
   cublasDestroy_v2(handle);
 
-  return i;
+  return inv;
 }
 
 /**
@@ -2411,42 +2435,6 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
     //printf("[%lu / %u] [i: %d] < %f , %f, %f > at ( %.12f, %.12f, %.12f ) \n", globalID,numBundles,i,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z,lines[i].pnt.x,lines[i].pnt.y,lines[i].pnt.z);
   }
   delete[] kp;
-}
-
-__global__ void ssrlcv::computeInverseHessian(unsigned long size, float* h, float* i){
-  // make the cublas handle
-  // cublasHandle_t hdl;
-  // cublasStatus_t status = cublasCreate_v2(&hdl);
-  // printf("\t\t handle %d n = %d\n", status, (int) size);
-
-  // int *p = (int *)malloc(3*sizeof(int));
-  // int *info = (int *)malloc(sizeof(int));
-  // int batch;
-  // cublasHandle_t hdl;
-  // cublasStatus_t status = cublasCreate_v2(&hdl);
-  // printf("handle %d n = %d\n", status, n);
-  //
-  // info[0] = 0;
-  // batch = 1;
-  // float **a = (float **)malloc(sizeof(float *));
-  // *a = a_i;
-  // const float **aconst = (const float **)a;
-  // float **c = (float **)malloc(sizeof(float *));
-  // *c = c_o;
-  // // See
-  // // http://docs.nvidia.com/cuda/pdf/CUDA_Dynamic_Parallelism_Programming_Guide.pdf
-  // //http://stackoverflow.com/questions/27094612/cublas-matrix-inversion-from-device
-  // status = cublasSgetrfBatched(hdl, n, a, n, p, info, batch);
-  // __syncthreads();
-  // printf("rf %d info %d\n", status, info[0]);
-  // status = cublasSgetriBatched(hdl, n, aconst, n, p,
-  //     c, n, info, batch);
-  // __syncthreads();
-  // printf("ri %d info %d\n", status, info[0]);
-  // cublasDestroy_v2(hdl);
-  // printf("done\n");
-
-  // cublasDestroy_v2(hdl);
 }
 
 // =============================================================================================================

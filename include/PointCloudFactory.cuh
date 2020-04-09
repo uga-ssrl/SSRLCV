@@ -208,7 +208,7 @@ namespace ssrlcv{
      * @param a group of images, used only for their stored camera parameters
      * @param h the image hessian for the given inputs
      */
-    void calculateImageHessian(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* h);
+    void calculateImageHessian(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* hessian);
 
     /**
     * Calculates the inverse of the hessian h passed in by refrence
@@ -348,8 +348,6 @@ namespace ssrlcv{
   // =============================================================================================================
 
   __global__ void generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras);
-
-  __global__ void computeInverseHessian(unsigned long size, float* h, float* i);
 
   // =============================================================================================================
   //

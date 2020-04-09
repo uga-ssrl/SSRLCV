@@ -59,6 +59,9 @@
 
 #define PI 3.1415926535897932384626433832795028841971693993
 
+// 0 based indexing for cuBLAS
+#define IDX2C(i,j,ld) (((j)*(ld))+(i))
+
 namespace ssrlcv{
     typedef enum Direction{
         up,
