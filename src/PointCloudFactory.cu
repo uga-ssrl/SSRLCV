@@ -1292,31 +1292,35 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   cublasStatus_t status;
   cublasCreate_v2(&handle);
   // needed cublas variables
-  const unsigned int N = (unsigned int) sqrt(h->size());
+  const unsigned int N = (unsigned int) sqrt(hessian->size());
   const unsigned int P = 1;
+  // local debug
+  bool local_debug = true;
 
   // allocate new unity floats
-  ssrlcv::Unity<float>* inv   = new ssrlcv::Unity<float>(nullptr,h->size(),ssrlcv::cpu);
-  ssrlcv::Unity<float>* pivot = new ssrlcv::Unity<float>(nullptr,(N * P),ssrlcv::cpu);
-  ssrlcv::Unity<float>* info  = new ssrlcv::Unity<float>(nullptr,P,ssrlcv::cpu);
+  ssrlcv::Unity<float>* inv   = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::cpu);
+  ssrlcv::Unity<int>* pivot = new ssrlcv::Unity<int>(nullptr,(N * P),ssrlcv::gpu);
+  ssrlcv::Unity<int>* info  = new ssrlcv::Unity<int>(nullptr,P,ssrlcv::gpu);
 
   // Convert the Unity to collumn major storage and transfer to device
+  hessian->transferMemoryTo(gpu);
   float **h_hessian = (float **)malloc(P * sizeof(float *));
   for (int i = 0; i < P; i++){
-    // h_hessian[i] = (float *) ((char*)hessian->host + i * ((size_t) N * N ) * sizeof(float));
-    h_hessian[i] = hessian->device + i * N * N;
+    h_hessian[i] = hessian->device + (i * N * N);
   }
   float **d_hessian;
   CudaSafeCall(cudaMalloc(&d_hessian, P * sizeof(float *)));
   CudaSafeCall(cudaMemcpy(d_hessian, h_hessian, P * sizeof(float *), cudaMemcpyHostToDevice));
-  free(h_hessian);
 
   // compute LU decomposition of hessian
-  status = cublasSgetrfBatched(handle, N, d_hessian, N, pivot->device, info->device , P)
-  if (stat != CUBLAS_STATUS_SUCCESS) {
+  status = cublasSgetrfBatched(handle, N, d_hessian, N, pivot->device, info->device, P);
+  if (status != CUBLAS_STATUS_SUCCESS) {
     std::cerr << "ERROR: cuBLAS error when inverting hessian" << std::endl;
+    std::cerr << "\t\t ERROR STATUS: " << status << std::endl;
     return nullptr;
   }
+  cudaDeviceSynchronize();
+  CudaCheckError();
   info->setFore(gpu);
   info->transferMemoryTo(cpu);
   info->clear(gpu);
@@ -1326,6 +1330,17 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
       return nullptr;
     }
   }
+
+  if (local_debug){
+    CudaSafeCall(cudaMemcpy(h_hessian, d_hessian, P * sizeof(float *), cudaMemcpyDeviceToHost));
+    std::cout << "\t\t LU decomp:" << std::endl;
+    for (int i = 0; i < (N*N); i++){
+      std::cout << std::fixed << std::setprecision(4) << h_hessian[i] << " ";
+    }
+  }
+  std::cout << std::endl;
+
+  free(h_hessian);
 
   // solve UL H^-1 = I
 
