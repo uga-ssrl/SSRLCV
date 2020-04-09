@@ -1157,22 +1157,22 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
       if (i == j){ // second derivative with respect to self
 
         // ----> First Function Evaluation, A
-        params[i] += 2.0*h_step[i];
+        params->host[i] += 2.0*h_step[i];
         bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         A = *gradientError;
         // reset params
-        params[i] = params_reset[i];
+        params->host[i] = params_reset->host[i];
         delete bundleTemp.bundles;
         delete bundleTemp.lines;
 
         // ----> Second Function Evaluation, B
-        params[i] += h_step[i];
+        params->host[i] += h_step[i];
         bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         B = *gradientError;
         // reset params
-        params[i] = params_reset[i];
+        params->host[i] = params_reset->host[i];
         delete bundleTemp.bundles;
         delete bundleTemp.lines;
 
@@ -1181,27 +1181,27 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
         voidTwoViewTriangulate(bundleTemp, gradientError);
         C = *gradientError;
         // reset params
-        params[i] = params_reset[i];
+        params->host[i] = params_reset->host[i];
         delete bundleTemp.bundles;
         delete bundleTemp.lines;
 
         // ----> Forth Function Evaluation, D
-        params[i] -= h_step[i];
+        params->host[i] -= h_step[i];
         bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         D = *gradientError;
         // reset params
-        params[i] = params_reset[i];
+        params->host[i] = params_reset->host[i];
         delete bundleTemp.bundles;
         delete bundleTemp.lines;
 
         // ----> Fifth Function Evaluation, E
-        params[i] -= 2.0*h_step[i];
+        params->host[i] -= 2.0*h_step[i];
         bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         E = *gradientError;
         // reset params
-        params[i] = params_reset[i];
+        params->host[i] = params_reset->host[i];
         delete bundleTemp.bundles;
         delete bundleTemp.lines;
 
@@ -1214,50 +1214,50 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
       } else { // second derivative with respect to some over variable
 
         // ----> First Function Evaluation, A
-        params[i] += h_step[i];
-        params[j] += h_step[j];
+        params->host[i] += h_step[i];
+        params->host[j] += h_step[j];
         bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         A = *gradientError;
         // reset params
-        params[i] = params_reset[i];
-        params[j] = params_reset[j];
+        params->host[i] = params_reset->host[i];
+        params->host[j] = params_reset->host[j];
         delete bundleTemp.bundles;
         delete bundleTemp.lines;
 
         // ----> Second Function Evaluation, B
-        params[i] += h_step[i];
-        params[j] -= h_step[j];
+        params->host[i] += h_step[i];
+        params->host[j] -= h_step[j];
         bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         B = *gradientError;
         // reset params
-        params[i] = params_reset[i];
-        params[j] = params_reset[j];
+        params->host[i] = params_reset->host[i];
+        params->host[j] = params_reset->host[j];
         delete bundleTemp.bundles;
         delete bundleTemp.lines;
 
         // ----> Third Function Evaluation, C
-        params[i] -= h_step[i];
-        params[j] += h_step[j];
+        params->host[i] -= h_step[i];
+        params->host[j] += h_step[j];
         bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         C = *gradientError;
         // reset params
-        params[i] = params_reset[i];
-        params[j] = params_reset[j];
+        params->host[i] = params_reset->host[i];
+        params->host[j] = params_reset->host[j];
         delete bundleTemp.bundles;
         delete bundleTemp.lines;
 
         // ----> Forth Function Evaluation, D
-        params[i] -= h_step[i];
-        params[j] -= h_step[j];
+        params->host[i] -= h_step[i];
+        params->host[j] -= h_step[j];
         bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         D = *gradientError;
         // reset params
-        params[i] = params_reset[i];
-        params[j] = params_reset[j];
+        params->host[i] = params_reset->host[i];
+        params->host[j] = params_reset->host[j];
         delete bundleTemp.bundles;
         delete bundleTemp.lines;
 
