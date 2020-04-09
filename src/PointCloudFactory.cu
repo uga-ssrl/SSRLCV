@@ -808,11 +808,14 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   // update the cameras in the images with the params
   int params_per_cam = params->size() / images.size();
   Unity<float>* temp_params = new Unity<float>(nullptr,params_per_cam,cpu);
+  std::vector<ssrlcv::Image*> temp;
   for (int i = 0; i < images.size(); i++){
     // fill up the vector
     for (int j = 0; j < params_per_cam; j++){
       temp_params->host[j] = params->host[i*params_per_cam + j];
     }
+    // store old and set new
+    temp.push_back(images[i]);
     images[i]->setFloatVector(temp_params);
   }
   delete temp_params; // clean up
@@ -856,6 +859,12 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   matchSet->keyPoints->transferMemoryTo(cpu);
   matchSet->matches->clear(gpu);
   matchSet->keyPoints->clear(gpu);
+
+  // reset the images back to their original state
+  for (int i = 0; i < images.size(); i++){
+    images[i] = temp[i];
+  }
+  temp.clear();
 
   // transfer and clear the cpu information
   bundles->transferMemoryTo(cpu);
@@ -1107,8 +1116,6 @@ void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSe
 void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* h){
 
   // stepsize and indexing related variables
-  float h_linear  = 0.001;      // gradient difference
-  float h_radial  = 0.0000001;  // graident diff
   float h_step[6] = {0.001,0.001,0.001,0.000001,0.000001,0.000001}; // the step size vector
   int   h_i       = 0;               // the hessian location index
 
@@ -1127,14 +1134,16 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
 
   // this temp vector is only used for the +/- h steps when calculating the gradients
   // convert the temp images to float vectors
-  num_params = 3; // 3 is just position, 6 position and orientation
-  ssrlcv::Unity<float>* params = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
+  int num_params = 3; // 3 is just position, 6 position and orientation
+  ssrlcv::Unity<float>* params       = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
+  ssrlcv::Unity<float>* params_reset = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
   std::vector<ssrlcv::Image*> temp;
   for (int i = 0; i < images.size(); i++){
     temp.push_back(images[i]); // fill in the initial images
-    ssrlcv::Unity<float>* temp_params = temp->getFloatVector(num_params);
+    ssrlcv::Unity<float>* temp_params = temp[i]->getFloatVector(num_params);
     for (int j = 0; j < num_params; j++){
       params->host[i*num_params + j] = temp_params->host[j];
+      params_reset->host[i*num_params + j] = temp_params->host[j];
     }
     delete temp_params;
   }
@@ -1143,92 +1152,132 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
   // https://v8doc.sas.com/sashtml/ormp/chap5/sect28.htm
   // we are only testing position and orientation gradients
 
-  //
-  // X Position with respect to others
-  //
-  for (int j = 0; j < images.size(); j++){ // iterates through images
-    h_i = 3 * j; // TODO update this when adding rotations
-    for (int k = 0; k < 3 * images.size(); k++) { // iterates through variables
-      // function evaluations
-      // calculate the second order boiz
-      if ( (k - 3*j) == 0 ){ // X with repspect to self case. ( == 0) used for clarity with other cases later
-        // ----> First evaluation, A
-        temp[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x; // reset
-        temp[j]->camera.cam_pos.x += 2.0*h_linear;
-        bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+  for (int i = 0; i < params->size(); i++){
+    for (int j = 0; j < params->size(); j++){
+      if (i == j){ // second derivative with respect to self
+
+        // ----> First Function Evaluation, A
+        params[i] += 2.0*h_step[i];
+        bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         A = *gradientError;
-        // free up Memory
+        // reset params
+        params[i] = params_reset[i];
         delete bundleTemp.bundles;
         delete bundleTemp.lines;
-        // ----> Second evaluation, B
-        temp[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x; // reset
-        temp[j]->camera.cam_pos.x += h_linear;
-        bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+
+        // ----> Second Function Evaluation, B
+        params[i] += h_step[i];
+        bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         B = *gradientError;
-        // free up Memory
+        // reset params
+        params[i] = params_reset[i];
         delete bundleTemp.bundles;
         delete bundleTemp.lines;
-        // ----> Third evaluation, C
-        temp[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x; // reset
-        bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+
+        // ----> Third Function Evaluation, C
+        bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         C = *gradientError;
-        // free up Memory
+        // reset params
+        params[i] = params_reset[i];
         delete bundleTemp.bundles;
         delete bundleTemp.lines;
-        // ----> Fourth evaluation, D
-        temp[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x; // reset
-        temp[j]->camera.cam_pos.x -= h_linear;
-        bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+
+        // ----> Forth Function Evaluation, D
+        params[i] -= h_step[i];
+        bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         D = *gradientError;
-        // free up Memory
+        // reset params
+        params[i] = params_reset[i];
         delete bundleTemp.bundles;
         delete bundleTemp.lines;
-        // ----> Fifth evaluation, E
-        temp[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x; // reset
-        temp[j]->camera.cam_pos.x -= 2.0*h_linear;
-        bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+
+        // ----> Fifth Function Evaluation, E
+        params[i] -= 2.0*h_step[i];
+        bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         E = *gradientError;
-        // free up Memory
+        // reset params
+        params[i] = params_reset[i];
         delete bundleTemp.bundles;
         delete bundleTemp.lines;
+
         // calculate the result
-        numer = -1.0*A + 16.0*B - 30.0*C + 16.0*D - E;
-        denom = 12 * h_linear * h_linear;
+        numer = -1.0*A + 16.0*B - 30.0*C + 16.0*D - 1.0*E;
+        denom = 12.0 * h_step[i] * h_step[i];
         // update the hessian
         h->host[h_i] = numer / denom;
-      } else { // X with respect to some other variable
-        // ----> First evaluation, A
-        temp[j]->camera.cam_pos.x         = images[j]->camera.cam_pos.x; // reset
-        // temp[j]->camera.cam_pos[k - 3*j]  = images[j]->camera.cam_pos[k - 3*j]; // reset
-        temp[j]->camera.cam_pos.x        += h_linear;
-        // temp[j]->camera.cam_pos[k - 3*j] += h_linear;
-        bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+
+      } else { // second derivative with respect to some over variable
+
+        // ----> First Function Evaluation, A
+        params[i] += h_step[i];
+        params[j] += h_step[j];
+        bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         A = *gradientError;
+        // reset params
+        params[i] = params_reset[i];
+        params[j] = params_reset[j];
+        delete bundleTemp.bundles;
+        delete bundleTemp.lines;
 
+        // ----> Second Function Evaluation, B
+        params[i] += h_step[i];
+        params[j] -= h_step[j];
+        bundleTemp = generateBundles(matchSet,temp,params);
+        voidTwoViewTriangulate(bundleTemp, gradientError);
+        B = *gradientError;
+        // reset params
+        params[i] = params_reset[i];
+        params[j] = params_reset[j];
+        delete bundleTemp.bundles;
+        delete bundleTemp.lines;
 
+        // ----> Third Function Evaluation, C
+        params[i] -= h_step[i];
+        params[j] += h_step[j];
+        bundleTemp = generateBundles(matchSet,temp,params);
+        voidTwoViewTriangulate(bundleTemp, gradientError);
+        C = *gradientError;
+        // reset params
+        params[i] = params_reset[i];
+        params[j] = params_reset[j];
+        delete bundleTemp.bundles;
+        delete bundleTemp.lines;
+
+        // ----> Forth Function Evaluation, D
+        params[i] -= h_step[i];
+        params[j] -= h_step[j];
+        bundleTemp = generateBundles(matchSet,temp,params);
+        voidTwoViewTriangulate(bundleTemp, gradientError);
+        D = *gradientError;
+        // reset params
+        params[i] = params_reset[i];
+        params[j] = params_reset[j];
+        delete bundleTemp.bundles;
+        delete bundleTemp.lines;
+
+        // calculate the result
+        numer = A - B - C + D;
+        denom = 4.0 * h_step[i] * h_step[j];
         // update the hessian
-        // h->host[h_i] = numer / denom;
+        h->host[h_i] = numer / denom;
+
       }
-      // iterate the hessian index
+      // increment the hessian index
       h_i++;
     }
   }
 
-  //
-  // Y Position with respect to others
-  //
-
-
-
   // cleanup memory
   temp.clear();
+  delete gradientError;
   delete params;
+  delete params_reset;
 }
 
 /**
@@ -1269,8 +1318,17 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     if (local_debug) std::cout << "\tCalculating Hessian ..." << std::endl;
     calculateImageHessian(matchSet,images,hessian);
 
+    for (int j = 0; j < hessian->size(); j+=3){
+      std::cout << "\t\t |" << hessian->host[j];
+      std::cout << " " << hessian->host[j+1];
+      std::cout << " " << hessian->host[j+2];
+      std::cout << std::endl;
+    }
+    std::cout << std::endl;
+
     // TODO invert hessian here
     if (local_debug) std::cout << "\tInverting Hessian ..." << std::endl;
+    // see https://stackoverflow.com/questions/28794010/solving-dense-linear-systems-ax-b-with-cuda
 
     // TODO calculate new stepsize here
 
