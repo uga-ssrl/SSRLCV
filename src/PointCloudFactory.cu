@@ -1144,7 +1144,10 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
     for (int j = 0; j < num_params; j++){
       params->host[i*num_params + j] = temp_params->host[j];
       params_reset->host[i*num_params + j] = temp_params->host[j];
+
+      std::cout << std::fixed << std::setprecision(4) << temp_params->host[j];
     }
+    std::cout << std::endl;
     delete temp_params;
   }
 
@@ -1299,10 +1302,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // allocate memory
   float* localError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
   gradient = new ssrlcv::Unity<float>(nullptr,(3 * images.size()),ssrlcv::cpu);
-  hessian  = new ssrlcv::Unity<float>(nullptr,(3 * images.size() * images.size()),ssrlcv::cpu);
+  hessian  = new ssrlcv::Unity<float>(nullptr,((3 * images.size())*(3 * images.size())),ssrlcv::cpu);
 
   // for debug
-  bool local_debug = false;
+  bool local_debug = true;
 
   // temp step
   float step = 0.001;
@@ -1318,13 +1321,19 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     if (local_debug) std::cout << "\tCalculating Hessian ..." << std::endl;
     calculateImageHessian(matchSet,images,hessian);
 
-    for (int j = 0; j < hessian->size(); j+=3){
-      std::cout << "\t\t |" << hessian->host[j];
-      std::cout << " " << hessian->host[j+1];
-      std::cout << " " << hessian->host[j+2];
+    if (local_debug){
+      std::cout << "\t\t Hessian Size: " << hessian->size() << std::endl;
+      for (int j = 0; j < hessian->size(); j+=6){
+        std::cout << "\t\t | " << std::fixed << std::setprecision(4) << hessian->host[j];
+        std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+1];
+        std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+2];
+        std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+3];
+        std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+4];
+        std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+5];
+        std::cout << " |" << std::endl;
+      }
       std::cout << std::endl;
     }
-    std::cout << std::endl;
 
     // TODO invert hessian here
     if (local_debug) std::cout << "\tInverting Hessian ..." << std::endl;
