@@ -1332,11 +1332,41 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   }
 
   if (local_debug){
-    CudaSafeCall(cudaMemcpy(h_hessian, d_hessian, P * sizeof(float *), cudaMemcpyDeviceToHost));
-    std::cout << "\t\t LU decomp:" << std::endl;
-    for (int i = 0; i < (N*N); i++){
-      std::cout << std::fixed << std::setprecision(4) << h_hessian[i] << " ";
+    hessian->setFore(gpu);
+    hessian->transferMemoryTo(cpu);
+    ssrlcv::Unity<int>* L  = new ssrlcv::Unity<int>(nullptr,hessian->size(),ssrlcv::cpu);
+    ssrlcv::Unity<int>* U  = new ssrlcv::Unity<int>(nullptr,hessian->size(),ssrlcv::cpu);
+    // fill in L and U
+    int index = 0;
+    for (int i = 0; i < N; i++){
+      for (int j = 0; j < N; j++){
+        if (i == j){
+          // Upper
+          U->host[index] = hessian->host[i];
+          L->host[index] = 1.0;
+        } else if(i > j) {
+          // Upper
+          U->host[index] = hessian->host[i];
+          L->host[index] = 0.0;
+        } else {
+          // Lower
+          U->host[index] = 0.0;
+          L->host[index] = hessian->host[i];
+        }
+        index++;
+      }
+      std::cout << std::endl << std::endl << "\t\t L matrix = " << std::endl;
+      for (int i = 0; i < hessian->size(); i++){
+        if (!(i%N)) std::cout << std::endl << "\t\t ";
+        std::cout << std::fixed << std::setprecision(4) << L->host[i] << "\t ";
+      }
+      std::cout << std::endl << std::endl << "\t\t U matrix = " << std::endl;
+      for (int i = 0; i < hessian->size(); i++){
+        if (!(i%N)) std::cout << std::endl << "\t\t ";
+        std::cout << std::fixed << std::setprecision(4) << U->host[i] << "\t ";
+      }
     }
+
   }
   std::cout << std::endl;
 
@@ -1385,6 +1415,19 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
   // temp step
   float step = 0.001;
+
+
+  // TEMP inversion test
+  std::cout << "==============================" << std::endl;
+  std::cout << "Inversion Test: " << std::endl;
+  ssrlcv::Unity<float>* test = new ssrlcv::Unity<float>(nullptr,9,ssrlcv::cpu);
+  for (int i = 0; i < 9; i++){
+    if (i == 0 || i == 3 || i == 6) std::cout << std::endl << "\t\t ";
+    test->host[i] = (float) i;
+    std::cout << test->host[i] << "\t ";
+  }
+  calculateImageHessianInverse(test);
+  delete test;
 
   // begin iterative gradient decent
   for (int i = 0; i < iterations; i++){
