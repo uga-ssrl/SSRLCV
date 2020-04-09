@@ -1132,6 +1132,8 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
 
   ssrlcv::BundleSet bundleTemp;
 
+  bool local_debug = true;
+
   // this temp vector is only used for the +/- h steps when calculating the gradients
   // convert the temp images to float vectors
   int num_params = 3; // 3 is just position, 6 position and orientation
@@ -1151,6 +1153,14 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
   // calculates all of the hessians with central difference
   // https://v8doc.sas.com/sashtml/ormp/chap5/sect28.htm
   // we are only testing position and orientation gradients
+
+  if (local_debug){
+    std::cout << "\t Params: " << std::endl << "\t\t ";
+    for (int i = 0; i < params->size(); i++) {
+      std::cout << params->host[i] << " ";
+    }
+    std::cout << std::endl << "\t Hessian Size: " << params->size() * params->size() << std::endl;
+  }
 
   for (int i = 0; i < params->size(); i++){
     for (int j = 0; j < params->size(); j++){
@@ -1303,6 +1313,9 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   ssrlcv::Unity<int>* info  = new ssrlcv::Unity<int>(nullptr,P,ssrlcv::gpu);
 
   // Convert the Unity to collumn major storage and transfer to device
+
+
+  // setup the double pointer for cuBLAS
   hessian->transferMemoryTo(gpu);
   float **h_hessian = (float **)malloc(P * sizeof(float *));
   for (int i = 0; i < P; i++){
@@ -1315,18 +1328,28 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   // compute LU decomposition of hessian
   status = cublasSgetrfBatched(handle, N, d_hessian, N, pivot->device, info->device, P);
   if (status != CUBLAS_STATUS_SUCCESS) {
-    std::cerr << "ERROR: cuBLAS error when inverting hessian" << std::endl;
+    std::cout << std::endl;
+    std::cerr << "ERROR: cuBLAS error when doing LU decomp on hessian" << std::endl;
     std::cerr << "\t\t ERROR STATUS: " << status << std::endl;
     return nullptr;
   }
   cudaDeviceSynchronize();
   CudaCheckError();
-  info->setFore(gpu);
+  // info->setFore(gpu);
   info->transferMemoryTo(cpu);
   info->clear(gpu);
   for (int i = 0; i < P; i++){
-    if (!info->host[i]){
+    if (info->host[i] > 0){
+      std::cout << std::endl;
       std::cerr << "ERROR: cuBLAS info params have failed" << std::endl;
+      std::cerr << "\t cuBLAS ERROR status: " << info->host[i] << std::endl;
+      std::cerr << "\t matrix U of the LU decomposition is singular, unable to find inverse" << std::endl;
+      return nullptr;
+    } else if (info->host[i] < 0) {
+      std::cout << std::endl;
+      std::cerr << "ERROR: cuBLAS info params have failed" << std::endl;
+      std::cerr << "\t cuBLAS ERROR status: " << info->host[i] << std::endl;
+      std::cerr << "\t invalid parameter at " << (-1 * info->host[i]) << std::endl;
       return nullptr;
     }
   }
@@ -1334,39 +1357,60 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   if (local_debug){
     hessian->setFore(gpu);
     hessian->transferMemoryTo(cpu);
-    ssrlcv::Unity<int>* L  = new ssrlcv::Unity<int>(nullptr,hessian->size(),ssrlcv::cpu);
-    ssrlcv::Unity<int>* U  = new ssrlcv::Unity<int>(nullptr,hessian->size(),ssrlcv::cpu);
+    std::cout << std::endl << std::endl << "\t\t (L + U)^T = " << std::endl;
+    for (int i = 0; i < (N*N); i++){
+      if (!(i%N)) std::cout << std::endl << "\t\t ";
+      std::cout << std::fixed << std::setprecision(4) << hessian->host[i] << "\t ";
+    }
+    std::cout << std::endl << std::endl << "\t\t L + U = " << std::endl;
+    for (int i = 0; i < N; i++){
+      std::cout << std::endl << "\t\t ";
+      for (int j = i; j < (N*N); j+=N){
+        std::cout << std::fixed << std::setprecision(4) << hessian->host[j] << "\t ";
+      }
+    }
+    ssrlcv::Unity<float>* L  = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::cpu);
+    ssrlcv::Unity<float>* U  = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::cpu);
     // fill in L and U
     int index = 0;
     for (int i = 0; i < N; i++){
       for (int j = 0; j < N; j++){
         if (i == j){
           // Upper
-          U->host[index] = hessian->host[i];
+          U->host[index] = hessian->host[index];
           L->host[index] = 1.0;
         } else if(i > j) {
           // Upper
-          U->host[index] = hessian->host[i];
+          U->host[index] = hessian->host[index];
           L->host[index] = 0.0;
         } else {
           // Lower
           U->host[index] = 0.0;
-          L->host[index] = hessian->host[i];
+          L->host[index] = hessian->host[index];
         }
         index++;
       }
-      std::cout << std::endl << std::endl << "\t\t L matrix = " << std::endl;
-      for (int i = 0; i < hessian->size(); i++){
-        if (!(i%N)) std::cout << std::endl << "\t\t ";
-        std::cout << std::fixed << std::setprecision(4) << L->host[i] << "\t ";
+    }
+    std::cout << std::endl << std::endl << "\t\t L matrix = " << std::endl;
+    for (int i = 0; i < N; i++){
+      std::cout << std::endl << "\t\t ";
+      for (int j = i; j < (N*N); j+=N){
+        std::cout << std::fixed << std::setprecision(4) << L->host[j] << "\t ";
       }
-      std::cout << std::endl << std::endl << "\t\t U matrix = " << std::endl;
-      for (int i = 0; i < hessian->size(); i++){
-        if (!(i%N)) std::cout << std::endl << "\t\t ";
-        std::cout << std::fixed << std::setprecision(4) << U->host[i] << "\t ";
+    }
+    std::cout << std::endl << std::endl << "\t\t U matrix = " << std::endl;
+    for (int i = 0; i < N; i++){
+      std::cout << std::endl << "\t\t ";
+      for (int j = i; j < (N*N); j+=N){
+        std::cout << std::fixed << std::setprecision(4) << U->host[j] << "\t ";
       }
     }
 
+    // matrix multiply
+
+
+    delete L;
+    delete U;
   }
   std::cout << std::endl;
 
@@ -1418,16 +1462,29 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
 
   // TEMP inversion test
-  std::cout << "==============================" << std::endl;
-  std::cout << "Inversion Test: " << std::endl;
-  ssrlcv::Unity<float>* test = new ssrlcv::Unity<float>(nullptr,9,ssrlcv::cpu);
-  for (int i = 0; i < 9; i++){
-    if (i == 0 || i == 3 || i == 6) std::cout << std::endl << "\t\t ";
-    test->host[i] = (float) i;
-    std::cout << test->host[i] << "\t ";
+  if (local_debug){
+    std::cout << "==============================" << std::endl;
+    std::cout << "Inversion Test: " << std::endl;
+    ssrlcv::Unity<float>* test = new ssrlcv::Unity<float>(nullptr,9,ssrlcv::cpu);
+    test->host[0] = 1.0;
+    test->host[1] = 1.0;
+    test->host[2] = -1.0;
+    test->host[3] = -2.0;
+    test->host[4] = 3.0;
+    test->host[5] = 2.0;
+    test->host[6] = 3.0;
+    test->host[7] = -3.0;
+    test->host[8] = 3.0;
+    std::cout << std::endl << std::endl << "\t\t test matrix = " << std::endl;
+    for (int i = 0; i < 3; i++){
+      std::cout << std::endl << "\t\t ";
+      for (int j = i; j < 9; j+=3){
+        std::cout << std::fixed << std::setprecision(4) << test->host[j] << "\t ";
+      }
+    }
+    calculateImageHessianInverse(test);
+    delete test;
   }
-  calculateImageHessianInverse(test);
-  delete test;
 
   // begin iterative gradient decent
   for (int i = 0; i < iterations; i++){
