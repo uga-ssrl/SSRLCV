@@ -1287,25 +1287,34 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
 */
 ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Unity<float>* h){
 
+  // cublas housekeeping
+  cublasHandle_t handle;
+  cublasCreate_v2(&handle);
+
   // make the output
   ssrlcv::Unity<float>* i = new ssrlcv::Unity<float>(nullptr,h->size(),ssrlcv::cpu);
 
-  // transfter to gpu
-  h->transferMemoryTo(gpu);
-  i->transferMemoryTo(gpu);
 
-  dim3 grid = {1,1,1};
-  dim3 block = {1,1,1};
-  getFlatGridBlock(i->size(),grid,block,computeInverseHessian);
 
-  computeInverseHessian<<<grid, block>>>(i->size(), h->device, i->device);
+  //
+  // // transfter to gpu
+  // h->transferMemoryTo(gpu);
+  // i->transferMemoryTo(gpu);
+  //
+  // dim3 grid = {1,1,1};
+  // dim3 block = {1,1,1};
+  // getFlatGridBlock(i->size(),grid,block,computeInverseHessian);
+  //
+  // computeInverseHessian<<<grid, block>>>(i->size(), h->device, i->device);
+  //
+  // h->setFore(gpu);
+  // i->setFore(gpu);
+  // h->transferMemoryTo(cpu);
+  // i->transferMemoryTo(cpu);
+  // h->clear(gpu);
+  // i->clear(gpu);
 
-  h->setFore(gpu);
-  i->setFore(gpu);
-  h->transferMemoryTo(cpu);
-  i->transferMemoryTo(cpu);
-  h->clear(gpu);
-  i->clear(gpu);
+  cublasDestroy_v2(handle);
 
   return i;
 }
@@ -1367,7 +1376,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     if (local_debug) std::cout << "\tInverting Hessian ..." << std::endl;
     // see https://stackoverflow.com/questions/28794010/solving-dense-linear-systems-ax-b-with-cuda
     // see https://stackoverflow.com/questions/27094612/cublas-matrix-inversion-from-device
-    inverse = calculateImageHessianInverse(h);
+    inverse = calculateImageHessianInverse(hessian);
 
     // TODO calculate new stepsize here
 
@@ -2349,13 +2358,13 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
 
 // =============================================================================
 
-          // =============================================================================================================
-          // =============================================================================================================
-          // ==================================================================================================== //
-          //                                        device methods                                                //
-          // ==================================================================================================== //
-          // =============================================================================================================
-          // =============================================================================================================
+            // =====================================================================================================//
+            // =====================================================================================================//
+            // ==================================================================================================== //
+            //                                        device methods                                                //
+            // ==================================================================================================== //
+            // =====================================================================================================//
+            // =====================================================================================================//
 
 // =============================================================================================================
 //
@@ -2406,9 +2415,9 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
 
 __global__ void ssrlcv::computeInverseHessian(unsigned long size, float* h, float* i){
   // make the cublas handle
-  cublasHandle_t hdl;
-  cublasStatus_t status = cublasCreate_v2(&hdl);
-  printf("\t\t handle %d n = %d\n", status, n);
+  // cublasHandle_t hdl;
+  // cublasStatus_t status = cublasCreate_v2(&hdl);
+  // printf("\t\t handle %d n = %d\n", status, (int) size);
 
   // int *p = (int *)malloc(3*sizeof(int));
   // int *info = (int *)malloc(sizeof(int));
@@ -2437,7 +2446,7 @@ __global__ void ssrlcv::computeInverseHessian(unsigned long size, float* h, floa
   // cublasDestroy_v2(hdl);
   // printf("done\n");
 
-  cublasDestroy_v2(hdl);
+  // cublasDestroy_v2(hdl);
 }
 
 // =============================================================================================================
