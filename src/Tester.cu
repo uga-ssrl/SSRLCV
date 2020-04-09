@@ -200,7 +200,7 @@ int main(int argc, char *argv[]){
 
     std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
     // now start the bundle adjustment 2-view loop
-    points = demPoints.BundleAdjustTwoView(&matchSet,images, 3);
+    points = demPoints.BundleAdjustTwoView(&matchSet,images, 1);
     // points = demPoints.twoViewTriangulate(bundleSet, linearError); // one last time!
     // std::cout << "final adjusted cloud has linearError: " << *linearError << std::endl;
     std::cout << "\t writing adjusted PLY ..." << std::endl;

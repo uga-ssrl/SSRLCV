@@ -1116,7 +1116,7 @@ void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSe
 void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* h){
 
   // stepsize and indexing related variables
-  float h_step[6] = {0.001,0.001,0.001,0.000001,0.000001,0.000001}; // the step size vector
+  float h_step[6] = {0.01,0.01,0.01,0.000001,0.000001,0.000001}; // the step size vector
   int   h_i       = 0;               // the hessian location index
 
   // temp variables within the loops
@@ -1297,139 +1297,121 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
 */
 ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Unity<float>* hessian){
 
-  // cublas housekeeping
-  cublasHandle_t handle;
-  cublasStatus_t status;
-  cublasCreate_v2(&handle);
-  // needed cublas variables
-  const unsigned int N = (unsigned int) sqrt(hessian->size());
-  const unsigned int P = 1;
-  // local debug
+  // based off of cuSOLVER CUDA docs
+  // see:
+  // https://docs.nvidia.com/cuda/cusolver/index.html#svd-example1
+
+  cusolverDnHandle_t  cusolverH       = NULL;
+  cublasHandle_t      cublasH         = NULL;
+  cublasStatus_t      cublas_status   = CUBLAS_STATUS_SUCCESS;
+  cusolverStatus_t    cusolver_status = CUSOLVER_STATUS_SUCCESS;
+
   bool local_debug = true;
 
-  // allocate new unity floats
-  ssrlcv::Unity<float>* inv   = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::cpu);
-  ssrlcv::Unity<int>* pivot = new ssrlcv::Unity<int>(nullptr,(N * P),ssrlcv::gpu);
-  ssrlcv::Unity<int>* info  = new ssrlcv::Unity<int>(nullptr,P,ssrlcv::gpu);
+  const unsigned int N = (const unsigned int) sqrt(hessian->size());
 
-  // Convert the Unity to collumn major storage and transfer to device
+  ssrlcv::Unity<float>* A  = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::cpu);
+  ssrlcv::Unity<float>* S  = new ssrlcv::Unity<float>(nullptr,N              ,ssrlcv::gpu);
+  ssrlcv::Unity<float>* U  = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::gpu);
+  ssrlcv::Unity<float>* VT = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::gpu);
+  ssrlcv::Unity<float>* W  = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::gpu);
 
+  ssrlcv::Unity<int>* info  = new ssrlcv::Unity<int>(nullptr,1,ssrlcv::gpu);
 
-  // setup the double pointer for cuBLAS
-  hessian->transferMemoryTo(gpu);
-  float **h_hessian = (float **)malloc(P * sizeof(float *));
-  for (int i = 0; i < P; i++){
-    h_hessian[i] = hessian->device + (i * N * N);
-  }
-  float **d_hessian;
-  CudaSafeCall(cudaMalloc(&d_hessian, P * sizeof(float *)));
-  CudaSafeCall(cudaMemcpy(d_hessian, h_hessian, P * sizeof(float *), cudaMemcpyHostToDevice));
-
-  // compute LU decomposition of hessian
-  status = cublasSgetrfBatched(handle, N, d_hessian, N, pivot->device, info->device, P);
-  if (status != CUBLAS_STATUS_SUCCESS) {
-    std::cout << std::endl;
-    std::cerr << "ERROR: cuBLAS error when doing LU decomp on hessian" << std::endl;
-    std::cerr << "\t\t ERROR STATUS: " << status << std::endl;
-    return nullptr;
-  }
-  cudaDeviceSynchronize();
-  CudaCheckError();
-  // info->setFore(gpu);
-  info->transferMemoryTo(cpu);
-  info->clear(gpu);
-  for (int i = 0; i < P; i++){
-    if (info->host[i] > 0){
-      std::cout << std::endl;
-      std::cerr << "ERROR: cuBLAS info params have failed" << std::endl;
-      std::cerr << "\t cuBLAS ERROR status: " << info->host[i] << std::endl;
-      std::cerr << "\t matrix U of the LU decomposition is singular, unable to find inverse" << std::endl;
-      return nullptr;
-    } else if (info->host[i] < 0) {
-      std::cout << std::endl;
-      std::cerr << "ERROR: cuBLAS info params have failed" << std::endl;
-      std::cerr << "\t cuBLAS ERROR status: " << info->host[i] << std::endl;
-      std::cerr << "\t invalid parameter at " << (-1 * info->host[i]) << std::endl;
-      return nullptr;
+  // Put the hessian into matrix A in column major order
+  if (local_debug) std::cout << std::endl << "\t Hessian in column major order: " << std::endl;
+  int index = 0;
+  for (int i = 0; i < N; i++){
+    if (local_debug) std::cout << std::endl << "\t\t ";
+    for (int j = i; j < (N*N); j+=N){
+      A->host[index] = hessian->host[j];
+      if (local_debug) std::cout << std::fixed << std::setprecision(4) << hessian->host[j] << "\t ";
     }
   }
+
+  // transfer hessian to device mem
+  A->transferMemoryTo(gpu);
+
+  // cuSOLVER and cuBLAS house keeping
+  cusolver_status = cusolverDnCreate(&cusolverH);
+  assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
+  cublas_status = cublasCreate(&cublasH);
+  assert(CUBLAS_STATUS_SUCCESS == cublas_status);
+
+  // cuSOLVER SVD
+  int lwork = 0;
+  cusolver_status = cusolverDnDgesvd_bufferSize(cusolverH,N,N,&lwork);
+  assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
+
+  signed char jobu = 'A'; // all m columns of U
+  signed char jobvt = 'A'; // all n columns of VT
+  float *d_work = NULL;
+  float *d_rwork = NULL;
+
+  cusolver_status = cusolverDnSgesvd (cusolverH,jobu,jobvt,N,N,A->device,lda,S->device,U->device,N,VT->device,N,d_work,lwork,d_rwork,info->device);
+  cudaDeviceSynchronize();
+  assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
+
+  if (local_debug) std::cout << "\t SVD compelete ..." << std::endl;
+
+  // move back the results
+  S->transferMemoryTo(cpu);
+  U->transferMemoryTo(cpu);
+  VT->transferMemoryTo(cpu);
+  W->transferMemoryTo(cpu);
+  S->clear(gpu);
+  U->clear(gpu);
+  VT->clear(gpu);
+  W->clear(gpu);
 
   if (local_debug){
-    hessian->setFore(gpu);
-    hessian->transferMemoryTo(cpu);
-    std::cout << std::endl << std::endl << "\t\t (L + U)^T = " << std::endl;
-    for (int i = 0; i < (N*N); i++){
-      if (!(i%N)) std::cout << std::endl << "\t\t ";
-      std::cout << std::fixed << std::setprecision(4) << hessian->host[i] << "\t ";
-    }
-    std::cout << std::endl << std::endl << "\t\t L + U = " << std::endl;
+    std::cout << std::endl << "\t\t U = " << std::endl << "\t\t ";
+    index = 0;
     for (int i = 0; i < N; i++){
-      std::cout << std::endl << "\t\t ";
+      std::cout << "\t\t ";
       for (int j = i; j < (N*N); j+=N){
-        std::cout << std::fixed << std::setprecision(4) << hessian->host[j] << "\t ";
-      }
-    }
-    ssrlcv::Unity<float>* L  = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::cpu);
-    ssrlcv::Unity<float>* U  = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::cpu);
-    // fill in L and U
-    int index = 0;
-    for (int i = 0; i < N; i++){
-      for (int j = 0; j < N; j++){
-        if (i == j){
-          // Upper
-          U->host[index] = hessian->host[index];
-          L->host[index] = 1.0;
-        } else if(i > j) {
-          // Upper
-          U->host[index] = hessian->host[index];
-          L->host[index] = 0.0;
-        } else {
-          // Lower
-          U->host[index] = 0.0;
-          L->host[index] = hessian->host[index];
-        }
+        std::cout << std::fixed << std::setprecision(4) << U->host[j] << " ";
         index++;
       }
     }
-    std::cout << std::endl << std::endl << "\t\t L matrix = " << std::endl;
+
+    std::cout << std::endl << "\t\t S = " << std::endl << "\t\t ";
+    index = 0;
     for (int i = 0; i < N; i++){
+      for (int j = i; j < N; j++){
+        if (i == j){
+          std::cout << std::fixed << std::setprecision(4) << S->host[index] << " ";
+          index ++;
+        } else {
+          std::cout << "0.0000 ";
+        }
+      }
       std::cout << std::endl << "\t\t ";
+    }
+
+    std::cout << std::endl << "\t\t VT = " << std::endl << "\t\t ";
+    index = 0;
+    for (int i = 0; i < N; i++){
+      std::cout << "\t\t ";
       for (int j = i; j < (N*N); j+=N){
-        std::cout << std::fixed << std::setprecision(4) << L->host[j] << "\t ";
+        std::cout << std::fixed << std::setprecision(4) << VT->host[j] << " ";
+        index++;
       }
     }
-    std::cout << std::endl << std::endl << "\t\t U matrix = " << std::endl;
-    for (int i = 0; i < N; i++){
-      std::cout << std::endl << "\t\t ";
-      for (int j = i; j < (N*N); j+=N){
-        std::cout << std::fixed << std::setprecision(4) << U->host[j] << "\t ";
-      }
-    }
-
-    // matrix multiply
-
-
-    delete L;
-    delete U;
   }
-  std::cout << std::endl;
 
-  free(h_hessian);
+  // memory cleanup
+  delete info;
+  delete S;
+  delete U;
+  delete VT;
+  delete W;
 
-  // solve UL H^-1 = I
+  // end solver session
+  cublasDestroy(cublasH);
+  cusolverDnDestroy(cusolverH);
 
-
-  // convert back to unity
-
-
-  // cleanup Unity
-
-  // cleanup other memory
-
-  // cleanup cuBLAS
-  cublasDestroy_v2(handle);
-
-  return inv;
+  return nullptr;
 }
 
 /**
