@@ -1144,10 +1144,7 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
     for (int j = 0; j < num_params; j++){
       params->host[i*num_params + j] = temp_params->host[j];
       params_reset->host[i*num_params + j] = temp_params->host[j];
-
-      std::cout << std::fixed << std::setprecision(4) << temp_params->host[j];
     }
-    std::cout << std::endl;
     delete temp_params;
   }
 
@@ -1284,6 +1281,36 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
 }
 
 /**
+* Calculates the inverse of the hessian h passed in by refrence
+* @param h the image hessian
+* @return inverse the inverse hessian
+*/
+ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Unity<float>* h){
+
+  // make the output
+  ssrlcv::Unity<float>* i = new ssrlcv::Unity<float>(nullptr,h->size(),ssrlcv::cpu);
+
+  // transfter to gpu
+  h->transferMemoryTo(gpu);
+  i->transferMemoryTo(gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(i->size(),grid,block,computeInverseHessian);
+
+  computeInverseHessian<<<grid, block>>>(i->size(), h->device, i->device);
+
+  h->setFore(gpu);
+  i->setFore(gpu);
+  h->transferMemoryTo(cpu);
+  i->transferMemoryTo(cpu);
+  h->clear(gpu);
+  i->clear(gpu);
+
+  return i;
+}
+
+/**
  * A Naive bundle adjustment based on a two-view triangulation and a first order descrete gradient decent
  * @param matchSet a group of matches
  * @param a group of images, used only for their stored camera parameters
@@ -1295,6 +1322,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   ssrlcv::Unity<float3>* points;
   ssrlcv::Unity<float>* gradient;
   ssrlcv::Unity<float>* hessian;
+  ssrlcv::Unity<float>* inverse;
   ssrlcv::BundleSet bundleTemp;
   // This is for error tracking and printing later
   std::vector<float> errorTracker;
@@ -1338,6 +1366,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // TODO invert hessian here
     if (local_debug) std::cout << "\tInverting Hessian ..." << std::endl;
     // see https://stackoverflow.com/questions/28794010/solving-dense-linear-systems-ax-b-with-cuda
+    // see https://stackoverflow.com/questions/27094612/cublas-matrix-inversion-from-device
+    inverse = calculateImageHessianInverse(h);
 
     // TODO calculate new stepsize here
 
@@ -2372,6 +2402,42 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
     //printf("[%lu / %u] [i: %d] < %f , %f, %f > at ( %.12f, %.12f, %.12f ) \n", globalID,numBundles,i,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z,lines[i].pnt.x,lines[i].pnt.y,lines[i].pnt.z);
   }
   delete[] kp;
+}
+
+__global__ void ssrlcv::computeInverseHessian(unsigned long size, float* h, float* i){
+  // make the cublas handle
+  cublasHandle_t hdl;
+  cublasStatus_t status = cublasCreate_v2(&hdl);
+  printf("\t\t handle %d n = %d\n", status, n);
+
+  // int *p = (int *)malloc(3*sizeof(int));
+  // int *info = (int *)malloc(sizeof(int));
+  // int batch;
+  // cublasHandle_t hdl;
+  // cublasStatus_t status = cublasCreate_v2(&hdl);
+  // printf("handle %d n = %d\n", status, n);
+  //
+  // info[0] = 0;
+  // batch = 1;
+  // float **a = (float **)malloc(sizeof(float *));
+  // *a = a_i;
+  // const float **aconst = (const float **)a;
+  // float **c = (float **)malloc(sizeof(float *));
+  // *c = c_o;
+  // // See
+  // // http://docs.nvidia.com/cuda/pdf/CUDA_Dynamic_Parallelism_Programming_Guide.pdf
+  // //http://stackoverflow.com/questions/27094612/cublas-matrix-inversion-from-device
+  // status = cublasSgetrfBatched(hdl, n, a, n, p, info, batch);
+  // __syncthreads();
+  // printf("rf %d info %d\n", status, info[0]);
+  // status = cublasSgetriBatched(hdl, n, aconst, n, p,
+  //     c, n, info, batch);
+  // __syncthreads();
+  // printf("ri %d info %d\n", status, info[0]);
+  // cublasDestroy_v2(hdl);
+  // printf("done\n");
+
+  cublasDestroy_v2(hdl);
 }
 
 // =============================================================================================================

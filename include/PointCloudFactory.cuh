@@ -190,7 +190,7 @@ namespace ssrlcv{
     * and sets of lines as bundles
     * @param matchSet a group of maches
     * @param images a group of images, used only for their stored camera parameters
-    * @param params a unity of float's which store selected camera parameters for N many, this does not have to be completely full but each camera must have the same number of parameters. The expected order is X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y 
+    * @param params a unity of float's which store selected camera parameters for N many, this does not have to be completely full but each camera must have the same number of parameters. The expected order is X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
     */
     BundleSet generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* params);
 
@@ -209,6 +209,13 @@ namespace ssrlcv{
      * @param h the image hessian for the given inputs
      */
     void calculateImageHessian(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* h);
+
+    /**
+    * Calculates the inverse of the hessian h passed in by refrence
+    * @param h the image hessian
+    * @return inverse the inverse hessian
+    */
+    ssrlcv::Unity<float>* calculateImageHessianInverse(Unity<float>* h);
 
     /**
      * A Naive bundle adjustment based on a two-view triangulation and a first order descrete gradient decent
@@ -341,6 +348,8 @@ namespace ssrlcv{
   // =============================================================================================================
 
   __global__ void generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras);
+
+  __global__ void computeInverseHessian(unsigned long size, float* h, float* i);
 
   // =============================================================================================================
   //

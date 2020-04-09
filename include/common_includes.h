@@ -11,6 +11,7 @@
 #include "device_launch_parameters.h"
 #include <cuda.h>
 #include <cuda_occupancy.h>
+#include <cublas_v2.h>
 
 //util
 #include "cuda_util.cuh"
