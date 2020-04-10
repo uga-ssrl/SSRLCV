@@ -1339,20 +1339,38 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   assert(CUBLAS_STATUS_SUCCESS == cublas_status);
 
   // cuSOLVER SVD
-  int lwork = 0;
+  int lwork       = 0;
+  float *d_work   = NULL;
+  float *d_rwork  = NULL;
   cusolver_status = cusolverDnDgesvd_bufferSize(cusolverH,N,N,&lwork);
   assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
 
-  signed char jobu = 'A'; // all m columns of U
+  cudaMalloc((void**)&d_work , sizeof(float)*lwork);
+
+  signed char jobu  = 'A'; // all m columns of U
   signed char jobvt = 'A'; // all n columns of VT
-  float *d_work = NULL;
-  float *d_rwork = NULL;
 
-  cusolver_status = cusolverDnSgesvd (cusolverH,jobu,jobvt,N,N,A->device,lda,S->device,U->device,N,VT->device,N,d_work,lwork,d_rwork,info->device);
+  cusolver_status = cusolverDnSgesvd (cusolverH,jobu,jobvt,N,N,A->device,N,S->device,U->device,N,VT->device,N,d_work,lwork,d_rwork,info->device);
   cudaDeviceSynchronize();
-  assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
+  if (cusolver_status != CUSOLVER_STATUS_SUCCESS){
+    std::cerr << std::endl << "ERROR setting up cuSOLVER, error status: " << cusolver_status << std::endl;
+    if (cusolver_status == CUSOLVER_STATUS_NOT_INITIALIZED) {
+      std::cerr << "\t ERROR: CUSOLVER_STATUS_NOT_INITIALIZED" << std::endl;
+    }
+    if (cusolver_status == CUSOLVER_STATUS_INVALID_VALUE) {
+      std::cerr << "\t ERROR: CUSOLVER_STATUS_INVALID_VALUE" << std::endl;
+    }
+    if (cusolver_status == CUSOLVER_STATUS_ARCH_MISMATCH) {
+      std::cerr << "\t ERROR: CUSOLVER_STATUS_ARCH_MISMATCH" << std::endl;
+    }
+    if (cusolver_status == CUSOLVER_STATUS_INTERNAL_ERROR) {
+      std::cerr << "\t ERROR: CUSOLVER_STATUS_INTERNAL_ERROR" << std::endl;
+    }
+    assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
+    return nullptr;
+  }
 
-  if (local_debug) std::cout << "\t SVD compelete ..." << std::endl;
+  if (local_debug) std::cout << std::endl << "\t SVD compelete ..." << std::endl;
 
   // move back the results
   S->transferMemoryTo(cpu);
@@ -1373,12 +1391,13 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
         std::cout << std::fixed << std::setprecision(4) << U->host[j] << " ";
         index++;
       }
+      std::cout << std::endl << "\t\t ";
     }
 
     std::cout << std::endl << "\t\t S = " << std::endl << "\t\t ";
     index = 0;
     for (int i = 0; i < N; i++){
-      for (int j = i; j < N; j++){
+      for (int j = 0; j < N; j++){
         if (i == j){
           std::cout << std::fixed << std::setprecision(4) << S->host[index] << " ";
           index ++;
@@ -1397,6 +1416,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
         std::cout << std::fixed << std::setprecision(4) << VT->host[j] << " ";
         index++;
       }
+      std::cout << std::endl << "\t\t ";
     }
   }
 
