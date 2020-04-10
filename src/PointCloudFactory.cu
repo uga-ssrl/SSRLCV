@@ -1472,7 +1472,11 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
 
   // invert S
   for (int i = 0; i < S->size(); i++){
-    if (S->host[i] != 0){
+    // here I have arbitrarily chosen that the "noise" cutoff shoue be 0.0001
+    // because having a value of 1/0.0001 = 10,000 seems absurd
+    // and I was getting absolute crap before this
+    // it might even be reasonable to make this even more strict
+    if (S->host[i] >= 0.0001){
       S->host[i] = 1.0 / S->host[i];
     }
   }
@@ -1525,7 +1529,21 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   S->transferMemoryTo(gpu);
   U->transferMemoryTo(gpu);
   VT->transferMemoryTo(gpu);
-  ssrlcv::Unity<float>* inverse = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::gpu);
+  // actually fill in a matrix for S
+  ssrlcv::Unity<float>* E = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::cpu);
+  index = 0;
+  for (int i = 0; i < N; i++){
+    for (int j = 0; j < N; j++){
+      if (i == j){
+        E->host[i*N + j] = S->host[index];
+        index++;
+      } else {
+        E->host[i*N + j] = 0.0f;
+      }
+    }
+  }
+  E->transferMemoryTo(gpu);
+  ssrlcv::Unity<float>* inverse = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::cpu);
   for (int i = 0; i < inverse->size(); i++){
     inverse->host[i] = 0.0f;
   }
@@ -1539,18 +1557,40 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   float beta  = 1.0f;
 
   // do the multiplication in cuBLAS
-  cublas_status = cublasSgemm(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,N,N,N,&alpha,VT->device,N,S->device,N,&beta,C->device,N);
+  cublas_status = cublasSgemm(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,N,N,N,&alpha,VT->device,N,E->device,N,&beta,C->device,N);
   if (cublas_status != 0){
     std::cerr << std::endl << "ERROR: in cuBLAS multiply" << std::endl;
     return nullptr;
   }
+  cublas_status = cublasSgemm(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,N,N,N,&alpha,C->device,N,U->device,N,&beta,inverse->device,N);
+  if (cublas_status != 0){
+    std::cerr << std::endl << "ERROR: in cuBLAS multiply" << std::endl;
+    return nullptr;
+  }
+  inverse->setFore(gpu);
+  inverse->transferMemoryTo(cpu);
+  inverse->clear(gpu);
 
+  // to print of the inverse if debugging
+  if (local_debug) {
+    std::cout << std::endl << "\t\t Pseudo Inverse = " << std::endl;
+    index = 0;
+    for (int i = 0; i < N; i++){
+      std::cout << "\t\t ";
+      for (int j = i; j < (N*N); j+=N){
+        std::cout << std::fixed << std::setprecision(4) << inverse->host[j] << " ";
+        index++;
+      }
+      std::cout << std::endl;
+    }
+  }
 
   // memory cleanup
   delete S;
   delete U;
   delete VT;
   delete C;
+  delete E;
   cudaFree(devInfo);
   cudaFree(d_work);
   cudaFree(d_rwork);
@@ -1604,9 +1644,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     test->host[3] = 4.0; //-2.0;
     test->host[4] = 5.0; //3.0;
     test->host[5] = 6.0; //2.0;
-    test->host[6] = 0.0; //3.0;
-    test->host[7] = 0.0; //-3.0;
-    test->host[8] = 1.0; //3.0;
+    test->host[6] = 7.0; //3.0;
+    test->host[7] = 8.0; //-3.0;
+    test->host[8] = 9.0; //3.0;
     std::cout << std::endl << std::endl << "\t\t test matrix = " << std::endl;
     for (int i = 0; i < 3; i++){
       std::cout << std::endl << "\t\t ";
