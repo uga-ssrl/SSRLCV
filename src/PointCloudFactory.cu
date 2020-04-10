@@ -1643,8 +1643,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   const unsigned int N = (const unsigned int) sqrt(hessian->size());
 
   // cuBLAS housekeeping
-  cublasHandle_t cublasH         = NULL;
-  cublasStatus_t cublas_status   = CUBLAS_STATUS_SUCCESS;
+  cublasHandle_t cublasH        = NULL;
+  cublasStatus_t cublas_status  = CUBLAS_STATUS_SUCCESS;
+  cublas_status                 = cublasCreate(&cublasH);
+  assert(CUBLAS_STATUS_SUCCESS == cublas_status);
 
   if (constant_step){
     cublasDestroy(cublasH);
@@ -1722,15 +1724,47 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         g_j += 3;
       }
     } else {
+      // only for debugging
+      if (local_debug){
+        // print hessian
+        std::cout << std::endl << "\t\t H^+ = " << std::endl;
+        for (int j = 0; j < N; j++){
+          std::cout << "\t\t ";
+          for (int k = j; k < (N*N); k+=N){
+            std::cout << std::fixed << std::setprecision(4) << inverse->host[k] << " ";
+          }
+          std::cout << std::endl;
+        }
+        // print the gradient
+        std::cout << std::endl << "\t\t g^T = " << std::endl;
+        for (int j = 0; j < N; j++){
+          std::cout << std::fixed << std::setprecision(4) << gradient->host[j] << " ";
+        }
+        std::cout << std::endl;
+      }
+
       // a dynamic stepsize occurs here
       gradient->transferMemoryTo(gpu);
       inverse->transferMemoryTo(gpu);
 
       // multiply
-      cublas_status = cublasSgbmv(cublasH,CUBLAS_OP_N,N,N,1,1,&alpha,inverse->device,N,gradient->device,0,&beta,nullptr,0);
+      cublas_status = cublasSgbmv(cublasH,CUBLAS_OP_N,N,N,&alpha,inverse->device,N,gradient->device,0,&beta,nullptr,0);
+      // TODO maybe make a method for printing off exavt cuBLAS errors
       if (cublas_status != CUBLAS_STATUS_SUCCESS){
-        std::cout << std::endl << "ERROR: failure when multiplying inverse hessian and gradient for state update." << std::endl;
-        std::cout << "\t ERROR STATUS: multiplication failed with status: " << cublas_status << std::endl;
+        std::cerr << std::endl << "ERROR: failure when multiplying inverse hessian and gradient for state update." << std::endl;
+        std::cerr << "\t ERROR STATUS: multiplication failed with status: " << cublas_status << std::endl;
+        if (cublas_status == CUBLAS_STATUS_NOT_INITIALIZED){
+          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_NOT_INITIALIZED" << std::endl;
+        }
+        if (cublas_status == CUBLAS_STATUS_INVALID_VALUE){
+          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_INVALID_VALUE" << std::endl;
+        }
+        if (cublas_status == CUBLAS_STATUS_ARCH_MISMATCH){
+          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_ARCH_MISMATCH" << std::endl;
+        }
+        if (cublas_status == CUBLAS_STATUS_EXECUTION_FAILED){
+          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_EXECUTION_FAILED" << std::endl;
+        }
         return nullptr; // TODO have a safe shutdown of bundle adjustment given a failure
       }
       gradient->transferMemoryTo(cpu);
@@ -1739,7 +1773,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       inverse->clear(gpu);
 
       // update
-      // TODO add angular adjustment here too 
+      // TODO add angular adjustment here too
       int g_j = 0;
       for (int j = 0; j < images.size(); j++){
         images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - gradient->host[g_j    ];
@@ -1763,6 +1797,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   } // end bundle adjustment loop
 
   // TODO only do if debugging
+  // TODO add a flag that allows the user to test this
   // write linearError chagnes to a CSV
   writeCSV(errorTracker, "totalErrorOverIterations");
 
