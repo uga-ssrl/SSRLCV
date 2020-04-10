@@ -1660,11 +1660,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
   const unsigned int N = (const unsigned int) sqrt(hessian->size());
 
-  // cuBLAS housekeeping
-  cublasHandle_t cublasH        = NULL;
-  cublasStatus_t cublas_status  = CUBLAS_STATUS_SUCCESS;
-  cublas_status                 = cublasCreate(&cublasH);
-  assert(CUBLAS_STATUS_SUCCESS == cublas_status);
+
 
   // TEMP inversion test
   if (local_debug){
@@ -1745,83 +1741,84 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // Variable step size here
       //
 
-        if (local_debug){
-          // print hessian
-          std::cout << std::endl << "\t\t H^+ = " << std::endl;
-          for (int j = 0; j < N; j++){
-            std::cout << "\t\t ";
-            for (int k = j; k < (N*N); k+=N){
-              std::cout << std::fixed << std::setprecision(4) << inverse->host[k] << " ";
-            }
-            std::cout << std::endl;
-          }
-          // print the gradient
-          std::cout << std::endl << "\t\t g^T = " << std::endl;
+      if (local_debug){
+        // print hessian
+        std::cout << std::endl << "\t\t H^+ = " << std::endl;
+        for (int j = 0; j < N; j++){
           std::cout << "\t\t ";
-          for (int j = 0; j < N; j++){
-            std::cout << std::fixed << std::setprecision(4) << gradient->host[j] << " ";
+          for (int k = j; k < (N*N); k+=N){
+            std::cout << std::fixed << std::setprecision(4) << inverse->host[k] << " ";
           }
           std::cout << std::endl;
         }
+        // print the gradient
+        std::cout << std::endl << "\t\t g^T = " << std::endl;
+        std::cout << "\t\t ";
+        for (int j = 0; j < N; j++){
+          std::cout << std::fixed << std::setprecision(4) << gradient->host[j] << " ";
+        }
+        std::cout << std::endl;
+      }
 
-        // for (int j = 0; j < inverse->size(); j++){
-        //   inverse->host[j] = 1.0f;
-        // }
-        gradient->setFore(cpu);
-        inverse->setFore(cpu);
-        update->setFore(cpu);
-        gradient->transferMemoryTo(gpu);
-        inverse->transferMemoryTo(gpu);
-        update->transferMemoryTo(gpu);
+      for (int j = 0; j < inverse->size(); j++){
+        inverse->host[j] = 1.0f;
+      }
+      for (int j = 0; i < gradient->size(); j++){
+        gradient->host[j] = 1.0f;
+      }
 
-        // multiply
-        cublas_status = cublasSgemv(cublasH, CUBLAS_OP_N, N, N, &alpha, inverse->device, N, gradient->device, inc, &beta, update->device, inc);
-        cudaDeviceSynchronize();
+      gradient->transferMemoryTo(gpu);
+      inverse->transferMemoryTo(gpu);
+      update->transferMemoryTo(gpu);
 
-        // after tests
-        if (local_debug){
-          // print hessian
-          std::cout << std::endl << "\t\t H^+ = " << std::endl;
-          for (int j = 0; j < N; j++){
-            std::cout << "\t\t ";
-            for (int k = j; k < (N*N); k+=N){
-              std::cout << std::fixed << std::setprecision(4) << inverse->host[k] << " ";
-            }
-            std::cout << std::endl;
-          }
-          // print the gradient
-          std::cout << std::endl << "\t\t g^T = " << std::endl;
+      cublasHandle_t      cublasH         = NULL;
+      cublasStatus_t      cublas_status   = CUBLAS_STATUS_SUCCESS;
+
+      cublas_status = cublasCreate(&cublasH);
+      assert(CUBLAS_STATUS_SUCCESS == cublas_status);
+
+      // multiply
+      cublas_status = cublasSgemv(cublasH, CUBLAS_OP_N, N, N, &alpha, inverse->device, N, gradient->device, inc, &beta, update->device, inc);
+      cudaDeviceSynchronize();
+
+
+
+      if (local_debug){
+        // print hessian
+        std::cout << std::endl << "\t\t H^+ = " << std::endl;
+        for (int j = 0; j < N; j++){
           std::cout << "\t\t ";
-          for (int j = 0; j < N; j++){
-            std::cout << std::fixed << std::setprecision(4) << gradient->host[j] << " ";
+          for (int k = j; k < (N*N); k+=N){
+            std::cout << std::fixed << std::setprecision(4) << inverse->host[k] << " ";
           }
           std::cout << std::endl;
         }
-
-        // TODO maybe make a method for printing off exavt cuBLAS errors
-        if (cublas_status != CUBLAS_STATUS_SUCCESS){
-          std::cerr << std::endl << "ERROR: failure when multiplying inverse hessian and gradient for state update." << std::endl;
-          std::cerr << "\t ERROR STATUS: multiplication failed with status: " << cublas_status << std::endl;
-          if (cublas_status == CUBLAS_STATUS_NOT_INITIALIZED){
-            std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_NOT_INITIALIZED" << std::endl;
-          }
-          if (cublas_status == CUBLAS_STATUS_INVALID_VALUE){
-            std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_INVALID_VALUE" << std::endl;
-          }
-          if (cublas_status == CUBLAS_STATUS_ARCH_MISMATCH){
-            std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_ARCH_MISMATCH" << std::endl;
-          }
-          if (cublas_status == CUBLAS_STATUS_EXECUTION_FAILED){
-            std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_EXECUTION_FAILED" << std::endl;
-          }
-          return nullptr; // TODO have a safe shutdown of bundle adjustment given a failure
+        // print the gradient
+        std::cout << std::endl << "\t\t g^T = " << std::endl;
+        std::cout << "\t\t ";
+        for (int j = 0; j < N; j++){
+          std::cout << std::fixed << std::setprecision(4) << gradient->host[j] << " ";
         }
-        gradient->transferMemoryTo(cpu);
-        inverse->transferMemoryTo(cpu);
-        update->transferMemoryTo(cpu);
-        gradient->clear(gpu);
-        inverse->clear(gpu);
-        update->clear(gpu);
+        std::cout << std::endl;
+      }
+
+      // TODO maybe make a method for printing off exavt cuBLAS errors
+      if (cublas_status != CUBLAS_STATUS_SUCCESS){
+        std::cerr << std::endl << "ERROR: failure when multiplying inverse hessian and gradient for state update." << std::endl;
+        std::cerr << "\t ERROR STATUS: multiplication failed with status: " << cublas_status << std::endl;
+        if (cublas_status == CUBLAS_STATUS_NOT_INITIALIZED){
+          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_NOT_INITIALIZED" << std::endl;
+        }
+        if (cublas_status == CUBLAS_STATUS_INVALID_VALUE){
+          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_INVALID_VALUE" << std::endl;
+        }
+        if (cublas_status == CUBLAS_STATUS_ARCH_MISMATCH){
+          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_ARCH_MISMATCH" << std::endl;
+        }
+        if (cublas_status == CUBLAS_STATUS_EXECUTION_FAILED){
+          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_EXECUTION_FAILED" << std::endl;
+        }
+        return nullptr; // TODO have a safe shutdown of bundle adjustment given a failure
       }
 
       // only for testing
@@ -1835,17 +1832,28 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         std::cout << std::endl;
       }
 
-      // update
-      // TODO add angular adjustment here too
-      int g_j = 0;
-      for (int j = 0; j < images.size(); j++){
-        images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - update->host[g_j    ];
-        images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - update->host[g_j + 1];
-        images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - update->host[g_j + 2];
-        g_j += 3;
-      }
+      cublasDestroy(cublasH);
+
+      gradient->transferMemoryTo(cpu);
+      inverse->transferMemoryTo(cpu);
+      update->transferMemoryTo(cpu);
+      gradient->clear(gpu);
+      inverse->clear(gpu);
+      update->clear(gpu);
 
     }
+
+    // update
+    // TODO add angular adjustment here too
+    int g_j = 0;
+    for (int j = 0; j < images.size(); j++){
+      images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - update->host[g_j    ];
+      images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - update->host[g_j + 1];
+      images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - update->host[g_j + 2];
+      g_j += 3;
+    }
+
+
 
     // NOTE print off new error
     bundleTemp = generateBundles(matchSet,images);
@@ -1866,9 +1874,6 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
   bundleTemp = generateBundles(matchSet,images);
   points = twoViewTriangulate(bundleTemp, localError);
-
-  // end cuBLAS instance
-  // cublasDestroy(cublasH);
 
   // cleanup memory
   delete gradient;
