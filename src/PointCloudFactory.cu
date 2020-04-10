@@ -1279,6 +1279,14 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
         h->host[h_i] = numer / denom;
 
       }
+
+      if (local_debug){
+        // testing what is with respect to what
+        if (!j) std::cout << "\t\t " << std::endl;
+        std::cout << "( " << h_i << " )" << "[ " << i << ", " << j << "] \t";
+        if (i == j && i == (params->size() -1)) std::cout << std::endl;
+      }
+
       // increment the hessian index
       h_i++;
     }
@@ -1559,11 +1567,13 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
 
   // do the multiplication in cuBLAS
   cublas_status = cublasSgemm(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,N,N,N,&alpha,VT->device,N,E->device,N,&beta,C->device,N);
+  cudaDeviceSynchronize();
   if (cublas_status != 0){
     std::cerr << std::endl << "ERROR: in cuBLAS multiply" << std::endl;
     return nullptr;
   }
   cublas_status = cublasSgemm(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,N,N,N,&alpha,C->device,N,U->device,N,&beta,inverse->device,N);
+  cudaDeviceSynchronize();
   if (cublas_status != 0){
     std::cerr << std::endl << "ERROR: in cuBLAS multiply" << std::endl;
     return nullptr;
@@ -1656,10 +1666,6 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   cublas_status                 = cublasCreate(&cublasH);
   assert(CUBLAS_STATUS_SUCCESS == cublas_status);
 
-  if (constant_step){
-    cublasDestroy(cublasH);
-  }
-
   // TEMP inversion test
   if (local_debug){
     std::cout << "==============================" << std::endl;
@@ -1726,6 +1732,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       //
       // A constant step size here
       //
+
       int g_j = 0;
       for (int j = 0; j < images.size(); j++){
         images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - step * gradient->host[g_j    ];
@@ -1737,31 +1744,60 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       //
       // Variable step size here
       //
-      if (local_debug){
-        // print hessian
-        std::cout << std::endl << "\t\t H^+ = " << std::endl;
-        for (int j = 0; j < N; j++){
+
+        if (local_debug){
+          // print hessian
+          std::cout << std::endl << "\t\t H^+ = " << std::endl;
+          for (int j = 0; j < N; j++){
+            std::cout << "\t\t ";
+            for (int k = j; k < (N*N); k+=N){
+              std::cout << std::fixed << std::setprecision(4) << inverse->host[k] << " ";
+            }
+            std::cout << std::endl;
+          }
+          // print the gradient
+          std::cout << std::endl << "\t\t g^T = " << std::endl;
           std::cout << "\t\t ";
-          for (int k = j; k < (N*N); k+=N){
-            std::cout << std::fixed << std::setprecision(4) << inverse->host[k] << " ";
+          for (int j = 0; j < N; j++){
+            std::cout << std::fixed << std::setprecision(4) << gradient->host[j] << " ";
           }
           std::cout << std::endl;
         }
-        // print the gradient
-        std::cout << std::endl << "\t\t g^T = " << std::endl;
-        std::cout << "\t\t ";
-        for (int j = 0; j < N; j++){
-          std::cout << std::fixed << std::setprecision(4) << gradient->host[j] << " ";
-        }
-        std::cout << std::endl;
 
-        // a dynamic stepsize occurs here
+        // for (int j = 0; j < inverse->size(); j++){
+        //   inverse->host[j] = 1.0f;
+        // }
+        gradient->setFore(cpu);
+        inverse->setFore(cpu);
+        update->setFore(cpu);
         gradient->transferMemoryTo(gpu);
         inverse->transferMemoryTo(gpu);
         update->transferMemoryTo(gpu);
 
         // multiply
         cublas_status = cublasSgemv(cublasH, CUBLAS_OP_N, N, N, &alpha, inverse->device, N, gradient->device, inc, &beta, update->device, inc);
+        cudaDeviceSynchronize();
+
+        // after tests
+        if (local_debug){
+          // print hessian
+          std::cout << std::endl << "\t\t H^+ = " << std::endl;
+          for (int j = 0; j < N; j++){
+            std::cout << "\t\t ";
+            for (int k = j; k < (N*N); k+=N){
+              std::cout << std::fixed << std::setprecision(4) << inverse->host[k] << " ";
+            }
+            std::cout << std::endl;
+          }
+          // print the gradient
+          std::cout << std::endl << "\t\t g^T = " << std::endl;
+          std::cout << "\t\t ";
+          for (int j = 0; j < N; j++){
+            std::cout << std::fixed << std::setprecision(4) << gradient->host[j] << " ";
+          }
+          std::cout << std::endl;
+        }
+
         // TODO maybe make a method for printing off exavt cuBLAS errors
         if (cublas_status != CUBLAS_STATUS_SUCCESS){
           std::cerr << std::endl << "ERROR: failure when multiplying inverse hessian and gradient for state update." << std::endl;
@@ -1794,7 +1830,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         std::cout << std::endl << "\t\t (update) Delta X = " << std::endl;
         std::cout << "\t\t ";
         for (int j = 0; j < N; j++){
-          std::cout << std::fixed << std::setprecision(4) << update->host[j] << " ";
+          std::cout << std::fixed << std::setprecision(8) << update->host[j] << " ";
         }
         std::cout << std::endl;
       }
@@ -1814,7 +1850,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // NOTE print off new error
     bundleTemp = generateBundles(matchSet,images);
     voidTwoViewTriangulate(bundleTemp, localError);
-    std::cout << "[" << i << "] \terror: " << *localError << std::endl;
+    std::cout << "[" << std::fixed << std::setprecision(12) << i << "] \terror: " << *localError << std::endl;
     errorTracker.push_back(*localError);
 
     // clean up memory
@@ -1832,7 +1868,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   points = twoViewTriangulate(bundleTemp, localError);
 
   // end cuBLAS instance
-  cublasDestroy(cublasH);
+  // cublasDestroy(cublasH);
 
   // cleanup memory
   delete gradient;
