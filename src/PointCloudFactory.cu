@@ -1316,7 +1316,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   ssrlcv::Unity<float>* VT = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::gpu);
 
   // Put the hessian into matrix A in column major order
-  if (local_debug) std::cout << std::endl << "\t Hessian in column major order: " << std::endl;
+  if (local_debug) std::cout << std::endl << "\t H^T: " << std::endl;
   int index = 0;
   for (int i = 0; i < N; i++){
     if (local_debug) std::cout << std::endl << "\t\t ";
@@ -1359,7 +1359,6 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   CudaSafeCall(cudaMalloc ((void**)&devInfo, sizeof(int)));
 
   cusolver_status = cusolverDnSgesvd(cusolverH,'A','A',N,N,A->device,N,S->device,U->device,N,VT->device,N,d_work,lwork,d_rwork,devInfo);
-  // cusolver_status = cusolverDnSgesvd(cusolverH, 'A', 'A', m, n,d_A, m, d_S, d_U, m, d_VT, n, d_work, lwork, d_rwork, devInfo);
   cudaDeviceSynchronize();
 
   if (cusolver_status != CUSOLVER_STATUS_SUCCESS){
@@ -1400,6 +1399,8 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   U->clear(gpu);
   VT->clear(gpu);
 
+  // the following seciton is
+  // only to be used for debugging s
   if (local_debug){
     std::cout << std::endl << "\t\t U = " << std::endl;
     index = 0;
@@ -1414,7 +1415,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
 
     std::cout << std::endl << "\t\t S = ";
     for (int i = 0; i < S->size(); i++){
-      std::cout << std::fixed << std::setprecision(4) << S->hostp[i] << " ";
+      std::cout << std::fixed << std::setprecision(4) << S->host[i] << " ";
     }
     std::cout << std::endl << "\t\t ";
     index = 0;
@@ -1442,10 +1443,94 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
     }
   }
 
+
+  // ~~~ now calculate the pseudo inverse ~~~
+  // ( ͡° ͜ʖ ͡°)つ━━✫・*。
+  //
+
+  // transpose U
+  for (int i = 0; i < U->size(); i++){
+    int y = i % N;
+    int x = i / N;
+    if (y > x){ // swap!
+      float temp = U->host[i];
+      U->host[i] = U->host[y*N + x];
+      U->host[y*N + x] = temp;
+    }
+  }
+
+  // transpose V^T
+  for (int i = 0; i < VT->size(); i++){
+    int y = i % N;
+    int x = i / N;
+    if (y > x){ // swap!
+      float temp = VT->host[i];
+      VT->host[i] = VT->host[y*N + x];
+      VT->host[y*N + x] = temp;
+    }
+  }
+
+  // invert S
+  for (int i = 0; i < S->size(); i++){
+    if (s->host[i] != 0){
+      s->host[i] = 1.0 / s->host[i];
+    }
+  }
+
+  // just for testing print of the transposes and inverse
+  // only to be used for debugging s
+  if (local_debug){
+    std::cout << std::endl << "\t\t U = " << std::endl;
+    index = 0;
+    for (int i = 0; i < N; i++){
+      std::cout << "\t\t ";
+      for (int j = i; j < (N*N); j+=N){
+        std::cout << std::fixed << std::setprecision(4) << U->host[j] << " ";
+        index++;
+      }
+      std::cout << std::endl;
+    }
+
+    std::cout << std::endl << "\t\t S = ";
+    for (int i = 0; i < S->size(); i++){
+      std::cout << std::fixed << std::setprecision(4) << S->host[i] << " ";
+    }
+    std::cout << std::endl << "\t\t ";
+    index = 0;
+    for (int i = 0; i < N; i++){
+      for (int j = 0; j < N; j++){
+        if (i == j){
+          std::cout << std::fixed << std::setprecision(4) << S->host[index] << " ";
+          index ++;
+        } else {
+          std::cout << "0.0000 ";
+        }
+      }
+      std::cout << std::endl << "\t\t ";
+    }
+
+    std::cout << std::endl << "\t\t VT = " << std::endl;
+    index = 0;
+    for (int i = 0; i < N; i++){
+      std::cout << "\t\t ";
+      for (int j = i; j < (N*N); j+=N){
+        std::cout << std::fixed << std::setprecision(4) << VT->host[j] << " ";
+        index++;
+      }
+      std::cout << std::endl;
+    }
+  }
+
+  // multiply A^+ = V S^+ U^T
+
+
   // memory cleanup
   delete S;
   delete U;
   delete VT;
+  cudaFree(devInfo);
+  cudaFree(d_work);
+  cudaFree(d_rwork);
 
   // end solver session
   cublasDestroy(cublasH);
@@ -1477,7 +1562,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   hessian  = new ssrlcv::Unity<float>(nullptr,((3 * images.size())*(3 * images.size())),ssrlcv::cpu);
 
   // for debug
-  bool local_debug = true;
+  bool local_debug = false;
 
   // temp step
   float step = 0.001;
@@ -1489,11 +1574,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     std::cout << "Inversion Test: " << std::endl;
     ssrlcv::Unity<float>* test = new ssrlcv::Unity<float>(nullptr,9,ssrlcv::cpu);
     test->host[0] = 1.0; //1.0;
-    test->host[1] = 0.0; //1.0;
-    test->host[2] = 0.0; //-1.0;
-    test->host[3] = 0.0; //-2.0;
-    test->host[4] = 1.0; //3.0;
-    test->host[5] = 0.0; //2.0;
+    test->host[1] = 2.0; //1.0;
+    test->host[2] = 3.0; //-1.0;
+    test->host[3] = 4.0; //-2.0;
+    test->host[4] = 5.0; //3.0;
+    test->host[5] = 6.0; //2.0;
     test->host[6] = 0.0; //3.0;
     test->host[7] = 0.0; //-3.0;
     test->host[8] = 1.0; //3.0;
