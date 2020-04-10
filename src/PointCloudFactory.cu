@@ -1026,9 +1026,9 @@ void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSe
     delete bundleTemp.lines;
     // calculate the gradient with central difference
     gradient[j]->camera.cam_rot.x = ( forward - backwards ) / ( 2*h_radial );
-    if (gradient[j]->camera.cam_rot.x > (2*PI)){
-      gradient[j]->camera.cam_rot.x -= floor((gradient[j]->camera.cam_rot.x/(2*PI)))*(2*PI);
-    }
+    // if (gradient[j]->camera.cam_rot.x > (2*PI)){
+    //   gradient[j]->camera.cam_rot.x -= floor((gradient[j]->camera.cam_rot.x/(2*PI)))*(2*PI);
+    // }
   }
 
   //
@@ -1058,9 +1058,9 @@ void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSe
     // calculate the gradient with central difference
     gradient[j]->camera.cam_rot.y = ( forward - backwards ) / ( 2*h_radial );
     // adjust to be within bounds if needed
-    if (gradient[j]->camera.cam_rot.y > (2*PI)){
-      gradient[j]->camera.cam_rot.y -= floor((gradient[j]->camera.cam_rot.y/(2*PI)))*(2*PI);
-    }
+    // if (gradient[j]->camera.cam_rot.y > (2*PI)){
+    //   gradient[j]->camera.cam_rot.y -= floor((gradient[j]->camera.cam_rot.y/(2*PI)))*(2*PI);
+    // }
   }
 
   //
@@ -1089,9 +1089,9 @@ void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSe
     delete bundleTemp.lines;
     // calculate the gradient with central difference
     gradient[j]->camera.cam_rot.z = ( forward - backwards ) / ( 2*h_radial );
-    if (gradient[j]->camera.cam_rot.z > (2*PI)){
-      gradient[j]->camera.cam_rot.z -= floor((gradient[j]->camera.cam_rot.z/(2*PI)))*(2*PI);
-    }
+    // if (gradient[j]->camera.cam_rot.z > (2*PI)){
+    //   gradient[j]->camera.cam_rot.z -= floor((gradient[j]->camera.cam_rot.z/(2*PI)))*(2*PI);
+    // }
   }
 
   // TODO add angular gradients in here too
@@ -1100,7 +1100,10 @@ void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSe
     g->host[g_j    ] = gradient[j]->camera.cam_pos.x;
     g->host[g_j + 1] = gradient[j]->camera.cam_pos.y;
     g->host[g_j + 2] = gradient[j]->camera.cam_pos.z;
-    g_j += 3;
+    g->host[g_j + 3] = gradient[j]->camera.cam_rot.x;
+    g->host[g_j + 4] = gradient[j]->camera.cam_rot.y;
+    g->host[g_j + 5] = gradient[j]->camera.cam_rot.z;
+    g_j += 6;
   }
 
   // free the temp memory
@@ -1133,11 +1136,11 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
 
   ssrlcv::BundleSet bundleTemp;
 
-  bool local_debug = true;
+  bool local_debug = false;
 
   // this temp vector is only used for the +/- h steps when calculating the gradients
   // convert the temp images to float vectors
-  int num_params = 3; // 3 is just position, 6 position and orientation
+  int num_params = 6; // 3 is just position, 6 position and orientation
   ssrlcv::Unity<float>* params       = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
   ssrlcv::Unity<float>* params_reset = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
   std::vector<ssrlcv::Image*> temp;
@@ -1282,7 +1285,7 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
 
       if (local_debug){
         // testing what is with respect to what
-        if (!j) std::cout << "\t\t " << std::endl;
+        if (!j) std::cout << std::endl <<  "\t\t " ;
         std::cout << "( " << h_i << " )" << "[ " << i << ", " << j << "] \t";
         if (i == j && i == (params->size() -1)) std::cout << std::endl;
       }
@@ -1635,9 +1638,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
   // allocate memory
   float* localError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
-  gradient = new ssrlcv::Unity<float>(nullptr,(3 * images.size()),ssrlcv::cpu);
-  hessian  = new ssrlcv::Unity<float>(nullptr,((3 * images.size())*(3 * images.size())),ssrlcv::cpu);
-  update   = new ssrlcv::Unity<float>(nullptr,(3 * images.size()),ssrlcv::gpu); // used in state update
+  gradient = new ssrlcv::Unity<float>(nullptr,(6 * images.size()),ssrlcv::cpu);
+  hessian  = new ssrlcv::Unity<float>(nullptr,((6 * images.size())*(6 * images.size())),ssrlcv::cpu);
+  update   = new ssrlcv::Unity<float>(nullptr,(6 * images.size()),ssrlcv::gpu); // used in state update
 
   // for debug
   bool local_debug = false;
@@ -1793,7 +1796,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       inverse->clear(gpu);
 
       // get the update
-      update->setFore(gpu)
+      update->setFore(gpu);
       update->transferMemoryTo(cpu);
 
       // only for testing
@@ -1802,7 +1805,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         std::cout << std::endl << "\t\t (update) Delta X = " << std::endl;
         std::cout << "\t\t ";
         for (int j = 0; j < N; j++){
-          std::cout << std::fixed << std::setprecision(8) << update->host[j] << " ";
+          std::cout << std::fixed << std::setprecision(4) << update->host[j] << " ";
         }
         std::cout << std::endl;
       }
@@ -1814,11 +1817,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - update->host[g_j    ];
         images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - update->host[g_j + 1];
         images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - update->host[g_j + 2];
-        g_j += 3;
+        images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - update->host[g_j + 3];
+        images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y - update->host[g_j + 4];
+        images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z - update->host[g_j + 5];
+        g_j += 6;
       }
 
     }
-
 
     // NOTE print off new error
     bundleTemp = generateBundles(matchSet,images);
@@ -1845,7 +1850,6 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // cleanup memory
   delete gradient;
   delete hessian;
-  delete gradient;
   delete inverse;
   delete update;
   delete bundleTemp.bundles;

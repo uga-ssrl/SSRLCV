@@ -142,7 +142,7 @@ int main(int argc, char *argv[]){
       // it's good to do a cutoff filter first how this is chosen is mostly based on ur gut
       // if a poor estimate is chosen then you will have to statistical filter multiple times
       // option 1: pick a fixed value
-        demPoints.linearCutoffFilter(&matchSet,images,100); // <--- removes linear errors over 100
+        demPoints.linearCutoffFilter(&matchSet,images,1000); // <--- removes linear errors over 1000
       // option 2: tie the initial cutoff to some fraction of the initial linear error
         // demPoints.linearCutoffFilter(&matchSet,images,*linearError / (bundleSet.bundles->size() * 3));
       // option 3: don't use the linear cutoff at all and just use multiple statistical filters (it is safer)
@@ -164,7 +164,7 @@ int main(int argc, char *argv[]){
 
       // the version that will be used normally
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
-      std::cout << "Total Linear Error: " << *linearError << std::endl;
+      std::cout << "Total Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
 
       // save an error cloud just for testing
       demPoints.saveDebugLinearErrorCloud(&matchSet,images,"LinearErrorsVisualized");
@@ -179,7 +179,7 @@ int main(int argc, char *argv[]){
 
       // starting bundle adjustment here
       std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
-      points = demPoints.BundleAdjustTwoView(&matchSet,images, 1000);
+      points = demPoints.BundleAdjustTwoView(&matchSet,images, 25);
 
 
     } else {

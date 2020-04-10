@@ -151,7 +151,7 @@ int main(int argc, char *argv[]){
     bundleSet = demPoints.generateBundles(&matchSet,images);
     points = demPoints.twoViewTriangulate(bundleSet, linearError);
 
-    std::cout << "initial linearError: " << *linearError << std::endl;
+    std::cout << "initial linearError: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
     std::cout << "\t writing initial PLY ..." << std::endl;
     demPoints.saveDebugCloud(points, bundleSet, images, "initial");
 
@@ -190,12 +190,12 @@ int main(int argc, char *argv[]){
 
     // start by messing up the initial paramters
     // test moving the camera slightly
-    images[1]->camera.cam_pos.x += 1.0f;
-    images[1]->camera.cam_pos.y += 1.0f;
-    images[1]->camera.cam_pos.z += 0.0f;
+    images[1]->camera.cam_pos.x += 5.0f;
+    images[1]->camera.cam_pos.y += 3.0f;
+    images[1]->camera.cam_pos.z += 2.0f;
     bundleSet = demPoints.generateBundles(&matchSet,images);
     points = demPoints.twoViewTriangulate(bundleSet, linearError);
-    std::cout << "simulated with noise linearError: " << *linearError << std::endl;
+    std::cout << "simulated with noise linearError: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
     std::cout << "\t writing noisy PLY ..." << std::endl;
     demPoints.saveDebugCloud(points, bundleSet, images, "noisey");
 
