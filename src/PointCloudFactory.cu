@@ -1625,9 +1625,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   float* localError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
   gradient = new ssrlcv::Unity<float>(nullptr,(3 * images.size()),ssrlcv::cpu);
   hessian  = new ssrlcv::Unity<float>(nullptr,((3 * images.size())*(3 * images.size())),ssrlcv::cpu);
+  update   = new ssrlcv::Unity<float>(nullptr,(3 * images.size()),ssrlcv::cpu); // used in state update
 
   // for debug
-  bool local_debug = false;
+  bool local_debug = true;
 
   // temp step
   bool  constant_step = false;
@@ -1638,7 +1639,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // alpha can be changed to dampen stepsize
   // alpha should be between 0.0 - 1.0
   float alpha = 1.0f;
-  float beta  = 0.0f;
+  float beta  = 1.0f;
+  int   inc   = 1; // should always be 1
 
   const unsigned int N = (const unsigned int) sqrt(hessian->size());
 
@@ -1737,6 +1739,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         }
         // print the gradient
         std::cout << std::endl << "\t\t g^T = " << std::endl;
+        std::cout << "\t\t ";
         for (int j = 0; j < N; j++){
           std::cout << std::fixed << std::setprecision(4) << gradient->host[j] << " ";
         }
@@ -1746,9 +1749,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // a dynamic stepsize occurs here
       gradient->transferMemoryTo(gpu);
       inverse->transferMemoryTo(gpu);
+      update->transferMemoryTo(gpu);
 
       // multiply
-      cublas_status = cublasSgbmv(cublasH,CUBLAS_OP_N,N,N,&alpha,inverse->device,N,gradient->device,0,&beta,nullptr,0);
+      cublas_status = cublasSgemv(cublasH, CUBLAS_OP_N, N, N, &alpha, inverse->device, N, gradient->device, inc, &beta, update->device, inc);
       // TODO maybe make a method for printing off exavt cuBLAS errors
       if (cublas_status != CUBLAS_STATUS_SUCCESS){
         std::cerr << std::endl << "ERROR: failure when multiplying inverse hessian and gradient for state update." << std::endl;
@@ -1769,16 +1773,29 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       }
       gradient->transferMemoryTo(cpu);
       inverse->transferMemoryTo(cpu);
+      update->transferMemoryTo(cpu);
       gradient->clear(gpu);
       inverse->clear(gpu);
+      update->clear(gpu);
+
+      // only for testing
+      if (local_debug) {
+        // print the gradient
+        std::cout << std::endl << "\t\t  = " << std::endl;
+        std::cout << "\t\t ";
+        for (int j = 0; j < N; j++){
+          std::cout << std::fixed << std::setprecision(4) << update->host[j] << " ";
+        }
+        std::cout << std::endl;
+      }
 
       // update
       // TODO add angular adjustment here too
       int g_j = 0;
       for (int j = 0; j < images.size(); j++){
-        images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - gradient->host[g_j    ];
-        images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - gradient->host[g_j + 1];
-        images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - gradient->host[g_j + 2];
+        images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - update->host[g_j    ];
+        images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - update->host[g_j + 1];
+        images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - update->host[g_j + 2];
         g_j += 3;
       }
 
