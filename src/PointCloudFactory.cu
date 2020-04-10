@@ -1116,7 +1116,8 @@ void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSe
 void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* h){
 
   // stepsize and indexing related variables
-  float h_step[6] = {0.01,0.01,0.01,0.000001,0.000001,0.000001}; // the step size vector
+  // TODO pass in this step vector
+  float h_step[6] = {0.001,0.001,0.001,0.000001,0.000001,0.000001}; // the step size vector
   int   h_i       = 0;               // the hessian location index
 
   // temp variables within the loops
@@ -1616,6 +1617,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   ssrlcv::Unity<float3>* points;
   ssrlcv::Unity<float>* gradient;
   ssrlcv::Unity<float>* hessian;
+  ssrlcv::Unity<float>* update;
   ssrlcv::Unity<float>* inverse;
   ssrlcv::BundleSet bundleTemp;
   // This is for error tracking and printing later
@@ -1626,6 +1628,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   gradient = new ssrlcv::Unity<float>(nullptr,(3 * images.size()),ssrlcv::cpu);
   hessian  = new ssrlcv::Unity<float>(nullptr,((3 * images.size())*(3 * images.size())),ssrlcv::cpu);
   update   = new ssrlcv::Unity<float>(nullptr,(3 * images.size()),ssrlcv::cpu); // used in state update
+  // TEMP
+  for (int i = 0; i < update->size(); i++){
+    update->host[i] = 0.0;
+  }
 
   // for debug
   bool local_debug = true;
@@ -1717,7 +1723,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // NOTE take a newton step here
     if (constant_step){
-      // A constant stepsize here
+      //
+      // A constant step size here
+      //
       int g_j = 0;
       for (int j = 0; j < images.size(); j++){
         images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - step * gradient->host[g_j    ];
@@ -1726,7 +1734,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         g_j += 3;
       }
     } else {
-      // only for debugging
+      //
+      // Variable step size here
+      //
       if (local_debug){
         // print hessian
         std::cout << std::endl << "\t\t H^+ = " << std::endl;
@@ -1744,44 +1754,44 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
           std::cout << std::fixed << std::setprecision(4) << gradient->host[j] << " ";
         }
         std::cout << std::endl;
-      }
 
-      // a dynamic stepsize occurs here
-      gradient->transferMemoryTo(gpu);
-      inverse->transferMemoryTo(gpu);
-      update->transferMemoryTo(gpu);
+        // a dynamic stepsize occurs here
+        gradient->transferMemoryTo(gpu);
+        inverse->transferMemoryTo(gpu);
+        update->transferMemoryTo(gpu);
 
-      // multiply
-      cublas_status = cublasSgemv(cublasH, CUBLAS_OP_N, N, N, &alpha, inverse->device, N, gradient->device, inc, &beta, update->device, inc);
-      // TODO maybe make a method for printing off exavt cuBLAS errors
-      if (cublas_status != CUBLAS_STATUS_SUCCESS){
-        std::cerr << std::endl << "ERROR: failure when multiplying inverse hessian and gradient for state update." << std::endl;
-        std::cerr << "\t ERROR STATUS: multiplication failed with status: " << cublas_status << std::endl;
-        if (cublas_status == CUBLAS_STATUS_NOT_INITIALIZED){
-          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_NOT_INITIALIZED" << std::endl;
+        // multiply
+        cublas_status = cublasSgemv(cublasH, CUBLAS_OP_N, N, N, &alpha, inverse->device, N, gradient->device, inc, &beta, update->device, inc);
+        // TODO maybe make a method for printing off exavt cuBLAS errors
+        if (cublas_status != CUBLAS_STATUS_SUCCESS){
+          std::cerr << std::endl << "ERROR: failure when multiplying inverse hessian and gradient for state update." << std::endl;
+          std::cerr << "\t ERROR STATUS: multiplication failed with status: " << cublas_status << std::endl;
+          if (cublas_status == CUBLAS_STATUS_NOT_INITIALIZED){
+            std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_NOT_INITIALIZED" << std::endl;
+          }
+          if (cublas_status == CUBLAS_STATUS_INVALID_VALUE){
+            std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_INVALID_VALUE" << std::endl;
+          }
+          if (cublas_status == CUBLAS_STATUS_ARCH_MISMATCH){
+            std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_ARCH_MISMATCH" << std::endl;
+          }
+          if (cublas_status == CUBLAS_STATUS_EXECUTION_FAILED){
+            std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_EXECUTION_FAILED" << std::endl;
+          }
+          return nullptr; // TODO have a safe shutdown of bundle adjustment given a failure
         }
-        if (cublas_status == CUBLAS_STATUS_INVALID_VALUE){
-          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_INVALID_VALUE" << std::endl;
-        }
-        if (cublas_status == CUBLAS_STATUS_ARCH_MISMATCH){
-          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_ARCH_MISMATCH" << std::endl;
-        }
-        if (cublas_status == CUBLAS_STATUS_EXECUTION_FAILED){
-          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_EXECUTION_FAILED" << std::endl;
-        }
-        return nullptr; // TODO have a safe shutdown of bundle adjustment given a failure
+        gradient->transferMemoryTo(cpu);
+        inverse->transferMemoryTo(cpu);
+        update->transferMemoryTo(cpu);
+        gradient->clear(gpu);
+        inverse->clear(gpu);
+        update->clear(gpu);
       }
-      gradient->transferMemoryTo(cpu);
-      inverse->transferMemoryTo(cpu);
-      update->transferMemoryTo(cpu);
-      gradient->clear(gpu);
-      inverse->clear(gpu);
-      update->clear(gpu);
 
       // only for testing
       if (local_debug) {
-        // print the gradient
-        std::cout << std::endl << "\t\t  = " << std::endl;
+        // print the update
+        std::cout << std::endl << "\t\t (update) Delta X = " << std::endl;
         std::cout << "\t\t ";
         for (int j = 0; j < N; j++){
           std::cout << std::fixed << std::setprecision(4) << update->host[j] << " ";

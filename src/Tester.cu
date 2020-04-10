@@ -190,8 +190,8 @@ int main(int argc, char *argv[]){
 
     // start by messing up the initial paramters
     // test moving the camera slightly
-    images[1]->camera.cam_pos.y += 1.0;
     images[1]->camera.cam_pos.x += 1.0;
+    images[1]->camera.cam_pos.y += 1.0;
     bundleSet = demPoints.generateBundles(&matchSet,images);
     points = demPoints.twoViewTriangulate(bundleSet, linearError);
     std::cout << "simulated with noise linearError: " << *linearError << std::endl;
@@ -210,7 +210,9 @@ int main(int argc, char *argv[]){
     for (int i = 0; i < images.size(); i++){
       std::cout << "Cam " << i << " locations:" << std::endl;
       std::cout << "[" << temp[i]->camera.cam_pos.x << ", " << temp[i]->camera.cam_pos.y << ", " << temp[i]->camera.cam_pos.z << "]  -> ";
-      std::cout << "[" << (temp[i]->camera.cam_pos.x + 1.0) << ", " << (temp[i]->camera.cam_pos.y + 1.0) << ", " << temp[i]->camera.cam_pos.z << "]  -> ";
+      if (i == 1){
+        std::cout << "[" << (temp[i]->camera.cam_pos.x + 1.0) << ", " << (temp[i]->camera.cam_pos.y + 1.0) << ", " << temp[i]->camera.cam_pos.z << "]  -> ";
+      }
       std::cout << "[" << images[i]->camera.cam_pos.x << ", " << images[i]->camera.cam_pos.y << ", " << images[i]->camera.cam_pos.z << "]  -> ";
       std::cout << std::endl;
     }
