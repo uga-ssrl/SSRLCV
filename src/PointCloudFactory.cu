@@ -1314,9 +1314,6 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   ssrlcv::Unity<float>* S  = new ssrlcv::Unity<float>(nullptr,N              ,ssrlcv::gpu);
   ssrlcv::Unity<float>* U  = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::gpu);
   ssrlcv::Unity<float>* VT = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::gpu);
-  ssrlcv::Unity<float>* W  = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::gpu);
-
-  ssrlcv::Unity<int>* info  = new ssrlcv::Unity<int>(nullptr,1,ssrlcv::gpu);
 
   // Put the hessian into matrix A in column major order
   if (local_debug) std::cout << std::endl << "\t Hessian in column major order: " << std::endl;
@@ -1326,6 +1323,16 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
     for (int j = i; j < (N*N); j+=N){
       A->host[index] = hessian->host[j];
       if (local_debug) std::cout << std::fixed << std::setprecision(4) << hessian->host[j] << "\t ";
+    }
+  }
+
+  if (local_debug){
+    std::cout << std::endl << "\t matrix A: " << std::endl;
+    for (int i = 0; i < N; i++){
+      std::cout << std::endl << "\t\t ";
+      for (int j = i; j < (N*N); j+=N){
+        std::cout << std::fixed << std::setprecision(4) << A->host[j] << "\t ";
+      }
     }
   }
 
@@ -1340,18 +1347,20 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
 
   // cuSOLVER SVD
   int lwork       = 0;
+  int info_gpu    = 0;
+  int* devInfo    = NULL;
   float *d_work   = NULL;
   float *d_rwork  = NULL;
   cusolver_status = cusolverDnDgesvd_bufferSize(cusolverH,N,N,&lwork);
   assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
 
-  cudaMalloc((void**)&d_work , sizeof(float)*lwork);
+  CudaSafeCall(cudaMalloc((void**)&d_work , sizeof(float)*lwork));
+  CudaSafeCall(cudaMalloc ((void**)&devInfo, sizeof(int)));
 
-  signed char jobu  = 'A'; // all m columns of U
-  signed char jobvt = 'A'; // all n columns of VT
-
-  cusolver_status = cusolverDnSgesvd (cusolverH,jobu,jobvt,N,N,A->device,N,S->device,U->device,N,VT->device,N,d_work,lwork,d_rwork,info->device);
+  cusolver_status = cusolverDnSgesvd(cusolverH,'A','A',N,N,A->device,N,S->device,U->device,N,VT->device,N,d_work,lwork,d_rwork,devInfo);
+  // cusolver_status = cusolverDnSgesvd(cusolverH, 'A', 'A', m, n,d_A, m, d_S, d_U, m, d_VT, n, d_work, lwork, d_rwork, devInfo);
   cudaDeviceSynchronize();
+
   if (cusolver_status != CUSOLVER_STATUS_SUCCESS){
     std::cerr << std::endl << "ERROR setting up cuSOLVER, error status: " << cusolver_status << std::endl;
     if (cusolver_status == CUSOLVER_STATUS_NOT_INITIALIZED) {
@@ -1370,20 +1379,28 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
     return nullptr;
   }
 
-  if (local_debug) std::cout << std::endl << "\t SVD compelete ..." << std::endl;
+  // check the devInfo
+  CudaSafeCall(cudaMemcpy(&info_gpu, devInfo, sizeof(int), cudaMemcpyDeviceToHost));
+  if (info_gpu > 0){
+    std::cerr << std::endl << "ERROR: " << info_gpu << " diagonals did not converge to zero " << std::endl;
+    return nullptr;
+  } else if (info_gpu < 0) {
+    std::cerr << std::endl << "ERROR: parameter " << -1.0 * info_gpu << " in the SVD is wrong" << std::endl;
+    return nullptr;
+  } else {
+    if (local_debug) std::cout << std::endl << "\t SVD compelete ..." << std::endl;
+  }
 
   // move back the results
   S->transferMemoryTo(cpu);
   U->transferMemoryTo(cpu);
   VT->transferMemoryTo(cpu);
-  W->transferMemoryTo(cpu);
   S->clear(gpu);
   U->clear(gpu);
   VT->clear(gpu);
-  W->clear(gpu);
 
   if (local_debug){
-    std::cout << std::endl << "\t\t U = " << std::endl << "\t\t ";
+    std::cout << std::endl << "\t\t U = " << std::endl;
     index = 0;
     for (int i = 0; i < N; i++){
       std::cout << "\t\t ";
@@ -1408,7 +1425,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
       std::cout << std::endl << "\t\t ";
     }
 
-    std::cout << std::endl << "\t\t VT = " << std::endl << "\t\t ";
+    std::cout << std::endl << "\t\t VT = " << std::endl;
     index = 0;
     for (int i = 0; i < N; i++){
       std::cout << "\t\t ";
@@ -1468,15 +1485,15 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     std::cout << "==============================" << std::endl;
     std::cout << "Inversion Test: " << std::endl;
     ssrlcv::Unity<float>* test = new ssrlcv::Unity<float>(nullptr,9,ssrlcv::cpu);
-    test->host[0] = 1.0;
-    test->host[1] = 1.0;
-    test->host[2] = -1.0;
-    test->host[3] = -2.0;
-    test->host[4] = 3.0;
-    test->host[5] = 2.0;
-    test->host[6] = 3.0;
-    test->host[7] = -3.0;
-    test->host[8] = 3.0;
+    test->host[0] = 1.0; //1.0;
+    test->host[1] = 0.0; //1.0;
+    test->host[2] = 0.0; //-1.0;
+    test->host[3] = 0.0; //-2.0;
+    test->host[4] = 1.0; //3.0;
+    test->host[5] = 0.0; //2.0;
+    test->host[6] = 0.0; //3.0;
+    test->host[7] = 0.0; //-3.0;
+    test->host[8] = 1.0; //3.0;
     std::cout << std::endl << std::endl << "\t\t test matrix = " << std::endl;
     for (int i = 0; i < 3; i++){
       std::cout << std::endl << "\t\t ";
