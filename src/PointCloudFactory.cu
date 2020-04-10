@@ -1120,6 +1120,7 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
 
   // stepsize and indexing related variables
   // TODO pass in this step vector
+  //                  dX    dY    dZ     dX_r     dY_r     dZ_r
   float h_step[6] = {0.001,0.001,0.001,0.000001,0.000001,0.000001}; // the step size vector
   int   h_i       = 0;               // the hessian location index
 
@@ -1171,7 +1172,7 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
       if (i == j){ // second derivative with respect to self
 
         // ----> First Function Evaluation, A
-        params->host[i] += 2.0*h_step[i];
+        params->host[i] += 2.0*h_step[i%num_params];
         bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         A = *gradientError;
@@ -1181,7 +1182,7 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
         delete bundleTemp.lines;
 
         // ----> Second Function Evaluation, B
-        params->host[i] += h_step[i];
+        params->host[i] += h_step[i%num_params];
         bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         B = *gradientError;
@@ -1200,7 +1201,7 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
         delete bundleTemp.lines;
 
         // ----> Forth Function Evaluation, D
-        params->host[i] -= h_step[i];
+        params->host[i] -= h_step[i%num_params];
         bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         D = *gradientError;
@@ -1210,7 +1211,7 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
         delete bundleTemp.lines;
 
         // ----> Fifth Function Evaluation, E
-        params->host[i] -= 2.0*h_step[i];
+        params->host[i] -= 2.0*h_step[i%num_params];
         bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         E = *gradientError;
@@ -1221,15 +1222,15 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
 
         // calculate the result
         numer = -1.0*A + 16.0*B - 30.0*C + 16.0*D - 1.0*E;
-        denom = 12.0 * h_step[i] * h_step[i];
+        denom = 12.0 * h_step[i%num_params] * h_step[i%num_params];
         // update the hessian
         h->host[h_i] = numer / denom;
 
       } else { // second derivative with respect to some over variable
 
         // ----> First Function Evaluation, A
-        params->host[i] += h_step[i];
-        params->host[j] += h_step[j];
+        params->host[i] += h_step[i%num_params];
+        params->host[j] += h_step[j%num_params];
         bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         A = *gradientError;
@@ -1240,8 +1241,8 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
         delete bundleTemp.lines;
 
         // ----> Second Function Evaluation, B
-        params->host[i] += h_step[i];
-        params->host[j] -= h_step[j];
+        params->host[i] += h_step[i%num_params];
+        params->host[j] -= h_step[j%num_params];
         bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         B = *gradientError;
@@ -1252,8 +1253,8 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
         delete bundleTemp.lines;
 
         // ----> Third Function Evaluation, C
-        params->host[i] -= h_step[i];
-        params->host[j] += h_step[j];
+        params->host[i] -= h_step[i%num_params];
+        params->host[j] += h_step[j%num_params];
         bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         C = *gradientError;
@@ -1264,20 +1265,20 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
         delete bundleTemp.lines;
 
         // ----> Forth Function Evaluation, D
-        params->host[i] -= h_step[i];
-        params->host[j] -= h_step[j];
+        params->host[i] -= h_step[i%num_params];
+        params->host[j] -= h_step[j%num_params];
         bundleTemp = generateBundles(matchSet,temp,params);
         voidTwoViewTriangulate(bundleTemp, gradientError);
         D = *gradientError;
         // reset params
-        params->host[i] = params_reset->host[i];
-        params->host[j] = params_reset->host[j];
+        params->host[i] = params_reset->host[i%num_params];
+        params->host[j] = params_reset->host[j%num_params];
         delete bundleTemp.bundles;
         delete bundleTemp.lines;
 
         // calculate the result
         numer = A - B - C + D;
-        denom = 4.0 * h_step[i] * h_step[j];
+        denom = 4.0 * h_step[i%num_params] * h_step[j%num_params];
         // update the hessian
         h->host[h_i] = numer / denom;
 
@@ -1318,7 +1319,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   cublasStatus_t      cublas_status   = CUBLAS_STATUS_SUCCESS;
   cusolverStatus_t    cusolver_status = CUSOLVER_STATUS_SUCCESS;
 
-  bool local_debug = false;
+  bool local_debug = true;
 
   const unsigned int N = (const unsigned int) sqrt(hessian->size());
 
@@ -1637,10 +1638,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   std::vector<float> errorTracker;
 
   // allocate memory
+  int num_params = 6; // 3 is just (x,y,z) and 6 incldue rotations in (x,y,z)
   float* localError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
-  gradient = new ssrlcv::Unity<float>(nullptr,(6 * images.size()),ssrlcv::cpu);
-  hessian  = new ssrlcv::Unity<float>(nullptr,((6 * images.size())*(6 * images.size())),ssrlcv::cpu);
-  update   = new ssrlcv::Unity<float>(nullptr,(6 * images.size()),ssrlcv::gpu); // used in state update
+  gradient = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
+  hessian  = new ssrlcv::Unity<float>(nullptr,((num_params * images.size())*(num_params * images.size())),ssrlcv::cpu);
+  update   = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::gpu); // used in state update
 
   // for debug
   bool local_debug = false;
