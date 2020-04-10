@@ -190,8 +190,9 @@ int main(int argc, char *argv[]){
 
     // start by messing up the initial paramters
     // test moving the camera slightly
-    images[1]->camera.cam_pos.x += 1.0;
-    images[1]->camera.cam_pos.y += 1.0;
+    images[1]->camera.cam_pos.x += 1.0f;
+    images[1]->camera.cam_pos.y += 1.0f;
+    images[1]->camera.cam_pos.z += 0.0f;
     bundleSet = demPoints.generateBundles(&matchSet,images);
     points = demPoints.twoViewTriangulate(bundleSet, linearError);
     std::cout << "simulated with noise linearError: " << *linearError << std::endl;
@@ -200,7 +201,7 @@ int main(int argc, char *argv[]){
 
     std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
     // now start the bundle adjustment 2-view loop
-    points = demPoints.BundleAdjustTwoView(&matchSet,images, 1);
+    points = demPoints.BundleAdjustTwoView(&matchSet,images, 3);
     // points = demPoints.twoViewTriangulate(bundleSet, linearError); // one last time!
     // std::cout << "final adjusted cloud has linearError: " << *linearError << std::endl;
     std::cout << "\t writing adjusted PLY ..." << std::endl;
