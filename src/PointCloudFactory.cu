@@ -1306,7 +1306,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   cublasStatus_t      cublas_status   = CUBLAS_STATUS_SUCCESS;
   cusolverStatus_t    cusolver_status = CUSOLVER_STATUS_SUCCESS;
 
-  bool local_debug = true;
+  bool local_debug = false;
 
   const unsigned int N = (const unsigned int) sqrt(hessian->size());
 
@@ -1627,11 +1627,28 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   hessian  = new ssrlcv::Unity<float>(nullptr,((3 * images.size())*(3 * images.size())),ssrlcv::cpu);
 
   // for debug
-  bool local_debug = true;
+  bool local_debug = false;
 
   // temp step
+  bool  constant_step = false;
   float step = 0.001;
 
+  // scalars in the matrix multiplication
+  // beta should always be 0.0
+  // alpha can be changed to dampen stepsize
+  // alpha should be between 0.0 - 1.0
+  float alpha = 1.0f;
+  float beta  = 0.0f;
+
+  const unsigned int N = (const unsigned int) sqrt(hessian->size());
+
+  // cuBLAS housekeeping
+  cublasHandle_t cublasH         = NULL;
+  cublasStatus_t cublas_status   = CUBLAS_STATUS_SUCCESS;
+
+  if (constant_step){
+    cublasDestroy(cublasH);
+  }
 
   // TEMP inversion test
   if (local_debug){
@@ -1665,40 +1682,72 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     if (local_debug) std::cout << "\tCalculating Gradient ..." << std::endl;
     calculateImageGradient(matchSet,images,gradient);
 
-    // TODO hessians calculated here
-    if (local_debug) std::cout << "\tCalculating Hessian ..." << std::endl;
-    calculateImageHessian(matchSet,images,hessian);
+    // calculate second order stuff
+    // if not in constant stepsize mode
+    if (!constant_step){
+      // TODO hessians calculated here
+      if (local_debug) std::cout << "\tCalculating Hessian ..." << std::endl;
+      calculateImageHessian(matchSet,images,hessian);
 
-    if (local_debug){
-      std::cout << "\t\t Hessian Size: " << hessian->size() << std::endl;
-      for (int j = 0; j < hessian->size(); j+=6){
-        std::cout << "\t\t | " << std::fixed << std::setprecision(4) << hessian->host[j];
-        std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+1];
-        std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+2];
-        std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+3];
-        std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+4];
-        std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+5];
-        std::cout << " |" << std::endl;
+      if (local_debug){
+        std::cout << "\t\t Hessian Size: " << hessian->size() << std::endl;
+        for (int j = 0; j < hessian->size(); j+=6){
+          std::cout << "\t\t | " << std::fixed << std::setprecision(4) << hessian->host[j];
+          std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+1];
+          std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+2];
+          std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+3];
+          std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+4];
+          std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+5];
+          std::cout << " |" << std::endl;
+        }
+        std::cout << std::endl;
       }
-      std::cout << std::endl;
+
+      // invert hessian here
+      if (local_debug) std::cout << "\tInverting Hessian ..." << std::endl;
+      // see https://stackoverflow.com/questions/28794010/solving-dense-linear-systems-ax-b-with-cuda
+      // see https://stackoverflow.com/questions/27094612/cublas-matrix-inversion-from-device
+      // takes the pseudo inverse of the hessian
+      inverse = calculateImageHessianInverse(hessian);
     }
 
-    // TODO invert hessian here
-    if (local_debug) std::cout << "\tInverting Hessian ..." << std::endl;
-    // see https://stackoverflow.com/questions/28794010/solving-dense-linear-systems-ax-b-with-cuda
-    // see https://stackoverflow.com/questions/27094612/cublas-matrix-inversion-from-device
-    inverse = calculateImageHessianInverse(hessian);
-
-    // TODO calculate new stepsize here
-
     // NOTE take a newton step here
-    // TODO calculate real step above and change that here
-    int g_j = 0;
-    for (int j = 0; j < images.size(); j++){
-      images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - step * gradient->host[g_j    ];
-      images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - step * gradient->host[g_j + 1];
-      images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - step * gradient->host[g_j + 2];
-      g_j += 3;
+    if (constant_step){
+      // A constant stepsize here
+      int g_j = 0;
+      for (int j = 0; j < images.size(); j++){
+        images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - step * gradient->host[g_j    ];
+        images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - step * gradient->host[g_j + 1];
+        images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - step * gradient->host[g_j + 2];
+        g_j += 3;
+      }
+    } else {
+      // a dynamic stepsize occurs here
+      gradient->transferMemoryTo(gpu);
+      inverse->transferMemoryTo(gpu);
+
+      // multiply
+      cublas_status = cublasSgbmv(cublasH,CUBLAS_OP_N,N,N,1,1,&alpha,inverse->device,N,gradient->device,0,&beta,nullptr,0);
+      if (cublas_status != CUBLAS_STATUS_SUCCESS){
+        std::cout << std::endl << "ERROR: failure when multiplying inverse hessian and gradient for state update." << std::endl;
+        std::cout << "\t ERROR STATUS: multiplication failed with status: " << cublas_status << std::endl;
+        return nullptr; // TODO have a safe shutdown of bundle adjustment given a failure
+      }
+      gradient->transferMemoryTo(cpu);
+      inverse->transferMemoryTo(cpu);
+      gradient->clear(gpu);
+      inverse->clear(gpu);
+
+      // update
+      // TODO add angular adjustment here too 
+      int g_j = 0;
+      for (int j = 0; j < images.size(); j++){
+        images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - gradient->host[g_j    ];
+        images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - gradient->host[g_j + 1];
+        images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - gradient->host[g_j + 2];
+        g_j += 3;
+      }
+
     }
 
     // NOTE print off new error
@@ -1719,6 +1768,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
   bundleTemp = generateBundles(matchSet,images);
   points = twoViewTriangulate(bundleTemp, localError);
+
+  // end cuBLAS instance
+  cublasDestroy(cublasH);
 
   // cleanup memory
   delete gradient;
