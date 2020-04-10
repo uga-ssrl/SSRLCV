@@ -1446,7 +1446,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
 
   // ~~~ now calculate the pseudo inverse ~~~
   // ( ͡° ͜ʖ ͡°)つ━━✫・*。
-  //
+  // TODO cudafy the code below
 
   // transpose U
   for (int i = 0; i < U->size(); i++){
@@ -1472,15 +1472,15 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
 
   // invert S
   for (int i = 0; i < S->size(); i++){
-    if (s->host[i] != 0){
-      s->host[i] = 1.0 / s->host[i];
+    if (S->host[i] != 0){
+      S->host[i] = 1.0 / S->host[i];
     }
   }
 
   // just for testing print of the transposes and inverse
   // only to be used for debugging s
   if (local_debug){
-    std::cout << std::endl << "\t\t U = " << std::endl;
+    std::cout << std::endl << "\t\t U^T = " << std::endl;
     index = 0;
     for (int i = 0; i < N; i++){
       std::cout << "\t\t ";
@@ -1491,7 +1491,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
       std::cout << std::endl;
     }
 
-    std::cout << std::endl << "\t\t S = ";
+    std::cout << std::endl << "\t\t S^-1 = ";
     for (int i = 0; i < S->size(); i++){
       std::cout << std::fixed << std::setprecision(4) << S->host[i] << " ";
     }
@@ -1509,7 +1509,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
       std::cout << std::endl << "\t\t ";
     }
 
-    std::cout << std::endl << "\t\t VT = " << std::endl;
+    std::cout << std::endl << "\t\t V = " << std::endl;
     index = 0;
     for (int i = 0; i < N; i++){
       std::cout << "\t\t ";
@@ -1522,12 +1522,35 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   }
 
   // multiply A^+ = V S^+ U^T
+  S->transferMemoryTo(gpu);
+  U->transferMemoryTo(gpu);
+  VT->transferMemoryTo(gpu);
+  ssrlcv::Unity<float>* inverse = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::gpu);
+  for (int i = 0; i < inverse->size(); i++){
+    inverse->host[i] = 0.0f;
+  }
+  inverse->transferMemoryTo(gpu);
+  ssrlcv::Unity<float>* C = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::cpu);
+  for (int i = 0; i < C->size(); i++){
+    C->host[i] = 0.0f;
+  }
+  C->transferMemoryTo(gpu);
+  float alpha = 1.0f;
+  float beta  = 1.0f;
+
+  // do the multiplication in cuBLAS
+  cublas_status = cublasSgemm(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,N,N,N,&alpha,VT->device,N,S->device,N,&beta,C->device,N);
+  if (cublas_status != 0){
+    std::cerr << std::endl << "ERROR: in cuBLAS multiply" << std::endl;
+    return nullptr;
+  }
 
 
   // memory cleanup
   delete S;
   delete U;
   delete VT;
+  delete C;
   cudaFree(devInfo);
   cudaFree(d_work);
   cudaFree(d_rwork);
@@ -1536,7 +1559,9 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   cublasDestroy(cublasH);
   cusolverDnDestroy(cusolverH);
 
-  return nullptr;
+  // transpose the inverse and return it!
+
+  return inverse;
 }
 
 /**
@@ -1562,7 +1587,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   hessian  = new ssrlcv::Unity<float>(nullptr,((3 * images.size())*(3 * images.size())),ssrlcv::cpu);
 
   // for debug
-  bool local_debug = false;
+  bool local_debug = true;
 
   // temp step
   float step = 0.001;
