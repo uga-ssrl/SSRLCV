@@ -1323,6 +1323,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
     for (int j = i; j < (N*N); j+=N){
       A->host[index] = hessian->host[j];
       if (local_debug) std::cout << std::fixed << std::setprecision(4) << hessian->host[j] << "\t ";
+      index++;
     }
   }
 
@@ -1408,10 +1409,14 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
         std::cout << std::fixed << std::setprecision(4) << U->host[j] << " ";
         index++;
       }
-      std::cout << std::endl << "\t\t ";
+      std::cout << std::endl;
     }
 
-    std::cout << std::endl << "\t\t S = " << std::endl << "\t\t ";
+    std::cout << std::endl << "\t\t S = ";
+    for (int i = 0; i < S->size(); i++){
+      std::cout << std::fixed << std::setprecision(4) << S->hostp[i] << " ";
+    }
+    std::cout << std::endl << "\t\t ";
     index = 0;
     for (int i = 0; i < N; i++){
       for (int j = 0; j < N; j++){
@@ -1433,16 +1438,14 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
         std::cout << std::fixed << std::setprecision(4) << VT->host[j] << " ";
         index++;
       }
-      std::cout << std::endl << "\t\t ";
+      std::cout << std::endl;
     }
   }
 
   // memory cleanup
-  delete info;
   delete S;
   delete U;
   delete VT;
-  delete W;
 
   // end solver session
   cublasDestroy(cublasH);
