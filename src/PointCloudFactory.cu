@@ -1156,7 +1156,7 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
   // stepsize and indexing related variables
   // TODO pass in this step vector
   //                  dX    dY    dZ     dX_r     dY_r     dZ_r
-  float h_step[6] = {0.1,0.1,0.1,0.1,0.1,0.1}; // the step size vector
+  float h_step[6] = {0.001,0.001,0.001,0.00001,0.00001,0.00001}; // the step size vector
   int   h_i       = 0;               // the hessian location index
 
   // temp variables within the loops
@@ -1176,7 +1176,7 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
 
   // this temp vector is only used for the +/- h steps when calculating the gradients
   // convert the temp images to float vectors
-  int num_params = 6; // 3 is just position, 6 position and orientation
+  int num_params = 3; // 3 is just position, 6 position and orientation
   ssrlcv::Unity<float>* params       = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
   ssrlcv::Unity<float>* params_reset = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
   ssrlcv::Unity<bool>* mfNaNs = new ssrlcv::Unity<bool>(nullptr,h->size(),ssrlcv::cpu);
@@ -1403,7 +1403,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   cublasStatus_t      cublas_status   = CUBLAS_STATUS_SUCCESS;
   cusolverStatus_t    cusolver_status = CUSOLVER_STATUS_SUCCESS;
 
-  bool local_debug = true;
+  bool local_debug = false;
 
   const unsigned int N = (const unsigned int) sqrt(hessian->size());
 
@@ -1722,7 +1722,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   std::vector<float> errorTracker;
 
   // allocate memory
-  int num_params = 6; // 3 is just (x,y,z) and 6 incldue rotations in (x,y,z)
+  int num_params = 3; // 3 is just (x,y,z) and 6 incldue rotations in (x,y,z)
   float* localError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
   gradient = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
   hessian  = new ssrlcv::Unity<float>(nullptr,((num_params * images.size())*(num_params * images.size())),ssrlcv::cpu);
@@ -1903,10 +1903,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - update->host[g_j    ];
         images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - update->host[g_j + 1];
         images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - update->host[g_j + 2];
-        images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - update->host[g_j + 3];
-        images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y - update->host[g_j + 4];
-        images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z - update->host[g_j + 5];
-        g_j += 6;
+        if (){
+          images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - update->host[g_j + 3];
+          images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y - update->host[g_j + 4];
+          images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z - update->host[g_j + 5];
+          g_j += 6;
+        } else {
+          g_j += 3;
+        }
       }
 
     }
