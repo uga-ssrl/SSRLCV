@@ -805,6 +805,8 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
 */
 ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* params){
 
+  bool local_debug = false;
+
   // update the cameras in the images with the params
   int params_per_cam = params->size() / images.size();
   Unity<float>* temp_params = new Unity<float>(nullptr,params_per_cam,cpu);
@@ -819,6 +821,39 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
     images[i]->setFloatVector(temp_params);
   }
   delete temp_params; // clean up
+
+  // should be something close to:
+  // 0.000000000000 0.000000000000 -400.000000000000 0.000000000000 0.000000000000 0.000000000000 5.000000000000 72.459274291992 -391.923095703125 0.174532920122 0.000000000000 0.000000000000
+  // for the cube 2 view test
+  //debug
+  if (local_debug){
+    std::cout << std::endl;
+    std::cout << "\t params per cam: " << params_per_cam << std::endl;
+    Unity<float>* temp_params2;
+    std::cout << "\t input params :" << std::endl;
+    for (int i = 0; i < params->size(); i++){
+      std::cout << params->host[i] << " ";
+    }
+    std::cout << std::endl;
+    std::cout << "\t images params: " << std::endl << "\t\t ";
+    for (int i = 0; i < images.size(); i++){
+      temp_params2 = images[i]->getFloatVector(params_per_cam);
+      for (int j = 0; j < temp_params2->size(); j++) {
+        std::cout << temp_params2->host[j] << " ";
+      }
+      std::cout << std::endl << "\t\t ";
+    }
+    delete temp_params2;
+    std::cout << "\t backup params: " << std::endl << "\t\t ";
+    for (int i = 0; i < temp.size(); i++){
+      temp_params2 = temp[i]->getFloatVector(params_per_cam);
+      for (int j = 0; j < temp_params2->size(); j++) {
+        std::cout << temp_params2->host[j] << " ";
+      }
+      std::cout << std::endl << "\t\t ";
+    }
+    delete temp_params2;
+  }
 
   Unity<Bundle>* bundles = new Unity<Bundle>(nullptr,matchSet->matches->size(),gpu);
   Unity<Bundle::Line>* lines = new Unity<Bundle::Line>(nullptr,matchSet->keyPoints->size(),gpu);
@@ -885,8 +920,8 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
  */
 void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* g){
 
-  float h_linear = 0.001;      // gradient difference
-  float h_radial = 0.0000001;  // graident diff
+  float h_linear = 0.1;    // gradient difference
+  float h_radial = 0.001;  // graident diff
 
   float* gradientError = (float*) malloc(sizeof(float)); // this chaneges per iteration
 
@@ -1121,7 +1156,7 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
   // stepsize and indexing related variables
   // TODO pass in this step vector
   //                  dX    dY    dZ     dX_r     dY_r     dZ_r
-  float h_step[6] = {0.001,0.001,0.001,0.000001,0.000001,0.000001}; // the step size vector
+  float h_step[6] = {0.1,0.1,0.1,0.1,0.1,0.1}; // the step size vector
   int   h_i       = 0;               // the hessian location index
 
   // temp variables within the loops
@@ -1144,6 +1179,7 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
   int num_params = 6; // 3 is just position, 6 position and orientation
   ssrlcv::Unity<float>* params       = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
   ssrlcv::Unity<float>* params_reset = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
+  ssrlcv::Unity<bool>* mfNaNs = new ssrlcv::Unity<bool>(nullptr,h->size(),ssrlcv::cpu);
   std::vector<ssrlcv::Image*> temp;
   for (int i = 0; i < images.size(); i++){
     temp.push_back(images[i]); // fill in the initial images
@@ -1164,11 +1200,24 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
     for (int i = 0; i < params->size(); i++) {
       std::cout << params->host[i] << " ";
     }
+    std::cout << std::endl;
+    std::cout << "\t Params reset: " << std::endl << "\t\t ";
+    for (int i = 0; i < params_reset->size(); i++) {
+      std::cout << params_reset->host[i] << " ";
+    }
     std::cout << std::endl << "\t Hessian Size: " << params->size() * params->size() << std::endl;
   }
 
   for (int i = 0; i < params->size(); i++){
     for (int j = 0; j < params->size(); j++){
+
+      A = 0.0f;
+      B = 0.0f;
+      C = 0.0f;
+      D = 0.0f;
+      E = 0.0f;
+      *gradientError = 0.0f;
+
       if (i == j){ // second derivative with respect to self
 
         // ----> First Function Evaluation, A
@@ -1226,6 +1275,17 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
         // update the hessian
         h->host[h_i] = numer / denom;
 
+        if (isnan(numer/denom)){
+          std::cout << "!!NaN found at: [" << i << "," << j << "] " << std::endl;
+          std::cout << "\t " << A << "  " << B << "  " << C << "  " << D << "  " << E << std::endl;
+          std::cout << "\t i mod " << num_params << " = " << i%num_params << "\t" << std::endl;
+          std::cout << "\t j mod " << num_params << " = " << j%num_params << "\t" << std::endl;
+          std::cout << "\t numer = " << numer << "\t denom = " << denom << std::endl;
+          mfNaNs->host[i*params->size() + j] = true;
+        } else {
+          mfNaNs->host[i*params->size() + j] = false;
+        }
+
       } else { // second derivative with respect to some over variable
 
         // ----> First Function Evaluation, A
@@ -1271,8 +1331,8 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
         voidTwoViewTriangulate(bundleTemp, gradientError);
         D = *gradientError;
         // reset params
-        params->host[i] = params_reset->host[i%num_params];
-        params->host[j] = params_reset->host[j%num_params];
+        params->host[i] = params_reset->host[i];
+        params->host[j] = params_reset->host[j];
         delete bundleTemp.bundles;
         delete bundleTemp.lines;
 
@@ -1281,6 +1341,17 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
         denom = 4.0 * h_step[i%num_params] * h_step[j%num_params];
         // update the hessian
         h->host[h_i] = numer / denom;
+
+        if (isnan(numer/denom) && local_debug){
+          std::cout << "!!NaN found at: [" << i << "," << j << "] " << std::endl;
+          std::cout << "\t " << A << "  " << B << "  " << C << "  " << D << std::endl;
+          std::cout << "\t i mod " << num_params << " = " << i%num_params << "\t" << std::endl;
+          std::cout << "\t j mod " << num_params << " = " << j%num_params << "\t" << std::endl;
+          std::cout << "\t numer = " << numer << "\t denom = " << denom << std::endl;
+          mfNaNs->host[i*params->size() + j] = true;
+        } else {
+          mfNaNs->host[i*params->size() + j] = false;
+        }
 
       }
 
@@ -1296,8 +1367,21 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
     }
   }
 
+  if (local_debug){
+    std::cout << std::endl;
+    for (int k = 0; k < mfNaNs->size(); k++){
+      if (!(k%params->size())) std::cout << std::endl;
+      if (mfNaNs->host[k]){
+        std::cout << " * ";
+      } else {
+        std::cout << "   ";
+      }
+    }
+  }
+
   // cleanup memory
   temp.clear();
+  delete mfNaNs;
   delete gradientError;
   delete params;
   delete params_reset;
@@ -3207,15 +3291,18 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, unsign
 
   // add the linear errors locally within the block before
   float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
+  if (isnan(error)){
+    printf(" L1: %f %f %f \t L2: %f %f %f \n\t S1: %f %f %f \t S2: %f %f %f \n", L1.pnt.x, L1.pnt.y, L1.pnt.z, L2.pnt.x, L2.pnt.y, L2.pnt.z, s1.x, s1.y, s1.z, s2.x, s2.y, s2.z);
+  }
   //float error = dotProduct(s1,s2)*dotProduct(s1,s2);
   //if(error != 0.0f) error = sqrtf(error);
   // only add errors that we like
-  float i_error;
+  // float i_error;
   // filtering should only occur at the start of each adjustment step
   // TODO clean this up
-  i_error = error;
+  // i_error = error;
   bundles[globalID].invalid = false;
-  atomicAdd(&localSum,i_error);
+  atomicAdd(&localSum,error);
   __syncthreads();
   if (!threadIdx.x) atomicAdd(linearError,localSum);
 }

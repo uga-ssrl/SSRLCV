@@ -193,6 +193,9 @@ int main(int argc, char *argv[]){
     images[1]->camera.cam_pos.x += 5.0f;
     images[1]->camera.cam_pos.y += 3.0f;
     images[1]->camera.cam_pos.z += 2.0f;
+    // images[1]->camera.cam_pos.x += 0.001f;
+    // images[1]->camera.cam_pos.y += 0.002f;
+    // images[1]->camera.cam_pos.z += 0.001f;
     bundleSet = demPoints.generateBundles(&matchSet,images);
     points = demPoints.twoViewTriangulate(bundleSet, linearError);
     std::cout << "simulated with noise linearError: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
