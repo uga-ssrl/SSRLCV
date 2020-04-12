@@ -1419,7 +1419,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
     if (local_debug) std::cout << std::endl << "\t\t ";
     for (int j = i; j < (N*N); j+=N){
       A->host[index] = hessian->host[j];
-      if (local_debug) std::cout << std::fixed << std::setprecision(4) << hessian->host[j] << "\t ";
+      if (local_debug) std::cout << std::fixed << std::setprecision(12) << hessian->host[j] << "  ";
       index++;
     }
   }
@@ -1429,7 +1429,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
     for (int i = 0; i < N; i++){
       std::cout << std::endl << "\t\t ";
       for (int j = i; j < (N*N); j+=N){
-        std::cout << std::fixed << std::setprecision(4) << A->host[j] << "\t ";
+        std::cout << std::fixed << std::setprecision(12) << A->host[j] << "  ";
       }
     }
   }
@@ -1504,7 +1504,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
     for (int i = 0; i < N; i++){
       std::cout << "\t\t ";
       for (int j = i; j < (N*N); j+=N){
-        std::cout << std::fixed << std::setprecision(4) << U->host[j] << " ";
+        std::cout << std::fixed << std::setprecision(12) << U->host[j] << " ";
         index++;
       }
       std::cout << std::endl;
@@ -1512,17 +1512,17 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
 
     std::cout << std::endl << "\t\t S = ";
     for (int i = 0; i < S->size(); i++){
-      std::cout << std::fixed << std::setprecision(4) << S->host[i] << " ";
+      std::cout << std::fixed << std::setprecision(12) << S->host[i] << " ";
     }
     std::cout << std::endl << "\t\t ";
     index = 0;
     for (int i = 0; i < N; i++){
       for (int j = 0; j < N; j++){
         if (i == j){
-          std::cout << std::fixed << std::setprecision(4) << S->host[index] << " ";
+          std::cout << std::fixed << std::setprecision(12) << S->host[index] << " ";
           index ++;
         } else {
-          std::cout << "0.0000 ";
+          std::cout << std::fixed << std::setprecision(12) << 0.0f << " ";
         }
       }
       std::cout << std::endl << "\t\t ";
@@ -1533,7 +1533,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
     for (int i = 0; i < N; i++){
       std::cout << "\t\t ";
       for (int j = i; j < (N*N); j+=N){
-        std::cout << std::fixed << std::setprecision(4) << VT->host[j] << " ";
+        std::cout << std::fixed << std::setprecision(12) << VT->host[j] << " ";
         index++;
       }
       std::cout << std::endl;
@@ -1622,7 +1622,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
     }
   }
 
-  // multiply A^+ = V S^+ U^T
+  // prep to multiply A^+ = V S^+ U^T
   S->transferMemoryTo(gpu);
   U->transferMemoryTo(gpu);
   VT->transferMemoryTo(gpu);
@@ -1698,8 +1698,6 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
   cublasDestroy(cublasH);
   cusolverDnDestroy(cusolverH);
 
-  // transpose the inverse and return it!
-
   return inverse;
 }
 
@@ -1728,12 +1726,30 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   hessian  = new ssrlcv::Unity<float>(nullptr,((num_params * images.size())*(num_params * images.size())),ssrlcv::cpu);
   update   = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::gpu); // used in state update
 
+  // TODO these variables really should be passed thru
   // for debug
-  bool local_debug = false;
-
+  bool local_debug    = true;
   // const step
-  bool  constant_step = true;
+  bool constant_step  = false;
+  bool second_order   = false;
+
+  // the constant stepsize (when used)
+  // or the starting stepsize when in first order adjustable step mode
   float step = 0.001;
+
+  // so that we know which modes we are ind
+  if (constant_step){
+    std::cout << "\t Bundle Adjustment is in Constant Stepsize Mode" << std::endl;
+  } else {
+    std::cout << "\t Bundle Adjustment is in Variable Stepsize Mode" << std::endl;
+  }
+
+  //
+  if (second_order){
+    std::cout << "\t Bundle Adjustment is in Second Order Mode" << std::endl;
+  } else {
+    std::cout << "\t Bundle Adjustment is in First Order Mode" << std::endl;
+  }
 
   // scalars in the matrix multiplication
   // beta should always be 0.0
@@ -1753,8 +1769,6 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
   // TEMP inversion test
   if (local_debug){
-    std::cout << "==============================" << std::endl;
-    std::cout << "Inversion Test: " << std::endl;
     ssrlcv::Unity<float>* test = new ssrlcv::Unity<float>(nullptr,9,ssrlcv::cpu);
     test->host[0] = 1.0; //1.0;
     test->host[1] = 2.0; //1.0;
@@ -1768,9 +1782,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     std::cout << std::endl << std::endl << "\t\t test matrix = " << std::endl;
     for (int i = 0; i < 3; i++){
       std::cout << std::endl << "\t\t ";
-      for (int j = i; j < 9; j+=3){
-        std::cout << std::fixed << std::setprecision(4) << test->host[j] << "\t ";
+      for (int j = 0; j < 3; j++){
+        std::cout << std::fixed << std::setprecision(4) << test->host[3*i + j] << "\t ";
       }
+
     }
     calculateImageHessianInverse(test);
     delete test;
@@ -1793,13 +1808,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       if (local_debug){
         std::cout << "\t\t Hessian Size: " << hessian->size() << std::endl;
         for (int j = 0; j < hessian->size(); j+=6){
-          std::cout << "\t\t | " << std::fixed << std::setprecision(4) << hessian->host[j];
+          std::cout << "\t\t " << std::fixed << std::setprecision(4) << hessian->host[j];
           std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+1];
           std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+2];
           std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+3];
           std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+4];
           std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+5];
-          std::cout << " |" << std::endl;
+          std::cout << " " << std::endl;
         }
         std::cout << std::endl;
       }
@@ -1813,10 +1828,33 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     }
 
     // NOTE take a newton step here
-    if (constant_step){
+    if (constant_step && !second_order){
       //
+      // First order
       // A constant step size here
       //
+
+      // only for testing
+      if (local_debug) {
+        // print the update
+        std::cout << std::endl << "\t\t (update) pure gradient = " << std::endl;
+        std::cout << "\t\t ";
+        for (int j = 0; j < N; j++){
+          std::cout << std::fixed << std::setprecision(8) << gradient->host[j] << " ";
+        }
+        std::cout << std::endl;
+      }
+
+      // only for testing
+      if (local_debug) {
+        // print the update
+        std::cout << std::endl << "\t\t (update) gradient scaled by step " << std::fixed << std::setprecision(8) << step << " = " << std::endl;
+        std::cout << "\t\t ";
+        for (int j = 0; j < N; j++){
+          std::cout << std::fixed << std::setprecision(8) << gradient->host[j] << " ";
+        }
+        std::cout << std::endl;
+      }
 
       int g_j = 0;
       for (int j = 0; j < images.size(); j++){
@@ -1825,9 +1863,26 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - step * gradient->host[g_j + 2];
         g_j += 3;
       }
-    } else {
+    } else if (!constant_step && !second_order) {
       //
-      // Variable step size here
+      // First order
+      // A variable step size here
+      //
+      std::cerr << "ERROR: Variable Stepsize is not yet supported with first order bunlde adjustment!" << std::endl;
+      return nullptr;
+
+    } else if (constant_step && second_order) {
+      //
+      // Second order
+      // A constant step size here
+      //
+      std::cerr << "ERROR: Variable Stepsize is not yet supported with second order bunlde adjustment!" << std::endl;
+      return nullptr;
+
+    } else if (!constant_step && second_order) {
+      //
+      // Second order
+      // A variable step size here
       //
 
       if (local_debug){
@@ -1836,7 +1891,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         for (int j = 0; j < N; j++){
           std::cout << "\t\t ";
           for (int k = j; k < (N*N); k+=N){
-            std::cout << std::fixed << std::setprecision(4) << inverse->host[k] << " ";
+            std::cout << std::fixed << std::setprecision(8) << inverse->host[k] << " ";
           }
           std::cout << std::endl;
         }
@@ -1844,7 +1899,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         std::cout << std::endl << "\t\t g^T = " << std::endl;
         std::cout << "\t\t ";
         for (int j = 0; j < N; j++){
-          std::cout << std::fixed << std::setprecision(4) << gradient->host[j] << " ";
+          std::cout << std::fixed << std::setprecision(8) << gradient->host[j] << " ";
         }
         std::cout << std::endl;
       }
@@ -1891,7 +1946,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         std::cout << std::endl << "\t\t (update) Delta X = " << std::endl;
         std::cout << "\t\t ";
         for (int j = 0; j < N; j++){
-          std::cout << std::fixed << std::setprecision(4) << update->host[j] << " ";
+          std::cout << std::fixed << std::setprecision(8) << update->host[j] << " ";
         }
         std::cout << std::endl;
       }
