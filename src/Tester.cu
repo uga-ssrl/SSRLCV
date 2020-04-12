@@ -185,7 +185,9 @@ int main(int argc, char *argv[]){
     // this temp vector is only used for the +/- h steps when calculating the gradients
     std::vector<ssrlcv::Image*> temp;
     for (int i = 0; i < images.size(); i++){
-      temp.push_back(images[i]); // fill in the initial images
+      ssrlcv::Image* t = new ssrlcv::Image();
+      t.camera = images[i]->camera;
+      temp.push_back(t); // fill in the initial images
     }
 
     // start by messing up the initial paramters
@@ -215,14 +217,17 @@ int main(int argc, char *argv[]){
     for (int i = 0; i < images.size(); i++){
       std::cout << "Cam " << i << " locations:" << std::endl;
       std::cout << std::fixed << std::setprecision(20);
-      std::cout << "[" << temp[i]->camera.cam_pos.x << ", " << temp[i]->camera.cam_pos.y << ", " << temp[i]->camera.cam_pos.z << "]  -> " << std::endl;
+      std::cout << "[" << temp[i]->camera.cam_pos.x << ", " << temp[i]->camera.cam_pos.y << ", " << temp[i]->camera.cam_pos.z << ", ";
+      std::cout << temp[i]->camera.cam_rot.x << ", " << temp[i]->camera.cam_rot.y << ", " << temp[i]->camera.cam_rot.z << " ]" << std::endl;
       if (i == 1){
-        std::cout << "[" << (temp[i]->camera.cam_pos.x + noise[0]) << ", " << (temp[i]->camera.cam_pos.y + noise[1]) << ", " << (temp[i]->camera.cam_pos.z + noise[2]) << "]  -> " << std::endl;
+        std::cout << "[" << (temp[i]->camera.cam_pos.x + noise[0]) << ", " << (temp[i]->camera.cam_pos.y + noise[1]) << ", " << (temp[i]->camera.cam_pos.z + noise[2]) << ", ";
+        std::cout << temp[i]->camera.cam_rot.x << ", " << temp[i]->camera.cam_rot.y << ", " << temp[i]->camera.cam_rot.z << " ]" << std::endl;
       } else {
-        std::cout << "[" << (temp[i]->camera.cam_pos.x) << ", " << (temp[i]->camera.cam_pos.y) << ", " << temp[i]->camera.cam_pos.z << "]  -> " << std::endl;
+        std::cout << "[" << (temp[i]->camera.cam_pos.x) << ", " << (temp[i]->camera.cam_pos.y) << ", " << temp[i]->camera.cam_pos.z << ", ";
+        std::cout << temp[i]->camera.cam_rot.x << ", " << temp[i]->camera.cam_rot.y << ", " << temp[i]->camera.cam_rot.z << " ]" << std::endl;
       }
-      std::cout << "[" << images[i]->camera.cam_pos.x << ", " << images[i]->camera.cam_pos.y << ", " << images[i]->camera.cam_pos.z << "]  -> " << std::endl;
-      std::cout << std::endl;
+      std::cout << "[" << images[i]->camera.cam_pos.x << ", " << images[i]->camera.cam_pos.y << ", " << images[i]->camera.cam_pos.z << " ";
+      std::cout << images[i]->camera.cam_rot.x << ", " << images[i]->camera.cam_rot.y << ", " << images[i]->camera.cam_rot.z << " ]" << std::endl << std::endl;
     }
 
 

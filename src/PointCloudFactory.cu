@@ -1729,11 +1729,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // for debug
   bool local_debug    = true;
   // const step
-  bool second_order   = false;
-
-  // the constant stepsize, only used in first order mode
-  // this step is a "scalar", not really a vector magnitude
-  float step = 0.001;
+  bool second_order   = true;
 
   // just to tell the user what is happening
   if (second_order){
@@ -1746,7 +1742,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // beta should always be 0.0
   // alpha can be changed to dampen stepsize
   // alpha should be between 0.0 - 1.0
-  float alpha = 0.001f; // should less than 1
+  float alpha = 0.1f; // should less than 1
   float beta  = 0.0f;   // should always be 0
   int   inc   = 1;      // should always be 1
 
@@ -1802,13 +1798,16 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
       if (local_debug){
         std::cout << "\t\t Hessian Size: " << hessian->size() << std::endl;
-        for (int j = 0; j < hessian->size(); j+=12){
-          std::cout << "\t\t " << std::fixed << std::setprecision(4) << hessian->host[j];
-          std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+1];
-          std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+2];
-          std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+3];
-          std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+4];
-          std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+5];
+        for (int j = 0; j < 12; j++){
+          std::cout << "\t\t";
+          for (int k = 0; k < 12; k++){
+            std::cout << " " << std::fixed << std::setprecision(4) << hessian->host[12*j + k];
+          }
+          // std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+1];
+          // std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+2];
+          // std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+3];
+          // std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+4];
+          // std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+5];
           std::cout << " " << std::endl;
         }
         std::cout << std::endl;
@@ -1842,7 +1841,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // only for testing
       if (local_debug) {
         // print the update
-        std::cout << std::endl << "\t\t (update) gradient scaled by step " << std::fixed << std::setprecision(8) << step << " = " << std::endl;
+        std::cout << std::endl << "\t\t (update) gradient scaled by alpha " << std::fixed << std::setprecision(8) << alpha << " = " << std::endl;
         std::cout << "\t\t ";
         for (int j = 0; j < N; j++){
           std::cout << std::fixed << std::setprecision(8) << step * gradient->host[j] << " ";
@@ -1949,18 +1948,49 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     bundleTemp = generateBundles(matchSet,images);
     voidTwoViewTriangulate(bundleTemp, localError);
     std::cout << "[" << std::fixed << std::setprecision(12) << i << "] \terror: " << *localError << std::endl;
-    // for debug
-    errorTracker.push_back(*localError);
+
     // to adjust alpha or step
     if (!i){
       // first time, just set the value
       error_comp = *localError;
     } else if (error_comp/2 >= *localError) {
-      // error has decreased by a factor of 2, decrease aalpha by this factor
-      alpha /= 2;
+      // error has decreased by at least a factor of 2, decrease aalpha by this factor
+      float scale_down = error_comp / *localError;
+      alpha /= scale_down;
       error_comp = *localError;
-      if (local_debug) std::cout << "\t Alpha updated to: " << alpha << std::endl;
+      if (local_debug) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
+    } else {
+      // check if we have made a bad step, if so change alpha and reset
+      if (*localError > errorTracker.back()){
+        // undo update by resetting cams
+        int g_j = 0;
+        if (!second_order){
+          for (int j = 0; j < images.size(); j++){
+            images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x + alpha * gradient->host[g_j    ];
+            images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y + alpha * gradient->host[g_j + 1];
+            images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z + alpha * gradient->host[g_j + 2];
+            images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x + alpha * gradient->host[g_j + 3];
+            images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y + alpha * gradient->host[g_j + 4];
+            images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z + alpha * gradient->host[g_j + 5];
+            g_j += 6;
+          }
+        } else {
+          for (int j = 0; j < images.size(); j++){
+            images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x + update->host[g_j    ];
+            images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y + update->host[g_j + 1];
+            images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z + update->host[g_j + 2];
+            images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x + update->host[g_j + 3];
+            images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y + update->host[g_j + 4];
+            images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z + update->host[g_j + 5];
+            g_j += 6;
+          }
+        }
+        alpha /= 10;
+        if(local_debug) std::cout << "\t leaving local min ... updated Alpha to: " << std::fixed << std::setprecision(24) << alpha << std::endl;
+      }
     }
+    // for debug
+    errorTracker.push_back(*localError);
 
     // clean up memory
     delete bundleTemp.bundles;
