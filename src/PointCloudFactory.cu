@@ -1129,7 +1129,6 @@ void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSe
     // }
   }
 
-  // TODO add angular gradients in here too
   int g_j = 0;
   for (int j = 0; j < images.size(); j++){
     g->host[g_j    ] = gradient[j]->camera.cam_pos.x;
@@ -1730,21 +1729,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // for debug
   bool local_debug    = true;
   // const step
-  bool constant_step  = false;
   bool second_order   = false;
 
-  // the constant stepsize (when used)
-  // or the starting stepsize when in first order adjustable step mode
+  // the constant stepsize, only used in first order mode
+  // this step is a "scalar", not really a vector magnitude
   float step = 0.001;
 
-  // so that we know which modes we are ind
-  if (constant_step){
-    std::cout << "\t Bundle Adjustment is in Constant Stepsize Mode" << std::endl;
-  } else {
-    std::cout << "\t Bundle Adjustment is in Variable Stepsize Mode" << std::endl;
-  }
-
-  //
+  // just to tell the user what is happening
   if (second_order){
     std::cout << "\t Bundle Adjustment is in Second Order Mode" << std::endl;
   } else {
@@ -1755,9 +1746,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // beta should always be 0.0
   // alpha can be changed to dampen stepsize
   // alpha should be between 0.0 - 1.0
-  float alpha = 1.0f;
-  float beta  = 0.0f;
-  int   inc   = 1; // should always be 1
+  float alpha = 0.001f; // should less than 1
+  float beta  = 0.0f;   // should always be 0
+  int   inc   = 1;      // should always be 1
+
+
+  // each time the error is cut in half, so is the stepsize
+  float error_comp;
 
   const unsigned int N = (const unsigned int) sqrt(hessian->size());
 
@@ -1809,11 +1804,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         std::cout << "\t\t Hessian Size: " << hessian->size() << std::endl;
         for (int j = 0; j < hessian->size(); j+=6){
           std::cout << "\t\t " << std::fixed << std::setprecision(4) << hessian->host[j];
-          std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+1];
-          std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+2];
-          std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+3];
-          std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+4];
-          std::cout << "\t " << std::fixed << std::setprecision(4) << hessian->host[j+5];
+          std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+1];
+          std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+2];
+          std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+3];
+          std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+4];
+          std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+5];
           std::cout << " " << std::endl;
         }
         std::cout << std::endl;
@@ -1828,10 +1823,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     }
 
     // NOTE take a newton step here
-    if (constant_step && !second_order){
+    if (!second_order){
       //
-      // First order
-      // A constant step size here
+      // First order mode
       //
 
       // only for testing
@@ -1851,38 +1845,21 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         std::cout << std::endl << "\t\t (update) gradient scaled by step " << std::fixed << std::setprecision(8) << step << " = " << std::endl;
         std::cout << "\t\t ";
         for (int j = 0; j < N; j++){
-          std::cout << std::fixed << std::setprecision(8) << gradient->host[j] << " ";
+          std::cout << std::fixed << std::setprecision(8) << step * gradient->host[j] << " ";
         }
         std::cout << std::endl;
       }
 
       int g_j = 0;
       for (int j = 0; j < images.size(); j++){
-        images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - step * gradient->host[g_j    ];
-        images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - step * gradient->host[g_j + 1];
-        images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - step * gradient->host[g_j + 2];
+        images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - alpha * gradient->host[g_j    ];
+        images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - alpha * gradient->host[g_j + 1];
+        images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - alpha * gradient->host[g_j + 2];
         g_j += 3;
       }
-    } else if (!constant_step && !second_order) {
+    } else {
       //
-      // First order
-      // A variable step size here
-      //
-      std::cerr << "ERROR: Variable Stepsize is not yet supported with first order bunlde adjustment!" << std::endl;
-      return nullptr;
-
-    } else if (constant_step && second_order) {
-      //
-      // Second order
-      // A constant step size here
-      //
-      std::cerr << "ERROR: Variable Stepsize is not yet supported with second order bunlde adjustment!" << std::endl;
-      return nullptr;
-
-    } else if (!constant_step && second_order) {
-      //
-      // Second order
-      // A variable step size here
+      // Second order mode
       //
 
       if (local_debug){
@@ -1937,7 +1914,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // inverse->clear(gpu);
 
       // get the update
-      update->setFore(gpu);
+      //update->setFore(gpu);
       update->transferMemoryTo(cpu);
 
       // only for testing
@@ -1974,7 +1951,17 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     bundleTemp = generateBundles(matchSet,images);
     voidTwoViewTriangulate(bundleTemp, localError);
     std::cout << "[" << std::fixed << std::setprecision(12) << i << "] \terror: " << *localError << std::endl;
+    // for debug
     errorTracker.push_back(*localError);
+    // to adjust alpha or step
+    if (!i){
+      // first time, just set the value
+      error_comp = *localError;
+    } else if (error_comp/2 >= *localError) {
+      // error has decreased by a factor of 2, decrease aalpha by this factor
+      alpha /= 2;
+      error_comp = *localError;
+    }
 
     // clean up memory
     delete bundleTemp.bundles;

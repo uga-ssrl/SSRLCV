@@ -190,12 +190,13 @@ int main(int argc, char *argv[]){
 
     // start by messing up the initial paramters
     // test moving the camera slightly
-    images[1]->camera.cam_pos.x += 1.0f;
-    images[1]->camera.cam_pos.y += 1.0f;
-    images[1]->camera.cam_pos.z += 1.0f;
-    // images[1]->camera.cam_pos.x += 0.001f;
-    // images[1]->camera.cam_pos.y += 0.002f;
-    // images[1]->camera.cam_pos.z += 0.001f;
+    float noise[6] = {1.0,  1.0,  1.0,  0.0,  0.0,  0.0};
+    images[1]->camera.cam_pos.x += noise[0];
+    images[1]->camera.cam_pos.y += noise[1];
+    images[1]->camera.cam_pos.z += noise[2];
+    // images[1]->camera.cam_rot.x += 0.001f;
+    // images[1]->camera.cam_rot.y += 0.002f;
+    // images[1]->camera.cam_rot.z += 0.001f;
     bundleSet = demPoints.generateBundles(&matchSet,images);
     points = demPoints.twoViewTriangulate(bundleSet, linearError);
     std::cout << "simulated with noise linearError: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
@@ -213,13 +214,14 @@ int main(int argc, char *argv[]){
     // print off the befores and afters of image params
     for (int i = 0; i < images.size(); i++){
       std::cout << "Cam " << i << " locations:" << std::endl;
-      std::cout << "[" << temp[i]->camera.cam_pos.x << ", " << temp[i]->camera.cam_pos.y << ", " << temp[i]->camera.cam_pos.z << "]  -> ";
+      std::cout << std::fixed << std::setprecision(32);
+      std::cout << "[" << temp[i]->camera.cam_pos.x << ", " << temp[i]->camera.cam_pos.y << ", " << temp[i]->camera.cam_pos.z << "]  -> " << std::endl;
       if (i == 1){
-        std::cout << "[" << (temp[i]->camera.cam_pos.x + 1.0) << ", " << (temp[i]->camera.cam_pos.y + 1.0) << ", " << temp[i]->camera.cam_pos.z << "]  -> ";
+        std::cout << "[" << (temp[i]->camera.cam_pos.x + noise[0]) << ", " << (temp[i]->camera.cam_pos.y + noise[1]) << ", " << (temp[i]->camera.cam_pos.z + noise[2]) << "]  -> " << std::endl;
       } else {
-        std::cout << "[" << (temp[i]->camera.cam_pos.x) << ", " << (temp[i]->camera.cam_pos.y) << ", " << temp[i]->camera.cam_pos.z << "]  -> ";
+        std::cout << "[" << (temp[i]->camera.cam_pos.x) << ", " << (temp[i]->camera.cam_pos.y) << ", " << temp[i]->camera.cam_pos.z << "]  -> " << std::endl;
       }
-      std::cout << "[" << images[i]->camera.cam_pos.x << ", " << images[i]->camera.cam_pos.y << ", " << images[i]->camera.cam_pos.z << "]  -> ";
+      std::cout << "[" << images[i]->camera.cam_pos.x << ", " << images[i]->camera.cam_pos.y << ", " << images[i]->camera.cam_pos.z << "]  -> " << std::endl;
       std::cout << std::endl;
     }
 
