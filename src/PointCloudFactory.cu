@@ -1175,7 +1175,7 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
 
   // this temp vector is only used for the +/- h steps when calculating the gradients
   // convert the temp images to float vectors
-  int num_params = 3; // 3 is just position, 6 position and orientation
+  int num_params = 6; // 3 is just position, 6 position and orientation
   ssrlcv::Unity<float>* params       = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
   ssrlcv::Unity<float>* params_reset = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
   ssrlcv::Unity<bool>* mfNaNs = new ssrlcv::Unity<bool>(nullptr,h->size(),ssrlcv::cpu);
@@ -1719,7 +1719,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   std::vector<float> errorTracker;
 
   // allocate memory
-  int num_params = 3; // 3 is just (x,y,z) and 6 incldue rotations in (x,y,z)
+  int num_params = 6; // 3 is just (x,y,z) and 6 incldue rotations in (x,y,z)
   float* localError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
   gradient = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
   hessian  = new ssrlcv::Unity<float>(nullptr,((num_params * images.size())*(num_params * images.size())),ssrlcv::cpu);
@@ -1795,14 +1795,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // calculate second order stuff
     // if not in constant stepsize mode
-    if (!constant_step){
+    if (second_order){
       // TODO hessians calculated here
       if (local_debug) std::cout << "\tCalculating Hessian ..." << std::endl;
       calculateImageHessian(matchSet,images,hessian);
 
       if (local_debug){
         std::cout << "\t\t Hessian Size: " << hessian->size() << std::endl;
-        for (int j = 0; j < hessian->size(); j+=6){
+        for (int j = 0; j < hessian->size(); j+=12){
           std::cout << "\t\t " << std::fixed << std::setprecision(4) << hessian->host[j];
           std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+1];
           std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+2];
@@ -1855,7 +1855,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - alpha * gradient->host[g_j    ];
         images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - alpha * gradient->host[g_j + 1];
         images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - alpha * gradient->host[g_j + 2];
-        g_j += 3;
+        images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - alpha * gradient->host[g_j + 3];
+        images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y - alpha * gradient->host[g_j + 4];
+        images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z - alpha * gradient->host[g_j + 5];
+        g_j += 6;
       }
     } else {
       //
@@ -1929,20 +1932,15 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       }
 
       // update
-      // TODO add angular adjustment here too
       int g_j = 0;
       for (int j = 0; j < images.size(); j++){
         images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - update->host[g_j    ];
         images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - update->host[g_j + 1];
         images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - update->host[g_j + 2];
-        if (num_params == 6){
-          images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - update->host[g_j + 3];
-          images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y - update->host[g_j + 4];
-          images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z - update->host[g_j + 5];
-          g_j += 6;
-        } else {
-          g_j += 3;
-        }
+        images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - update->host[g_j + 3];
+        images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y - update->host[g_j + 4];
+        images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z - update->host[g_j + 5];
+        g_j += 6;
       }
 
     }
@@ -1961,6 +1959,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // error has decreased by a factor of 2, decrease aalpha by this factor
       alpha /= 2;
       error_comp = *localError;
+      if (local_debug) std::cout << "\t Alpha updated to: " << alpha << std::endl;
     }
 
     // clean up memory

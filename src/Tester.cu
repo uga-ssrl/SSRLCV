@@ -214,7 +214,7 @@ int main(int argc, char *argv[]){
     // print off the befores and afters of image params
     for (int i = 0; i < images.size(); i++){
       std::cout << "Cam " << i << " locations:" << std::endl;
-      std::cout << std::fixed << std::setprecision(32);
+      std::cout << std::fixed << std::setprecision(20);
       std::cout << "[" << temp[i]->camera.cam_pos.x << ", " << temp[i]->camera.cam_pos.y << ", " << temp[i]->camera.cam_pos.z << "]  -> " << std::endl;
       if (i == 1){
         std::cout << "[" << (temp[i]->camera.cam_pos.x + noise[0]) << ", " << (temp[i]->camera.cam_pos.y + noise[1]) << ", " << (temp[i]->camera.cam_pos.z + noise[2]) << "]  -> " << std::endl;
