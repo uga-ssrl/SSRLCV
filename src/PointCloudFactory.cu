@@ -920,8 +920,8 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
  */
 void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* g){
 
-  float h_linear = 0.1;    // gradient difference
-  float h_radial = 0.001;  // graident diff
+  float h_linear = 0.001;    // gradient difference
+  float h_radial = 0.00001;  // graident diff
 
   float* gradientError = (float*) malloc(sizeof(float)); // this chaneges per iteration
 
@@ -1731,8 +1731,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // for debug
   bool local_debug = false;
 
-  // temp step
-  bool  constant_step = false;
+  // const step
+  bool  constant_step = true;
   float step = 0.001;
 
   // scalars in the matrix multiplication
@@ -1878,8 +1878,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // temp cleanups
       gradient->transferMemoryTo(cpu);
       inverse->transferMemoryTo(cpu);
-      gradient->clear(gpu);
-      inverse->clear(gpu);
+      // gradient->clear(gpu);
+      // inverse->clear(gpu);
 
       // get the update
       update->setFore(gpu);
@@ -1903,7 +1903,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - update->host[g_j    ];
         images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - update->host[g_j + 1];
         images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - update->host[g_j + 2];
-        if (){
+        if (num_params == 6){
           images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - update->host[g_j + 3];
           images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y - update->host[g_j + 4];
           images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z - update->host[g_j + 5];
@@ -1938,15 +1938,15 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   cublasDestroy(cublasH);
 
   // cleanup memory
-  delete gradient;
+  // delete gradient;
   delete hessian;
-  delete inverse;
+  /*delete inverse;
   delete update;
   delete bundleTemp.bundles;
-  delete bundleTemp.lines;
+  delete bundleTemp.lines;*/
 
   // return the new points
-  bundleTemp = generateBundles(matchSet,images);
+  // bundleTemp = generateBundles(matchSet,images);
   return points;
 }
 

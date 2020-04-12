@@ -190,9 +190,9 @@ int main(int argc, char *argv[]){
 
     // start by messing up the initial paramters
     // test moving the camera slightly
-    images[1]->camera.cam_pos.x += 5.0f;
-    images[1]->camera.cam_pos.y += 3.0f;
-    images[1]->camera.cam_pos.z += 2.0f;
+    images[1]->camera.cam_pos.x += 1.0f;
+    images[1]->camera.cam_pos.y += 1.0f;
+    images[1]->camera.cam_pos.z += 1.0f;
     // images[1]->camera.cam_pos.x += 0.001f;
     // images[1]->camera.cam_pos.y += 0.002f;
     // images[1]->camera.cam_pos.z += 0.001f;
