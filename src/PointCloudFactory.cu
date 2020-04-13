@@ -2682,6 +2682,24 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
 }
 
 /**
+* Saves the plane that was estimated to be the "primary" plane of the pointCloud
+* this methods saves a plane which can be visualized as a mesh
+* @param pointCloud the point cloud to visualize plane estimation from
+* @param filename a string representing the filename that should be saved
+*/
+void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointCloud , const char* filename){
+  // create the octree
+  Octree oct = Octree(pointCloud, 6, false);
+  // caclulate the normals
+  oct.computeNormals(4,12);
+
+  
+
+  // save the output mesh
+
+}
+
+/**
 * This function is used to test bundle adjustment by adding a bit of noise to the input data
 * it saves an initial point cloud, final point cloud, and a CSV of errors over the iterations
 * @param matchSet a group of matches
@@ -3186,7 +3204,7 @@ void ssrlcv::PointCloudFactory::translatePointCloud(float3 translate, Unity<floa
 
   std::cout << "\t Translating Point Cloud ..." << std::endl;
 
-  Unity<float>* d_translate = new ssrlcv::Unity<float>(nullptr,1,ssrlcv::cpu);
+  Unity<float3>* d_translate = new ssrlcv::Unity<float3>(nullptr,1,ssrlcv::cpu);
   d_translate->host[0].x = translate.x;
   d_translate->host[0].y = translate.y;
   d_translate->host[0].z = translate.z;
@@ -3219,7 +3237,7 @@ void ssrlcv::PointCloudFactory::translatePointCloud(float3 translate, Unity<floa
 * @param rotate is a float3 representing an x,y,z axis rotation
 * @param points is the point cloud to be altered by r, this value is directly altered
 */
-void ssrlcv::PointCloudFactory::rotatePointCloud(float3* rotate, Unity<float3>* points){
+void ssrlcv::PointCloudFactory::rotatePointCloud(float3 rotate, Unity<float3>* points){
   // TODO
   std::cerr << "Point Cloud Bulk Rotation not yet implemented" << std::endl;
 
@@ -4057,9 +4075,9 @@ __global__ void ssrlcv::computeScalePointCloud(float* scale, unsigned long point
   if (globalID > (pointnum-1)) return;
 
   // scale the points
-  points[globalID].x *= scale;
-  points[globalID].y *= scale;
-  points[globalID].z *= scale;
+  points[globalID].x *= *scale;
+  points[globalID].y *= *scale;
+  points[globalID].z *= *scale;
 
 }
 

@@ -8,6 +8,7 @@
 #include "Image.cuh"
 #include "MatchFactory.cuh"
 #include "Unity.cuh"
+#include "Octree.cuh"
 #include "io_util.h"
 
 
@@ -295,6 +296,14 @@ namespace ssrlcv{
      * @param filename the name of the file that should be saved
      */
     void generateSensitivityFunctions(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, std::string filename);
+
+    /**
+    * Saves the plane that was estimated to be the "primary" plane of the pointCloud
+    * this methods saves a plane which can be visualized as a mesh
+    * @param pointCloud the point cloud to visualize plane estimation from
+    * @param filename a string representing the filename that should be saved
+    */
+    void visualizePlaneEstimation(Unity<float3>* pointCloud , const char* filename);
 
     /**
     * This function is used to test bundle adjustment by adding a bit of noise to the input data

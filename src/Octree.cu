@@ -1,6 +1,10 @@
 #include "Octree.cuh"
 
-
+// =============================================================================================================
+//
+// Constructors and Destructors
+//
+// =============================================================================================================
 
 ssrlcv::Octree::Octree(){
   this->depth = 1;
@@ -336,6 +340,12 @@ __device__ __host__ ssrlcv::Octree::Node::Node(){
   }
 }
 
+
+// =============================================================================================================
+//
+// Octree Host Methods
+//
+// =============================================================================================================
 
 //TODO check if using iterator for nodePoint works
 //TODO make sure that thrust usage is GPU
@@ -943,7 +953,7 @@ void ssrlcv::Octree::computeEdgeArray(){
 
     CudaSafeCall(cudaFree(ownerInidices_device));
     CudaSafeCall(cudaFree(edgePlacement_device));
-    
+
     //reset and allocated resources
     grid.y = 1;
     block.x = 1;
@@ -1135,6 +1145,167 @@ void ssrlcv::Octree::computeFaceArray(){
   printf("octree createFaceArray took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
+void ssrlcv::Octree::checkForGeneralNodeErrors(){
+  MemoryState origin;
+  if(this->nodes != nullptr && this->nodes->getMemoryState() != null && this->nodes->size() != 0){
+    origin = this->nodes->getMemoryState();
+    this->nodes->transferMemoryTo(cpu);
+  }
+  else{
+    std::cout<<"ERROR cannot check nodes for errors without nodes"<<std::endl;
+    exit(-1);
+  }
+  clock_t cudatimer;
+  cudatimer = clock();
+  float regionOfError = this->width/pow(2,depth + 1);
+  bool error = false;
+  int numFuckedNodes = 0;
+  int orphanNodes = 0;
+  int nodesWithOutChildren = 0;
+  int nodesThatCantFindChildren = 0;
+  int noPoints = 0;
+  int numSiblingParents = 0;
+  int numChildNeighbors = 0;
+  bool parentNeighbor = false;
+  bool childNeighbor = false;
+  int numParentNeighbors = 0;
+  int numVerticesMissing = 0;
+  int numEgesMissing = 0;
+  int numFacesMissing = 0;
+  int numCentersOUTSIDE = 0;
+  Node* nodes_host = this->nodes->host;
+
+  for(int i = 0; i < this->nodes->size(); ++i){
+    if(nodes_host[i].depth < 0){
+      numFuckedNodes++;
+    }
+    if(nodes_host[i].parent != -1 && nodes_host[i].depth == nodes_host[nodes_host[i].parent].depth){
+      ++numSiblingParents;
+    }
+    if(nodes_host[i].parent == -1 && nodes_host[i].depth != 0){
+      orphanNodes++;
+    }
+    int checkForChildren = 0;
+    for(int c = 0; c < 8 && nodes_host[i].depth < 10; ++c){
+      if(nodes_host[i].children[c] == -1){
+        checkForChildren++;
+      }
+      if(nodes_host[i].children[c] == 0 && nodes_host[i].depth != this->depth - 1){
+        std::cout<<"NODE THAT IS NOT AT 2nd TO FINEST DEPTH HAS A CHILD WITH INDEX 0 IN FINEST DEPTH"<<std::endl;
+      }
+    }
+    if(nodes_host[i].numPoints == 0){
+      noPoints++;
+    }
+    if(nodes_host[i].depth != 0 && nodes_host[nodes_host[i].parent].children[nodes_host[i].key&((1<<3)-1)] == -1){
+
+      nodesThatCantFindChildren++;
+    }
+    if(checkForChildren == 8){
+      nodesWithOutChildren++;
+    }
+    if(nodes_host[i].depth == 0){
+      // if(nodes_host[i].numFinestChildren < this->numFinestUniqueNodes){
+      //   std::cout<<"DEPTH 0 DOES NOT INCLUDE ALL FINEST UNIQUE NODES "<<nodes_host[i].numFinestChildren<<",";
+      //   std::cout<<this->numFinestUniqueNodes<<", NUM FULL FINEST NODES SHOULD BE "<<this->nodeDepthIndex[1]<<std::endl;
+      //   exit(-1);
+      // }
+      if(nodes_host[i].numPoints != this->points->size()){
+        std::cout<<"DEPTH 0 DOES NOT CONTAIN ALL POINTS "<<nodes_host[i].numPoints<<","<<this->points->size()<<std::endl;
+        exit(-1);
+      }
+    }
+    childNeighbor = false;
+    parentNeighbor = false;
+    for(int n = 0; n < 27; ++n){
+      if(nodes_host[i].neighbors[n] != -1){
+        if(nodes_host[i].depth < nodes_host[nodes_host[i].neighbors[n]].depth){
+          childNeighbor = true;
+        }
+        else if(nodes_host[i].depth > nodes_host[nodes_host[i].neighbors[n]].depth){
+          parentNeighbor = true;
+        }
+      }
+    }
+    for(int v = 0; v < 8; ++v){
+      if(nodes_host[i].vertices[v] == -1){
+        ++numVerticesMissing;
+      }
+    }
+    for(int e = 0; e < 12; ++e){
+      if(nodes_host[i].edges[e] == -1){
+        ++numEgesMissing;
+      }
+    }
+    for(int f = 0; f < 6; ++f){
+      if(nodes_host[i].faces[f] == -1){
+        ++numFacesMissing;
+      }
+    }
+    if(parentNeighbor){
+      ++numParentNeighbors;
+    }
+    if(childNeighbor){
+      ++numChildNeighbors;
+    }
+    if((nodes_host[i].center.x < this->min.x ||
+    nodes_host[i].center.y < this->min.y ||
+    nodes_host[i].center.z < this->min.z ||
+    nodes_host[i].center.x > this->max.x ||
+    nodes_host[i].center.y > this->max.y ||
+    nodes_host[i].center.z > this->max.z )){
+      ++numCentersOUTSIDE;
+    }
+  }
+  if(numCentersOUTSIDE > 0){
+    printf("ERROR %d centers outside of bounding box\n",numCentersOUTSIDE);
+    error = true;
+  }
+  if(numSiblingParents > 0){
+    std::cout<<"ERROR "<<numSiblingParents<<" NODES THINK THEIR PARENT IS IN THE SAME DEPTH AS THEMSELVES"<<std::endl;
+    error = true;
+  }
+  if(numChildNeighbors > 0){
+    std::cout<<"ERROR "<<numChildNeighbors<<" NODES WITH SIBLINGS AT HIGHER DEPTH"<<std::endl;
+    error = true;
+  }
+  if(numParentNeighbors > 0){
+    std::cout<<"ERROR "<<numParentNeighbors<<" NODES WITH SIBLINGS AT LOWER DEPTH"<<std::endl;
+    error = true;
+  }
+  if(numFuckedNodes > 0){
+    std::cout<<numFuckedNodes<<" ERROR IN NODE CONCATENATION OR GENERATION"<<std::endl;
+    error = true;
+  }
+  if(orphanNodes > 0){
+    std::cout<<orphanNodes<<" ERROR THERE ARE ORPHAN NODES"<<std::endl;
+    error = true;
+  }
+  if(nodesThatCantFindChildren > 0){
+    std::cout<<"ERROR "<<nodesThatCantFindChildren<<" PARENTS WITHOUT CHILDREN"<<std::endl;
+    error = true;
+  }
+  if(numVerticesMissing > 0){
+    std::cout<<"ERROR "<<numVerticesMissing<<" VERTICES MISSING"<<std::endl;
+    error = true;
+  }
+  if(numEgesMissing > 0){
+    std::cout<<"ERROR "<<numEgesMissing<<" EDGES MISSING"<<std::endl;
+    error = true;
+  }
+  if(numFacesMissing > 0){
+    std::cout<<"ERROR "<<numFacesMissing<<" FACES MISSING"<<std::endl;
+    error = true;
+  }
+  if(error) exit(-1);
+  else std::cout<<"NO ERRORS DETECTED IN OCTREE"<<std::endl;
+  std::cout<<"NODES WITHOUT POINTS = "<<noPoints<<std::endl;
+  std::cout<<"NODES WITH POINTS = "<<this->nodes->size() - noPoints<<std::endl<<std::endl;
+
+  printf("octree checkForErrors took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
+  this->nodes->transferMemoryTo(origin);
+}
+
 // RUN THIS
 void ssrlcv::Octree::createVEFArrays(){
   this->computeVertexArray();
@@ -1142,6 +1313,17 @@ void ssrlcv::Octree::createVEFArrays(){
   this->computeFaceArray();
 }
 
+// =============================================================================================================
+//
+// Normal Caclulation Methods
+//
+// =============================================================================================================
+
+/**
+* Computes normals for the points within the input points cloud
+* @param minNeighForNorms the minimum number of neighbors to consider for normal calculation
+* @param maxNeighbors the maximum number of neightbors to consider for normal calculation
+*/
 void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
   std::cout<<"\n";
   clock_t cudatimer;
@@ -1332,6 +1514,13 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
   printf("octree computeNormals took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
+/**
+* Computes normals for the points within the input points cloud
+* @param minNeighForNorms the minimum number of neighbors to consider for normal calculation
+* @param maxNeighbors the maximum number of neightbors to consider for normal calculation
+* @param numCameras the total number of cameras which resulted in the point cloud
+* @param cameraPositions the x,y,z coordinates of the cameras
+*/
 void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions){
   std::cout<<"\n";
   clock_t cudatimer;
@@ -1523,9 +1712,26 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
 
   CudaSafeCall(cudaFree(numRealNeighbors_device));
   CudaSafeCall(cudaFree(neighborIndices_device));
-\
+
   printf("octree computeNormals took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
+
+/**
+* Computes the average normal of the input points. This is only useful if you can make a "planar" assumption about
+* the input points, that is the points are mostly aligned along a plane. For use in reconstructon filtering should occur
+* before one considers using this method
+* @param minNeighForNorms the minimum number of neighbors to consider for normal calculation
+* @param maxNeighbors the maximum number of neightbors to consider for normal calculation
+* @param numCameras the total number of cameras which resulted in the point cloud
+* @param cameraPositions the x,y,z coordinates of the cameras
+*/
+void ssrlcv::Octree::computeAverageNormal(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions);
+
+// =============================================================================================================
+//
+// PLY writers
+//
+// =============================================================================================================
 
 
 void ssrlcv::Octree::writeVertexPLY(bool binary){
@@ -1764,171 +1970,11 @@ void ssrlcv::Octree::writeDepthPLY(int d, bool binary){
 }
 
 
-void ssrlcv::Octree::checkForGeneralNodeErrors(){
-  MemoryState origin;
-  if(this->nodes != nullptr && this->nodes->getMemoryState() != null && this->nodes->size() != 0){
-    origin = this->nodes->getMemoryState();
-    this->nodes->transferMemoryTo(cpu);
-  }
-  else{
-    std::cout<<"ERROR cannot check nodes for errors without nodes"<<std::endl;
-    exit(-1);
-  }
-  clock_t cudatimer;
-  cudatimer = clock();
-  float regionOfError = this->width/pow(2,depth + 1);
-  bool error = false;
-  int numFuckedNodes = 0;
-  int orphanNodes = 0;
-  int nodesWithOutChildren = 0;
-  int nodesThatCantFindChildren = 0;
-  int noPoints = 0;
-  int numSiblingParents = 0;
-  int numChildNeighbors = 0;
-  bool parentNeighbor = false;
-  bool childNeighbor = false;
-  int numParentNeighbors = 0;
-  int numVerticesMissing = 0;
-  int numEgesMissing = 0;
-  int numFacesMissing = 0;
-  int numCentersOUTSIDE = 0;
-  Node* nodes_host = this->nodes->host;
-
-  for(int i = 0; i < this->nodes->size(); ++i){
-    if(nodes_host[i].depth < 0){
-      numFuckedNodes++;
-    }
-    if(nodes_host[i].parent != -1 && nodes_host[i].depth == nodes_host[nodes_host[i].parent].depth){
-      ++numSiblingParents;
-    }
-    if(nodes_host[i].parent == -1 && nodes_host[i].depth != 0){
-      orphanNodes++;
-    }
-    int checkForChildren = 0;
-    for(int c = 0; c < 8 && nodes_host[i].depth < 10; ++c){
-      if(nodes_host[i].children[c] == -1){
-        checkForChildren++;
-      }
-      if(nodes_host[i].children[c] == 0 && nodes_host[i].depth != this->depth - 1){
-        std::cout<<"NODE THAT IS NOT AT 2nd TO FINEST DEPTH HAS A CHILD WITH INDEX 0 IN FINEST DEPTH"<<std::endl;
-      }
-    }
-    if(nodes_host[i].numPoints == 0){
-      noPoints++;
-    }
-    if(nodes_host[i].depth != 0 && nodes_host[nodes_host[i].parent].children[nodes_host[i].key&((1<<3)-1)] == -1){
-
-      nodesThatCantFindChildren++;
-    }
-    if(checkForChildren == 8){
-      nodesWithOutChildren++;
-    }
-    if(nodes_host[i].depth == 0){
-      // if(nodes_host[i].numFinestChildren < this->numFinestUniqueNodes){
-      //   std::cout<<"DEPTH 0 DOES NOT INCLUDE ALL FINEST UNIQUE NODES "<<nodes_host[i].numFinestChildren<<",";
-      //   std::cout<<this->numFinestUniqueNodes<<", NUM FULL FINEST NODES SHOULD BE "<<this->nodeDepthIndex[1]<<std::endl;
-      //   exit(-1);
-      // }
-      if(nodes_host[i].numPoints != this->points->size()){
-        std::cout<<"DEPTH 0 DOES NOT CONTAIN ALL POINTS "<<nodes_host[i].numPoints<<","<<this->points->size()<<std::endl;
-        exit(-1);
-      }
-    }
-    childNeighbor = false;
-    parentNeighbor = false;
-    for(int n = 0; n < 27; ++n){
-      if(nodes_host[i].neighbors[n] != -1){
-        if(nodes_host[i].depth < nodes_host[nodes_host[i].neighbors[n]].depth){
-          childNeighbor = true;
-        }
-        else if(nodes_host[i].depth > nodes_host[nodes_host[i].neighbors[n]].depth){
-          parentNeighbor = true;
-        }
-      }
-    }
-    for(int v = 0; v < 8; ++v){
-      if(nodes_host[i].vertices[v] == -1){
-        ++numVerticesMissing;
-      }
-    }
-    for(int e = 0; e < 12; ++e){
-      if(nodes_host[i].edges[e] == -1){
-        ++numEgesMissing;
-      }
-    }
-    for(int f = 0; f < 6; ++f){
-      if(nodes_host[i].faces[f] == -1){
-        ++numFacesMissing;
-      }
-    }
-    if(parentNeighbor){
-      ++numParentNeighbors;
-    }
-    if(childNeighbor){
-      ++numChildNeighbors;
-    }
-    if((nodes_host[i].center.x < this->min.x ||
-    nodes_host[i].center.y < this->min.y ||
-    nodes_host[i].center.z < this->min.z ||
-    nodes_host[i].center.x > this->max.x ||
-    nodes_host[i].center.y > this->max.y ||
-    nodes_host[i].center.z > this->max.z )){
-      ++numCentersOUTSIDE;
-    }
-  }
-  if(numCentersOUTSIDE > 0){
-    printf("ERROR %d centers outside of bounding box\n",numCentersOUTSIDE);
-    error = true;
-  }
-  if(numSiblingParents > 0){
-    std::cout<<"ERROR "<<numSiblingParents<<" NODES THINK THEIR PARENT IS IN THE SAME DEPTH AS THEMSELVES"<<std::endl;
-    error = true;
-  }
-  if(numChildNeighbors > 0){
-    std::cout<<"ERROR "<<numChildNeighbors<<" NODES WITH SIBLINGS AT HIGHER DEPTH"<<std::endl;
-    error = true;
-  }
-  if(numParentNeighbors > 0){
-    std::cout<<"ERROR "<<numParentNeighbors<<" NODES WITH SIBLINGS AT LOWER DEPTH"<<std::endl;
-    error = true;
-  }
-  if(numFuckedNodes > 0){
-    std::cout<<numFuckedNodes<<" ERROR IN NODE CONCATENATION OR GENERATION"<<std::endl;
-    error = true;
-  }
-  if(orphanNodes > 0){
-    std::cout<<orphanNodes<<" ERROR THERE ARE ORPHAN NODES"<<std::endl;
-    error = true;
-  }
-  if(nodesThatCantFindChildren > 0){
-    std::cout<<"ERROR "<<nodesThatCantFindChildren<<" PARENTS WITHOUT CHILDREN"<<std::endl;
-    error = true;
-  }
-  if(numVerticesMissing > 0){
-    std::cout<<"ERROR "<<numVerticesMissing<<" VERTICES MISSING"<<std::endl;
-    error = true;
-  }
-  if(numEgesMissing > 0){
-    std::cout<<"ERROR "<<numEgesMissing<<" EDGES MISSING"<<std::endl;
-    error = true;
-  }
-  if(numFacesMissing > 0){
-    std::cout<<"ERROR "<<numFacesMissing<<" FACES MISSING"<<std::endl;
-    error = true;
-  }
-  if(error) exit(-1);
-  else std::cout<<"NO ERRORS DETECTED IN OCTREE"<<std::endl;
-  std::cout<<"NODES WITHOUT POINTS = "<<noPoints<<std::endl;
-  std::cout<<"NODES WITH POINTS = "<<this->nodes->size() - noPoints<<std::endl<<std::endl;
-
-  printf("octree checkForErrors took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
-  this->nodes->transferMemoryTo(origin);
-}
-
-
-/*
-CUDA implementations
-*/
+// =============================================================================================================
+//
+// Device Kernels
+//
+// =============================================================================================================
 
 __device__ __host__ float3 ssrlcv::getVoidCenter(const Octree::Node &node, int neighbor){
   float3 center = node.center;

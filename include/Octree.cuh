@@ -128,6 +128,12 @@ namespace ssrlcv{
     Unity<unsigned int>* edgeDepthIndex;
     Unity<unsigned int>* faceDepthIndex;
 
+    // =============================================================================================================
+    //
+    // Constructors and Destructors
+    //
+    // =============================================================================================================
+
     Octree();
     ~Octree();
 
@@ -138,22 +144,57 @@ namespace ssrlcv{
     Octree(Unity<float3>* points, int depth, bool createVEF);
     Octree(Unity<float3>* points, float deepestWidth, bool createVEF);
 
+    // =============================================================================================================
+    //
+    // Octree Host Methods
+    //
+    // =============================================================================================================
 
     void computeVertexArray();
     void computeEdgeArray();
     void computeFaceArray();
     void createVEFArrays();
 
-    /*
-    NORMAL CALCULATION METHODS
+    // =============================================================================================================
+    //
+    // Normal Caclulation Methods
+    //
+    // =============================================================================================================
+
+    /**
+    * Computes normals for the points within the input points cloud
+    * @param minNeighForNorms the minimum number of neighbors to consider for normal calculation
+    * @param maxNeighbors the maximum number of neightbors to consider for normal calculation
     */
-    //TODO move this to MeshFactory
     void computeNormals(int minNeighForNorms, int maxNeighbors);
+
+    /**
+    * Computes normals for the points within the input points cloud
+    * @param minNeighForNorms the minimum number of neighbors to consider for normal calculation
+    * @param maxNeighbors the maximum number of neightbors to consider for normal calculation
+    * @param numCameras the total number of cameras which resulted in the point cloud
+    * @param cameraPositions the x,y,z coordinates of the cameras
+    */
     void computeNormals(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions);
 
-    /*
-    PLY WRITERS
+    /**
+    * Computes the average normal of the input points. This is only useful if you can make a "planar" assumption about
+    * the input points, that is the points are mostly aligned along a plane. For use in reconstructon filtering should occur
+    * before one considers using this method
+    * @param minNeighForNorms the minimum number of neighbors to consider for normal calculation
+    * @param maxNeighbors the maximum number of neightbors to consider for normal calculation
+    * @param numCameras the total number of cameras which resulted in the point cloud
+    * @param cameraPositions the x,y,z coordinates of the cameras
     */
+    void computeAverageNormal(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions);
+
+
+    // =============================================================================================================
+    //
+    // PLY writers
+    //
+    // =============================================================================================================
+
     void writeVertexPLY(bool binary = false);
     void writeEdgePLY(bool binary = false);
     void writeCenterPLY(bool binary = false);
@@ -214,7 +255,13 @@ namespace ssrlcv{
       }
     };
   }
-  
+
+  // =============================================================================================================
+  //
+  // Device Kernels
+  //
+  // =============================================================================================================
+
   __device__ __host__ float3 getVoidCenter(const Octree::Node &node, int neighbor);
   __device__ __host__ float3 getVoidChildCenter(const Octree::Node &parent, int child);
   __device__ __forceinline__ int floatToOrderedInt(float floatVal);

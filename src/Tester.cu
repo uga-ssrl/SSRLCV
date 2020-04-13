@@ -163,8 +163,8 @@ int main(int argc, char *argv[]){
     demPoints.scalePointCloud(scale,points);
     demPoints.saveDebugCloud(points, bundleSet, images, "scaled");
 
-    float3 translate = {50.0,50.0,50.0};
-    demPoints.scalePointCloud(translate,points);
+    float3 trs = {50.0,50.0,50.0};
+    demPoints.translatePointCloud(trs,points);
     demPoints.saveDebugCloud(points, bundleSet, images, "translated");
 
 
