@@ -2022,7 +2022,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       bestError = *localError;
       // the step improved the measured error
       for (int j = 0; j < bestParams.size(); j++){
-        secondBestParams[j]->camera = bestParams[j];
+        secondBestParams[j]->camera = bestParams[j]->camera;
         bestParams[j]->camera = images[j]->camera;
       }
       if (local_debug) std::cout << "\t New lowest value found: " << bestError << std::endl;
@@ -2045,7 +2045,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     }
 
     // for debug
-    // errorTracker.push_back(*localError);
+    errorTracker.push_back(*localError);
 
     // clean up memory
     delete bundleTemp.bundles;
@@ -2631,7 +2631,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
 * @param iterations the max number of iterations bundle adjustment should do
 * @param sigmas a list of float values representing noise to be added to orientaions and rotations
 */
-void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations, Unity<float>* noise){
+void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations, Unity<float>* noise){
   std::cout << "\t Running a 2 view bundle adjustment nosie test " << std::endl;
 
   // used to store the best params found in the optimization
@@ -2644,7 +2644,7 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, 
 
   // now add the noise to the
   if (noise->size() < 6) {
-    std::cerr << "ERROR: noise array needs to have 6 elements!"
+    std::cerr << "ERROR: noise array needs to have 6 elements!" << std::endl;
     return;
   }
 
