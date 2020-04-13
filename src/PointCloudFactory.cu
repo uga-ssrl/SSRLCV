@@ -2023,10 +2023,17 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       for (int j = 0; j < bestParams.size(); j++){
         bestParams[j]->camera = images[j]->camera;
       }
+      // add the first error!
+      errorTracker.push_back(*localError);
     }
 
     // is this step better than the best?
     if (*localError < bestError) {
+
+      //
+      // New best params found
+      //
+
       secondBestError = bestError;
       bestError = *localError;
       // the step improved the measured error
@@ -2035,35 +2042,54 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         bestParams[j]->camera = images[j]->camera;
       }
       if (local_debug || local_verbose) std::cout << "\t New lowest value found: " << bestError << std::endl;
+      // add the newest error!
+      errorTracker.push_back(*localError);
     }
 
     // is this step better than the second best?
     if (*localError < secondBestError && *localError > bestError){
+
+      //
+      // New second best params found
+      //
+
       secondBestError = *localError;
       // the step improved the measured error
       for (int j = 0; j < bestParams.size(); j++){
         secondBestParams[j]->camera = images[j]->camera;
       }
+      // add the newest error!
+      errorTracker.push_back(*localError);
     }
 
-    // check if we have made a bad step, if so change alpha and reset
     if (i){
       if (*localError > errorTracker.back()){
+
+        //
+        // A bad step was made, need to back track
+        //
+
         // undo update by resetting cams
         for (int j = 0; j < bestParams.size(); j++){
           images[j]->camera = secondBestParams[j]->camera;
         }
         alpha /= 2.0;
         if(local_debug || local_verbose) std::cout << "\t leaving local min ... updated Alpha to: " << std::fixed << std::setprecision(24) << alpha << std::endl;
+        // add the last error
+        errorTracker.push_back(errorTracker.back());
       } else {
+
+        //
+        // A normal step, do the scale down
+        //
+
         float scale_down = errorTracker.back() / *localError;
         alpha /= scale_down;
         if (local_debug || local_verbose) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
+        // add the newest error!
+        errorTracker.push_back(*localError);
       }
     }
-
-    // for debug
-    errorTracker.push_back(*localError);
 
     // clean up memory
     delete bundleTemp.bundles;
@@ -2106,7 +2132,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustNView(ssrlcv::Matc
 
   std::cerr << "ERROR: N view bundle adjustment not yet implemented" << std::endl;
 
-  return nulltpr;
+  return nullptr;
 }
 
 // =============================================================================================================
@@ -2698,6 +2724,8 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ssrlcv::MatchSet* ma
   bundleSet = generateBundles(matchSet,noisey);
   points = twoViewTriangulate(bundleSet, linearError);
 
+  if (local_debug) std::cout << "Initial Error with noise: " << *linearError << std::endl;
+
   // pre=BA noisey boi
   saveDebugCloud(points, bundleSet, noisey, "preBA");
 
@@ -3128,22 +3156,22 @@ void ssrlcv::PointCloudFactory::scalePointCloud(float* scale, Unity<float3>* poi
   CudaSafeCall(cudaMalloc((void**) &d_scale, sizeof(float)));
   CudaSafeCall(cudaMemcpy(d_scale, scale, sizeof(float), cudaMemcpyHostToDevice));
 
-  points->transferMemoryTo(gpu)
+  points->transferMemoryTo(gpu);
 
   // call kernel
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(float*, unsigned long, float3*) = &computeScalePointCloud;
-  getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
+  getFlatGridBlock(points->size(),grid,block,fp);
 
   computeScalePointCloud<<<grid,block>>>(d_scale,points->size(),points->device);
 
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  points->setFore(gpu)
+  points->setFore(gpu);
   points->transferMemoryTo(cpu);
-  points->clear(gpu)
+  points->clear(gpu);
 
   cudaFree(d_scale);
 
@@ -3163,22 +3191,22 @@ void ssrlcv::PointCloudFactory::translatePointCloud(float3* translate, Unity<flo
   CudaSafeCall(cudaMalloc((void**) &d_translate, sizeof(float3)));
   CudaSafeCall(cudaMemcpy(d_translate, translate, sizeof(float3), cudaMemcpyHostToDevice));
 
-  points->transferMemoryTo(gpu)
+  points->transferMemoryTo(gpu);
 
   // call kernel
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  void (*fp)(float*, unsigned long, float3*) = &computeTranslatePointCloud;
-  getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
+  void (*fp)(float3*, unsigned long, float3*) = &computeTranslatePointCloud;
+  getFlatGridBlock(points->size(),grid,block,fp);
 
   computeTranslatePointCloud<<<grid,block>>>(d_translate,points->size(),points->device);
 
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  points->setFore(gpu)
+  points->setFore(gpu);
   points->transferMemoryTo(cpu);
-  points->clear(gpu)
+  points->clear(gpu);
 
   cudaFree(d_scale);
 
