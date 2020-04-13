@@ -192,7 +192,7 @@ int main(int argc, char *argv[]){
 
     // start by messing up the initial paramters
     // test moving the camera slightly
-    float noise[6] = {1.0,  1.0,  1.0,  0.001,  0.001,  0.001};
+    float noise[6] = {0.1,  0.1,  0.1,  0.001,  0.001,  0.001};
     images[1]->camera.cam_pos.x += noise[0];
     images[1]->camera.cam_pos.y += noise[1];
     images[1]->camera.cam_pos.z += noise[2];
@@ -233,14 +233,16 @@ int main(int argc, char *argv[]){
     ssrlcv::Unity<float>* diff1 = temp[0]->getExtrinsicDifference(temp[1]->camera);
     ssrlcv::Unity<float>* diff2 = images[0]->getExtrinsicDifference(images[1]->camera);
 
-    std::cout << std::endl << "Goal:" << std::cout;
+    std::cout << std::endl << "Goal:" << std::endl;
     for (int i = 0; i < diff1->size(); i++){
       std::cout << diff1->host[i] << "  ";
     }
-    std::cout << std::endl << "Result:" << std::cout;
+    std::cout << std::endl << "Result:" << std::endl;
     for (int i = 0; i < diff2->size(); i++){
       std::cout << diff2->host[i] << "  ";
     }
+
+    std::cout << std::endl;
 
     // cleanup
     delete points;
