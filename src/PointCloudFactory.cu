@@ -1747,6 +1747,12 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     t->camera = images[i]->camera;
     bestParams.push_back(t); // fill in the initial images
   }
+  std::vector<ssrlcv::Image*> secondBestParams;
+  for (int i = 0; i < images.size(); i++){
+    ssrlcv::Image* t = new ssrlcv::Image();
+    t->camera = images[i]->camera;
+    secondBestParams.push_back(t); // fill in the initial images
+  }
 
   // scalars in the matrix multiplication
   // beta should always be 0.0
@@ -1978,11 +1984,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // normalize the rotation
       // move all algular update to within [-pi,pi]
       float ang[2] = {1.0f, 1.0f};
-      for (int j = 0; j < images.size(); j++){
-        ang[j] = sqrtf((update->host[6*j + 3] * update->host[6*j + 3]) + (update->host[6*j + 4] * update->host[6*j + 4]) + (update->host[6*j + 5] * update->host[6*j + 5]));
-        if (ang[j] > angle_mag){
-          angle_mag = ang[j];
-          ang[j] = 1.0;
+      if (do_normalization){
+        for (int j = 0; j < images.size(); j++){
+          ang[j] = sqrtf((update->host[6*j + 3] * update->host[6*j + 3]) + (update->host[6*j + 4] * update->host[6*j + 4]) + (update->host[6*j + 5] * update->host[6*j + 5]));
+          if (ang[j] > angle_mag){
+            angle_mag = ang[j];
+            ang[j] = 1.0;
+          }
         }
       }
 
@@ -2007,25 +2015,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // to adjust alpha or step
     if (!i){
-      // first time, just set the value
-      error_comp = *localError;
       bestError = *localError;
-    }
-
-    if (error_comp/2 >= *localError) {
-      // error has decreased by at least a factor of 2, decrease aalpha by this factor
-      float scale_down = error_comp / *localError;
-      alpha /= (1.2);
-      // dist_step /= 2;
-      // angle_mag /= 2;
-      error_comp = *localError;
-      if (local_debug) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
     }
 
     if (*localError < bestError) {
       bestError = *localError;
       // the step improved the measured error
       for (int j = 0; j < bestParams.size(); j++){
+        secondBestParams[j]->camera = bestParams[j];
         bestParams[j]->camera = images[j]->camera;
       }
       if (local_debug) std::cout << "\t New lowest value found: " << bestError << std::endl;
@@ -2036,15 +2033,19 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       if (*localError > errorTracker.back()){
         // undo update by resetting cams
         for (int j = 0; j < bestParams.size(); j++){
-          images[j]->camera = bestParams[j]->camera;
+          images[j]->camera = secondBestParams[j]->camera;
         }
         alpha /= (1.2);
         if(local_debug) std::cout << "\t leaving local min ... updated Alpha to: " << std::fixed << std::setprecision(24) << alpha << std::endl;
+      } else {
+        float scale_down = errorTracker.back() / *localError;
+        alpha /= scale_down;
+        if (local_debug) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
       }
     }
 
     // for debug
-    errorTracker.push_back(*localError);
+    // errorTracker.push_back(*localError);
 
     // clean up memory
     delete bundleTemp.bundles;
@@ -2615,6 +2616,35 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     //
 
     std::cerr << "ERROR: sensitivity generation not yet implemented for N-view" << std::endl;
+    return;
+  }
+
+
+
+}
+
+/**
+* This function is used to test bundle adjustment by adding a bit of noise to the input data
+* it saves an initial point cloud, final point cloud, and a CSV of errors over the iterations
+* @param matchSet a group of matches
+* @param a group of images, used only for their stored camera parameters
+* @param iterations the max number of iterations bundle adjustment should do
+* @param sigmas a list of float values representing noise to be added to orientaions and rotations
+*/
+void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations, Unity<float>* noise){
+  std::cout << "\t Running a 2 view bundle adjustment nosie test " << std::endl;
+
+  // used to store the best params found in the optimization
+  std::vector<ssrlcv::Image*> noisey;
+  for (int i = 0; i < images.size(); i++){
+    ssrlcv::Image* t = new ssrlcv::Image();
+    t->camera = images[i]->camera;
+    noisey.push_back(t); // fill in the initial images
+  }
+
+  // now add the noise to the
+  if (noise->size() < 6) {
+    std::cerr << "ERROR: noise array needs to have 6 elements!"
     return;
   }
 

@@ -288,6 +288,16 @@ namespace ssrlcv{
      */
     void generateSensitivityFunctions(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, std::string filename);
 
+    /**
+    * This function is used to test bundle adjustment by adding a bit of noise to the input data
+    * it saves an initial point cloud, final point cloud, and a CSV of errors over the iterations
+    * @param matchSet a group of matches
+    * @param a group of images, used only for their stored camera parameters
+    * @param iterations the max number of iterations bundle adjustment should do
+    * @param noise a list of float values representing noise to be added to orientaions and rotations
+    */
+    void testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations, Unity<float>* noise);
+
     // =============================================================================================================
     //
     // Filtering Methods
