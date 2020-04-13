@@ -162,6 +162,13 @@ int main(int argc, char *argv[]){
       bundleSet = demPoints.generateBundles(&matchSet,images);
       */
 
+      // OPTIONAL
+      // to visualize the estimated plane which the structure lies within you can use
+      // the demPoints.visualizePlaneEstimation() method like so:
+      demPoints.visualizePlaneEstimation(points, "planeEstimation");
+
+      
+
       // the version that will be used normally
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
       std::cout << "Total Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
@@ -177,6 +184,7 @@ int main(int argc, char *argv[]){
       demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename);
       */
 
+      /*
       // OPTIONAL
       // Tests can be done with bundle adjustment to check bounds on how
       // well it performs
@@ -188,6 +196,7 @@ int main(int argc, char *argv[]){
       noise->host[4] = 0.0; // Y^
       noise->host[5] = 0.0; // Z^
       demPoints.testBundleAdjustmentTwoView(&matchSet,images, 10, noise);
+      */
 
       // starting bundle adjustment here
       // std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;

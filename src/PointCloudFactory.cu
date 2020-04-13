@@ -2685,15 +2685,27 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
 * Saves the plane that was estimated to be the "primary" plane of the pointCloud
 * this methods saves a plane which can be visualized as a mesh
 * @param pointCloud the point cloud to visualize plane estimation from
+* @param images the images which contain camera paramters that are used in normal estimation
 * @param filename a string representing the filename that should be saved
 */
-void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointCloud , const char* filename){
+void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointCloud, std::vector<ssrlcv::Image*> images, const char* filename){
+
+  // extract the camera locations for normal estimation
+  Unity<float3>* locations = new ssrlcv::Unity<float3>(nullptr,images.size(),ssrlcv::cpu);
+  for (int i = 0; i < images.size(); i++){
+    locations->host[i].x = images[i]->camera.cam_pos.x;
+    locations->host[i].y = images[i]->camera.cam_pos.y;
+    locations->host[i].z = images[i]->camera.cam_pos.z;
+  }
+
   // create the octree
   Octree oct = Octree(pointCloud, 6, false);
-  // caclulate the normals
-  oct.computeNormals(4,12);
+  // caclulate the estimated plane normal
+  Unity<float3>* normal =  oct.computeAverageNormals(4, 12, images.size(), locations->host);
 
-  
+  std::cout << "Estimated plane normal: (" << normal->host[0] << ", " << normal->host[1] << ", " << normal->host[2] << ")" << std::endl;
+
+  // find the location with the best density of points along the average normal
 
   // save the output mesh
 

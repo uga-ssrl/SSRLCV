@@ -1522,7 +1522,11 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
 * @param cameraPositions the x,y,z coordinates of the cameras
 */
 void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions){
-  std::cout<<"\n";
+
+  // enable local_debug to have local print statements
+  bool local_debug = false;
+
+  if (local_debug) std::cout << std::endl;
   clock_t cudatimer;
   cudatimer = clock();
 
@@ -1571,10 +1575,12 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
 
   nodeDepthIndex = nodeDepthIndex_host[currentDepth];
   numNodesAtDepth = nodeDepthIndex_host[currentDepth + 1] - nodeDepthIndex;
-  std::cout<<"Continuing with depth "<<this->depth - currentDepth<<" nodes starting at "<<nodeDepthIndex<<" with "<<numNodesAtDepth<<" nodes"<<std::endl;
-  std::cout<<"Continuing with "<<minPossibleNeighbors<<" minPossibleNeighbors"<<std::endl;
-  std::cout<<"Continuing with "<<maxNeighbors<<" maxNeighborsAllowed"<<std::endl;
-  std::cout<<"Continuing with "<<maxPointsInOneNode<<" maxPovoidintsInOneNode"<<std::endl;
+  if (local_debug){
+    std::cout<<"Continuing with depth "<<this->depth - currentDepth<<" nodes starting at "<<nodeDepthIndex<<" with "<<numNodesAtDepth<<" nodes"<<std::endl;
+    std::cout<<"Continuing with "<<minPossibleNeighbors<<" minPossibleNeighbors"<<std::endl;
+    std::cout<<"Continuing with "<<maxNeighbors<<" maxNeighborsAllowed"<<std::endl;
+    std::cout<<"Continuing with "<<maxPointsInOneNode<<" maxPovoidintsInOneNode"<<std::endl;
+  }
 
   if(numCameras > 1024){
     std::cout<<"ERROR numCameras > 1024"<<std::endl;
@@ -1696,7 +1702,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
     CudaSafeCall(cudaFree(d_work));
     CudaSafeCall(cudaFree(devInfo));
   }
-  std::cout<<"normals have been estimated by use of svd"<<std::endl;
+  if (local_debug) std::cout<<"normals have been estimated by use of svd"<<std::endl;
   if (cublasH) cublasDestroy(cublasH);
   if (cusolverH) cusolverDnDestroy(cusolverH);
 
@@ -1713,7 +1719,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
   CudaSafeCall(cudaFree(numRealNeighbors_device));
   CudaSafeCall(cudaFree(neighborIndices_device));
 
-  printf("octree computeNormals took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
+  if (local_debug) printf("octree computeNormals took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
 /**
@@ -1724,8 +1730,34 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
 * @param maxNeighbors the maximum number of neightbors to consider for normal calculation
 * @param numCameras the total number of cameras which resulted in the point cloud
 * @param cameraPositions the x,y,z coordinates of the cameras
+* @returns norm the average normal vector
 */
-void ssrlcv::Octree::computeAverageNormal(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions);
+ssrlcv::Unity<float3>* ssrlcv::Octree::computeAverageNormal(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions){
+
+  // call the fucntion that already does this!
+  computeNormals(minNeighForNorms, maxNeighbors, numCameras, cameraPositions);
+
+  Unity<float3>* average = new ssrlcv::Unity<float3>(nullptr,1,ssrlcv::gpu);
+  this->normals->transferMemoryTo(gpu);
+
+  // call kernel
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(float3*, unsigned long, float3*) = &calculateCloudAverageNormal;
+  getFlatGridBlock(this->normals->size(),grid,block,fp);
+
+  calculateCloudAverageNormal<<<grid,block>>>(average->device, this->normals->size(), this->normals->device);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  this->noramls->transferMemoryTo(cpu);
+  this->normals->clear(gpu);
+  this->average->transferMemoryTo(cpu);
+  this->average->clear(gpu);
+
+  return average;
+}
 
 // =============================================================================================================
 //
@@ -2139,6 +2171,7 @@ __global__ void ssrlcv::fillNodeArrayWithUniques(Octree::Node* uniqueNodes, int*
     outputNodeArray[address].numFinestChildren = uniqueNodes[globalID].numFinestChildren;
   }
 }
+
 //TODO try and optimize
 __global__ void ssrlcv::generateParentalUniqueNodes(Octree::Node* uniqueNodes, Octree::Node* nodeArrayD, int numNodesAtDepth, float totalWidth, const int3* __restrict__ coordPlacementIdentity){
   int numUniqueNodesAtParentDepth = numNodesAtDepth / 8;
@@ -2217,6 +2250,31 @@ __global__ void ssrlcv::computeNeighboringNodes(Octree::Node* nodeArray, int num
     }
   }
 }
+
+// calculates the average normal
+__global__ void ssrlcv::calculateCloudAverageNormal(float3* average, unsigned long num, float3* normals){
+  // get ready to do the stuff local memory space
+  // this will later be added back to a global memory space
+  __shared__ float3 localSum;
+  if (threadIdx.x == 0) localSum = {0.0f,0.0f,0.0f};
+  __syncthreads();
+
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (num-1)) return;
+
+  // if the normal has been normalized then we don't need  to do this part
+  float mag = sqrtf((normals[globalID].x * normals[globalID].x) + (normals[globalID].y * normals[globalID].y) + (normals[globalID].z * normals[globalID].z));
+  float3 localValue;
+
+  localValue.x = noramls[globalID].x / (num * mag);
+  localValue.y = noramls[globalID].y / (num * mag);
+  localValue.z = noramls[globalID].z / (num * mag);
+
+  atomicAdd(&localSum,localValue);
+  __syncthreads();
+  if (!threadIdx.x) atomicAdd(average[0],localSum);
+}
+
 
 __global__ void ssrlcv::findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Octree::Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
@@ -2531,3 +2589,10 @@ __global__ void ssrlcv::fillUniqueFaceArray(Octree::Node* nodeArray, Octree::Fac
 
   }
 }
+
+
+
+
+
+
+//

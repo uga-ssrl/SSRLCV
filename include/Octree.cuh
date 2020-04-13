@@ -186,7 +186,7 @@ namespace ssrlcv{
     * @param numCameras the total number of cameras which resulted in the point cloud
     * @param cameraPositions the x,y,z coordinates of the cameras
     */
-    void computeAverageNormal(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions);
+    ssrlcv::Unity<float3>* computeAverageNormal(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions);
 
 
     // =============================================================================================================
@@ -280,6 +280,9 @@ namespace ssrlcv{
   __global__ void fillNodeArrayWithUniques(Octree::Node* uniqueNodes, int* nodeAddresses, Octree::Node* outputNodeArray, Octree::Node* childNodeArray ,int numUniqueNodes);
   __global__ void generateParentalUniqueNodes(Octree::Node* uniqueNodes, Octree::Node* nodeArrayD, int numNodesAtDepth, float totalWidth, const int3* __restrict__ coordPlacementIdentity);
   __global__ void computeNeighboringNodes(Octree::Node* nodeArray, int numNodes, int depthIndex, int* parentLUT, int* childLUT, int childDepthIndex);
+
+  // calculates the average normal
+  __global__ void calculateCloudAverageNormal(float3* average, unsigned long num, float3* normals);
 
   __global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Octree::Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors);
   __global__ void transposeFloatMatrix(int m, int n, float* matrix);
