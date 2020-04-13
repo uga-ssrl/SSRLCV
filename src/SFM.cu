@@ -177,15 +177,21 @@ int main(int argc, char *argv[]){
       demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename);
       */
 
-      // TEMP
-      // TODO finish the testing method for BA with simulated errors
-      std::cout << "Adding noise for testing ..." << std::endl;
-      images[1]->camera.cam_pos.x += 0.1;
-      images[1]->camera.cam_pos.y -= 0.1;
+      // OPTIONAL
+      // Tests can be done with bundle adjustment to check bounds on how
+      // well it performs
+      ssrlcv::Unity<float>* noise = new ssrlcv::Unity<float>(nullptr,6,ssrlcv::cpu);
+      noise->host[0] = 0.0; // X
+      noise->host[1] = 1.0; // Y
+      noise->host[2] = 0.0; // Z
+      noise->host[3] = 0.0; // X^
+      noise->host[4] = 0.0; // Y^
+      noise->host[5] = 0.0; // Z^
+      demPoints.testBundleAdjustmentTwoView(&matchSet,images, 10, noise)
 
       // starting bundle adjustment here
-      std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
-      points = demPoints.BundleAdjustTwoView(&matchSet,images, 10);
+      // std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
+      // points = demPoints.BundleAdjustTwoView(&matchSet,images, 10);
 
 
     } else {

@@ -1727,7 +1727,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
   // TODO these variables really should be passed thru
   // for debug
-  bool local_debug    = true;
+  bool local_debug    = false;
+  bool local_verbose  = true;
   // const step
   bool second_order   = true;
   // enable or disable normalization
@@ -1769,6 +1770,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // each time the error is cut in half, so is the stepsize
   float error_comp;
   float bestError;
+  float secondBestError;
 
   const unsigned int N = (const unsigned int) sqrt(hessian->size());
 
@@ -1806,14 +1808,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   for (int i = 0; i < iterations; i++){
 
     // NOTE gradients calculated here
-    if (local_debug) std::cout << "\tCalculating Gradient ..." << std::endl;
+    if (local_debug || local_verbose) std::cout << "\tCalculating Gradient ..." << std::endl;
     calculateImageGradient(matchSet,images,gradient);
 
     // calculate second order stuff
     // if not in constant stepsize mode
     if (second_order){
       // TODO hessians calculated here
-      if (local_debug) std::cout << "\tCalculating Hessian ..." << std::endl;
+      if (local_debug || local_verbose) std::cout << "\tCalculating Hessian ..." << std::endl;
       calculateImageHessian(matchSet,images,hessian);
 
       if (local_debug){
@@ -1834,14 +1836,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       }
 
       // invert hessian here
-      if (local_debug) std::cout << "\tInverting Hessian ..." << std::endl;
+      if (local_debug || local_verbose) std::cout << "\tInverting Hessian ..." << std::endl;
       // see https://stackoverflow.com/questions/28794010/solving-dense-linear-systems-ax-b-with-cuda
       // see https://stackoverflow.com/questions/27094612/cublas-matrix-inversion-from-device
       // takes the pseudo inverse of the hessian
       inverse = calculateImageHessianInverse(hessian);
     }
 
-    // NOTE take a newton step here
+
     if (!second_order){
       //
       // First order mode
@@ -2015,17 +2017,33 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
     // to adjust alpha or step
     if (!i){
-      bestError = *localError;
+      // assumes first step improves the model
+      bestError       = *localError;
+      secondBestError = *localError
+      for (int j = 0; j < bestParams.size(); j++){
+        bestParams[j]->camera = images[j]->camera;
+      }
     }
 
+    // is this step better than the best?
     if (*localError < bestError) {
+      secondBestError = bestError;
       bestError = *localError;
       // the step improved the measured error
       for (int j = 0; j < bestParams.size(); j++){
         secondBestParams[j]->camera = bestParams[j]->camera;
         bestParams[j]->camera = images[j]->camera;
       }
-      if (local_debug) std::cout << "\t New lowest value found: " << bestError << std::endl;
+      if (local_debug || local_verbose) std::cout << "\t New lowest value found: " << bestError << std::endl;
+    }
+
+    // is this step better than the second best?
+    if (*localError < secondBestError && *localError > bestError){
+      secondBestError = *localError;
+      // the step improved the measured error
+      for (int j = 0; j < bestParams.size(); j++){
+        secondBestParams[j]->camera = images[j]->camera;
+      }
     }
 
     // check if we have made a bad step, if so change alpha and reset
@@ -2035,12 +2053,12 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         for (int j = 0; j < bestParams.size(); j++){
           images[j]->camera = secondBestParams[j]->camera;
         }
-        alpha /= (1.2);
-        if(local_debug) std::cout << "\t leaving local min ... updated Alpha to: " << std::fixed << std::setprecision(24) << alpha << std::endl;
+        alpha /= 2.0;
+        if(local_debug || local verbose) std::cout << "\t leaving local min ... updated Alpha to: " << std::fixed << std::setprecision(24) << alpha << std::endl;
       } else {
         float scale_down = errorTracker.back() / *localError;
         alpha /= scale_down;
-        if (local_debug) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
+        if (local_debug || local_verbose) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
       }
     }
 
@@ -2634,6 +2652,8 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
 void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations, Unity<float>* noise){
   std::cout << "\t Running a 2 view bundle adjustment nosie test " << std::endl;
 
+  bool local_debug = true;
+
   // used to store the best params found in the optimization
   std::vector<ssrlcv::Image*> noisey;
   for (int i = 0; i < images.size(); i++){
@@ -2646,9 +2666,29 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ssrlcv::MatchSet* ma
   if (noise->size() < 6) {
     std::cerr << "ERROR: noise array needs to have 6 elements!" << std::endl;
     return;
+  } else {
+    if (local_debug) std::cout << "Adding noise to image 1" << std::endl;
+    noisey[1]->camera.cam_pos.x += noise->host[0];
+    noisey[1]->camera.cam_pos.y += noise->host[1];
+    noisey[1]->camera.cam_pos.z += noise->host[2];
+    noisey[1]->camera.cam_rot.x += noise->host[3];
+    noisey[1]->camera.cam_rot.y += noise->host[4];
+    noisey[1]->camera.cam_rot.z += noise->host[5];
   }
 
+  Unity<float3>* points;
+  BundleSet bundleSet;
 
+  // save the noisey point cloud
+  bundleSet = generateBundles(matchSet,noisey);
+  points = twoViewTriangulate(bundleSet, linearError);
+
+  // pre=BA noisey boi
+  saveDebugCloud(points, bundleSet, noisey, "preBA");
+
+  // attempt to coorect with BA!
+  points = demPoints.BundleAdjustTwoView(matchSet, noisey, iterations);
+  saveDebugCloud(points, bundleSet, noisey, "postBA");
 
 }
 
