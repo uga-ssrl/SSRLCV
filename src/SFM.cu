@@ -182,12 +182,12 @@ int main(int argc, char *argv[]){
       // well it performs
       ssrlcv::Unity<float>* noise = new ssrlcv::Unity<float>(nullptr,6,ssrlcv::cpu);
       noise->host[0] = 0.0; // X
-      noise->host[1] = 1.0; // Y
+      noise->host[1] = 0.2; // Y
       noise->host[2] = 0.0; // Z
       noise->host[3] = 0.0; // X^
       noise->host[4] = 0.0; // Y^
       noise->host[5] = 0.0; // Z^
-      demPoints.testBundleAdjustmentTwoView(&matchSet,images, 10, noise)
+      demPoints.testBundleAdjustmentTwoView(&matchSet,images, 10, noise);
 
       // starting bundle adjustment here
       // std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;

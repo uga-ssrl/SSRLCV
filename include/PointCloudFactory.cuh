@@ -218,12 +218,20 @@ namespace ssrlcv{
     ssrlcv::Unity<float>* calculateImageHessianInverse(Unity<float>* h);
 
     /**
-     * A Naive bundle adjustment based on a two-view triangulation and a first order descrete gradient decent
+     * A bundle adjustment based on a two-view triangulation that includes a second order Hessian calculation and first order gradient caclulation
      * @param matchSet a group of matches
      * @param a group of images, used only for their stored camera parameters
      * @return a bundle adjusted point cloud
      */
     ssrlcv::Unity<float3>* BundleAdjustTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations);
+
+    /**
+     * A bundle adjustment based on a N-view triangulation that includes a second order Hessian calculation and first order gradient caclulation
+     * @param matchSet a group of matches
+     * @param a group of images, used only for their stored camera parameters
+     * @return a bundle adjusted point cloud
+     */
+    ssrlcv::Unity<float3>* BundleAdjustNView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations);
 
     // =============================================================================================================
     //
@@ -296,7 +304,7 @@ namespace ssrlcv{
     * @param iterations the max number of iterations bundle adjustment should do
     * @param noise a list of float values representing noise to be added to orientaions and rotations
     */
-    void testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations, Unity<float>* noise);
+    void testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, Unity<float>* noise);
 
     // =============================================================================================================
     //
@@ -334,7 +342,36 @@ namespace ssrlcv{
      */
     void linearCutoffFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float cutoff);
 
-  };
+    // =============================================================================================================
+    //
+    // Bulk Point Cloud Alteration Methods
+    //
+    // =============================================================================================================
+
+    /**
+    * Scales every point in the point cloud by a given scalar s and passed back the point cloud by refrence from the input
+    * @param scale a float representing how much to scale up or down a point cloud
+    * @param points is the point cloud to be scaled by s, this value is directly altered
+    */
+    void scalePointCloud(float* scale, Unity<float3>* points);
+
+    /**
+    * translates every point in the point cloud by a given vector t and passed back the point cloud by refrence from the input
+    * @param translate is a float3 representing how much to translate the point cloud in x,y,z
+    * @param points is the point cloud to be altered by t, this value is directly altered
+    */
+    void translatePointCloud(float3* translate, Unity<float3>* points);
+
+    /**
+    * rotates every point in the point cloud by a given x,y,z axis rotation r and passed back the point cloud by refrence from the input
+    * always roates with respect to the origin
+    * @param rotate is a float3 representing an x,y,z axis rotation
+    * @param points is the point cloud to be altered by r, this value is directly altered
+    */
+    void rotatePointCloud(float3* rotate, Unity<float3>* points);
+
+
+  }; // end PointCloudFactory
 
   // =======
   // MISC.
@@ -418,6 +455,21 @@ namespace ssrlcv{
   */
   __global__ void computeNViewTriangulate(float* angularError, float* angularErrorCutoff, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 
+  // =============================================================================================================
+  //
+  // Bulk Point Cloud Alteration Methods
+  //
+  // =============================================================================================================
+
+  /**
+  * the CUDA kernel for scalePointCloud
+  */
+  __global__ void computeScalePointCloud(float* scale, unsigned long pointnum, float3* points);
+
+  /**
+  * the CUDA kernel for translatePointCloud
+  */
+  __global__ void computeTranslatePointCloud(float3* translate, unsigned long pointnum, float3* points);
 
 }
 

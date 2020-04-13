@@ -1701,7 +1701,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
 }
 
 /**
- * A Naive bundle adjustment based on a two-view triangulation and a first order descrete gradient decent
+ * A bundle adjustment based on a two-view triangulation that includes a second order Hessian calculation and first order gradient caclulation
  * @param matchSet a group of matches
  * @param a group of images, used only for their stored camera parameters
  * @return a bundle adjusted point cloud
@@ -2019,7 +2019,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     if (!i){
       // assumes first step improves the model
       bestError       = *localError;
-      secondBestError = *localError
+      secondBestError = *localError;
       for (int j = 0; j < bestParams.size(); j++){
         bestParams[j]->camera = images[j]->camera;
       }
@@ -2054,7 +2054,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
           images[j]->camera = secondBestParams[j]->camera;
         }
         alpha /= 2.0;
-        if(local_debug || local verbose) std::cout << "\t leaving local min ... updated Alpha to: " << std::fixed << std::setprecision(24) << alpha << std::endl;
+        if(local_debug || local_verbose) std::cout << "\t leaving local min ... updated Alpha to: " << std::fixed << std::setprecision(24) << alpha << std::endl;
       } else {
         float scale_down = errorTracker.back() / *localError;
         alpha /= scale_down;
@@ -2094,6 +2094,20 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   return points;
 }
 
+/**
+ * A bundle adjustment based on a N-view triangulation that includes a second order Hessian calculation and first order gradient caclulation
+ * @param matchSet a group of matches
+ * @param a group of images, used only for their stored camera parameters
+ * @return a bundle adjusted point cloud
+ */
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustNView(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations){
+
+  // TODO
+
+  std::cerr << "ERROR: N view bundle adjustment not yet implemented" << std::endl;
+
+  return nulltpr;
+}
 
 // =============================================================================================================
 //
@@ -2649,10 +2663,11 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
 * @param iterations the max number of iterations bundle adjustment should do
 * @param sigmas a list of float values representing noise to be added to orientaions and rotations
 */
-void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations, Unity<float>* noise){
+void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, Unity<float>* noise){
   std::cout << "\t Running a 2 view bundle adjustment nosie test " << std::endl;
 
   bool local_debug = true;
+  float* linearError = (float*)malloc(sizeof(float));
 
   // used to store the best params found in the optimization
   std::vector<ssrlcv::Image*> noisey;
@@ -2687,8 +2702,20 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ssrlcv::MatchSet* ma
   saveDebugCloud(points, bundleSet, noisey, "preBA");
 
   // attempt to coorect with BA!
-  points = demPoints.BundleAdjustTwoView(matchSet, noisey, iterations);
+  points = BundleAdjustTwoView(matchSet, noisey, iterations);
   saveDebugCloud(points, bundleSet, noisey, "postBA");
+
+  ssrlcv::Unity<float>* diff1 = images[0]->getExtrinsicDifference(images[1]->camera);
+  ssrlcv::Unity<float>* diff2 = noisey[0]->getExtrinsicDifference(noisey[1]->camera);
+
+  std::cout << std::endl << "Goal:" << std::endl;
+  for (int i = 0; i < diff1->size(); i++){
+    std::cout << diff1->host[i] << "  ";
+  }
+  std::cout << std::endl << "Result:" << std::endl;
+  for (int i = 0; i < diff2->size(); i++){
+    std::cout << diff2->host[i] << "  ";
+  }
 
 }
 
@@ -3079,6 +3106,94 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
 
   }
+}
+
+// =============================================================================================================
+//
+// Bulk Point Cloud Alteration Methods
+//
+// =============================================================================================================
+
+/**
+* Scales every point in the point cloud by a given scalar s and passed back the point cloud by refrence from the input
+* @param scale a float representing how much to scale up or down a point cloud
+* @param points is the point cloud to be scaled by s, this value is directly altered
+*/
+void ssrlcv::PointCloudFactory::scalePointCloud(float* scale, Unity<float3>* points){
+
+  std::cout << "\t Scaling Point Cloud ..." << std::endl;
+
+  // move to device
+  float* d_scale;
+  CudaSafeCall(cudaMalloc((void**) &d_scale, sizeof(float)));
+  CudaSafeCall(cudaMemcpy(d_scale, scale, sizeof(float), cudaMemcpyHostToDevice));
+
+  points->transferMemoryTo(gpu)
+
+  // call kernel
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(float*, unsigned long, float3*) = &computeScalePointCloud;
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
+
+  computeScalePointCloud<<<grid,block>>>(d_scale,points->size(),points->device);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  points->setFore(gpu)
+  points->transferMemoryTo(cpu);
+  points->clear(gpu)
+
+  cudaFree(d_scale);
+
+}
+
+/**
+* translates every point in the point cloud by a given vector t and passed back the point cloud by refrence from the input
+* @param translate is a float3 representing how much to translate the point cloud in x,y,z
+* @param points is the point cloud to be altered by t, this value is directly altered
+*/
+void ssrlcv::PointCloudFactory::translatePointCloud(float3* translate, Unity<float3>* points){
+
+  std::cout << "\t Translating Point Cloud ..." << std::endl;
+
+  // move to device
+  float3* d_translate;
+  CudaSafeCall(cudaMalloc((void**) &d_translate, sizeof(float3)));
+  CudaSafeCall(cudaMemcpy(d_translate, translate, sizeof(float3), cudaMemcpyHostToDevice));
+
+  points->transferMemoryTo(gpu)
+
+  // call kernel
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(float*, unsigned long, float3*) = &computeTranslatePointCloud;
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
+
+  computeTranslatePointCloud<<<grid,block>>>(d_translate,points->size(),points->device);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  points->setFore(gpu)
+  points->transferMemoryTo(cpu);
+  points->clear(gpu)
+
+  cudaFree(d_scale);
+
+}
+
+/**
+* rotates every point in the point cloud by a given x,y,z axis rotation r and passed back the point cloud by refrence from the input
+* always roates with respect to the origin
+* @param rotate is a float3 representing an x,y,z axis rotation
+* @param points is the point cloud to be altered by r, this value is directly altered
+*/
+void ssrlcv::PointCloudFactory::rotatePointCloud(float3* rotate, Unity<float3>* points){
+  // TODO
+  std::cerr << "Point Cloud Bulk Rotation not yet implemented" << std::endl;
+
 }
 
 // =============================================================================
@@ -3899,9 +4014,38 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* angu
   if (!threadIdx.x) atomicAdd(angularError,localSum);
 }
 
+// =============================================================================================================
+//
+// Bulk Point Cloud Alteration Methods
+//
+// =============================================================================================================
 
+/**
+* the CUDA kernel for scalePointCloud
+*/
+__global__ void ssrlcv::computeScalePointCloud(float* scale, unsigned long pointnum, float3* points){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (pointnum-1)) return;
 
+  // scale the points
+  points[globalID].x *= scale;
+  points[globalID].y *= scale;
+  points[globalID].z *= scale;
 
+}
+
+/**
+* the CUDA kernel for translatePointCloud
+*/
+__global__ void ssrlcv::computeTranslatePointCloud(float3* translate, unsigned long pointnum, float3* points){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (pointnum-1)) return;
+
+  // scale the points
+  points[globalID].x += translate.x;
+  points[globalID].y += translate.y;
+  points[globalID].z += translate.z;
+}
 
 
 
