@@ -353,14 +353,14 @@ namespace ssrlcv{
     * @param scale a float representing how much to scale up or down a point cloud
     * @param points is the point cloud to be scaled by s, this value is directly altered
     */
-    void scalePointCloud(float* scale, Unity<float3>* points);
+    void scalePointCloud(float scale, Unity<float3>* points);
 
     /**
     * translates every point in the point cloud by a given vector t and passed back the point cloud by refrence from the input
     * @param translate is a float3 representing how much to translate the point cloud in x,y,z
     * @param points is the point cloud to be altered by t, this value is directly altered
     */
-    void translatePointCloud(float3* translate, Unity<float3>* points);
+    void translatePointCloud(float3 translate, Unity<float3>* points);
 
     /**
     * rotates every point in the point cloud by a given x,y,z axis rotation r and passed back the point cloud by refrence from the input
@@ -368,7 +368,7 @@ namespace ssrlcv{
     * @param rotate is a float3 representing an x,y,z axis rotation
     * @param points is the point cloud to be altered by r, this value is directly altered
     */
-    void rotatePointCloud(float3* rotate, Unity<float3>* points);
+    void rotatePointCloud(float3 rotate, Unity<float3>* points);
 
 
   }; // end PointCloudFactory

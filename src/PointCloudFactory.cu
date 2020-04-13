@@ -3147,14 +3147,14 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
 * @param scale a float representing how much to scale up or down a point cloud
 * @param points is the point cloud to be scaled by s, this value is directly altered
 */
-void ssrlcv::PointCloudFactory::scalePointCloud(float* scale, Unity<float3>* points){
+void ssrlcv::PointCloudFactory::scalePointCloud(float scale, Unity<float3>* points){
 
   std::cout << "\t Scaling Point Cloud ..." << std::endl;
 
   // move to device
   float* d_scale;
   CudaSafeCall(cudaMalloc((void**) &d_scale, sizeof(float)));
-  CudaSafeCall(cudaMemcpy(d_scale, scale, sizeof(float), cudaMemcpyHostToDevice));
+  CudaSafeCall(cudaMemcpy(d_scale, &scale, sizeof(float), cudaMemcpyHostToDevice));
 
   points->transferMemoryTo(gpu);
 
@@ -3182,15 +3182,16 @@ void ssrlcv::PointCloudFactory::scalePointCloud(float* scale, Unity<float3>* poi
 * @param translate is a float3 representing how much to translate the point cloud in x,y,z
 * @param points is the point cloud to be altered by t, this value is directly altered
 */
-void ssrlcv::PointCloudFactory::translatePointCloud(float3* translate, Unity<float3>* points){
+void ssrlcv::PointCloudFactory::translatePointCloud(float3 translate, Unity<float3>* points){
 
   std::cout << "\t Translating Point Cloud ..." << std::endl;
 
-  // move to device
-  float3* d_translate;
-  CudaSafeCall(cudaMalloc((void**) &d_translate, sizeof(float3)));
-  CudaSafeCall(cudaMemcpy(d_translate, translate, sizeof(float3), cudaMemcpyHostToDevice));
+  Unity<float>* d_translate = new ssrlcv::Unity<float>(nullptr,1,ssrlcv::cpu);
+  d_translate->host[0].x = translate.x;
+  d_translate->host[0].y = translate.y;
+  d_translate->host[0].z = translate.z;
 
+  d_translate->transferMemoryTo(gpu);
   points->transferMemoryTo(gpu);
 
   // call kernel
@@ -3199,7 +3200,7 @@ void ssrlcv::PointCloudFactory::translatePointCloud(float3* translate, Unity<flo
   void (*fp)(float3*, unsigned long, float3*) = &computeTranslatePointCloud;
   getFlatGridBlock(points->size(),grid,block,fp);
 
-  computeTranslatePointCloud<<<grid,block>>>(d_translate,points->size(),points->device);
+  computeTranslatePointCloud<<<grid,block>>>(d_translate->device,points->size(),points->device);
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -3208,7 +3209,7 @@ void ssrlcv::PointCloudFactory::translatePointCloud(float3* translate, Unity<flo
   points->transferMemoryTo(cpu);
   points->clear(gpu);
 
-  cudaFree(d_scale);
+  delete d_translate;
 
 }
 
@@ -4070,9 +4071,9 @@ __global__ void ssrlcv::computeTranslatePointCloud(float3* translate, unsigned l
   if (globalID > (pointnum-1)) return;
 
   // scale the points
-  points[globalID].x += translate.x;
-  points[globalID].y += translate.y;
-  points[globalID].z += translate.z;
+  points[globalID].x += translate[0].x;
+  points[globalID].y += translate[0].y;
+  points[globalID].z += translate[0].z;
 }
 
 

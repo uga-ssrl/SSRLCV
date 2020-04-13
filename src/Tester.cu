@@ -159,14 +159,11 @@ int main(int argc, char *argv[]){
 
 
     // test translation
-    float *scale;
-    *scale = 3.0;
+    float scale = 3.0;
     demPoints.scalePointCloud(scale,points);
     demPoints.saveDebugCloud(points, bundleSet, images, "scaled");
 
-
-    float3 *translate;
-    *translate = {50.0,50.0,50.0};
+    float3 translate = {50.0,50.0,50.0};
     demPoints.scalePointCloud(translate,points);
     demPoints.saveDebugCloud(points, bundleSet, images, "translated");
 
