@@ -221,7 +221,7 @@ int main(int argc, char *argv[]){
       std::cout << temp[i]->camera.cam_rot.x << ", " << temp[i]->camera.cam_rot.y << ", " << temp[i]->camera.cam_rot.z << " ]" << std::endl;
       if (i == 1){
         std::cout << "[" << (temp[i]->camera.cam_pos.x + noise[0]) << ", " << (temp[i]->camera.cam_pos.y + noise[1]) << ", " << (temp[i]->camera.cam_pos.z + noise[2]) << ", ";
-        std::cout << (temp[i]->camera.cam_rot.x + noise[0])<< ", " << (temp[i]->camera.cam_rot.y + noise[1]) << ", " << (temp[i]->camera.cam_rot.z + noise[2])<< " ]" << std::endl;
+        std::cout << (temp[i]->camera.cam_rot.x + noise[3])<< ", " << (temp[i]->camera.cam_rot.y + noise[4]) << ", " << (temp[i]->camera.cam_rot.z + noise[5])<< " ]" << std::endl;
       } else {
         std::cout << "[" << (temp[i]->camera.cam_pos.x) << ", " << (temp[i]->camera.cam_pos.y) << ", " << temp[i]->camera.cam_pos.z << ", ";
         std::cout << temp[i]->camera.cam_rot.x << ", " << temp[i]->camera.cam_rot.y << ", " << temp[i]->camera.cam_rot.z << " ]" << std::endl;
@@ -230,14 +230,14 @@ int main(int argc, char *argv[]){
       std::cout << images[i]->camera.cam_rot.x << ", " << images[i]->camera.cam_rot.y << ", " << images[i]->camera.cam_rot.z << " ]" << std::endl << std::endl;
     }
 
-    ssrlcv::Unity<float>* diff1 = temp[0].getExtrinsicDifference(temp[1]->camera);
-    ssrlcv::Unity<float>* diff2 = images[0].getExtrinsicDifference(images[1]->camera);
+    ssrlcv::Unity<float>* diff1 = temp[0]->getExtrinsicDifference(temp[1]->camera);
+    ssrlcv::Unity<float>* diff2 = images[0]->getExtrinsicDifference(images[1]->camera);
 
-    std::cout << std::cout << "Goal:" << std::cout;
+    std::cout << std::endl << "Goal:" << std::cout;
     for (int i = 0; i < diff1->size(); i++){
       std::cout << diff1->host[i] << "  ";
     }
-    std::cout << std::cout << "Result:" << std::cout;
+    std::cout << std::endl << "Result:" << std::cout;
     for (int i = 0; i < diff2->size(); i++){
       std::cout << diff2->host[i] << "  ";
     }

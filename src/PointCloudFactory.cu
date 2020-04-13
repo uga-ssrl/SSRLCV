@@ -1061,9 +1061,9 @@ void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSe
     delete bundleTemp.lines;
     // calculate the gradient with central difference
     gradient[j]->camera.cam_rot.x = ( forward - backwards ) / ( 2*h_radial );
-    // if (gradient[j]->camera.cam_rot.x > (2*PI)){
-    //   gradient[j]->camera.cam_rot.x -= floor((gradient[j]->camera.cam_rot.x/(2*PI)))*(2*PI);
-    // }
+    if (gradient[j]->camera.cam_rot.x > (2*PI) || gradient[j]->camera.cam_rot.x < (-2*PI)){
+      gradient[j]->camera.cam_rot.x -= floor((gradient[j]->camera.cam_rot.x/(2*PI)))*(2*PI);
+    }
   }
 
   //
@@ -1093,9 +1093,9 @@ void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSe
     // calculate the gradient with central difference
     gradient[j]->camera.cam_rot.y = ( forward - backwards ) / ( 2*h_radial );
     // adjust to be within bounds if needed
-    // if (gradient[j]->camera.cam_rot.y > (2*PI)){
-    //   gradient[j]->camera.cam_rot.y -= floor((gradient[j]->camera.cam_rot.y/(2*PI)))*(2*PI);
-    // }
+    if (gradient[j]->camera.cam_rot.y > (2*PI) || gradient[j]->camera.cam_rot.y < (-2*PI)){
+      gradient[j]->camera.cam_rot.y -= floor((gradient[j]->camera.cam_rot.y/(2*PI)))*(2*PI);
+    }
   }
 
   //
@@ -1124,9 +1124,9 @@ void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSe
     delete bundleTemp.lines;
     // calculate the gradient with central difference
     gradient[j]->camera.cam_rot.z = ( forward - backwards ) / ( 2*h_radial );
-    // if (gradient[j]->camera.cam_rot.z > (2*PI)){
-    //   gradient[j]->camera.cam_rot.z -= floor((gradient[j]->camera.cam_rot.z/(2*PI)))*(2*PI);
-    // }
+    if (gradient[j]->camera.cam_rot.z > (2*PI) || gradient[j]->camera.cam_rot.z < (-2*PI)){
+      gradient[j]->camera.cam_rot.z -= floor((gradient[j]->camera.cam_rot.z/(2*PI)))*(2*PI);
+    }
   }
 
   int g_j = 0;
@@ -1757,6 +1757,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
   // each time the error is cut in half, so is the stepsize
   float error_comp;
+  float bestError;
 
   const unsigned int N = (const unsigned int) sqrt(hessian->size());
 
@@ -1961,28 +1962,36 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     if (!i){
       // first time, just set the value
       error_comp = *localError;
-    } else if (error_comp/2 >= *localError) {
+      bestError = *localError;
+    }
+
+    if (error_comp/2 >= *localError) {
       // error has decreased by at least a factor of 2, decrease aalpha by this factor
       float scale_down = error_comp / *localError;
       alpha /= scale_down;
       error_comp = *localError;
       if (local_debug) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
-    } else if (*localError < errorTracker.back()) {
+    }
+
+    if (*localError < bestError) {
+      bestError = *localError;
       // the step improved the measured error
       for (int j = 0; j < bestParams.size(); j++){
         bestParams[j]->camera = images[j]->camera;
       }
-    } else {
-      // check if we have made a bad step, if so change alpha and reset
-      if (*localError > errorTracker.back()){
-        // undo update by resetting cams
-        for (int j = 0; j < bestParams.size(); j++){
-          images[j]->camera = bestParams[j]->camera;
-        }
-        alpha /= 2.0;
-        if(local_debug) std::cout << "\t leaving local min ... updated Alpha to: " << std::fixed << std::setprecision(24) << alpha << std::endl;
-      }
+      if (local_debug) std::cout << "\t New lowest value found: " << bestError << std::endl;
     }
+
+    // check if we have made a bad step, if so change alpha and reset
+    if (*localError > errorTracker.back()){
+      // undo update by resetting cams
+      for (int j = 0; j < bestParams.size(); j++){
+        images[j]->camera = bestParams[j]->camera;
+      }
+      alpha /= 2.0;
+      if(local_debug) std::cout << "\t leaving local min ... updated Alpha to: " << std::fixed << std::setprecision(24) << alpha << std::endl;
+    }
+
     // for debug
     errorTracker.push_back(*localError);
 
