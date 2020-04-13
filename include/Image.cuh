@@ -155,6 +155,14 @@ namespace ssrlcv{
     */
     void setFloatVector(Unity<float>* params);
 
+    /**
+    * calculates a vector represnting the difference between the input extinsic camera parameters and the local extinsic camera paramters
+    * caclulated for the cam_pos and cam_rot vectors as local camera - input camera
+    * @param other the other camera's extrinsic parameters
+    * @returns difference the difference between the extinsic camera params
+    */
+    Unity<float>* getExtrinsicDifference(Camera other);
+
     // Binary camera params [Gitlab #58]
     void bcp_in(bcpFormat data) {
       this->camera.cam_pos.x  = data.pos[0];

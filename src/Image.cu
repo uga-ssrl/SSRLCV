@@ -257,7 +257,7 @@ ssrlcv::Unity<float>* ssrlcv::Image::getFloatVector(int len){
       params->host[0 ] = this->camera.cam_pos.x ;
       break;
     default:
-      std::cerr << "ERROR: the requested camera float vector is out of bounds or non-standard!" << std::endl; 
+      std::cerr << "ERROR: the requested camera float vector is out of bounds or non-standard!" << std::endl;
       break;
   }
   return params;
@@ -295,6 +295,23 @@ void ssrlcv::Image::setFloatVector(Unity<float>* params){
     default:
       break;
   }
+}
+
+/**
+* calculates a vector represnting the difference between the input extinsic camera parameters and the local extinsic camera paramters
+* caclulated for the cam_pos and cam_rot vectors as local camera - input camera
+* @param other the other camera's extrinsic parameters
+* @returns difference the difference between the extinsic camera params
+*/
+ssrlcv::Unity<float>* ssrlcv::Image::getExtrinsicDifference(Camera other){
+  ssrlcv::Unity<float>* diff = new ssrlcv::Unity<float>(nullptr,6,ssrlcv::cpu);
+  diff->host[0] = camera.cam_pos.x - other.cam_pos.x;
+  diff->host[1] = camera.cam_pos.y - other.cam_pos.y;
+  diff->host[2] = camera.cam_pos.z - other.cam_pos.z;
+  diff->host[3] = camera.cam_rot.x - other.cam_rot.x;
+  diff->host[4] = camera.cam_rot.y - other.cam_rot.y;
+  diff->host[5] = camera.cam_rot.z - other.cam_rot.z;
+  return diff;
 }
 
 // =============================================================================================================

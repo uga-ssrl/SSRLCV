@@ -186,19 +186,19 @@ int main(int argc, char *argv[]){
     std::vector<ssrlcv::Image*> temp;
     for (int i = 0; i < images.size(); i++){
       ssrlcv::Image* t = new ssrlcv::Image();
-      t.camera = images[i]->camera;
+      t->camera = images[i]->camera;
       temp.push_back(t); // fill in the initial images
     }
 
     // start by messing up the initial paramters
     // test moving the camera slightly
-    float noise[6] = {1.0,  1.0,  1.0,  0.0,  0.0,  0.0};
+    float noise[6] = {1.0,  1.0,  1.0,  0.001,  0.001,  0.001};
     images[1]->camera.cam_pos.x += noise[0];
     images[1]->camera.cam_pos.y += noise[1];
     images[1]->camera.cam_pos.z += noise[2];
-    // images[1]->camera.cam_rot.x += 0.001f;
-    // images[1]->camera.cam_rot.y += 0.002f;
-    // images[1]->camera.cam_rot.z += 0.001f;
+    images[1]->camera.cam_rot.x += noise[3];
+    images[1]->camera.cam_rot.y += noise[4];
+    images[1]->camera.cam_rot.z += noise[5];
     bundleSet = demPoints.generateBundles(&matchSet,images);
     points = demPoints.twoViewTriangulate(bundleSet, linearError);
     std::cout << "simulated with noise linearError: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
@@ -221,7 +221,7 @@ int main(int argc, char *argv[]){
       std::cout << temp[i]->camera.cam_rot.x << ", " << temp[i]->camera.cam_rot.y << ", " << temp[i]->camera.cam_rot.z << " ]" << std::endl;
       if (i == 1){
         std::cout << "[" << (temp[i]->camera.cam_pos.x + noise[0]) << ", " << (temp[i]->camera.cam_pos.y + noise[1]) << ", " << (temp[i]->camera.cam_pos.z + noise[2]) << ", ";
-        std::cout << temp[i]->camera.cam_rot.x << ", " << temp[i]->camera.cam_rot.y << ", " << temp[i]->camera.cam_rot.z << " ]" << std::endl;
+        std::cout << (temp[i]->camera.cam_rot.x + noise[0])<< ", " << (temp[i]->camera.cam_rot.y + noise[1]) << ", " << (temp[i]->camera.cam_rot.z + noise[2])<< " ]" << std::endl;
       } else {
         std::cout << "[" << (temp[i]->camera.cam_pos.x) << ", " << (temp[i]->camera.cam_pos.y) << ", " << temp[i]->camera.cam_pos.z << ", ";
         std::cout << temp[i]->camera.cam_rot.x << ", " << temp[i]->camera.cam_rot.y << ", " << temp[i]->camera.cam_rot.z << " ]" << std::endl;
@@ -230,7 +230,17 @@ int main(int argc, char *argv[]){
       std::cout << images[i]->camera.cam_rot.x << ", " << images[i]->camera.cam_rot.y << ", " << images[i]->camera.cam_rot.z << " ]" << std::endl << std::endl;
     }
 
+    ssrlcv::Unity<float>* diff1 = temp[0].getExtrinsicDifference(temp[1]->camera);
+    ssrlcv::Unity<float>* diff2 = images[0].getExtrinsicDifference(images[1]->camera);
 
+    std::cout << std::cout << "Goal:" << std::cout;
+    for (int i = 0; i < diff1->size(); i++){
+      std::cout << diff1->host[i] << "  ";
+    }
+    std::cout << std::cout << "Result:" << std::cout;
+    for (int i = 0; i < diff2->size(); i++){
+      std::cout << diff2->host[i] << "  ";
+    }
 
     // cleanup
     delete points;

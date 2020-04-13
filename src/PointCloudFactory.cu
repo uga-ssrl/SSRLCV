@@ -1738,6 +1738,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     std::cout << "\t Bundle Adjustment is in First Order Mode" << std::endl;
   }
 
+  // used to store the best params found in the optimization
+  std::vector<ssrlcv::Image*> bestParams;
+  for (int i = 0; i < images.size(); i++){
+    ssrlcv::Image* t = new ssrlcv::Image();
+    t->camera = images[i]->camera;
+    bestParams.push_back(t); // fill in the initial images
+  }
+
   // scalars in the matrix multiplication
   // beta should always be 0.0
   // alpha can be changed to dampen stepsize
@@ -1844,7 +1852,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         std::cout << std::endl << "\t\t (update) gradient scaled by alpha " << std::fixed << std::setprecision(8) << alpha << " = " << std::endl;
         std::cout << "\t\t ";
         for (int j = 0; j < N; j++){
-          std::cout << std::fixed << std::setprecision(8) << step * gradient->host[j] << " ";
+          std::cout << std::fixed << std::setprecision(8) << alpha * gradient->host[j] << " ";
         }
         std::cout << std::endl;
       }
@@ -1959,33 +1967,19 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       alpha /= scale_down;
       error_comp = *localError;
       if (local_debug) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
+    } else if (*localError < errorTracker.back()) {
+      // the step improved the measured error
+      for (int j = 0; j < bestParams.size(); j++){
+        bestParams[j]->camera = images[j]->camera;
+      }
     } else {
       // check if we have made a bad step, if so change alpha and reset
       if (*localError > errorTracker.back()){
         // undo update by resetting cams
-        int g_j = 0;
-        if (!second_order){
-          for (int j = 0; j < images.size(); j++){
-            images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x + alpha * gradient->host[g_j    ];
-            images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y + alpha * gradient->host[g_j + 1];
-            images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z + alpha * gradient->host[g_j + 2];
-            images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x + alpha * gradient->host[g_j + 3];
-            images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y + alpha * gradient->host[g_j + 4];
-            images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z + alpha * gradient->host[g_j + 5];
-            g_j += 6;
-          }
-        } else {
-          for (int j = 0; j < images.size(); j++){
-            images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x + update->host[g_j    ];
-            images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y + update->host[g_j + 1];
-            images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z + update->host[g_j + 2];
-            images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x + update->host[g_j + 3];
-            images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y + update->host[g_j + 4];
-            images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z + update->host[g_j + 5];
-            g_j += 6;
-          }
+        for (int j = 0; j < bestParams.size(); j++){
+          images[j]->camera = bestParams[j]->camera;
         }
-        alpha /= 10;
+        alpha /= 2.0;
         if(local_debug) std::cout << "\t leaving local min ... updated Alpha to: " << std::fixed << std::setprecision(24) << alpha << std::endl;
       }
     }
