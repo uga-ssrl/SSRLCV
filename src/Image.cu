@@ -1,5 +1,11 @@
 #include "Image.cuh"
 
+// =============================================================================================================
+//
+// Constructors and Destructors
+//
+// =============================================================================================================
+
 __device__ __host__ ssrlcv::Image::Camera::Camera(){
   this->cam_rot = {0.0f,0.0f,0.0f};
   this->cam_pos = {0.0f,0.0f,0.0f};
@@ -145,6 +151,12 @@ ssrlcv::Image::~Image(){
   }
 }
 
+// =============================================================================================================
+//
+// Image Host Methods
+//
+// =============================================================================================================
+
 void ssrlcv::Image::convertColorDepthTo(unsigned int colorDepth){
   std::cout<<"Converting pixel depth to "<<colorDepth<<" from "<<this->colorDepth<<std::endl;
   if(colorDepth == 1){
@@ -191,6 +203,122 @@ void ssrlcv::Image::alterSize(int scalingFactor){
   if(origin != gpu) this->pixels->setMemoryState(origin);
 }
 
+/**
+* retuns the camera paramters as a float vector where all data types are cast to floats
+* removes the unix time stamp
+* @returns array of floats representing the camera parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
+*/
+ssrlcv::Unity<float>* ssrlcv::Image::getFloatVector(){
+  ssrlcv::Unity<float>* params = new ssrlcv::Unity<float>(nullptr,11,ssrlcv::cpu);
+  params->host[0 ] = this->camera.cam_pos.x;
+  params->host[1 ] = this->camera.cam_pos.y;
+  params->host[2 ] = this->camera.cam_pos.z;
+  params->host[3 ] = this->camera.cam_rot.x;
+  params->host[4 ] = this->camera.cam_rot.y;
+  params->host[5 ] = this->camera.cam_rot.z;
+  params->host[6 ] = this->camera.fov.x    ;
+  params->host[7 ] = this->camera.fov.y    ;
+  params->host[8 ] = this->camera.foc      ;
+  params->host[9 ] = this->camera.dpix.x   ;
+  params->host[10] = this->camera.dpix.y   ;
+  return params;
+}
+
+/**
+* retuns the camera paramters as a float vector of length len, where all data types are cast to floats
+* removes the unix time stamp
+* @param len the desired lentgth of the vector, has the effect of extracting less parameters
+* @returns array of floats representing the camera parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
+*/
+ssrlcv::Unity<float>* ssrlcv::Image::getFloatVector(int len){
+  ssrlcv::Unity<float>* params = new ssrlcv::Unity<float>(nullptr,len,ssrlcv::cpu);
+  switch(len){
+    case 11:
+      params->host[10] = this->camera.dpix.y    ;
+    case 10:
+      params->host[9 ] = this->camera.dpix.x    ;
+    case 9:
+      params->host[8 ] = this->camera.foc       ;
+    case 8:
+      params->host[7 ] = this->camera.fov.y     ;
+    case 7:
+      params->host[6 ] = this->camera.fov.x     ;
+    case 6:
+      params->host[5 ] = this->camera.cam_rot.z ;
+    case 5:
+      params->host[4 ] = this->camera.cam_rot.y ;
+    case 4:
+      params->host[3 ] = this->camera.cam_rot.x ;
+    case 3:
+      params->host[2 ] = this->camera.cam_pos.z ;
+    case 2:
+      params->host[1 ] = this->camera.cam_pos.y ;
+    case 1:
+      params->host[0 ] = this->camera.cam_pos.x ;
+      break;
+    default:
+      std::cerr << "ERROR: the requested camera float vector is out of bounds or non-standard!" << std::endl;
+      break;
+  }
+  return params;
+}
+
+/**
+* updates the camera parameters from a float vector representing camera parameters
+* if there are less than 11 params the camera will still be updated, retaining values for params not included
+* @param array of floats which should update the current parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
+*/
+void ssrlcv::Image::setFloatVector(Unity<float>* params){
+  switch(params->size()){
+    case 11:
+      this->camera.dpix.y    = params->host[10];
+    case 10:
+      this->camera.dpix.x    = params->host[9];
+    case 9:
+      this->camera.foc       = params->host[8];
+    case 8:
+      this->camera.fov.y     = params->host[7];
+    case 7:
+      this->camera.fov.x     = params->host[6];
+    case 6:
+      this->camera.cam_rot.z = params->host[5];
+    case 5:
+      this->camera.cam_rot.y = params->host[4];
+    case 4:
+      this->camera.cam_rot.x = params->host[3];
+    case 3:
+      this->camera.cam_pos.z = params->host[2];
+    case 2:
+      this->camera.cam_pos.y = params->host[1];
+    case 1:
+      this->camera.cam_pos.x = params->host[0];
+    default:
+      break;
+  }
+}
+
+/**
+* calculates a vector represnting the difference between the input extinsic camera parameters and the local extinsic camera paramters
+* caclulated for the cam_pos and cam_rot vectors as local camera - input camera
+* @param other the other camera's extrinsic parameters
+* @returns difference the difference between the extinsic camera params
+*/
+ssrlcv::Unity<float>* ssrlcv::Image::getExtrinsicDifference(Camera other){
+  ssrlcv::Unity<float>* diff = new ssrlcv::Unity<float>(nullptr,6,ssrlcv::cpu);
+  diff->host[0] = camera.cam_pos.x - other.cam_pos.x;
+  diff->host[1] = camera.cam_pos.y - other.cam_pos.y;
+  diff->host[2] = camera.cam_pos.z - other.cam_pos.z;
+  diff->host[3] = camera.cam_rot.x - other.cam_rot.x;
+  diff->host[4] = camera.cam_rot.y - other.cam_rot.y;
+  diff->host[5] = camera.cam_rot.z - other.cam_rot.z;
+  return diff;
+}
+
+// =============================================================================================================
+//
+// Other Host Methods
+//
+// =============================================================================================================
 
 ssrlcv::Unity<unsigned char>* ssrlcv::addBufferBorder(uint2 size, ssrlcv::Unity<unsigned char>* pixels, int2 border){
   if(border.x == 0 && border.y == 0){
@@ -854,6 +982,13 @@ ssrlcv::Unity<float>* ssrlcv::convolve(uint2 imageSize, Unity<float>* pixels, in
   }
   return convolvedImage;
 }
+
+
+// =============================================================================================================
+//
+// Device Kernels
+//
+// =============================================================================================================
 
 __device__ __host__ __forceinline__ int ssrlcv::getSymmetrizedCoord(int i, unsigned int l){
   int ll = 2*l;

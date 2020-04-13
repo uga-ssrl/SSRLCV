@@ -181,10 +181,41 @@ namespace ssrlcv{
     * The CPU method that sets up the GPU enabled line generation, which stores lines
     * and sets of lines as bundles
     * @param matchSet a group of maches
-    * @param a group of images, used only for their stored camera parameters
+    * @param images a group of images, used only for their stored camera parameters
     */
     BundleSet generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images);
 
+    /**
+    * The CPU method that sets up the GPU enabled line generation, which stores lines
+    * and sets of lines as bundles
+    * @param matchSet a group of maches
+    * @param images a group of images, used only for their stored camera parameters
+    * @param params a unity of float's which store selected camera parameters for N many, this does not have to be completely full but each camera must have the same number of parameters. The expected order is X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
+    */
+    BundleSet generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* params);
+
+    /**
+     * Caclulates the gradients for a given set of images and returns those gradients as a float array
+     * @param matchSet a group of matches
+     * @param a group of images, used only for their stored camera parameters
+     * @param gradient the image gradients for the given inputs
+     */
+    void calculateImageGradient(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* g);
+
+    /**
+     * Caclulates the hessian for a given set of images and returns those gradients as a float array
+     * @param matchSet a group of matches
+     * @param a group of images, used only for their stored camera parameters
+     * @param h the image hessian for the given inputs
+     */
+    void calculateImageHessian(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* hessian);
+
+    /**
+    * Calculates the inverse of the hessian h passed in by refrence
+    * @param h the image hessian
+    * @return inverse the inverse hessian
+    */
+    ssrlcv::Unity<float>* calculateImageHessianInverse(Unity<float>* h);
 
     /**
      * A Naive bundle adjustment based on a two-view triangulation and a first order descrete gradient decent
@@ -256,6 +287,16 @@ namespace ssrlcv{
      * @param filename the name of the file that should be saved
      */
     void generateSensitivityFunctions(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, std::string filename);
+
+    /**
+    * This function is used to test bundle adjustment by adding a bit of noise to the input data
+    * it saves an initial point cloud, final point cloud, and a CSV of errors over the iterations
+    * @param matchSet a group of matches
+    * @param a group of images, used only for their stored camera parameters
+    * @param iterations the max number of iterations bundle adjustment should do
+    * @param noise a list of float values representing noise to be added to orientaions and rotations
+    */
+    void testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations, Unity<float>* noise);
 
     // =============================================================================================================
     //

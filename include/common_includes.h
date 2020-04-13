@@ -11,6 +11,7 @@
 #include "device_launch_parameters.h"
 #include <cuda.h>
 #include <cuda_occupancy.h>
+#include <cublas_v2.h>
 
 //util
 #include "cuda_util.cuh"
@@ -57,6 +58,9 @@
 #include "CVExceptions.hpp"
 
 #define PI 3.1415926535897932384626433832795028841971693993
+
+// 0 based indexing for cuBLAS
+#define IDX2C(i,j,ld) (((j)*(ld))+(i))
 
 namespace ssrlcv{
     typedef enum Direction{

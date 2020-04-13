@@ -740,7 +740,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
 * The CPU method that sets up the GPU enabled line generation, which stores lines
 * and sets of lines as bundles
 * @param matchSet a group of maches
-* @param a group of images, used only for their stored camera parameters
+* @param images a group of images, used only for their stored camera parameters
 */
 ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
 
@@ -748,11 +748,6 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   Unity<Bundle>* bundles = new Unity<Bundle>(nullptr,matchSet->matches->size(),gpu);
   Unity<Bundle::Line>* lines = new Unity<Bundle::Line>(nullptr,matchSet->keyPoints->size(),gpu);
 
-  // std::cout << "starting bundle generation ..." << std::endl;
-  //MemoryState origin[2] = {matchSet->matches->getMemoryState(),matchSet->keyPoints->getMemoryState()};
-  //if(origin[0] == cpu) matchSet->matches->transferMemoryTo(gpu);
-  //if(origin[1] == cpu) matchSet->keyPoints->transferMemoryTo(gpu);
-  // std::cout << "set the matches ... " << std::endl;
   matchSet->matches->transferMemoryTo(gpu);
   matchSet->keyPoints->transferMemoryTo(gpu);
 
@@ -802,15 +797,134 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
 }
 
 /**
- * A Naive bundle adjustment based on a two-view triangulation and a first order descrete gradient decent
+* The CPU method that sets up the GPU enabled line generation, which stores lines
+* and sets of lines as bundles
+* @param matchSet a group of maches
+* @param images a group of images, used only for their stored camera parameters
+* @param params a unity of float's which store selected camera parameters for N many, this does not have to be completely full but each camera must have the same number of parameters. The expected order is X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
+*/
+ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* params){
+
+  bool local_debug = false;
+
+  // update the cameras in the images with the params
+  int params_per_cam = params->size() / images.size();
+  Unity<float>* temp_params = new Unity<float>(nullptr,params_per_cam,cpu);
+  std::vector<ssrlcv::Image*> temp;
+  for (int i = 0; i < images.size(); i++){
+    // fill up the vector
+    for (int j = 0; j < params_per_cam; j++){
+      temp_params->host[j] = params->host[i*params_per_cam + j];
+    }
+    // store old and set new
+    temp.push_back(images[i]);
+    images[i]->setFloatVector(temp_params);
+  }
+  delete temp_params; // clean up
+
+  // should be something close to:
+  // 0.000000000000 0.000000000000 -400.000000000000 0.000000000000 0.000000000000 0.000000000000 5.000000000000 72.459274291992 -391.923095703125 0.174532920122 0.000000000000 0.000000000000
+  // for the cube 2 view test
+  //debug
+  if (local_debug){
+    std::cout << std::endl;
+    std::cout << "\t params per cam: " << params_per_cam << std::endl;
+    Unity<float>* temp_params2;
+    std::cout << "\t input params :" << std::endl;
+    for (int i = 0; i < params->size(); i++){
+      std::cout << params->host[i] << " ";
+    }
+    std::cout << std::endl;
+    std::cout << "\t images params: " << std::endl << "\t\t ";
+    for (int i = 0; i < images.size(); i++){
+      temp_params2 = images[i]->getFloatVector(params_per_cam);
+      for (int j = 0; j < temp_params2->size(); j++) {
+        std::cout << temp_params2->host[j] << " ";
+      }
+      std::cout << std::endl << "\t\t ";
+    }
+    delete temp_params2;
+    std::cout << "\t backup params: " << std::endl << "\t\t ";
+    for (int i = 0; i < temp.size(); i++){
+      temp_params2 = temp[i]->getFloatVector(params_per_cam);
+      for (int j = 0; j < temp_params2->size(); j++) {
+        std::cout << temp_params2->host[j] << " ";
+      }
+      std::cout << std::endl << "\t\t ";
+    }
+    delete temp_params2;
+  }
+
+  Unity<Bundle>* bundles = new Unity<Bundle>(nullptr,matchSet->matches->size(),gpu);
+  Unity<Bundle::Line>* lines = new Unity<Bundle::Line>(nullptr,matchSet->keyPoints->size(),gpu);
+
+  matchSet->matches->transferMemoryTo(gpu);
+  matchSet->keyPoints->transferMemoryTo(gpu);
+
+  // the cameras
+  size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
+  // fill the cam boi
+  ssrlcv::Image::Camera* h_cameras;
+  h_cameras = (ssrlcv::Image::Camera*) malloc(cam_bytes);
+  for(int i = 0; i < images.size(); i++){
+    h_cameras[i] = images.at(i)->camera;
+  }
+  ssrlcv::Image::Camera* d_cameras;
+  // std::cout << "set the cameras ... " << std::endl;
+  CudaSafeCall(cudaMalloc(&d_cameras, cam_bytes));
+  // copy the othe guy
+  CudaSafeCall(cudaMemcpy(d_cameras, h_cameras, cam_bytes, cudaMemcpyHostToDevice));
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getFlatGridBlock(bundles->size(),grid,block,generateBundle);
+
+  //in this kernel fill lines and bundles from keyPoints and matches
+  // std::cout << "Calling bundle generation kernel ..." << std::endl;
+  generateBundle<<<grid, block>>>(bundles->size(),bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
+  // std::cout << "Returned from bundle generation kernel ... \n" << std::endl;
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  // transfer and clear the match set information
+  matchSet->matches->setFore(gpu);
+  matchSet->keyPoints->setFore(gpu);
+  matchSet->matches->transferMemoryTo(cpu);
+  matchSet->keyPoints->transferMemoryTo(cpu);
+  matchSet->matches->clear(gpu);
+  matchSet->keyPoints->clear(gpu);
+
+  // reset the images back to their original state
+  for (int i = 0; i < images.size(); i++){
+    images[i] = temp[i];
+  }
+  temp.clear();
+
+  // transfer and clear the cpu information
+  bundles->transferMemoryTo(cpu);
+  bundles->clear(gpu);
+  lines->transferMemoryTo(cpu);
+  lines->clear(gpu);
+
+  BundleSet bundleSet = {lines,bundles};
+
+  return bundleSet;
+}
+
+/**
+ * Caclulates the gradients for a given set of images and returns those gradients as a float array
  * @param matchSet a group of matches
  * @param a group of images, used only for their stored camera parameters
- * @return a bundle adjusted point cloud
+ * @param gradients the image gradients for the given inputs
  */
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations){
+void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* g){
 
-  // local variabels for function
-  ssrlcv::Unity<float3>* points;
+  float h_linear = 0.00001;    // gradient difference
+  float h_radial = 0.00001;  // graident diff
+
+  float* gradientError = (float*) malloc(sizeof(float)); // this chaneges per iteration
+
   ssrlcv::BundleSet bundleTemp;
 
   // gradients are stored in the image structs, but only the camera is modified
@@ -833,340 +947,1132 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     temp.push_back(images[i]); // fill in the initial images
   }
 
-  float* initialError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
-  float* gradientError = (float*) malloc(sizeof(float)); // this chaneges per iteration
+  // calculate all of the graients with central difference
+  // https://v8doc.sas.com/sashtml/ormp/chap5/sect28.htm
+  // we are only testing position and orientation gradients
 
-  // This is for error tracking and printing later
-  std::vector<float> errorTracker;
-
-  unsigned int max_iterations = iterations;
-  bool local_debug = false;
-  bool const_step = true;
-  // TODO hangle linear stepsize differently than radial stepsize
-  float gamma    = 0.0001;// the initial stepsize
-  float h_linear = 0.001; // gradient difference
-  float h_radial = 0.0000001;
-
-  struct CamAdjust2 x0;
-  struct CamAdjust2 x1;
-  struct CamAdjust2 g0;
-  struct CamAdjust2 g1;
-  struct CamAdjust2 adjustment;
-
-  // begin iterative gradient decent
-  for (int i = 0; i < max_iterations; i++){
-    // the intialError from the cost function, or the f(x)
-    bundleTemp = generateBundles(matchSet,images);
-    points = twoViewTriangulate(bundleTemp, initialError);
+  //
+  // X Position Gradients
+  //
+  for (int j = 0; j < images.size(); j++){
+    // ----> Forward
+    *gradientError = 0.0f;
+    temp[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x; // reset for forwards
+    temp[j]->camera.cam_pos.x += h_linear;
+    bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+    voidTwoViewTriangulate(bundleTemp, gradientError);
+    float forward = *gradientError;
     // free up Memory
     delete bundleTemp.bundles;
     delete bundleTemp.lines;
+    // <---- Backwards
+    *gradientError = 0.0f;
+    temp[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x; // reset for backwards
+    temp[j]->camera.cam_pos.x -= h_linear;
+    bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+    voidTwoViewTriangulate(bundleTemp, gradientError);
+    float backwards = *gradientError;
+    // free up Memory
+    delete bundleTemp.bundles;
+    delete bundleTemp.lines;
+    // calculate the gradient with central difference
+    gradient[j]->camera.cam_pos.x = ( forward - backwards ) / ( 2*h_linear );
+  }
 
-    // calculate all of the graients with central difference
-    // https://v8doc.sas.com/sashtml/ormp/chap5/sect28.htm
-    // we are only testing position and orientation gradients
+  //
+  // Y Postition Gradients
+  //
+  for (int j = 0; j < images.size(); j++){
+    // ----> Forward
+    *gradientError = 0.0f;
+    temp[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y; // reset for forwards
+    temp[j]->camera.cam_pos.y += h_linear;
+    bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+    voidTwoViewTriangulate(bundleTemp, gradientError);
+    float forward = *gradientError;
+    // free up Memory
+    delete bundleTemp.bundles;
+    delete bundleTemp.lines;
+    // <---- Backwards
+    *gradientError = 0.0f;
+    temp[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y; // reset for backwards
+    temp[j]->camera.cam_pos.y -= h_linear;
+    bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+    voidTwoViewTriangulate(bundleTemp, gradientError);
+    float backwards = *gradientError;
+    // free up Memory
+    delete bundleTemp.bundles;
+    delete bundleTemp.lines;
+    // calculate the gradient with central difference
+    gradient[j]->camera.cam_pos.y = ( forward - backwards ) / ( 2*h_linear );
+  }
 
-    //
-    // X Position Gradients
-    //
-    for (int j = 0; j < images.size(); j++){
-      // ----> Forward
-      *gradientError = 0.0f;
-      temp[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x; // reset for forwards
-      temp[j]->camera.cam_pos.x += h_linear;
-      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
-      twoViewTriangulate(bundleTemp, gradientError);
-      float forward = *gradientError;
-      // free up Memory
-      delete bundleTemp.bundles;
-      delete bundleTemp.lines;
-      // <---- Backwards
-      *gradientError = 0.0f;
-      temp[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x; // reset for backwards
-      temp[j]->camera.cam_pos.x -= h_linear;
-      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
-      twoViewTriangulate(bundleTemp, gradientError);
-      float backwards = *gradientError;
-      // free up Memory
-      delete bundleTemp.bundles;
-      delete bundleTemp.lines;
-      // calculate the gradient with central difference
-      gradient[j]->camera.cam_pos.x = ( forward - backwards ) / ( 2*h_linear );
+  //
+  // Z Postition Gradients
+  //
+  for (int j = 0; j < images.size(); j++){
+    // ----> Forward
+    *gradientError = 0.0f;
+    temp[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z; // reset for forwards
+    temp[j]->camera.cam_pos.z += h_linear;
+    bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+    voidTwoViewTriangulate(bundleTemp, gradientError);
+    float forward = *gradientError;
+    // free up Memory
+    delete bundleTemp.bundles;
+    delete bundleTemp.lines;
+    // <---- Backwards
+    *gradientError = 0.0f;
+    temp[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z; // reset for backwards
+    temp[j]->camera.cam_pos.z -= h_linear;
+    bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+    voidTwoViewTriangulate(bundleTemp, gradientError);
+    float backwards = *gradientError;
+    // free up Memory
+    delete bundleTemp.bundles;
+    delete bundleTemp.lines;
+    // calculate the gradient with central difference
+    gradient[j]->camera.cam_pos.z = ( forward - backwards ) / ( 2*h_linear );
+  }
+
+  //
+  // Rotation x^ Gradient
+  //
+  for (int j = 0; j < images.size(); j++){
+    // ----> Forward
+    *gradientError = 0.0f;
+    temp[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x; // reset for forwards
+    temp[j]->camera.cam_rot.x += h_radial;
+    bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+    voidTwoViewTriangulate(bundleTemp, gradientError);
+    float forward = *gradientError;
+    // free up Memory
+    delete bundleTemp.bundles;
+    delete bundleTemp.lines;
+    // <---- Backwards
+    *gradientError = 0.0f;
+    temp[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x; // reset for backwards
+    temp[j]->camera.cam_rot.x -= h_radial;
+    bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+    voidTwoViewTriangulate(bundleTemp, gradientError);
+    float backwards = *gradientError;
+    // free up Memory
+    delete bundleTemp.bundles;
+    delete bundleTemp.lines;
+    // calculate the gradient with central difference
+    gradient[j]->camera.cam_rot.x = ( forward - backwards ) / ( 2*h_radial );
+    /*if (gradient[j]->camera.cam_rot.x > (2*PI) || gradient[j]->camera.cam_rot.x < (-2*PI)){
+      gradient[j]->camera.cam_rot.x -= floor((gradient[j]->camera.cam_rot.x/(2*PI)))*(2*PI);
+    }*/
+  }
+
+  //
+  // Rotation y^ Gradient
+  //
+  for (int j = 0; j < images.size(); j++){
+    // ----> Forward
+    *gradientError = 0.0f;
+    temp[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y; // reset for forwards
+    temp[j]->camera.cam_rot.y += h_radial;
+    bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+    voidTwoViewTriangulate(bundleTemp, gradientError);
+    float forward = *gradientError;
+    // free up Memory
+    delete bundleTemp.bundles;
+    delete bundleTemp.lines;
+    // <---- Backwards
+    *gradientError = 0.0f;
+    temp[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y; // reset for backwards
+    temp[j]->camera.cam_rot.y -= h_radial;
+    bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+    voidTwoViewTriangulate(bundleTemp, gradientError);
+    float backwards = *gradientError;
+    // free up Memory
+    delete bundleTemp.bundles;
+    delete bundleTemp.lines;
+    // calculate the gradient with central difference
+    gradient[j]->camera.cam_rot.y = ( forward - backwards ) / ( 2*h_radial );
+    // adjust to be within bounds if needed
+    /*if (gradient[j]->camera.cam_rot.y > (2*PI) || gradient[j]->camera.cam_rot.y < (-2*PI)){
+      gradient[j]->camera.cam_rot.y -= floor((gradient[j]->camera.cam_rot.y/(2*PI)))*(2*PI);
+    }*/
+  }
+
+  //
+  // Rotation z^ Gradient
+  //
+  for (int j = 0; j < images.size(); j++){
+    // ----> Forward
+    *gradientError = 0.0f;
+    temp[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z; // reset for forwards
+    temp[j]->camera.cam_rot.z += h_radial;
+    bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+    voidTwoViewTriangulate(bundleTemp, gradientError);
+    float forward = *gradientError;
+    // free up Memory
+    delete bundleTemp.bundles;
+    delete bundleTemp.lines;
+    // <---- Backwards
+    *gradientError = 0.0f;
+    temp[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z; // reset for backwards
+    temp[j]->camera.cam_rot.z -= h_radial;
+    bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
+    voidTwoViewTriangulate(bundleTemp, gradientError);
+    float backwards = *gradientError;
+    // free up Memory
+    delete bundleTemp.bundles;
+    delete bundleTemp.lines;
+    // calculate the gradient with central difference
+    gradient[j]->camera.cam_rot.z = ( forward - backwards ) / ( 2*h_radial );
+    /*if (gradient[j]->camera.cam_rot.z > (2*PI) || gradient[j]->camera.cam_rot.z < (-2*PI)){
+      gradient[j]->camera.cam_rot.z -= floor((gradient[j]->camera.cam_rot.z/(2*PI)))*(2*PI);
+    }*/
+  }
+
+  int g_j = 0;
+  for (int j = 0; j < images.size(); j++){
+    g->host[g_j    ] = gradient[j]->camera.cam_pos.x;
+    g->host[g_j + 1] = gradient[j]->camera.cam_pos.y;
+    g->host[g_j + 2] = gradient[j]->camera.cam_pos.z;
+    g->host[g_j + 3] = gradient[j]->camera.cam_rot.x;
+    g->host[g_j + 4] = gradient[j]->camera.cam_rot.y;
+    g->host[g_j + 5] = gradient[j]->camera.cam_rot.z;
+    g_j += 6;
+  }
+
+  // free the temp memory
+  temp.clear();
+}
+
+/**
+ * Caclulates the hessian for a given set of images and returns those gradients as a float array
+ * @param matchSet a group of matches
+ * @param a group of images, used only for their stored camera parameters
+ * @param h the image hessian for the given inputs
+ */
+void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* h){
+
+  // stepsize and indexing related variables
+  // TODO pass in this step vector
+  //                  dX    dY    dZ     dX_r     dY_r     dZ_r
+  float h_step[6] = {0.0001,0.0001,0.0001,0.00001,0.00001,0.00001}; // the step size vector
+  int   h_i       = 0;               // the hessian location index
+
+  // temp variables within the loops
+  float A;
+  float B;
+  float C;
+  float D;
+  float E;
+  float numer;
+  float denom;
+
+  float* gradientError = (float*) malloc(sizeof(float)); // this chaneges per iteration
+
+  ssrlcv::BundleSet bundleTemp;
+
+  bool local_debug = false;
+
+  // this temp vector is only used for the +/- h steps when calculating the gradients
+  // convert the temp images to float vectors
+  int num_params = 6; // 3 is just position, 6 position and orientation
+  ssrlcv::Unity<float>* params       = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
+  ssrlcv::Unity<float>* params_reset = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
+  ssrlcv::Unity<bool>* mfNaNs = new ssrlcv::Unity<bool>(nullptr,h->size(),ssrlcv::cpu);
+  std::vector<ssrlcv::Image*> temp;
+  for (int i = 0; i < images.size(); i++){
+    temp.push_back(images[i]); // fill in the initial images
+    ssrlcv::Unity<float>* temp_params = temp[i]->getFloatVector(num_params);
+    for (int j = 0; j < num_params; j++){
+      params->host[i*num_params + j] = temp_params->host[j];
+      params_reset->host[i*num_params + j] = temp_params->host[j];
     }
+    delete temp_params;
+  }
 
-    //
-    // Y Postition Gradients
-    //
-    for (int j = 0; j < images.size(); j++){
-      // ----> Forward
-      *gradientError = 0.0f;
-      temp[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y; // reset for forwards
-      temp[j]->camera.cam_pos.y += h_linear;
-      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
-      twoViewTriangulate(bundleTemp, gradientError);
-      float forward = *gradientError;
-      // free up Memory
-      delete bundleTemp.bundles;
-      delete bundleTemp.lines;
-      // <---- Backwards
-      *gradientError = 0.0f;
-      temp[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y; // reset for backwards
-      temp[j]->camera.cam_pos.y -= h_linear;
-      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
-      twoViewTriangulate(bundleTemp, gradientError);
-      float backwards = *gradientError;
-      // free up Memory
-      delete bundleTemp.bundles;
-      delete bundleTemp.lines;
-      // calculate the gradient with central difference
-      gradient[j]->camera.cam_pos.y = ( forward - backwards ) / ( 2*h_linear );
+  // calculates all of the hessians with central difference
+  // https://v8doc.sas.com/sashtml/ormp/chap5/sect28.htm
+  // we are only testing position and orientation gradients
+
+  if (local_debug){
+    std::cout << "\t Params: " << std::endl << "\t\t ";
+    for (int i = 0; i < params->size(); i++) {
+      std::cout << params->host[i] << " ";
     }
-
-    //
-    // Z Postition Gradients
-    //
-    for (int j = 0; j < images.size(); j++){
-      // ----> Forward
-      *gradientError = 0.0f;
-      temp[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z; // reset for forwards
-      temp[j]->camera.cam_pos.z += h_linear;
-      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
-      twoViewTriangulate(bundleTemp, gradientError);
-      float forward = *gradientError;
-      // free up Memory
-      delete bundleTemp.bundles;
-      delete bundleTemp.lines;
-      // <---- Backwards
-      *gradientError = 0.0f;
-      temp[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z; // reset for backwards
-      temp[j]->camera.cam_pos.z -= h_linear;
-      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
-      twoViewTriangulate(bundleTemp, gradientError);
-      float backwards = *gradientError;
-      // free up Memory
-      delete bundleTemp.bundles;
-      delete bundleTemp.lines;
-      // calculate the gradient with central difference
-      gradient[j]->camera.cam_pos.z = ( forward - backwards ) / ( 2*h_linear );
+    std::cout << std::endl;
+    std::cout << "\t Params reset: " << std::endl << "\t\t ";
+    for (int i = 0; i < params_reset->size(); i++) {
+      std::cout << params_reset->host[i] << " ";
     }
+    std::cout << std::endl << "\t Hessian Size: " << params->size() * params->size() << std::endl;
+  }
 
-    //
-    // Rotation x^ Gradient
-    //
-    for (int j = 0; j < images.size(); j++){
-      // ----> Forward
+  for (int i = 0; i < params->size(); i++){
+    for (int j = 0; j < params->size(); j++){
+
+      A = 0.0f;
+      B = 0.0f;
+      C = 0.0f;
+      D = 0.0f;
+      E = 0.0f;
       *gradientError = 0.0f;
-      temp[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x; // reset for forwards
-      temp[j]->camera.cam_rot.x += h_radial;
-      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
-      twoViewTriangulate(bundleTemp, gradientError);
-      float forward = *gradientError;
-      // free up Memory
-      delete bundleTemp.bundles;
-      delete bundleTemp.lines;
-      // <---- Backwards
-      *gradientError = 0.0f;
-      temp[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x; // reset for backwards
-      temp[j]->camera.cam_rot.x -= h_radial;
-      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
-      twoViewTriangulate(bundleTemp, gradientError);
-      float backwards = *gradientError;
-      // free up Memory
-      delete bundleTemp.bundles;
-      delete bundleTemp.lines;
-      // calculate the gradient with central difference
-      gradient[j]->camera.cam_rot.x = ( forward - backwards ) / ( 2*h_radial );
-      if (gradient[j]->camera.cam_rot.x > (2*PI)){
-        gradient[j]->camera.cam_rot.x -= floor((gradient[j]->camera.cam_rot.x/(2*PI)))*(2*PI);
+
+      if (i == j){ // second derivative with respect to self
+
+        // ----> First Function Evaluation, A
+        params->host[i] += 2.0*h_step[i%num_params];
+        bundleTemp = generateBundles(matchSet,temp,params);
+        voidTwoViewTriangulate(bundleTemp, gradientError);
+        A = *gradientError;
+        // reset params
+        params->host[i] = params_reset->host[i];
+        delete bundleTemp.bundles;
+        delete bundleTemp.lines;
+
+        // ----> Second Function Evaluation, B
+        params->host[i] += h_step[i%num_params];
+        bundleTemp = generateBundles(matchSet,temp,params);
+        voidTwoViewTriangulate(bundleTemp, gradientError);
+        B = *gradientError;
+        // reset params
+        params->host[i] = params_reset->host[i];
+        delete bundleTemp.bundles;
+        delete bundleTemp.lines;
+
+        // ----> Third Function Evaluation, C
+        bundleTemp = generateBundles(matchSet,temp,params);
+        voidTwoViewTriangulate(bundleTemp, gradientError);
+        C = *gradientError;
+        // reset params
+        params->host[i] = params_reset->host[i];
+        delete bundleTemp.bundles;
+        delete bundleTemp.lines;
+
+        // ----> Forth Function Evaluation, D
+        params->host[i] -= h_step[i%num_params];
+        bundleTemp = generateBundles(matchSet,temp,params);
+        voidTwoViewTriangulate(bundleTemp, gradientError);
+        D = *gradientError;
+        // reset params
+        params->host[i] = params_reset->host[i];
+        delete bundleTemp.bundles;
+        delete bundleTemp.lines;
+
+        // ----> Fifth Function Evaluation, E
+        params->host[i] -= 2.0*h_step[i%num_params];
+        bundleTemp = generateBundles(matchSet,temp,params);
+        voidTwoViewTriangulate(bundleTemp, gradientError);
+        E = *gradientError;
+        // reset params
+        params->host[i] = params_reset->host[i];
+        delete bundleTemp.bundles;
+        delete bundleTemp.lines;
+
+        // calculate the result
+        numer = -1.0*A + 16.0*B - 30.0*C + 16.0*D - 1.0*E;
+        denom = 12.0 * h_step[i%num_params] * h_step[i%num_params];
+        // update the hessian
+        h->host[h_i] = numer / denom;
+
+        if (isnan(numer/denom && local_debug)){
+          std::cout << "!!NaN found at: [" << i << "," << j << "] " << std::endl;
+          std::cout << "\t " << A << "  " << B << "  " << C << "  " << D << "  " << E << std::endl;
+          std::cout << "\t i mod " << num_params << " = " << i%num_params << "\t" << std::endl;
+          std::cout << "\t j mod " << num_params << " = " << j%num_params << "\t" << std::endl;
+          std::cout << "\t numer = " << numer << "\t denom = " << denom << std::endl;
+          mfNaNs->host[i*params->size() + j] = true;
+        } else {
+          mfNaNs->host[i*params->size() + j] = false;
+        }
+
+      } else { // second derivative with respect to some over variable
+
+        // ----> First Function Evaluation, A
+        params->host[i] += h_step[i%num_params];
+        params->host[j] += h_step[j%num_params];
+        bundleTemp = generateBundles(matchSet,temp,params);
+        voidTwoViewTriangulate(bundleTemp, gradientError);
+        A = *gradientError;
+        // reset params
+        params->host[i] = params_reset->host[i];
+        params->host[j] = params_reset->host[j];
+        delete bundleTemp.bundles;
+        delete bundleTemp.lines;
+
+        // ----> Second Function Evaluation, B
+        params->host[i] += h_step[i%num_params];
+        params->host[j] -= h_step[j%num_params];
+        bundleTemp = generateBundles(matchSet,temp,params);
+        voidTwoViewTriangulate(bundleTemp, gradientError);
+        B = *gradientError;
+        // reset params
+        params->host[i] = params_reset->host[i];
+        params->host[j] = params_reset->host[j];
+        delete bundleTemp.bundles;
+        delete bundleTemp.lines;
+
+        // ----> Third Function Evaluation, C
+        params->host[i] -= h_step[i%num_params];
+        params->host[j] += h_step[j%num_params];
+        bundleTemp = generateBundles(matchSet,temp,params);
+        voidTwoViewTriangulate(bundleTemp, gradientError);
+        C = *gradientError;
+        // reset params
+        params->host[i] = params_reset->host[i];
+        params->host[j] = params_reset->host[j];
+        delete bundleTemp.bundles;
+        delete bundleTemp.lines;
+
+        // ----> Forth Function Evaluation, D
+        params->host[i] -= h_step[i%num_params];
+        params->host[j] -= h_step[j%num_params];
+        bundleTemp = generateBundles(matchSet,temp,params);
+        voidTwoViewTriangulate(bundleTemp, gradientError);
+        D = *gradientError;
+        // reset params
+        params->host[i] = params_reset->host[i];
+        params->host[j] = params_reset->host[j];
+        delete bundleTemp.bundles;
+        delete bundleTemp.lines;
+
+        // calculate the result
+        numer = A - B - C + D;
+        denom = 4.0 * h_step[i%num_params] * h_step[j%num_params];
+        // update the hessian
+        h->host[h_i] = numer / denom;
+
+        if (isnan(numer/denom) && local_debug){
+          std::cout << "!!NaN found at: [" << i << "," << j << "] " << std::endl;
+          std::cout << "\t " << A << "  " << B << "  " << C << "  " << D << std::endl;
+          std::cout << "\t i mod " << num_params << " = " << i%num_params << "\t" << std::endl;
+          std::cout << "\t j mod " << num_params << " = " << j%num_params << "\t" << std::endl;
+          std::cout << "\t numer = " << numer << "\t denom = " << denom << std::endl;
+          mfNaNs->host[i*params->size() + j] = true;
+        } else {
+          mfNaNs->host[i*params->size() + j] = false;
+        }
+
+      }
+
+      if (local_debug){
+        // testing what is with respect to what
+        if (!j) std::cout << std::endl <<  "\t\t " ;
+        std::cout << "( " << h_i << " )" << "[ " << i << ", " << j << "] \t";
+        if (i == j && i == (params->size() -1)) std::cout << std::endl;
+      }
+
+      // increment the hessian index
+      h_i++;
+    }
+  }
+
+  if (local_debug){
+    std::cout << std::endl;
+    for (int k = 0; k < mfNaNs->size(); k++){
+      if (!(k%params->size())) std::cout << std::endl;
+      if (mfNaNs->host[k]){
+        std::cout << " * ";
+      } else {
+        std::cout << "   ";
       }
     }
+  }
 
-    //
-    // Rotation y^ Gradient
-    //
-    for (int j = 0; j < images.size(); j++){
-      // ----> Forward
-      *gradientError = 0.0f;
-      temp[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y; // reset for forwards
-      temp[j]->camera.cam_rot.y += h_radial;
-      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
-      twoViewTriangulate(bundleTemp, gradientError);
-      float forward = *gradientError;
-      // free up Memory
-      delete bundleTemp.bundles;
-      delete bundleTemp.lines;
-      // <---- Backwards
-      *gradientError = 0.0f;
-      temp[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y; // reset for backwards
-      temp[j]->camera.cam_rot.y -= h_radial;
-      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
-      twoViewTriangulate(bundleTemp, gradientError);
-      float backwards = *gradientError;
-      // free up Memory
-      delete bundleTemp.bundles;
-      delete bundleTemp.lines;
-      // calculate the gradient with central difference
-      gradient[j]->camera.cam_rot.y = ( forward - backwards ) / ( 2*h_radial );
-      // adjust to be within bounds if needed
-      if (gradient[j]->camera.cam_rot.y > (2*PI)){
-        gradient[j]->camera.cam_rot.y -= floor((gradient[j]->camera.cam_rot.y/(2*PI)))*(2*PI);
+  // cleanup memory
+  temp.clear();
+  delete mfNaNs;
+  delete gradientError;
+  delete params;
+  delete params_reset;
+}
+
+/**
+* Calculates the inverse of the hessian h passed in by refrence
+* @param h the image hessian
+* @return inverse the inverse hessian
+*/
+ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Unity<float>* hessian){
+
+  // based off of cuSOLVER CUDA docs
+  // see:
+  // https://docs.nvidia.com/cuda/cusolver/index.html#svd-example1
+
+  cusolverDnHandle_t  cusolverH       = NULL;
+  cublasHandle_t      cublasH         = NULL;
+  cublasStatus_t      cublas_status   = CUBLAS_STATUS_SUCCESS;
+  cusolverStatus_t    cusolver_status = CUSOLVER_STATUS_SUCCESS;
+
+  bool local_debug = false;
+
+  const unsigned int N = (const unsigned int) sqrt(hessian->size());
+
+  ssrlcv::Unity<float>* A  = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::cpu);
+  ssrlcv::Unity<float>* S  = new ssrlcv::Unity<float>(nullptr,N              ,ssrlcv::gpu);
+  ssrlcv::Unity<float>* U  = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::gpu);
+  ssrlcv::Unity<float>* VT = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::gpu);
+
+  // Put the hessian into matrix A in column major order
+  if (local_debug) std::cout << std::endl << "\t H^T: " << std::endl;
+  int index = 0;
+  for (int i = 0; i < N; i++){
+    if (local_debug) std::cout << std::endl << "\t\t ";
+    for (int j = i; j < (N*N); j+=N){
+      A->host[index] = hessian->host[j];
+      if (local_debug) std::cout << std::fixed << std::setprecision(12) << hessian->host[j] << "  ";
+      index++;
+    }
+  }
+
+  if (local_debug){
+    std::cout << std::endl << "\t matrix A: " << std::endl;
+    for (int i = 0; i < N; i++){
+      std::cout << std::endl << "\t\t ";
+      for (int j = i; j < (N*N); j+=N){
+        std::cout << std::fixed << std::setprecision(12) << A->host[j] << "  ";
       }
     }
+  }
 
-    //
-    // Rotation z^ Gradient
-    //
-    for (int j = 0; j < images.size(); j++){
-      // ----> Forward
-      *gradientError = 0.0f;
-      temp[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z; // reset for forwards
-      temp[j]->camera.cam_rot.z += h_radial;
-      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
-      twoViewTriangulate(bundleTemp, gradientError);
-      float forward = *gradientError;
-      // free up Memory
-      delete bundleTemp.bundles;
-      delete bundleTemp.lines;
-      // <---- Backwards
-      *gradientError = 0.0f;
-      temp[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z; // reset for backwards
-      temp[j]->camera.cam_rot.z -= h_radial;
-      bundleTemp = generateBundles(matchSet,temp); // get the bundles for the new temp images
-      twoViewTriangulate(bundleTemp, gradientError);
-      float backwards = *gradientError;
-      // free up Memory
-      delete bundleTemp.bundles;
-      delete bundleTemp.lines;
-      // calculate the gradient with central difference
-      gradient[j]->camera.cam_rot.z = ( forward - backwards ) / ( 2*h_radial );
-      if (gradient[j]->camera.cam_rot.z > (2*PI)){
-        gradient[j]->camera.cam_rot.z -= floor((gradient[j]->camera.cam_rot.z/(2*PI)))*(2*PI);
+  // transfer hessian to device mem
+  A->transferMemoryTo(gpu);
+
+  // cuSOLVER and cuBLAS house keeping
+  cusolver_status = cusolverDnCreate(&cusolverH);
+  assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
+  cublas_status = cublasCreate(&cublasH);
+  assert(CUBLAS_STATUS_SUCCESS == cublas_status);
+
+  // cuSOLVER SVD
+  int lwork       = 0;
+  int info_gpu    = 0;
+  int* devInfo    = NULL;
+  float *d_work   = NULL;
+  float *d_rwork  = NULL;
+  cusolver_status = cusolverDnDgesvd_bufferSize(cusolverH,N,N,&lwork);
+  assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
+
+  CudaSafeCall(cudaMalloc((void**)&d_work , sizeof(float)*lwork));
+  CudaSafeCall(cudaMalloc ((void**)&devInfo, sizeof(int)));
+
+  cusolver_status = cusolverDnSgesvd(cusolverH,'A','A',N,N,A->device,N,S->device,U->device,N,VT->device,N,d_work,lwork,d_rwork,devInfo);
+  cudaDeviceSynchronize();
+
+  if (cusolver_status != CUSOLVER_STATUS_SUCCESS){
+    std::cerr << std::endl << "ERROR setting up cuSOLVER, error status: " << cusolver_status << std::endl;
+    if (cusolver_status == CUSOLVER_STATUS_NOT_INITIALIZED) {
+      std::cerr << "\t ERROR: CUSOLVER_STATUS_NOT_INITIALIZED" << std::endl;
+    }
+    if (cusolver_status == CUSOLVER_STATUS_INVALID_VALUE) {
+      std::cerr << "\t ERROR: CUSOLVER_STATUS_INVALID_VALUE" << std::endl;
+    }
+    if (cusolver_status == CUSOLVER_STATUS_ARCH_MISMATCH) {
+      std::cerr << "\t ERROR: CUSOLVER_STATUS_ARCH_MISMATCH" << std::endl;
+    }
+    if (cusolver_status == CUSOLVER_STATUS_INTERNAL_ERROR) {
+      std::cerr << "\t ERROR: CUSOLVER_STATUS_INTERNAL_ERROR" << std::endl;
+    }
+    assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
+    return nullptr;
+  }
+
+  // check the devInfo
+  CudaSafeCall(cudaMemcpy(&info_gpu, devInfo, sizeof(int), cudaMemcpyDeviceToHost));
+  if (info_gpu > 0){
+    std::cerr << std::endl << "ERROR: " << info_gpu << " diagonals did not converge to zero " << std::endl;
+    return nullptr;
+  } else if (info_gpu < 0) {
+    std::cerr << std::endl << "ERROR: parameter " << -1.0 * info_gpu << " in the SVD is wrong" << std::endl;
+    return nullptr;
+  } else {
+    if (local_debug) std::cout << std::endl << "\t SVD compelete ..." << std::endl;
+  }
+
+  // move back the results
+  S->transferMemoryTo(cpu);
+  U->transferMemoryTo(cpu);
+  VT->transferMemoryTo(cpu);
+  S->clear(gpu);
+  U->clear(gpu);
+  VT->clear(gpu);
+
+  // the following seciton is
+  // only to be used for debugging s
+  if (local_debug){
+    std::cout << std::endl << "\t\t U = " << std::endl;
+    index = 0;
+    for (int i = 0; i < N; i++){
+      std::cout << "\t\t ";
+      for (int j = i; j < (N*N); j+=N){
+        std::cout << std::fixed << std::setprecision(12) << U->host[j] << " ";
+        index++;
+      }
+      std::cout << std::endl;
+    }
+
+    std::cout << std::endl << "\t\t S = ";
+    for (int i = 0; i < S->size(); i++){
+      std::cout << std::fixed << std::setprecision(12) << S->host[i] << " ";
+    }
+    std::cout << std::endl << "\t\t ";
+    index = 0;
+    for (int i = 0; i < N; i++){
+      for (int j = 0; j < N; j++){
+        if (i == j){
+          std::cout << std::fixed << std::setprecision(12) << S->host[index] << " ";
+          index ++;
+        } else {
+          std::cout << std::fixed << std::setprecision(12) << 0.0f << " ";
+        }
+      }
+      std::cout << std::endl << "\t\t ";
+    }
+
+    std::cout << std::endl << "\t\t VT = " << std::endl;
+    index = 0;
+    for (int i = 0; i < N; i++){
+      std::cout << "\t\t ";
+      for (int j = i; j < (N*N); j+=N){
+        std::cout << std::fixed << std::setprecision(12) << VT->host[j] << " ";
+        index++;
+      }
+      std::cout << std::endl;
+    }
+  }
+
+
+  // ~~~ now calculate the pseudo inverse ~~~
+  // ( ͡° ͜ʖ ͡°)つ━━✫・*。
+  // TODO cudafy the code below
+
+  // transpose U
+  for (int i = 0; i < U->size(); i++){
+    int y = i % N;
+    int x = i / N;
+    if (y > x){ // swap!
+      float temp = U->host[i];
+      U->host[i] = U->host[y*N + x];
+      U->host[y*N + x] = temp;
+    }
+  }
+
+  // transpose V^T
+  for (int i = 0; i < VT->size(); i++){
+    int y = i % N;
+    int x = i / N;
+    if (y > x){ // swap!
+      float temp = VT->host[i];
+      VT->host[i] = VT->host[y*N + x];
+      VT->host[y*N + x] = temp;
+    }
+  }
+
+  // invert S
+  for (int i = 0; i < S->size(); i++){
+    // here I have arbitrarily chosen that the "noise" cutoff shoue be 0.0001
+    // because having a value of 1/0.0001 = 10,000 seems absurd
+    // and I was getting absolute crap before this
+    // it might even be reasonable to make this even more strict
+    if (S->host[i] >= 0.0001){
+      S->host[i] = 1.0 / S->host[i];
+    }
+  }
+
+  // just for testing print of the transposes and inverse
+  // only to be used for debugging s
+  if (local_debug){
+    std::cout << std::endl << "\t\t U^T = " << std::endl;
+    index = 0;
+    for (int i = 0; i < N; i++){
+      std::cout << "\t\t ";
+      for (int j = i; j < (N*N); j+=N){
+        std::cout << std::fixed << std::setprecision(4) << U->host[j] << " ";
+        index++;
+      }
+      std::cout << std::endl;
+    }
+
+    std::cout << std::endl << "\t\t S^-1 = ";
+    for (int i = 0; i < S->size(); i++){
+      std::cout << std::fixed << std::setprecision(4) << S->host[i] << " ";
+    }
+    std::cout << std::endl << "\t\t ";
+    index = 0;
+    for (int i = 0; i < N; i++){
+      for (int j = 0; j < N; j++){
+        if (i == j){
+          std::cout << std::fixed << std::setprecision(4) << S->host[index] << " ";
+          index ++;
+        } else {
+          std::cout << "0.0000 ";
+        }
+      }
+      std::cout << std::endl << "\t\t ";
+    }
+
+    std::cout << std::endl << "\t\t V = " << std::endl;
+    index = 0;
+    for (int i = 0; i < N; i++){
+      std::cout << "\t\t ";
+      for (int j = i; j < (N*N); j+=N){
+        std::cout << std::fixed << std::setprecision(4) << VT->host[j] << " ";
+        index++;
+      }
+      std::cout << std::endl;
+    }
+  }
+
+  // prep to multiply A^+ = V S^+ U^T
+  S->transferMemoryTo(gpu);
+  U->transferMemoryTo(gpu);
+  VT->transferMemoryTo(gpu);
+  // actually fill in a matrix for S
+  ssrlcv::Unity<float>* E = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::cpu);
+  index = 0;
+  for (int i = 0; i < N; i++){
+    for (int j = 0; j < N; j++){
+      if (i == j){
+        E->host[i*N + j] = S->host[index];
+        index++;
+      } else {
+        E->host[i*N + j] = 0.0f;
       }
     }
+  }
+  E->transferMemoryTo(gpu);
+  ssrlcv::Unity<float>* inverse = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::cpu);
+  for (int i = 0; i < inverse->size(); i++){
+    inverse->host[i] = 0.0f;
+  }
+  inverse->transferMemoryTo(gpu);
+  ssrlcv::Unity<float>* C = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::cpu);
+  for (int i = 0; i < C->size(); i++){
+    C->host[i] = 0.0f;
+  }
+  C->transferMemoryTo(gpu);
+  float alpha = 1.0f;
+  float beta  = 1.0f;
 
-    // print of the gradients if debugging
-    if (local_debug){
-      std::cout << "\t gradient calculated as: " << std::endl;
-      for (int j = 0; j < images.size(); j++) {
-        std::cout << "\t\t     id : " << std::setprecision(12) << j << std::endl;
-        std::cout << "\t\t size x [ " << std::setprecision(12) << gradient[j]->camera.size.x << " ]" << std::endl;
-        std::cout << "\t\t size y [ " << std::setprecision(12) << gradient[j]->camera.size.y << " ]" << std::endl;
-        std::cout << "\t\t  pos x [ " << std::setprecision(12) << gradient[j]->camera.cam_pos.x << " ]" << std::endl;
-        std::cout << "\t\t  pos y [ " << std::setprecision(12) << gradient[j]->camera.cam_pos.y << " ]" << std::endl;
-        std::cout << "\t\t  pos z [ " << std::setprecision(12) << gradient[j]->camera.cam_pos.z << " ]" << std::endl;
-        std::cout << "\t\t  rot x [ " << std::setprecision(12) << gradient[j]->camera.cam_rot.x << " ]" << std::endl;
-        std::cout << "\t\t  rot y [ " << std::setprecision(12) << gradient[j]->camera.cam_rot.y << " ]" << std::endl;
-        std::cout << "\t\t  rot z [ " << std::setprecision(12) << gradient[j]->camera.cam_rot.z << " ]" << std::endl;
-        std::cout << "\t\t  fov x [ " << std::setprecision(12) << gradient[j]->camera.fov.x << " ]" << std::endl;
-        std::cout << "\t\t  fov y [ " << std::setprecision(12) << gradient[j]->camera.fov.y << " ]" << std::endl;
-        std::cout << "\t\t    foc [ " << std::setprecision(12) << gradient[j]->camera.foc << " ]" << std::endl;
+  // do the multiplication in cuBLAS
+  cublas_status = cublasSgemm(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,N,N,N,&alpha,VT->device,N,E->device,N,&beta,C->device,N);
+  cudaDeviceSynchronize();
+  if (cublas_status != 0){
+    std::cerr << std::endl << "ERROR: in cuBLAS multiply" << std::endl;
+    return nullptr;
+  }
+  cublas_status = cublasSgemm(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,N,N,N,&alpha,C->device,N,U->device,N,&beta,inverse->device,N);
+  cudaDeviceSynchronize();
+  if (cublas_status != 0){
+    std::cerr << std::endl << "ERROR: in cuBLAS multiply" << std::endl;
+    return nullptr;
+  }
+  inverse->setFore(gpu);
+  inverse->transferMemoryTo(cpu);
+  inverse->clear(gpu);
+
+  // to print of the inverse if debugging
+  if (local_debug) {
+    std::cout << std::endl << "\t\t Pseudo Inverse = " << std::endl;
+    index = 0;
+    for (int i = 0; i < N; i++){
+      std::cout << "\t\t ";
+      for (int j = i; j < (N*N); j+=N){
+        std::cout << std::fixed << std::setprecision(4) << inverse->host[j] << " ";
+        index++;
       }
+      std::cout << std::endl;
+    }
+  }
+
+  // memory cleanup
+  delete S;
+  delete U;
+  delete VT;
+  delete C;
+  delete E;
+  cudaFree(devInfo);
+  cudaFree(d_work);
+  cudaFree(d_rwork);
+
+  // end solver session
+  cublasDestroy(cublasH);
+  cusolverDnDestroy(cusolverH);
+
+  return inverse;
+}
+
+/**
+ * A Naive bundle adjustment based on a two-view triangulation and a first order descrete gradient decent
+ * @param matchSet a group of matches
+ * @param a group of images, used only for their stored camera parameters
+ * @return a bundle adjusted point cloud
+ */
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations){
+
+  // local variabels for function
+  ssrlcv::Unity<float3>* points;
+  ssrlcv::Unity<float>* gradient;
+  ssrlcv::Unity<float>* hessian;
+  ssrlcv::Unity<float>* update;
+  ssrlcv::Unity<float>* inverse;
+  ssrlcv::BundleSet bundleTemp;
+  // This is for error tracking and printing later
+  std::vector<float> errorTracker;
+
+  // allocate memory
+  int num_params = 6; // 3 is just (x,y,z) and 6 incldue rotations in (x,y,z)
+  float* localError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
+  gradient = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
+  hessian  = new ssrlcv::Unity<float>(nullptr,((num_params * images.size())*(num_params * images.size())),ssrlcv::cpu);
+  update   = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::gpu); // used in state update
+
+  // TODO these variables really should be passed thru
+  // for debug
+  bool local_debug    = true;
+  // const step
+  bool second_order   = true;
+  // enable or disable normalization
+  bool do_normalization = false;
+
+  // just to tell the user what is happening
+  if (second_order){
+    std::cout << "\t Bundle Adjustment is in Second Order Mode" << std::endl;
+  } else {
+    std::cout << "\t Bundle Adjustment is in First Order Mode" << std::endl;
+  }
+
+  // used to store the best params found in the optimization
+  std::vector<ssrlcv::Image*> bestParams;
+  for (int i = 0; i < images.size(); i++){
+    ssrlcv::Image* t = new ssrlcv::Image();
+    t->camera = images[i]->camera;
+    bestParams.push_back(t); // fill in the initial images
+  }
+  std::vector<ssrlcv::Image*> secondBestParams;
+  for (int i = 0; i < images.size(); i++){
+    ssrlcv::Image* t = new ssrlcv::Image();
+    t->camera = images[i]->camera;
+    secondBestParams.push_back(t); // fill in the initial images
+  }
+
+  // scalars in the matrix multiplication
+  // beta should always be 0.0
+  // alpha can be changed to dampen stepsize
+  // alpha should be between 0.0 - 1.0
+  float alpha = 0.1f; // should less than 1
+  float beta  = 0.0f;   // should always be 0
+  int   inc   = 1;      // should always be 1
+
+  // these are adjusted after a sequence point is reached
+  float dist_step = 1.0; // starting distance magnitude
+  float angle_mag = 1.0; // starting angle mag
+
+  // each time the error is cut in half, so is the stepsize
+  float error_comp;
+  float bestError;
+
+  const unsigned int N = (const unsigned int) sqrt(hessian->size());
+
+  // cuBLAS housekeeping
+  cublasHandle_t cublasH       = NULL;
+  cublasStatus_t cublas_status = CUBLAS_STATUS_SUCCESS;
+  cublas_status                = cublasCreate(&cublasH);
+  assert(CUBLAS_STATUS_SUCCESS == cublas_status);
+
+  // TEMP inversion test
+  if (local_debug){
+    ssrlcv::Unity<float>* test = new ssrlcv::Unity<float>(nullptr,9,ssrlcv::cpu);
+    test->host[0] = 1.0; //1.0;
+    test->host[1] = 2.0; //1.0;
+    test->host[2] = 3.0; //-1.0;
+    test->host[3] = 4.0; //-2.0;
+    test->host[4] = 5.0; //3.0;
+    test->host[5] = 6.0; //2.0;
+    test->host[6] = 7.0; //3.0;
+    test->host[7] = 8.0; //-3.0;
+    test->host[8] = 9.0; //3.0;
+    std::cout << std::endl << std::endl << "\t\t test matrix = " << std::endl;
+    for (int i = 0; i < 3; i++){
+      std::cout << std::endl << "\t\t ";
+      for (int j = 0; j < 3; j++){
+        std::cout << std::fixed << std::setprecision(4) << test->host[3*i + j] << "\t ";
+      }
+
+    }
+    calculateImageHessianInverse(test);
+    delete test;
+  }
+
+  // begin iterative gradient decent
+  for (int i = 0; i < iterations; i++){
+
+    // NOTE gradients calculated here
+    if (local_debug) std::cout << "\tCalculating Gradient ..." << std::endl;
+    calculateImageGradient(matchSet,images,gradient);
+
+    // calculate second order stuff
+    // if not in constant stepsize mode
+    if (second_order){
+      // TODO hessians calculated here
+      if (local_debug) std::cout << "\tCalculating Hessian ..." << std::endl;
+      calculateImageHessian(matchSet,images,hessian);
+
+      if (local_debug){
+        std::cout << "\t\t Hessian Size: " << hessian->size() << std::endl;
+        for (int j = 0; j < 12; j++){
+          std::cout << "\t\t";
+          for (int k = 0; k < 12; k++){
+            std::cout << " " << std::fixed << std::setprecision(4) << hessian->host[12*j + k];
+          }
+          // std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+1];
+          // std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+2];
+          // std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+3];
+          // std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+4];
+          // std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host[j+5];
+          std::cout << " " << std::endl;
+        }
+        std::cout << std::endl;
+      }
+
+      // invert hessian here
+      if (local_debug) std::cout << "\tInverting Hessian ..." << std::endl;
+      // see https://stackoverflow.com/questions/28794010/solving-dense-linear-systems-ax-b-with-cuda
+      // see https://stackoverflow.com/questions/27094612/cublas-matrix-inversion-from-device
+      // takes the pseudo inverse of the hessian
+      inverse = calculateImageHessianInverse(hessian);
     }
 
-    // fill in the previous step's params
-    x0.cam_pos0 = images[0]->camera.cam_pos;
-    x0.cam_rot0 = images[0]->camera.cam_rot;
-    x0.cam_pos1 = images[1]->camera.cam_pos;
-    x0.cam_rot1 = images[1]->camera.cam_rot;
+    // NOTE take a newton step here
+    if (!second_order){
+      //
+      // First order mode
+      //
 
-    // calculating the real adjustment
-    adjustment.cam_pos0 = gamma * gradient[0]->camera.cam_pos;
-    adjustment.cam_rot0 = gamma * gradient[0]->camera.cam_rot;
-    adjustment.cam_pos1 = gamma * gradient[1]->camera.cam_pos;
-    adjustment.cam_rot1 = gamma * gradient[1]->camera.cam_rot;
+      // only for testing
+      if (local_debug) {
+        // print the update
+        std::cout << std::endl << "\t\t (update) pure gradient = " << std::endl;
+        std::cout << "\t\t ";
+        for (int j = 0; j < N; j++){
+          std::cout << std::fixed << std::setprecision(8) << gradient->host[j] << " ";
+        }
+        std::cout << std::endl;
+      }
 
-    // print the adjustment
-    // TODO remove this later
-    if (local_debug){
-      std::cout << "\t adjustment calculated as: " << std::endl;
-      std::cout << "\t\t  0" << std::endl;
-      std::cout << "\t\t  pos x [ " << std::setprecision(12) << adjustment.cam_pos0.x << " ]" << std::endl;
-      std::cout << "\t\t  pos y [ " << std::setprecision(12) << adjustment.cam_pos0.y << " ]" << std::endl;
-      std::cout << "\t\t  pos z [ " << std::setprecision(12) << adjustment.cam_pos0.z << " ]" << std::endl;
-      std::cout << "\t\t  rot x [ " << std::setprecision(12) << adjustment.cam_rot0.x << " ]" << std::endl;
-      std::cout << "\t\t  rot y [ " << std::setprecision(12) << adjustment.cam_rot0.y << " ]" << std::endl;
-      std::cout << "\t\t  rot z [ " << std::setprecision(12) << adjustment.cam_rot0.z << " ]" << std::endl;
-      std::cout << "\t\t  1" << std::endl;
-      std::cout << "\t\t  pos x [ " << std::setprecision(12) << adjustment.cam_pos1.x << " ]" << std::endl;
-      std::cout << "\t\t  pos y [ " << std::setprecision(12) << adjustment.cam_pos1.y << " ]" << std::endl;
-      std::cout << "\t\t  pos z [ " << std::setprecision(12) << adjustment.cam_pos1.z << " ]" << std::endl;
-      std::cout << "\t\t  rot x [ " << std::setprecision(12) << adjustment.cam_rot1.x << " ]" << std::endl;
-      std::cout << "\t\t  rot y [ " << std::setprecision(12) << adjustment.cam_rot1.y << " ]" << std::endl;
-      std::cout << "\t\t  rot z [ " << std::setprecision(12) << adjustment.cam_rot1.z << " ]" << std::endl;
-    }
+      // only for testing
+      if (local_debug) {
+        // print the update
+        std::cout << std::endl << "\t\t (update) gradient scaled by alpha " << std::fixed << std::setprecision(8) << alpha << " = " << std::endl;
+        std::cout << "\t\t ";
+        for (int j = 0; j < N; j++){
+          std::cout << std::fixed << std::setprecision(8) << alpha * gradient->host[j] << " ";
+        }
+        std::cout << std::endl;
+      }
 
-    // take a step along along the gradient with a magnitude of gamma
-    images[0]->camera.cam_pos = images[0]->camera.cam_pos - adjustment.cam_pos0;
-    // images[0]->camera.cam_rot = images[0]->camera.cam_rot - adjustment.cam_rot0;
-    images[1]->camera.cam_pos = images[1]->camera.cam_pos - adjustment.cam_pos1;
-    // images[1]->camera.cam_rot = images[1]->camera.cam_rot - adjustment.cam_rot1;
+      // prep to normalize the update
+      // normalize the distance update, and set to specific distance
+      float mag[2] = {1.0f, 1.0f};
+      if (do_normalization){
+        for (int j = 0; j < images.size(); j++){
+          mag[j] = sqrtf((update->host[6*j] * update->host[6*j]) + (update->host[6*j + 1] * update->host[6*j + 1]) + (update->host[6*j + 2] * update->host[6*j + 2]));
+        }
+      }
 
-    // fill in the new iteration's params
-    x1.cam_pos0 = images[0]->camera.cam_pos;
-    x1.cam_rot0 = images[0]->camera.cam_rot;
-    x1.cam_pos1 = images[1]->camera.cam_pos;
-    x1.cam_rot1 = images[1]->camera.cam_rot;
+      // normalize the rotation
+      // move all algular update to within [-pi,pi]
+      float ang[2] = {1.0f, 1.0f};
+      if (do_normalization){
+        for (int j = 0; j < images.size(); j++){
+          ang[j] = sqrtf((update->host[6*j + 3] * update->host[6*j + 3]) + (update->host[6*j + 4] * update->host[6*j + 4]) + (update->host[6*j + 5] * update->host[6*j + 5]));
+          if (ang[j] > angle_mag){
+            angle_mag = ang[j];
+            ang[j] = 1.0;
+          }
+        }
+      }
 
-    // store the gradient
-    if (i > 0){
-      g0 = g1;
-      // -- set the old iteration
-      g1.cam_pos0 = gradient[0]->camera.cam_pos;
-      g1.cam_rot0 = gradient[0]->camera.cam_rot;
-      g1.cam_pos1 = gradient[1]->camera.cam_pos;
-      g1.cam_rot1 = gradient[1]->camera.cam_rot;
+      int g_j = 0;
+      for (int j = 0; j < images.size(); j++){
+        images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - dist_step * (gradient->host[g_j    ] / mag[j]);
+        images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - dist_step * (gradient->host[g_j + 1] / mag[j]);
+        images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - dist_step * (gradient->host[g_j + 2] / mag[j]);
+        images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - angle_mag * (gradient->host[g_j + 3] / ang[j]);
+        images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y - angle_mag * (gradient->host[g_j + 4] / ang[j]);
+        images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z - angle_mag * (gradient->host[g_j + 5] / ang[j]);
+        g_j += 6;
+      }
     } else {
-      g1.cam_pos0 = gradient[0]->camera.cam_pos;
-      g1.cam_rot0 = gradient[0]->camera.cam_rot;
-      g1.cam_pos1 = gradient[1]->camera.cam_pos;
-      g1.cam_rot1 = gradient[1]->camera.cam_rot;
+      //
+      // Second order mode
+      //
+
+      if (local_debug){
+        // print hessian
+        std::cout << std::endl << "\t\t H^+ = " << std::endl;
+        for (int j = 0; j < N; j++){
+          std::cout << "\t\t ";
+          for (int k = j; k < (N*N); k+=N){
+            std::cout << std::fixed << std::setprecision(8) << inverse->host[k] << " ";
+          }
+          std::cout << std::endl;
+        }
+        // print the gradient
+        std::cout << std::endl << "\t\t g^T = " << std::endl;
+        std::cout << "\t\t ";
+        for (int j = 0; j < N; j++){
+          std::cout << std::fixed << std::setprecision(8) << gradient->host[j] << " ";
+        }
+        std::cout << std::endl;
+      }
+
+      gradient->transferMemoryTo(gpu);
+      inverse->transferMemoryTo(gpu);
+
+      // multiply
+      cublas_status = cublasSgemv(cublasH, CUBLAS_OP_N, N, N, &alpha, inverse->device, N, gradient->device, inc, &beta, update->device, inc);
+      cudaDeviceSynchronize();
+
+      // TODO maybe make a method for printing off exavt cuBLAS errors
+      if (cublas_status != CUBLAS_STATUS_SUCCESS){
+        std::cerr << std::endl << "ERROR: failure when multiplying inverse hessian and gradient for state update." << std::endl;
+        std::cerr << "\t ERROR STATUS: multiplication failed with status: " << cublas_status << std::endl;
+        if (cublas_status == CUBLAS_STATUS_NOT_INITIALIZED){
+          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_NOT_INITIALIZED" << std::endl;
+        }
+        if (cublas_status == CUBLAS_STATUS_INVALID_VALUE){
+          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_INVALID_VALUE" << std::endl;
+        }
+        if (cublas_status == CUBLAS_STATUS_ARCH_MISMATCH){
+          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_ARCH_MISMATCH" << std::endl;
+        }
+        if (cublas_status == CUBLAS_STATUS_EXECUTION_FAILED){
+          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_EXECUTION_FAILED" << std::endl;
+        }
+        return nullptr; // TODO have a safe shutdown of bundle adjustment given a failure
+      }
+
+      // temp cleanups
+      gradient->transferMemoryTo(cpu);
+      inverse->transferMemoryTo(cpu);
+      // gradient->clear(gpu);
+      // inverse->clear(gpu);
+
+      // get the update
+      //update->setFore(gpu);
+      update->transferMemoryTo(cpu);
+
+      // only for testing
+      if (local_debug) {
+        // print the update
+        std::cout << std::endl << "\t\t (update) Delta X = " << std::endl;
+        std::cout << "\t\t ";
+        for (int j = 0; j < N; j++){
+          std::cout << std::fixed << std::setprecision(8) << update->host[j] << " ";
+        }
+        std::cout << std::endl;
+      }
+
+      // prep to normalize the update
+      // normalize the distance update, and set to specific distance
+      float mag[2] = {1.0f, 1.0f};
+      if (do_normalization){
+        for (int j = 0; j < images.size(); j++){
+          mag[j] = sqrtf((update->host[6*j] * update->host[6*j]) + (update->host[6*j + 1] * update->host[6*j + 1]) + (update->host[6*j + 2] * update->host[6*j + 2]));
+        }
+      }
+
+      // normalize the rotation
+      // move all algular update to within [-pi,pi]
+      float ang[2] = {1.0f, 1.0f};
+      if (do_normalization){
+        for (int j = 0; j < images.size(); j++){
+          ang[j] = sqrtf((update->host[6*j + 3] * update->host[6*j + 3]) + (update->host[6*j + 4] * update->host[6*j + 4]) + (update->host[6*j + 5] * update->host[6*j + 5]));
+          if (ang[j] > angle_mag){
+            angle_mag = ang[j];
+            ang[j] = 1.0;
+          }
+        }
+      }
+
+      // update
+      int g_j = 0;
+      for (int j = 0; j < images.size(); j++){
+        images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - dist_step * (update->host[g_j    ] / mag[j]);
+        images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - dist_step * (update->host[g_j + 1] / mag[j]);
+        images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - dist_step * (update->host[g_j + 2] / mag[j]);
+        images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - angle_mag * (update->host[g_j + 3] / ang[j]);
+        images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y - angle_mag * (update->host[g_j + 4] / ang[j]);
+        images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z - angle_mag * (update->host[g_j + 5] / ang[j]);
+        g_j += 6;
+      }
+
     }
 
-    // calculate new gamma
-    if(i > 0 && !const_step){
-      struct CamAdjust2 xtemp;
-      xtemp.cam_pos0 = x1.cam_pos0 - x0.cam_pos0;
-      xtemp.cam_rot0 = x1.cam_rot0 - x0.cam_rot0;
-      xtemp.cam_pos1 = x1.cam_pos1 - x0.cam_pos1;
-      xtemp.cam_rot1 = x1.cam_rot1 - x0.cam_rot1;
-      struct CamAdjust2 gtemp;
-      gtemp.cam_pos0 = g1.cam_pos0 - g0.cam_pos0;
-      gtemp.cam_rot0 = g1.cam_rot0 - g0.cam_rot0;
-      gtemp.cam_pos1 = g1.cam_pos1 - g0.cam_pos1;
-      gtemp.cam_rot1 = g1.cam_rot1 - g0.cam_rot1;
-      float numer  = (xtemp.cam_pos0.x * gtemp.cam_pos0.x) + (xtemp.cam_pos0.y * gtemp.cam_pos0.y) + (xtemp.cam_pos0.z * gtemp.cam_pos0.z);
-            // numer += (xtemp.cam_rot0.x * gtemp.cam_rot0.x) + (xtemp.cam_rot0.y * gtemp.cam_rot0.y) + (xtemp.cam_rot0.z * gtemp.cam_rot0.z);
-            numer += (xtemp.cam_pos1.x * gtemp.cam_pos1.x) + (xtemp.cam_pos1.y * gtemp.cam_pos1.y) + (xtemp.cam_pos1.z * gtemp.cam_pos1.z);
-            // numer += (xtemp.cam_rot1.x * gtemp.cam_rot1.x) + (xtemp.cam_rot1.y * gtemp.cam_rot1.y) + (xtemp.cam_rot1.z * gtemp.cam_rot1.z);
-      float denom  = (gtemp.cam_pos0.x * gtemp.cam_pos0.x) + (gtemp.cam_pos0.y * gtemp.cam_pos0.y) + (gtemp.cam_pos0.z * gtemp.cam_pos0.z);
-            // denom += (gtemp.cam_rot0.x * gtemp.cam_rot0.x) + (gtemp.cam_rot0.y * gtemp.cam_rot0.y) + (gtemp.cam_rot0.z * gtemp.cam_rot0.z);
-            denom += (gtemp.cam_pos1.x * gtemp.cam_pos1.x) + (gtemp.cam_pos1.y * gtemp.cam_pos1.y) + (gtemp.cam_pos1.z * gtemp.cam_pos1.z);
-            // denom += (gtemp.cam_rot1.x * gtemp.cam_rot1.x) + (gtemp.cam_rot1.y * gtemp.cam_rot1.y) + (gtemp.cam_rot1.z * gtemp.cam_rot1.z);
-            denom  = sqrtf(denom);
-      gamma = abs(numer) / denom;
-    }
-
-    // print the new error after the step
+    // NOTE print off new error
     bundleTemp = generateBundles(matchSet,images);
-    points = twoViewTriangulate(bundleTemp, initialError);
-    std::cout << "[" << i << "]\t adjusted error: " << std::setprecision(32) << *initialError << std::endl;
-    if (!const_step){
-        std::cout << "\t\t new gamma: "    << std::setprecision(12)<< gamma << std::endl;
+    voidTwoViewTriangulate(bundleTemp, localError);
+    std::cout << "[" << std::fixed << std::setprecision(12) << i << "] \terror: " << *localError << std::endl;
+
+    // to adjust alpha or step
+    if (!i){
+      bestError = *localError;
     }
-    errorTracker.push_back(*initialError);
+
+    if (*localError < bestError) {
+      bestError = *localError;
+      // the step improved the measured error
+      for (int j = 0; j < bestParams.size(); j++){
+        secondBestParams[j]->camera = bestParams[j]->camera;
+        bestParams[j]->camera = images[j]->camera;
+      }
+      if (local_debug) std::cout << "\t New lowest value found: " << bestError << std::endl;
+    }
+
+    // check if we have made a bad step, if so change alpha and reset
+    if (i){
+      if (*localError > errorTracker.back()){
+        // undo update by resetting cams
+        for (int j = 0; j < bestParams.size(); j++){
+          images[j]->camera = secondBestParams[j]->camera;
+        }
+        alpha /= (1.2);
+        if(local_debug) std::cout << "\t leaving local min ... updated Alpha to: " << std::fixed << std::setprecision(24) << alpha << std::endl;
+      } else {
+        float scale_down = errorTracker.back() / *localError;
+        alpha /= scale_down;
+        if (local_debug) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
+      }
+    }
+
+    // for debug
+    errorTracker.push_back(*localError);
+
+    // clean up memory
+    delete bundleTemp.bundles;
+    delete bundleTemp.lines;
+
   } // end bundle adjustment loop
 
   // TODO only do if debugging
+  // TODO add a flag that allows the user to test this
   // write linearError chagnes to a CSV
   writeCSV(errorTracker, "totalErrorOverIterations");
 
-  // update the images that were passed in with the final image parameters
-  for (int i = 0; i < images.size(); i++){
-    images[i]->camera.cam_pos = temp[i]->camera.cam_pos; // Updates the positions
-    // TODO update the orientations
-  }
+  bundleTemp = generateBundles(matchSet,images);
+  points = twoViewTriangulate(bundleTemp, localError);
+
+  cublasDestroy(cublasH);
+
+  // cleanup memory
+  // delete gradient;
+  delete hessian;
+  /*delete inverse;
+  delete update;
+  delete bundleTemp.bundles;
+  delete bundleTemp.lines;*/
 
   // return the new points
+  // bundleTemp = generateBundles(matchSet,images);
   return points;
 }
 
@@ -1520,7 +2426,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
   BundleSet bundleSet;
 
   // the ranges and step sizes
-  float linearRange   = 10.0;     //   +/- linear Range
+  float linearRange   = 4.0;     //   +/- linear Range
   float angularRange  = (PI);   //   +/- angular Range
   float deltaL = 0.01;          // linearRange stepsize
   float deltaA = 0.001;        // angular stpesize
@@ -1710,6 +2616,35 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     //
 
     std::cerr << "ERROR: sensitivity generation not yet implemented for N-view" << std::endl;
+    return;
+  }
+
+
+
+}
+
+/**
+* This function is used to test bundle adjustment by adding a bit of noise to the input data
+* it saves an initial point cloud, final point cloud, and a CSV of errors over the iterations
+* @param matchSet a group of matches
+* @param a group of images, used only for their stored camera parameters
+* @param iterations the max number of iterations bundle adjustment should do
+* @param sigmas a list of float values representing noise to be added to orientaions and rotations
+*/
+void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations, Unity<float>* noise){
+  std::cout << "\t Running a 2 view bundle adjustment nosie test " << std::endl;
+
+  // used to store the best params found in the optimization
+  std::vector<ssrlcv::Image*> noisey;
+  for (int i = 0; i < images.size(); i++){
+    ssrlcv::Image* t = new ssrlcv::Image();
+    t->camera = images[i]->camera;
+    noisey.push_back(t); // fill in the initial images
+  }
+
+  // now add the noise to the
+  if (noise->size() < 6) {
+    std::cerr << "ERROR: noise array needs to have 6 elements!" << std::endl;
     return;
   }
 
@@ -2108,13 +3043,13 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
 
 // =============================================================================
 
-          // =============================================================================================================
-          // =============================================================================================================
-          // ==================================================================================================== //
-          //                                        device methods                                                //
-          // ==================================================================================================== //
-          // =============================================================================================================
-          // =============================================================================================================
+            // =====================================================================================================//
+            // =====================================================================================================//
+            // ==================================================================================================== //
+            //                                        device methods                                                //
+            // ==================================================================================================== //
+            // =====================================================================================================//
+            // =====================================================================================================//
 
 // =============================================================================================================
 //
@@ -2253,7 +3188,7 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, unsigned l
   pointcloud[globalID] = point;
   bundles[globalID].invalid = false;
   // add the linaer errors locally within the block before
-  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));
+  float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
   // if(error != 0.0f) error = sqrtf(error);
   atomicAdd(&localSum,error);
   __syncthreads();
@@ -2303,7 +3238,7 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* err
   pointcloud[globalID] = point;
 
   // add the linaer errors locally within the block before
-  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));
+  float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
   // if(error != 0.0f) error = sqrtf(error);
   errors[globalID] = error;
   bundles[globalID].invalid = false;
@@ -2389,7 +3324,7 @@ __global__ void ssrlcv::computeTwoViewTriangulate(float* linearError, float* lin
   // fill in the value for the point cloud
   pointcloud[globalID] = point;
 
-  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));
+  float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
 
   errors[globalID] = error;
   // only add the errors that we like
@@ -2514,16 +3449,19 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, unsign
   float3 point = (s1 + s2)/2.0;
 
   // add the linear errors locally within the block before
-  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));
+  float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
+  if (isnan(error)){
+    printf(" L1: %f %f %f \t L2: %f %f %f \n\t S1: %f %f %f \t S2: %f %f %f \n", L1.pnt.x, L1.pnt.y, L1.pnt.z, L2.pnt.x, L2.pnt.y, L2.pnt.z, s1.x, s1.y, s1.z, s2.x, s2.y, s2.z);
+  }
   //float error = dotProduct(s1,s2)*dotProduct(s1,s2);
   //if(error != 0.0f) error = sqrtf(error);
   // only add errors that we like
-  float i_error;
+  // float i_error;
   // filtering should only occur at the start of each adjustment step
   // TODO clean this up
-  i_error = error;
+  // i_error = error;
   bundles[globalID].invalid = false;
-  atomicAdd(&localSum,i_error);
+  atomicAdd(&localSum,error);
   __syncthreads();
   if (!threadIdx.x) atomicAdd(linearError,localSum);
 }
@@ -2569,7 +3507,7 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, float*
   float3 point = (s1 + s2)/2.0;
 
   // add the linear errors locally within the block before
-  float error = sqrtf((s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z));
+  float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
   //float error = dotProduct(s1,s2)*dotProduct(s1,s2);
   //if(error != 0.0f) error = sqrtf(error);
   // only add errors that we like
