@@ -1274,7 +1274,7 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
         // update the hessian
         h->host[h_i] = numer / denom;
 
-        if (isnan(numer/denom)){
+        if (isnan(numer/denom && local_debug)){
           std::cout << "!!NaN found at: [" << i << "," << j << "] " << std::endl;
           std::cout << "\t " << A << "  " << B << "  " << C << "  " << D << "  " << E << std::endl;
           std::cout << "\t i mod " << num_params << " = " << i%num_params << "\t" << std::endl;
@@ -1730,6 +1730,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   bool local_debug    = true;
   // const step
   bool second_order   = true;
+  // enable or disable normalization
+  bool do_normalization = false;
 
   // just to tell the user what is happening
   if (second_order){
@@ -1750,12 +1752,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // beta should always be 0.0
   // alpha can be changed to dampen stepsize
   // alpha should be between 0.0 - 1.0
-  float alpha = 1.0f; // should less than 1
+  float alpha = 0.1f; // should less than 1
   float beta  = 0.0f;   // should always be 0
   int   inc   = 1;      // should always be 1
 
-  float dist_step = 0.1;  // starting distance magnitude
-  float angle_mag = 0.01; // starting angle mag
+  // these are adjusted after a sequence point is reached
+  float dist_step = 1.0; // starting distance magnitude
+  float angle_mag = 1.0; // starting angle mag
 
   // each time the error is cut in half, so is the stepsize
   float error_comp;
@@ -1860,14 +1863,36 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         std::cout << std::endl;
       }
 
+      // prep to normalize the update
+      // normalize the distance update, and set to specific distance
+      float mag[2] = {1.0f, 1.0f};
+      if (do_normalization){
+        for (int j = 0; j < images.size(); j++){
+          mag[j] = sqrtf((update->host[6*j] * update->host[6*j]) + (update->host[6*j + 1] * update->host[6*j + 1]) + (update->host[6*j + 2] * update->host[6*j + 2]));
+        }
+      }
+
+      // normalize the rotation
+      // move all algular update to within [-pi,pi]
+      float ang[2] = {1.0f, 1.0f};
+      if (do_normalization){
+        for (int j = 0; j < images.size(); j++){
+          ang[j] = sqrtf((update->host[6*j + 3] * update->host[6*j + 3]) + (update->host[6*j + 4] * update->host[6*j + 4]) + (update->host[6*j + 5] * update->host[6*j + 5]));
+          if (ang[j] > angle_mag){
+            angle_mag = ang[j];
+            ang[j] = 1.0;
+          }
+        }
+      }
+
       int g_j = 0;
       for (int j = 0; j < images.size(); j++){
-        images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - alpha * gradient->host[g_j    ];
-        images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - alpha * gradient->host[g_j + 1];
-        images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - alpha * gradient->host[g_j + 2];
-        images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - alpha * gradient->host[g_j + 3];
-        images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y - alpha * gradient->host[g_j + 4];
-        images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z - alpha * gradient->host[g_j + 5];
+        images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - dist_step * (gradient->host[g_j    ] / mag[j]);
+        images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - dist_step * (gradient->host[g_j + 1] / mag[j]);
+        images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - dist_step * (gradient->host[g_j + 2] / mag[j]);
+        images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - angle_mag * (gradient->host[g_j + 3] / ang[j]);
+        images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y - angle_mag * (gradient->host[g_j + 4] / ang[j]);
+        images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z - angle_mag * (gradient->host[g_j + 5] / ang[j]);
         g_j += 6;
       }
     } else {
@@ -1943,15 +1968,22 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
       // prep to normalize the update
       // normalize the distance update, and set to specific distance
-      float mag[2] = {0.0f, 0.0f};
-      for (int j = 0; j < images.size(); j++){
-        float mag[j] = sqrtf((images[j]->camera.cam_pos.x * images[j]->camera.cam_pos.x) + (images[j]->camera.cam_pos.y * images[j]->camera.cam_pos.y) + (images[j]->camera.cam_pos.z * images[j]->camera.cam_pos.z));
+      float mag[2] = {1.0f, 1.0f};
+      if (do_normalization){
+        for (int j = 0; j < images.size(); j++){
+          mag[j] = sqrtf((update->host[6*j] * update->host[6*j]) + (update->host[6*j + 1] * update->host[6*j + 1]) + (update->host[6*j + 2] * update->host[6*j + 2]));
+        }
       }
+
       // normalize the rotation
       // move all algular update to within [-pi,pi]
-      float ang[2] = {0.0f, 0.0f};
+      float ang[2] = {1.0f, 1.0f};
       for (int j = 0; j < images.size(); j++){
-        float ang[j] = sqrtf((images[j]->camera.cam_rot.x * images[j]->camera.cam_rot.x) + (images[j]->camera.cam_rot.y * images[j]->camera.cam_rot.y) + (images[j]->camera.cam_rot.z * images[j]->camera.cam_rot.z));
+        ang[j] = sqrtf((update->host[6*j + 3] * update->host[6*j + 3]) + (update->host[6*j + 4] * update->host[6*j + 4]) + (update->host[6*j + 5] * update->host[6*j + 5]));
+        if (ang[j] > angle_mag){
+          angle_mag = ang[j];
+          ang[j] = 1.0;
+        }
       }
 
       // update
@@ -1983,9 +2015,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     if (error_comp/2 >= *localError) {
       // error has decreased by at least a factor of 2, decrease aalpha by this factor
       float scale_down = error_comp / *localError;
-      // alpha /= scale_down;
-      dist_step /= 2;
-      anlge_mag /= 2;
+      alpha /= (1.2);
+      // dist_step /= 2;
+      // angle_mag /= 2;
       error_comp = *localError;
       if (local_debug) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
     }
@@ -2006,7 +2038,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         for (int j = 0; j < bestParams.size(); j++){
           images[j]->camera = bestParams[j]->camera;
         }
-        // alpha /= 2.0;
+        alpha /= (1.2);
         if(local_debug) std::cout << "\t leaving local min ... updated Alpha to: " << std::fixed << std::setprecision(24) << alpha << std::endl;
       }
     }
