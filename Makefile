@@ -12,7 +12,7 @@ LIB :=  -L/usr/local/cuda/lib64 -lcublas -lcuda -lcudart -lcusparse -lcusolver\
 
 # Common flags
 COMMONFLAGS += $(INCLUDES)
-COMMONFLAGS += -g # Output debug symbols 
+COMMONFLAGS += -g # Output debug symbols
 CXXFLAGS += $(COMMONFLAGS)
 CXXFLAGS += -Wall -std=c++11
 # compute_<#> and sm_<#> will need to change depending on the device
@@ -60,8 +60,8 @@ _BASE_OBJS += FeatureFactory.cu.o
 _BASE_OBJS += SIFT_FeatureFactory.cu.o
 _BASE_OBJS += MatchFactory.cu.o
 _BASE_OBJS += matrix_util.cu.o
-_BASE_OBJS += PointCloudFactory.cu.o
 _BASE_OBJS += Octree.cu.o
+_BASE_OBJS += PointCloudFactory.cu.o
 _BASE_OBJS += MeshFactory.cu.o
 _SFM_OBJS = SFM.cu.o
 _T_OBJS += Tester.cu.o

@@ -2699,11 +2699,11 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointClo
   }
 
   // create the octree
-  Octree oct = Octree(pointCloud, 6, false);
+  Octree oct = Octree(pointCloud, 8, false);
   // caclulate the estimated plane normal
-  Unity<float3>* normal =  oct.computeAverageNormals(4, 12, images.size(), locations->host);
+  Unity<float3>* normal = oct.computeAverageNormal(4, 6, images.size(), locations->host);
 
-  std::cout << "Estimated plane normal: (" << normal->host[0] << ", " << normal->host[1] << ", " << normal->host[2] << ")" << std::endl;
+  std::cout << "Estimated plane normal: (" << normal->host[0].x << ", " << normal->host[0].y << ", " << normal->host[0].z << ")" << std::endl;
 
   // find the location with the best density of points along the average normal
 

@@ -1524,7 +1524,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
 void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions){
 
   // enable local_debug to have local print statements
-  bool local_debug = false;
+  bool local_debug = true;
 
   if (local_debug) std::cout << std::endl;
   clock_t cudatimer;
@@ -1751,10 +1751,10 @@ ssrlcv::Unity<float3>* ssrlcv::Octree::computeAverageNormal(int minNeighForNorms
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  this->noramls->transferMemoryTo(cpu);
+  this->normals->transferMemoryTo(cpu);
   this->normals->clear(gpu);
-  this->average->transferMemoryTo(cpu);
-  this->average->clear(gpu);
+  average->transferMemoryTo(cpu);
+  average->clear(gpu);
 
   return average;
 }
@@ -2266,13 +2266,19 @@ __global__ void ssrlcv::calculateCloudAverageNormal(float3* average, unsigned lo
   float mag = sqrtf((normals[globalID].x * normals[globalID].x) + (normals[globalID].y * normals[globalID].y) + (normals[globalID].z * normals[globalID].z));
   float3 localValue;
 
-  localValue.x = noramls[globalID].x / (num * mag);
-  localValue.y = noramls[globalID].y / (num * mag);
-  localValue.z = noramls[globalID].z / (num * mag);
+  localValue.x = normals[globalID].x / (num * mag);
+  localValue.y = normals[globalID].y / (num * mag);
+  localValue.z = normals[globalID].z / (num * mag);
 
-  atomicAdd(&localSum,localValue);
+  atomicAdd(&localSum.x,localValue.x);
+  atomicAdd(&localSum.y,localValue.y);
+  atomicAdd(&localSum.z,localValue.z);
   __syncthreads();
-  if (!threadIdx.x) atomicAdd(average[0],localSum);
+  if (!threadIdx.x) {
+    atomicAdd(&average[0].x,localSum.x);
+    atomicAdd(&average[0].y,localSum.y);
+    atomicAdd(&average[0].z,localSum.z);
+  }
 }
 
 

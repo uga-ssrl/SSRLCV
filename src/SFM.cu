@@ -165,9 +165,9 @@ int main(int argc, char *argv[]){
       // OPTIONAL
       // to visualize the estimated plane which the structure lies within you can use
       // the demPoints.visualizePlaneEstimation() method like so:
-      demPoints.visualizePlaneEstimation(points, "planeEstimation");
+      demPoints.visualizePlaneEstimation(points, images, "planeEstimation");
 
-      
+
 
       // the version that will be used normally
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
@@ -228,7 +228,14 @@ int main(int argc, char *argv[]){
 
       demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
+
       demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+      bundleSet = demPoints.generateBundles(&matchSet,images);
+
+      demPoints.deterministicStatisticalFilter(&matchSet,images, 1.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
+      bundleSet = demPoints.generateBundles(&matchSet,images);
+
+      demPoints.deterministicStatisticalFilter(&matchSet,images, 1.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
       // now redo triangulation with the newlyfiltered boi

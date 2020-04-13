@@ -539,9 +539,11 @@ bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out)
 }
 
 
+// =============================================================================================================
 //
-// Old PLY code
+// PLY IO
 //
+// =============================================================================================================
 
 void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
   std::cout << "saving " << points->size() << " points ..." << std::endl;
@@ -649,9 +651,38 @@ void ssrlcv::writePLY(const char* filePath, Unity<colorPoint>* cpoint){
   of.close(); // done with the file building
 }
 
+// mesh
+/**
+ * @brief writes a Mesh PLY file that also contains a surface
+ * writes a PLY file that includes a surface along with the points
+ * @param filename the desired name of the output file
+ * @param points a set of points in the mesh
+ * @param faceList a list of "faces" which are just encoded triangles
+ */
+void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<int3>* faceList){
+
+  std::cerr << "PLY writing with triangular faces not yet supported" << std::endl;
+
+}
+
+/**
+ * @brief writes a Mesh PLY file that also contains a surface
+ * writes a PLY file that includes a surface along with the points
+ * @param filename the desired name of the output file
+ * @param points a set of points in the mesh
+ * @param faceList a list of "faces" which are just encoded quadrilaterals
+ */
+void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<int4>* faceList){
+
+  std::cerr << "PLY writing with quadrilateral faces not yet supported" << std::endl;
+
+}
+
+// =============================================================================================================
 //
-// CSV and Misc Debug IO
+// CSV and Misc IO
 //
+// =============================================================================================================
 
 /*
  * Takes in an array of floats and writes them to a CSV
