@@ -485,6 +485,7 @@ namespace ssrlcv{
   */
   __global__ void computeRotatePointCloud(float3* rotation, unsigned long pointnum, float3* points);
 
+
 }
 
 

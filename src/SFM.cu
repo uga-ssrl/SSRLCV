@@ -122,8 +122,9 @@ int main(int argc, char *argv[]){
       // matchSet.matches->checkpoint(0,"out/m");
     }
 
-    // the point boi
+    // the bois
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
+    ssrlcv::MeshFactory meshBoi = ssrlcv::MeshFactory();
     ssrlcv::Unity<float3>* points;
     ssrlcv::Unity<float>* errors;
     ssrlcv::BundleSet bundleSet;
@@ -186,17 +187,26 @@ int main(int argc, char *argv[]){
       demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename);
       */
 
+      /*
+      // OPTIONAL
+      // Varoius scaling examples:
+        demPoints.scalePointCloud(10.0,points);
+        ssrlcv::writePLY("out/scaledx10.ply",points);
+        demPoints.scalePointCloud(10.0,points);
+        ssrlcv::writePLY("out/scaledx100.ply",points);
+        demPoints.scalePointCloud(10.0,points);
+        ssrlcv::writePLY("out/scaledx1000.ply",points);
+      */
+
       // OPTIONAL
       // to compare a points cloud with a ground truth model the first need to be scaled
       // the distance values here are in km but most truth models are in meters
-      demPoints.scalePointCloud(10.0,points);
-      ssrlcv::writePLY("out/scaledx10.ply",points);
-      demPoints.scalePointCloud(10.0,points);
-      ssrlcv::writePLY("out/scaledx100.ply",points);
-      demPoints.scalePointCloud(10.0,points);
-      // rotate pi around the z axis
-      float3 rotation = {0.0f, 0.0f, PI};
+      demPoints.scalePointCloud(1000.0,points); // scales from km into meters
+      // rotate pi around the y axis
+      float3 rotation = {0.0f, PI, 0.0f};
       demPoints.rotatePointCloud(rotation, points);
+      // load the example mesh to do the comparison, here I assume we are using the everst PLY
+      meshBoi.loadMesh("data/truth/Everest_ground_truth.ply");
 
       /*
       // OPTIONAL

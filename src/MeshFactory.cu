@@ -27,8 +27,132 @@ ssrlcv::MeshFactory::MeshFactory(Octree* octree){
 //
 // =============================================================================================================
 
+/**
+ * loads a mesh from a file into
+ * currently only ASCII encoded PLY files are supported
+ * @param filePath the filepath, relative to the install location
+ */
 void ssrlcv::MeshFactory::loadMesh(const char* filePath){
+  // TODO perhaps move some of this into io_util
+
+  bool local_debug = true;
+
+  // temp storage
+  std::vector<float3> tempPoints;
+  std::vector<int> tempFaces;
+  std::ifstream input(filePath);
+  int numPoints = 0;
+  int numFaces  = 0;
+  int numEdges  = 0;
+  bool inData   = false;
+
+  // assuming ASCII encoding
+  std::string line;
+  while (std::getline(input, line)){
+    std::istringstream iss(line);
+
+    if (!inData){ // parse the header
+
+      std::string tag;
+      iss >> tag;
+
+      //
+      // Handle elements here
+      //
+      if (!tag.compare("element")){
+        if(local_debug) std::cout << "element found" << std::endl;
+        // temp vars for strings
+        std::string elem;
+        std::string type;
+        int num;
+
+        iss >> type;
+        iss >> num;
+
+        // set the correct value
+        if (!type.compare("vertex")){
+          numPoints = num;
+          if(local_debug) std::cout << "detected " << num << " Points" << std::endl;
+        } else if (!type.compare("face")) {
+          numFaces = num;
+          if(local_debug) std::cout << "detected " << num << " Faces" << std::endl;
+        } else if (!type.compare("edge")) {
+          // TODO read in edges if desired
+          std::cout << "\tWARN: edge reading is not currently supported in MeshFactory" << std::endl;
+          if(local_debug) std::cout << "detected " << num << " Edges" << std::endl;
+        }
+
+      }
+
+      // header is ending
+      if (!tag.compare("end_header"){
+        inData = true;
+      }
+    } else {
+
+      //
+      // Handle the Data reading here
+      //
+
+      if (tempPoints.size() < numPoints && numPoints) {
+        //
+        // add the point
+        //
+
+        float3 point;
+        iss >> point.x;
+        iss >> point.y;
+        iss >> point.z;
+        tempPoints.push_back();
+        if (local_debug) std::cout << "\t" << points.x << ", " << point.y << ", " << point.z << std::endl;
+      } else if (tempFaces.size() < numFaces && numFaces) {
+        //
+        // add the face
+        //
+
+        // set the face encoding
+        if (!tempFaces.size()) {
+          iss >> this->faceEncoding;
+          numFaces *= this->faceEncoding; // because they are not stored as int3 or int4 yet
+          if (local_debug) {
+            std::cout << "face encoding set to: " << this->faceEncoding << std::endl;
+            std::cout << "faceNum updated to:   " << numFaces << "\t from " << (numFace / this->faceEncoding) << std::endl;
+          }
+          if (this->faceEncoding != 3 || this->faceEncoding != 4){
+            std::cerr << "ERROR: error with reading mesh PLY face encoding" << std::endl;
+          }
+        } else {
+          int throwAway;
+          iss >> throwAway;
+          if (local_debug) << std::cout < "\t face encoding: " << throwAway << " ";
+        }
+
+        // either quad or triangle
+        for (int i = 0; i < (int) (this->faceEncoding); i++){
+          int index;
+          iss >> index;
+          tempFaces.push_back(index);
+          if (local_debug) std::cout << index << ", ";
+        }
+        if (local_debug) std::cout << std::endl;
+
+      } // end face reading
+
+    } // end data reading
+
+  } // end while
+
+  input.close(); // close the stream
+
+}
+
+/**
+ * saves a PLY encoded Mesh as a given filename to the out directory
+ * @param filename the filename
+ */
+void ssrlcv::MeshFactory::saveMesh(const char* filename){
   // TODO
+
 }
 
 // =============================================================================================================

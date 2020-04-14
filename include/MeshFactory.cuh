@@ -64,11 +64,22 @@ namespace ssrlcv{
 
     // =============================================================================================================
     //
-    // Mesh Loading Methods
+    // Mesh Loading & Saving Methods
     //
     // =============================================================================================================
 
+    /**
+     * loads a mesh from a file into
+     * currently only ASCII encoded PLY files are supported
+     * @param filePath the filepath, relative to the install location
+     */
     void loadMesh(const char* filePath);
+
+    /**
+     * saves a PLY encoded Mesh as a given filename to the out directory
+     * @param filename the filename
+     */
+    void saveMesh(const char* filename);
 
     // =============================================================================================================
     //

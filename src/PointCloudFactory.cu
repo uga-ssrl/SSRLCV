@@ -3258,7 +3258,7 @@ void ssrlcv::PointCloudFactory::rotatePointCloud(float3 rotate, Unity<float3>* p
   d_rotate->host[0].y = rotate.y;
   d_rotate->host[0].z = rotate.z;
 
-  d_translate->transferMemoryTo(gpu);
+  d_rotate->transferMemoryTo(gpu);
   points->transferMemoryTo(gpu);
 
   // call kernel
@@ -4134,12 +4134,12 @@ __global__ void ssrlcv::computeTranslatePointCloud(float3* translate, unsigned l
 /**
 * the CUDA kernel for rotatePointCloud
 */
-__global__ void computeRotatePointCloud(float3* rotation, unsigned long pointnum, float3* points){
+__global__ void ssrlcv::computeRotatePointCloud(float3* rotation, unsigned long pointnum, float3* points){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if (globalID > (pointnum-1)) return;
 
   // rotate the point
-  rotatePoint(points[globalID], rotation[0]);
+  points[globalID] = rotatePoint(points[globalID], rotation[0]);
 }
 
 

@@ -5,7 +5,7 @@ out/*
 
 bin/*
 .csv
-*.ply
+out/*.ply
 
 .DS_Store
 */.DS_Store
