@@ -203,8 +203,6 @@ float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud,
   bool local_debug   = true;
   bool local_verbose = true;
 
-  bool valid_plane   = false;
-
   if (local_verbose || local_debug) std::cout << "Computing average differnce between mesh and point cloud ..." << std::endl;
 
   if (!faceEncoding){
@@ -241,10 +239,10 @@ float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud,
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  void (*fp)(float*, unsigned long, float3*, float3*, float3*, int*, int*) = &averageCollisionDistance;
+  void (*fp)(float*, unsigned long, float3*, float3*, float3*, unsigned long, int*, int*) = &averageCollisionDistance;
   getFlatGridBlock(pointCloud->size(),grid,block,fp);
 
-  averageCollisionDistance<<<grid,block>>>(d_averageError,pointCloud->size(),pointCloud->device,normal->device,this->points->device,this->faces->device,d_encoding);
+  averageCollisionDistance<<<grid,block>>>(d_averageError,pointCloud->size(),pointCloud->device,normal->device,this->points->device,this->faces->size(),this->faces->device,d_encoding);
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -258,7 +256,7 @@ float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud,
   normal->clear(gpu);
   delete normal;
 
-  CudaSafeCall(cudaMemcpy(averageError,d_averageError,eSize,cudaMemcpyDeviceToHost));
+  CudaSafeCall(cudaMemcpy(&averageError,d_averageError,sizeof(float),cudaMemcpyDeviceToHost));
   cudaFree(d_averageError);
   cudaFree(d_encoding);
 
@@ -1381,7 +1379,7 @@ __constant__ int ssrlcv::numTrianglesInCubeCategory[256] = {0, 1, 1, 2, 1, 2, 2,
    * this measures the distance between each point in a point cloud and where they "collide"
    * with the mesh along a single given vector fro all points. This is returned as an average
    */
-__global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, int* faces, int* faceEncoding){
+__global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding){
   // get ready to do the stuff local memory space
   // this will later be added back to a global memory space
   __shared__ float localSum;
@@ -1391,7 +1389,45 @@ __global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigne
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if (globalID > (pointnum-1)) return;
 
-  float error = 1.0f;
+  float error = 0.0f;
+
+  // NOTE currently assumes X-Y plane
+  int3 planeIndexes = {-1,-1,-1};
+  float3 P = pointcloud[globalID];
+
+  // loops through the faces in search of a face where this points would intersect
+  for (int i = 0; i < facenum; i+=faceEncoding) {
+
+    if (faceEncoding == 4){
+      // potential points
+      float3 A = vertices[i    ];
+      float3 B = vertices[i + 1];
+      float3 C = vertices[i + 2];
+      float3 D = vertices[i + 3];
+
+      // NOTE assumes X-Y plane alignment in mesh
+      // check Y values
+      if (P.y > A.y && P.y > D.y && P.y < B.y && P.y < C.y){
+        // check X values
+        if (P.x > A.x && P.x > B.x && P.x < D.x && P.x < C.x) {
+          printf("Found best plane!\n");
+          error = 1.0f;
+        }
+      }
+
+    }
+
+    if (faceEncoding == 3){
+      // TODO
+    }
+  } // end search for best plane
+
+  // calculate the intersection between point and plane
+
+  if (planeIndexes.x < 0 || planeIndexes.y < 0 || planeIndexes.z < 0){
+    printf("ERROR FINDING COLLISION, there could be an issue with cloud / mesh alignment. discounting point in sum ...\n");
+    error = 0.0f;
+  }
 
   atomicAdd(&localSum,error);
   __syncthreads();
