@@ -168,7 +168,8 @@ int main(int argc, char *argv[]){
       // the demPoints.visualizePlaneEstimation() method like so:
       demPoints.visualizePlaneEstimation(points, images, "planeEstimation");
 
-      std::cout << "Jackson it worked!" << std::endl;
+      // TEMP for jackson
+      for (int i = 0; i < 100; i++) std::cout << "Jackson it worked!" << std::endl;
 
 
       // the version that will be used normally
