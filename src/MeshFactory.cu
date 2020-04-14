@@ -1,5 +1,18 @@
 #include "MeshFactory.cuh"
 
+// =============================================================================================================
+//
+// Constructors and Destructors
+//
+// =============================================================================================================
+
+ssrlcv::MeshFactory::MeshFactory(){
+
+}
+ssrlcv::MeshFactory::~MeshFactory(){
+
+}
+
 ssrlcv::MeshFactory::MeshFactory(Octree* octree){
   this->octree = octree;
   if(this->octree->normals == nullptr || this->octree->normals->getMemoryState() == null){
@@ -8,12 +21,21 @@ ssrlcv::MeshFactory::MeshFactory(Octree* octree){
 
 }
 
-ssrlcv::MeshFactory::MeshFactory(){
+// =============================================================================================================
+//
+// Mesh Loading Methods
+//
+// =============================================================================================================
 
+void ssrlcv::MeshFactory::loadMesh(const char* filePath){
+  // TODO
 }
-ssrlcv::MeshFactory::~MeshFactory(){
 
-}
+// =============================================================================================================
+//
+// Other MeshFactory Methods
+//
+// =============================================================================================================
 
 void ssrlcv::MeshFactory::computeVertexImplicitJAX(int focusDepth){
   clock_t timer;
@@ -251,9 +273,6 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   printf("Marching cubes took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
   this->generateMesh();
 }
-
-
-
 void ssrlcv::MeshFactory::marchingCubes(){
   this->computeVertexImplicitJAX(this->octree->depth);
   clock_t timer;
@@ -417,6 +436,13 @@ void ssrlcv::MeshFactory::marchingCubes(){
   this->generateMesh(true);
 
 }
+
+// =============================================================================================================
+//
+// Mesh Generation Methods
+//
+// =============================================================================================================
+
 void ssrlcv::MeshFactory::jaxMeshing(){
   //TODO make this not necessary
   clock_t timer;
@@ -628,7 +654,6 @@ void ssrlcv::MeshFactory::jaxMeshing(){
   this->generateMesh();
 
 }
-
 void ssrlcv::MeshFactory::generateMesh(bool binary){
 
   tinyply::PlyFile ply;
@@ -1106,6 +1131,12 @@ __constant__ int ssrlcv::numTrianglesInCubeCategory[256] = {0, 1, 1, 2, 1, 2, 2,
   5, 3, 4, 4, 5, 2, 3, 3, 2, 3, 4, 4, 5, 4, 5, 5, 2, 4, 3, 5, 4, 3, 2, 4, 1, 3, 4,
   4, 5, 4, 5, 3, 4, 4, 5, 5, 2, 3, 4, 2, 1, 2, 3, 3, 2, 3, 4, 2, 1, 3, 2, 4, 1, 2,
   1, 1, 0};
+
+  // =============================================================================================================
+  //
+  // Device Kernels
+  //
+  // =============================================================================================================
 
 __global__ void ssrlcv::vertexImplicitFromNormals(int numVertices, Octree::Vertex* vertexArray, Octree::Node* nodeArray, float3* normals, float3* points, float* vertexImplicit){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;

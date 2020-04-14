@@ -163,13 +163,12 @@ int main(int argc, char *argv[]){
       */
 
 
+      /*
       // OPTIONAL
       // to visualize the estimated plane which the structure lies within you can use
       // the demPoints.visualizePlaneEstimation() method like so:
       demPoints.visualizePlaneEstimation(points, images, "planeEstimation");
-
-      // TEMP for jackson
-      for (int i = 0; i < 100; i++) std::cout << "Jackson it worked!" << std::endl;
+      */
 
 
       // the version that will be used normally
@@ -194,6 +193,7 @@ int main(int argc, char *argv[]){
       ssrlcv::writePLY("out/scaledx10.ply",points);
       demPoints.scalePointCloud(10.0,points);
       ssrlcv::writePLY("out/scaledx100.ply",points);
+      demPoints.scalePointCloud(10.0,points);
 
       /*
       // OPTIONAL

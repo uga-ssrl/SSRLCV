@@ -21,22 +21,71 @@ namespace ssrlcv{
   class MeshFactory{
 
   public:
+    // Octree is used for reconstructon, minimal meshes need not use this
     Octree* octree;
 
-    //Major variables (do not need host versions other than for error checking)
     float3* surfaceVertices;
     int numSurfaceVertices;
     int3* surfaceTriangles;
     int numSurfaceTriangles;
     float* vertexImplicitDevice;
 
-    MeshFactory(Octree* octree);
+    /**
+     * the face encoding is used to defined if the mesh is encoded with triangles or
+     * encoded with quadrilaterals.
+     * this value is 3 for triangles and 4 for quadrilaterals
+     */
+    short faceEncoding;
+
+    // The points within the mesh
+    Unity<float3>* points;
+    // If the mesh is quadrilaterally encoded, the quads are used
+    Unity<int4>* quads;
+    // If the mesh is triangularly encoded, the quads are used
+    Unity<int3>* triang;
+
+    // =============================================================================================================
+    //
+    // Constructors and Destructors
+    //
+    // =============================================================================================================
+
+    // default constructor
     MeshFactory();
+
+    // default destructor
     ~MeshFactory();
+
+    /**
+     * An octree based constructor
+     * @param octree an SSRLCV octree data structure storing a point cloud
+     */
+    MeshFactory(Octree* octree);
+
+    // =============================================================================================================
+    //
+    // Mesh Loading Methods
+    //
+    // =============================================================================================================
+
+    void loadMesh(const char* filePath);
+
+    // =============================================================================================================
+    //
+    // Other MeshFactory Methods
+    //
+    // =============================================================================================================
 
     void computeVertexImplicitJAX(int focusDepth);
     void adaptiveMarchingCubes();
     void marchingCubes();
+
+    // =============================================================================================================
+    //
+    // Mesh Generation Methods
+    //
+    // =============================================================================================================
+
     void jaxMeshing();
     void generateMesh(bool binary);
     void generateMesh();
@@ -47,6 +96,12 @@ namespace ssrlcv{
   * \}
   */
   /* CUDA variable, method and kernel defintions */
+
+  // =============================================================================================================
+  //
+  // Device Kernels
+  //
+  // =============================================================================================================
 
   namespace{
     struct is_not_neg_int{
@@ -69,6 +124,8 @@ namespace ssrlcv{
   extern __constant__ int cubeCategoryTrianglesFromEdges[256][15];
   extern __constant__ int cubeCategoryEdgeIdentity[256];
   extern __constant__ int numTrianglesInCubeCategory[256];
+
+
 
   __device__ __host__ float3 blenderPrime(const float3 &a, const float3 &b, const float &bw);
   __device__ __host__ float3 blenderPrimePrime(const float3 &a, const float3 &b, const float &bw);
