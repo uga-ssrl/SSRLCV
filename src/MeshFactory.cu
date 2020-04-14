@@ -1396,35 +1396,53 @@ __global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigne
   float3 P = pointcloud[globalID];
 
   // loops through the faces in search of a face where this points would intersect
-  for (int i = 0; i < facenum; i+=faceEncoding) {
+  for (int i = 0; i < facenum; i += *faceEncoding) {
 
-    if (faceEncoding == 4){
+    if (*faceEncoding == 4){
       // potential points
       float3 A = vertices[i    ];
       float3 B = vertices[i + 1];
       float3 C = vertices[i + 2];
       float3 D = vertices[i + 3];
 
-      // NOTE assumes X-Y plane alignment in mesh
-      // check Y values
-      if (P.y > A.y && P.y > D.y && P.y < B.y && P.y < C.y){
-        // check X values
-        if (P.x > A.x && P.x > B.x && P.x < D.x && P.x < C.x) {
-          printf("Found best plane!\n");
-          error = 1.0f;
-        }
+      // see https://stackoverflow.com/questions/13300904/determine-whether-point-lies-inside-triangle
+      // uses https://en.wikipedia.org/wiki/Barycentric_coordinate_system
+      // Triangle A -> B -> C
+      float alpha = ((B.y - C.y)*(P.x - C.x) + (C.x - B.x)*(P.y - C.y)) / ((B.y - C.y)*(A.x - C.x) + (C.x - B.x)*(A.y - C.y));
+      float beta  = ((C.y - A.y)*(P.x - C.x) + (A.x - C.x)*(P.y - C.y)) / ((B.y - C.y)*(A.x - C.x) + (C.x - B.x)*(A.y - C.y));
+      float gamma = 1.0f - alpha - beta;
+      // check if inside triangle
+      if (alpha > 0.0f && beta > 0.0f && gamma > 0.0f) {
+        planeIndexes.x = i;
+        planeIndexes.y = i+1;
+        planeIndexes.z = i+2;
+        break;
       }
 
+      // try again for the second triangle if here
+      // Triangle C -> D -> A
+      float alpha = ((D.y - A.y)*(P.x - A.x) + (A.x - D.x)*(P.y - A.y)) / ((D.y - A.y)*(C.x - A.x) + (A.x - D.x)*(C.y - A.y));
+      float beta  = ((A.y - C.y)*(P.x - A.x) + (C.x - A.x)*(P.y - A.y)) / ((D.y - A.y)*(C.x - A.x) + (A.x - D.x)*(C.y - A.y));
+      float gamma = 1.0f - alpha - beta;
+      // check if inside triangle
+      if (alpha > 0.0f && beta > 0.0f && gamma > 0.0f) {
+        planeIndexes.x = i+2;
+        planeIndexes.y = i+3;
+        planeIndexes.z = i;
+        break;
+      }
     }
 
-    if (faceEncoding == 3){
+    if (*faceEncoding == 3){
       // TODO
     }
   } // end search for best plane
 
-  // calculate the intersection between point and plane
-
-  if (planeIndexes.x < 0 || planeIndexes.y < 0 || planeIndexes.z < 0){
+  // make sure a valid value was found
+  if (planeIndexes.x >= 0 || planeIndexes.y >= 0 || planeIndexes.z >= 0){
+    // calculate the intersection between point and plane
+    error = 1.0f;
+  } else {
     printf("ERROR FINDING COLLISION, there could be an issue with cloud / mesh alignment. discounting point in sum ...\n");
     error = 0.0f;
   }
