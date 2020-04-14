@@ -2252,7 +2252,7 @@ __global__ void ssrlcv::checkForAmbiguity(int numPoints, int numCameras, float3*
     __syncthreads();
     if(!threadIdx.x) return;
     if(abs(directionCheck) == numCameras){
-      if(directionCheck < 0){
+      if(directionCheck > 0){//normal vector from camera to point and normal should be in opposite directions
         normals[blockID] = {-1.0f*norm.x,-1.0f*norm.y,-1.0f*norm.z};
       }
       ambiguous[blockID] = false;
@@ -2300,10 +2300,9 @@ __global__ void ssrlcv::reorient(int numNodesAtDepth, int depthIndex, Octree::No
           }
         }
         if(!amb){
-          ambiguous[blockID] = false;
-          //note this was the opposite but everest testing showed normals in the wrong direction
+          ambiguous[regPointIndex + threadID] = false;
           if(directionCounter.x < directionCounter.y){
-            normals[blockID] = {-1.0f*norm.x,-1.0f*norm.y,-1.0f*norm.z};
+            normals[regPointIndex + threadID] = {-1.0f*norm.x,-1.0f*norm.y,-1.0f*norm.z};
           }
         }
         else{
