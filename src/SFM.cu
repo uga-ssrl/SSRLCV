@@ -162,12 +162,12 @@ int main(int argc, char *argv[]){
       bundleSet = demPoints.generateBundles(&matchSet,images);
       */
 
+      /*
       // OPTIONAL
       // to visualize the estimated plane which the structure lies within you can use
       // the demPoints.visualizePlaneEstimation() method like so:
       demPoints.visualizePlaneEstimation(points, images, "planeEstimation");
-
-
+      */
 
       // the version that will be used normally
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
@@ -183,6 +183,14 @@ int main(int argc, char *argv[]){
       std::string temp_filename = "sensitivity";
       demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename);
       */
+
+      // OPTIONAL
+      // to compare a points cloud with a ground truth model the first need to be scaled
+      // the distance values here are in km but most truth models are in meters
+      demPoints.scalePointCloud(10.0,points);
+      ssrlcv::writePLY("out/scaledx10.ply",points);
+      demPoints.scalePointCloud(10.0,points);
+      ssrlcv::writePLY("out/scaledx100.ply",points);
 
       /*
       // OPTIONAL
@@ -226,16 +234,19 @@ int main(int argc, char *argv[]){
       demPoints.linearCutoffFilter(&matchSet,images,300);
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
-      demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-
-      demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-
-      demPoints.deterministicStatisticalFilter(&matchSet,images, 1.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-
-      demPoints.deterministicStatisticalFilter(&matchSet,images, 1.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
+      // multiple filters are needed, because outlier points are discovered in stages
+      // decreasing sigma over time is best because the real "mean" error becomes more
+      // accurate as truely noisey points are removed
+      for (int i = 0; i < 3; i++){
+        demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+        bundleSet = demPoints.generateBundles(&matchSet,images);
+      }
+      for (int i = 0; i < 6; i++){
+        demPoints.deterministicStatisticalFilter(&matchSet,images, 1.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
+        bundleSet = demPoints.generateBundles(&matchSet,images);
+      }
+      // then, if the cloud is large enough still, one last filter
+      demPoints.deterministicStatisticalFilter(&matchSet,images, 0.2, 0.1); // <---- samples 10% of points and removes anything past 0.2 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
       // now redo triangulation with the newlyfiltered boi
