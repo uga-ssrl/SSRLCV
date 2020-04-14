@@ -162,12 +162,14 @@ int main(int argc, char *argv[]){
       bundleSet = demPoints.generateBundles(&matchSet,images);
       */
 
-      /*
+
       // OPTIONAL
       // to visualize the estimated plane which the structure lies within you can use
       // the demPoints.visualizePlaneEstimation() method like so:
       demPoints.visualizePlaneEstimation(points, images, "planeEstimation");
-      */
+
+      std::cout << "Jackson it worked!" << std::endl;
+
 
       // the version that will be used normally
       points = demPoints.twoViewTriangulate(bundleSet, linearError);

@@ -55,17 +55,17 @@ namespace ssrlcv{
     /** \brief most basic part of octree*/
     struct Node{
       uchar3 color;
-      int pointIndex;
+      int pointIndex; // starting index of points
       float3 center;
       float width;
       int key;
-      int numPoints;
+      int numPoints; // numer of points from starting index
       int depth;
       int numFinestChildren;
       int finestChildIndex;
       int parent;
       int children[8];
-      int neighbors[27];
+      int neighbors[27]; // index of neighbor nodes
       int edges[12];
       int vertices[8];
       int faces[6];
@@ -120,6 +120,14 @@ namespace ssrlcv{
 
     //length = # points, value = node containing point
     //ie value = index of node point is in
+
+    /** the index to the leaf nodes that the points are in (gauruneed to contain points)
+     * the value at this index is the location of the leaf node in the node array for this points
+     * e.g.
+     * points->host[5] has index 5 so look at 5
+     * pointNodeIndex->host[5] has value 1234
+     * nodes->host[1234] this is the leaf node that contains the point originally searched for 
+     */
     Unity<unsigned int>* pointNodeIndex;
 
     //depth index carriers

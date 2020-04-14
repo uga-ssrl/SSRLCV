@@ -1625,6 +1625,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
       ++grid.x;
     }
   }
+  // getFlatGridBlock()
   MemoryState points_origin = this->points->getMemoryState();
   if(this->points->getMemoryState() != both && this->points->getMemoryState() != gpu){
     this->points->transferMemoryTo(gpu);
