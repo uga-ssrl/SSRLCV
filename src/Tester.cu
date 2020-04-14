@@ -155,6 +155,19 @@ int main(int argc, char *argv[]){
     std::cout << "\t writing initial PLY ..." << std::endl;
     demPoints.saveDebugCloud(points, bundleSet, images, "initial");
 
+    // test scaling
+
+
+    // test translation
+    float scale = 3.0;
+    demPoints.scalePointCloud(scale,points);
+    demPoints.saveDebugCloud(points, bundleSet, images, "scaled");
+
+    float3 trs = {50.0,50.0,50.0};
+    demPoints.translatePointCloud(trs,points);
+    demPoints.saveDebugCloud(points, bundleSet, images, "translated");
+
+
     /*
     // Test SENSITIVITY
     std::string temp_filename1 = "pre-noise";
@@ -180,7 +193,7 @@ int main(int argc, char *argv[]){
     //
     // now start a test of bundle adjustment
     //
-
+    /*
     // Save for a before and after:
     // this temp vector is only used for the +/- h steps when calculating the gradients
     std::vector<ssrlcv::Image*> temp;
@@ -204,6 +217,7 @@ int main(int argc, char *argv[]){
     std::cout << "simulated with noise linearError: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
     std::cout << "\t writing noisy PLY ..." << std::endl;
     demPoints.saveDebugCloud(points, bundleSet, images, "noisey");
+
 
     std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
     // now start the bundle adjustment 2-view loop
@@ -243,6 +257,7 @@ int main(int argc, char *argv[]){
     }
 
     std::cout << std::endl;
+    */
 
     // cleanup
     delete points;

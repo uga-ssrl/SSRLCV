@@ -55,17 +55,17 @@ namespace ssrlcv{
     /** \brief most basic part of octree*/
     struct Node{
       uchar3 color;
-      int pointIndex;
+      int pointIndex; // starting index of points
       float3 center;
       float width;
       int key;
-      int numPoints;
+      int numPoints; // numer of points from starting index
       int depth;
       int numFinestChildren;
       int finestChildIndex;
       int parent;
       int children[8];
-      int neighbors[27];
+      int neighbors[27]; // index of neighbor nodes
       int edges[12];
       int vertices[8];
       int faces[6];
@@ -120,6 +120,14 @@ namespace ssrlcv{
 
     //length = # points, value = node containing point
     //ie value = index of node point is in
+
+    /** the index to the leaf nodes that the points are in (gauruneed to contain points)
+     * the value at this index is the location of the leaf node in the node array for this points
+     * e.g.
+     * points->host[5] has index 5 so look at 5
+     * pointNodeIndex->host[5] has value 1234
+     * nodes->host[1234] this is the leaf node that contains the point originally searched for 
+     */
     Unity<unsigned int>* pointNodeIndex;
 
     //depth index carriers
@@ -127,6 +135,12 @@ namespace ssrlcv{
     Unity<unsigned int>* vertexDepthIndex;
     Unity<unsigned int>* edgeDepthIndex;
     Unity<unsigned int>* faceDepthIndex;
+
+    // =============================================================================================================
+    //
+    // Constructors and Destructors
+    //
+    // =============================================================================================================
 
     Octree();
     ~Octree();
@@ -138,22 +152,57 @@ namespace ssrlcv{
     Octree(Unity<float3>* points, int depth, bool createVEF);
     Octree(Unity<float3>* points, float deepestWidth, bool createVEF);
 
+    // =============================================================================================================
+    //
+    // Octree Host Methods
+    //
+    // =============================================================================================================
 
     void computeVertexArray();
     void computeEdgeArray();
     void computeFaceArray();
     void createVEFArrays();
 
-    /*
-    NORMAL CALCULATION METHODS
+    // =============================================================================================================
+    //
+    // Normal Caclulation Methods
+    //
+    // =============================================================================================================
+
+    /**
+    * Computes normals for the points within the input points cloud
+    * @param minNeighForNorms the minimum number of neighbors to consider for normal calculation
+    * @param maxNeighbors the maximum number of neightbors to consider for normal calculation
     */
-    //TODO move this to MeshFactory
     void computeNormals(int minNeighForNorms, int maxNeighbors);
+
+    /**
+    * Computes normals for the points within the input points cloud
+    * @param minNeighForNorms the minimum number of neighbors to consider for normal calculation
+    * @param maxNeighbors the maximum number of neightbors to consider for normal calculation
+    * @param numCameras the total number of cameras which resulted in the point cloud
+    * @param cameraPositions the x,y,z coordinates of the cameras
+    */
     void computeNormals(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions);
 
-    /*
-    PLY WRITERS
+    /**
+    * Computes the average normal of the input points. This is only useful if you can make a "planar" assumption about
+    * the input points, that is the points are mostly aligned along a plane. For use in reconstructon filtering should occur
+    * before one considers using this method
+    * @param minNeighForNorms the minimum number of neighbors to consider for normal calculation
+    * @param maxNeighbors the maximum number of neightbors to consider for normal calculation
+    * @param numCameras the total number of cameras which resulted in the point cloud
+    * @param cameraPositions the x,y,z coordinates of the cameras
     */
+    ssrlcv::Unity<float3>* computeAverageNormal(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions);
+
+
+    // =============================================================================================================
+    //
+    // PLY writers
+    //
+    // =============================================================================================================
+
     void writeVertexPLY(bool binary = false);
     void writeEdgePLY(bool binary = false);
     void writeCenterPLY(bool binary = false);
@@ -214,7 +263,13 @@ namespace ssrlcv{
       }
     };
   }
-  
+
+  // =============================================================================================================
+  //
+  // Device Kernels
+  //
+  // =============================================================================================================
+
   __device__ __host__ float3 getVoidCenter(const Octree::Node &node, int neighbor);
   __device__ __host__ float3 getVoidChildCenter(const Octree::Node &parent, int child);
   __device__ __forceinline__ int floatToOrderedInt(float floatVal);
@@ -233,6 +288,9 @@ namespace ssrlcv{
   __global__ void fillNodeArrayWithUniques(Octree::Node* uniqueNodes, int* nodeAddresses, Octree::Node* outputNodeArray, Octree::Node* childNodeArray ,int numUniqueNodes);
   __global__ void generateParentalUniqueNodes(Octree::Node* uniqueNodes, Octree::Node* nodeArrayD, int numNodesAtDepth, float totalWidth, const int3* __restrict__ coordPlacementIdentity);
   __global__ void computeNeighboringNodes(Octree::Node* nodeArray, int numNodes, int depthIndex, int* parentLUT, int* childLUT, int childDepthIndex);
+
+  // calculates the average normal
+  __global__ void calculateCloudAverageNormal(float3* average, unsigned long num, float3* normals);
 
   __global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Octree::Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors);
   __global__ void transposeFloatMatrix(int m, int n, float* matrix);

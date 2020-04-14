@@ -162,6 +162,16 @@ int main(int argc, char *argv[]){
       bundleSet = demPoints.generateBundles(&matchSet,images);
       */
 
+
+      // OPTIONAL
+      // to visualize the estimated plane which the structure lies within you can use
+      // the demPoints.visualizePlaneEstimation() method like so:
+      demPoints.visualizePlaneEstimation(points, images, "planeEstimation");
+
+      // TEMP for jackson
+      for (int i = 0; i < 100; i++) std::cout << "Jackson it worked!" << std::endl;
+
+
       // the version that will be used normally
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
       std::cout << "Total Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
@@ -177,15 +187,31 @@ int main(int argc, char *argv[]){
       demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename);
       */
 
-      // TEMP
-      // TODO finish the testing method for BA with simulated errors
-      std::cout << "Adding noise for testing ..." << std::endl;
-      images[1]->camera.cam_pos.x += 0.1;
-      images[1]->camera.cam_pos.y -= 0.1;
+      // OPTIONAL
+      // to compare a points cloud with a ground truth model the first need to be scaled
+      // the distance values here are in km but most truth models are in meters
+      demPoints.scalePointCloud(10.0,points);
+      ssrlcv::writePLY("out/scaledx10.ply",points);
+      demPoints.scalePointCloud(10.0,points);
+      ssrlcv::writePLY("out/scaledx100.ply",points);
+
+      /*
+      // OPTIONAL
+      // Tests can be done with bundle adjustment to check bounds on how
+      // well it performs
+      ssrlcv::Unity<float>* noise = new ssrlcv::Unity<float>(nullptr,6,ssrlcv::cpu);
+      noise->host[0] = 0.0; // X
+      noise->host[1] = 0.2; // Y
+      noise->host[2] = 0.0; // Z
+      noise->host[3] = 0.0; // X^
+      noise->host[4] = 0.0; // Y^
+      noise->host[5] = 0.0; // Z^
+      demPoints.testBundleAdjustmentTwoView(&matchSet,images, 10, noise);
+      */
 
       // starting bundle adjustment here
-      std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
-      points = demPoints.BundleAdjustTwoView(&matchSet,images, 10);
+      // std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
+      // points = demPoints.BundleAdjustTwoView(&matchSet,images, 10);
 
 
     } else {
@@ -211,9 +237,19 @@ int main(int argc, char *argv[]){
       demPoints.linearCutoffFilter(&matchSet,images,300);
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
-      demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-      demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+      // multiple filters are needed, because outlier points are discovered in stages
+      // decreasing sigma over time is best because the real "mean" error becomes more
+      // accurate as truely noisey points are removed
+      for (int i = 0; i < 3; i++){
+        demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+        bundleSet = demPoints.generateBundles(&matchSet,images);
+      }
+      for (int i = 0; i < 6; i++){
+        demPoints.deterministicStatisticalFilter(&matchSet,images, 1.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
+        bundleSet = demPoints.generateBundles(&matchSet,images);
+      }
+      // then, if the cloud is large enough still, one last filter
+      demPoints.deterministicStatisticalFilter(&matchSet,images, 0.2, 0.1); // <---- samples 10% of points and removes anything past 0.2 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
       // now redo triangulation with the newlyfiltered boi

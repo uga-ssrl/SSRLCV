@@ -207,13 +207,15 @@ struct arg
   /*
   FEATURE AND MATCH IO
   */
-  //add match writes here
 
-  /*
-  PLY IO
-  */
+  // TODO add match writes here
 
-  //TODO make readPLY
+  // =============================================================================================================
+  //
+  // CSV and Misc IO
+  //
+  // =============================================================================================================
+
   /**
   * \brief Will write a ply file based on a set of float3 values.
   * \details This method will write a ply in the specified location and can
@@ -269,10 +271,29 @@ struct arg
   */
   void writePLY(const char* filePath, Unity<colorPoint>* cpoint);
 
+  /**
+   * @brief writes a Mesh PLY file that also contains a surface
+   * writes a PLY file that includes a surface along with the points
+   * @param filename the desired name of the output file
+   * @param points a set of points in the mesh
+   * @param faceList a list of "faces" which are just encoded triangles
+   */
+  void writePLY(const char* filename, Unity<float3>* points, Unity<int3>* faceList);
 
-  /*
-  CSV and Misc Debug IO
-  */
+  /**
+   * @brief writes a Mesh PLY file that also contains a surface
+   * writes a PLY file that includes a surface along with the points
+   * @param filename the desired name of the output file
+   * @param points a set of points in the mesh
+   * @param faceList a list of "faces" which are just encoded quadrilaterals
+   */
+  void writePLY(const char* filename, Unity<float3>* points, Unity<int4>* faceList);
+
+  // =============================================================================================================
+  //
+  // CSV and Misc IO
+  //
+  // =============================================================================================================
 
   /**
    * \brief Takes in an array of floats and writes them to a CSV.
