@@ -123,8 +123,9 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
             std::cout << "face encoding set to: " << this->faceEncoding << std::endl;
             std::cout << "faceNum updated to:   " << numFaces << "\t from " << (numFaces / this->faceEncoding) << std::endl;
           }
-          if (this->faceEncoding != 3 || this->faceEncoding != 4){
-            std::cerr << "ERROR: error with reading mesh PLY face encoding" << std::endl;
+          if (!(this->faceEncoding == 3 || this->faceEncoding == 4)){
+            std::cerr << "ERROR: error with reading mesh PLY face encoding, encoding was: " << this->faceEncoding << std::endl;
+            return;
           }
         } else {
           int throwAway;
@@ -179,6 +180,89 @@ void ssrlcv::MeshFactory::saveMesh(const char* filename){
   }
   // save the boi!
   ssrlcv::writePLY(filename, this->points, this->faces, faceEncoding);
+}
+
+// =============================================================================================================
+//
+// Comparison and Error methods
+//
+// =============================================================================================================
+
+/**
+ * Assuming that a point cloud and the mesh are alligned in the same plane, this method takes each point of the
+ * input pointcloud and calculates the distance purpendicular to the plane they are both in. That discance can be
+ * thought of as the "error" between that point and the mesh. This method caclculates the average error between
+ * a mesh and a point cloud
+ * @param pointCloud the input point cloud to compare to the mesh
+ * @param planeNormal a float3 representing a vector normal to the shared plane of the point cloud and mesh
+ * @return averageError this is number is a float that is always positive or 0.0f, it is -1.0f if an error has occured
+ */
+float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud, float3 planeNormal){
+
+  // disable these for no print statements
+  bool local_debug   = true;
+  bool local_verbose = true;
+
+  bool valid_plane   = false;
+
+  if (local_verbose || local_debug) std::cout << "Computing average differnce between mesh and point cloud ..." << std::endl;
+
+  if (!faceEncoding){
+    std::cerr << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" << std::endl;
+    return -1.0f;
+  }
+
+  // prepare the memory
+  Unity<float3>* normal = new ssrlcv::Unity<float3>(nullptr,1,ssrlcv::cpu);
+  normal->host[0].x = planeNormal.x;
+  normal->host[0].y = planeNormal.y;
+  normal->host[0].z = planeNormal.z;
+
+  // normalize, just in case
+  float mag = sqrtf((normal->host[0].x * normal->host[0].x) + (normal->host[0].y * normal->host[0].y) + (normal->host[0].z * normal->host[0].z));
+  normal->host[0].x /= mag;
+  normal->host[0].y /= mag;
+  normal->host[0].z /= mag;
+
+  // error cacluation is stored in this guy
+  float averageError = 0.0f;
+  float* d_averageError;
+  CudaSafeCall(cudaMalloc((void**) &d_averageError,sizeof(float)));
+  CudaSafeCall(cudaMemcpy(d_averageError,&averageError,sizeof(float),cudaMemcpyHostToDevice));
+
+  int* d_encoding;
+  CudaSafeCall(cudaMalloc((void**) &d_encoding,sizeof(int)));
+  CudaSafeCall(cudaMemcpy(d_encoding,&this->faceEncoding,sizeof(int),cudaMemcpyHostToDevice));
+
+  pointCloud->transferMemoryTo(gpu);
+  normal->transferMemoryTo(gpu);
+  this->points->transferMemoryTo(gpu);
+  this->faces->transferMemoryTo(gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(float*, unsigned long, float3*, float3*, float3*, int*, int*) = &averageCollisionDistance;
+  getFlatGridBlock(pointCloud->size(),grid,block,fp);
+
+  averageCollisionDistance<<<grid,block>>>(d_averageError,pointCloud->size(),pointCloud->device,normal->device,this->points->device,this->faces->device,d_encoding);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  this->points->transferMemoryTo(cpu);
+  this->points->clear(gpu);
+  this->faces->transferMemoryTo(cpu);
+  this->faces->clear(gpu);
+  pointCloud->transferMemoryTo(cpu);
+  pointCloud->clear(gpu);
+  normal->clear(gpu);
+  delete normal;
+
+  CudaSafeCall(cudaMemcpy(averageError,d_averageError,eSize,cudaMemcpyDeviceToHost));
+  cudaFree(d_averageError);
+  cudaFree(d_encoding);
+
+  return averageError;
 }
 
 // =============================================================================================================
@@ -1293,6 +1377,27 @@ __constant__ int ssrlcv::numTrianglesInCubeCategory[256] = {0, 1, 1, 2, 1, 2, 2,
   //
   // =============================================================================================================
 
+  /**
+   * this measures the distance between each point in a point cloud and where they "collide"
+   * with the mesh along a single given vector fro all points. This is returned as an average
+   */
+__global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, int* faces, int* faceEncoding){
+  // get ready to do the stuff local memory space
+  // this will later be added back to a global memory space
+  __shared__ float localSum;
+  if (threadIdx.x == 0) localSum = 0;
+  __syncthreads();
+
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (pointnum-1)) return;
+
+  float error = 1.0f;
+
+  atomicAdd(&localSum,error);
+  __syncthreads();
+  if (!threadIdx.x) atomicAdd(averageDistance,localSum);
+}
+
 __global__ void ssrlcv::vertexImplicitFromNormals(int numVertices, Octree::Vertex* vertexArray, Octree::Node* nodeArray, float3* normals, float3* points, float* vertexImplicit){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockID < numVertices){
@@ -1489,3 +1594,9 @@ __global__ void ssrlcv::generateSurfaceTriangles(int numNodes, int nodeIndex, in
     }
   }
 }
+
+
+
+
+
+//

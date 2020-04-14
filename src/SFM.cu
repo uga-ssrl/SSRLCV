@@ -207,7 +207,11 @@ int main(int argc, char *argv[]){
       demPoints.rotatePointCloud(rotation, points);
       // load the example mesh to do the comparison, here I assume we are using the everst PLY
       meshBoi.loadMesh("data/truth/Everest_ground_truth.ply");
-      meshBoi.saveMesh("testMesh");
+        // to save a mesh as a PLY simply:
+        // meshBoi.saveMesh("testMesh");
+      // to calculate the "missmatch" between the point cloud and the ground truth you can use this method:
+      float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f}); // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
+      std::cout << "Average error to ground truth is: " << error << " km" << std::endl;
 
       /*
       // OPTIONAL

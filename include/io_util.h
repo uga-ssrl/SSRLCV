@@ -277,9 +277,9 @@ struct arg
    * @param filename the desired name of the output file
    * @param points a set of points in the mesh
    * @param faceList a list of "faces" which are indices for point location
-   * @param faceEncoding a short, where 3 means trianglar and 4 mean quadrilateral
+   * @param faceEncoding an int where 3 means trianglar and 4 mean quadrilateral
    */
-  void writePLY(const char* filename, Unity<float3>* points, Unity<int>* faceList, short faceEncoding);
+  void writePLY(const char* filename, Unity<float3>* points, Unity<int>* faceList, int faceEncoding);
 
   // =============================================================================================================
   //

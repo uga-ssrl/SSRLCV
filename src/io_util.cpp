@@ -657,21 +657,22 @@ void ssrlcv::writePLY(const char* filePath, Unity<colorPoint>* cpoint){
  * @param filename the desired name of the output file
  * @param points a set of points in the mesh
  * @param faceList a list of "faces" which are indices for point location
- * @param faceEncoding a short, where 3 means trianglar and 4 mean quadrilateral
+ * @param faceEncoding an int where 3 means trianglar and 4 mean quadrilateral
  */
-void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<int>* faceList, short faceEncoding){
+void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<int>* faceList, int faceEncoding){
+  std::string fname = filename;
   // we need triangles or quadrilaterals
-  if (faceEncoding != 3 || faceEncoding != 4){
+  if (!(faceEncoding == 3 || faceEncoding == 4)){
     std::cerr << "ERROR: error writing mesh based PLY, unsupported face encoding of " << faceEncoding << std::endl;
     return;
   }
   std::ofstream of;
   // build header
-  of.open ("out/" + filename + ".ply");
+  of.open ("out/" + fname + ".ply");
   of << "ply\nformat ascii 1.0\n";
   of << "comment author: Caleb Adams & Jackson Parker\n";
   of << "comment SSRL CV PLY writer\n";
-  of << "element vertex " << size << "\n";
+  of << "element vertex " << points->size() << "\n";
   of << "property float x\nproperty float y\nproperty float z\n"; // the elements in the guy
   of << "element face " << (faceList->size() / faceEncoding) << "\n"; // the numer of faces
   of << "property list uchar uint vertex_indices\n";
@@ -681,7 +682,7 @@ void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<int>* f
     of << std::fixed << std::setprecision(32) << points->host[i].x << " " << points->host[i].y << " " << points->host[i].z << "\n";
   }
   // loop thru the faces
-  for (unsinged int i = 0; i < faceList->size(); i += faceEncoding){
+  for (unsigned int i = 0; i < faceList->size(); i += faceEncoding){
     of << faceEncoding << " ";
     for (int j = 0; j < faceEncoding; j++){
       of << faceList->host[i + j] << " ";

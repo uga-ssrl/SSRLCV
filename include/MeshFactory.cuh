@@ -35,7 +35,7 @@ namespace ssrlcv{
      * encoded with quadrilaterals.
      * this value is 3 for triangles and 4 for quadrilaterals
      */
-    short faceEncoding;
+    int faceEncoding;
     // faces stored where ever (N = faceEncoding) are grouped
     Unity<int>* faces;
 
@@ -78,6 +78,23 @@ namespace ssrlcv{
      * @param filename the filename
      */
     void saveMesh(const char* filename);
+
+    // =============================================================================================================
+    //
+    // Comparison and Error methods
+    //
+    // =============================================================================================================
+
+    /**
+     * Assuming that a point cloud and the mesh are alligned in the same plane, this method takes each point of the
+     * input pointcloud and calculates the distance purpendicular to the plane they are both in. That discance can be
+     * thought of as the "error" between that point and the mesh. This method caclculates the average error between
+     * a mesh and a point cloud
+     * @param pointCloud the input point cloud to compare to the mesh
+     * @param planeNormal a float3 representing a vector normal to the shared plane of the point cloud and mesh
+     * @return averageError this is number is a float that is always positive or 0.0f, it is -1.0f if an error has occured
+     */
+    float calculateAverageDifference(Unity<float3>* pointCloud, float3 planeNormal);
 
     // =============================================================================================================
     //
@@ -145,6 +162,12 @@ namespace ssrlcv{
   * \defgroup meshing_kernels
   * \{
   */
+
+  /**
+   * this measures the distance between each point in a point cloud and where they "collide"
+   * with the mesh along a single given vector fro all points. This is returned as an average
+   */
+  __global__ void averageCollisionDistance(float* averageDistance, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, int* faces, int* faceEncoding);
 
   __global__ void vertexImplicitFromNormals(int numVertices, Octree::Vertex* vertexArray, Octree::Node* nodeArray, float3* normals, float3* points, float* vertexImplicit);
   __global__ void calcVertexNumbers(int numEdges, int depthIndex, Octree::Edge* edgeArray, float* vertexImplicit, int* vertexNumbers);
