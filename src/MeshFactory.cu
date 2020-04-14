@@ -1398,41 +1398,46 @@ __global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigne
   // loops through the faces in search of a face where this points would intersect
   for (int i = 0; i < facenum; i += *faceEncoding) {
 
-    if (*faceEncoding == 4){
+    // need to test 2 trianlges
+    if (*faceEncoding == 4) {
       // potential points
       float3 A = vertices[i    ];
       float3 B = vertices[i + 1];
       float3 C = vertices[i + 2];
       float3 D = vertices[i + 3];
 
-      // see https://stackoverflow.com/questions/13300904/determine-whether-point-lies-inside-triangle
-      // uses https://en.wikipedia.org/wiki/Barycentric_coordinate_system
-      // Triangle A -> B -> C
-      float alpha = ((B.y - C.y)*(P.x - C.x) + (C.x - B.x)*(P.y - C.y)) / ((B.y - C.y)*(A.x - C.x) + (C.x - B.x)*(A.y - C.y));
-      float beta  = ((C.y - A.y)*(P.x - C.x) + (A.x - C.x)*(P.y - C.y)) / ((B.y - C.y)*(A.x - C.x) + (C.x - B.x)*(A.y - C.y));
-      float gamma = 1.0f - alpha - beta;
-      // check if inside triangle
-      if (alpha > 0.0f && beta > 0.0f && gamma > 0.0f) {
+      // the target area for triangle 1
+      float ABC = abs((A.x*(B.y-C.y) + B.x*(C.y-A.y)+ C.x*(A.y-B.y)) / 2.0);
+      // candidate areas for triangle 1
+      float PAB = abs((P.x*(A.y-B.y) + A.x*(B.y-P.y)+ B.x*(P.y-A.y)) / 2.0);
+      float PAC = abs((P.x*(A.y-C.y) + A.x*(C.y-P.y)+ C.x*(P.y-A.y)) / 2.0);
+      float PBC = abs((P.x*(A.y-C.y) + A.x*(C.y-P.y)+ C.x*(P.y-A.y)) / 2.0);
+
+      // check
+      if (PAB + PAC + PBC == ABC) {
+        // found point
         planeIndexes.x = i;
         planeIndexes.y = i+1;
         planeIndexes.z = i+2;
-        break;
       }
 
-      // try again for the second triangle if here
-      // Triangle C -> D -> A
-      float alpha = ((D.y - A.y)*(P.x - A.x) + (A.x - D.x)*(P.y - A.y)) / ((D.y - A.y)*(C.x - A.x) + (A.x - D.x)*(C.y - A.y));
-      float beta  = ((A.y - C.y)*(P.x - A.x) + (C.x - A.x)*(P.y - A.y)) / ((D.y - A.y)*(C.x - A.x) + (A.x - D.x)*(C.y - A.y));
-      float gamma = 1.0f - alpha - beta;
-      // check if inside triangle
-      if (alpha > 0.0f && beta > 0.0f && gamma > 0.0f) {
+      // the target area for triangle 2
+      float CDA = abs((C.x*(D.y-A.y) + D.x*(A.y-C.y)+ A.x*(C.y-D.y)) / 2.0);
+      // candidate areas for triangle 2
+      float PCD = abs((P.x*(C.y-D.y) + C.x*(D.y-P.y)+ D.x*(P.y-C.y)) / 2.0);
+      float PCA = abs((P.x*(C.y-A.y) + C.x*(A.y-P.y)+ A.x*(P.y-C.y)) / 2.0);
+      float PDA = abs((P.x*(D.y-A.y) + D.x*(A.y-P.y)+ A.x*(P.y-D.y)) / 2.0);
+
+      if (PCD + PCA + PDA == CDA) {
+        // found point
         planeIndexes.x = i+2;
         planeIndexes.y = i+3;
         planeIndexes.z = i;
-        break;
       }
+
     }
 
+    // need to test a single triangle
     if (*faceEncoding == 3){
       // TODO
     }
