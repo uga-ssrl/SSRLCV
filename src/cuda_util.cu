@@ -6,7 +6,6 @@ NVIDIA GPU COMPATIBILITY
 void getGrid(unsigned long numElements, dim3 &grid, int device){
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
-    
   grid = {(unsigned int)prop.maxGridSize[0],(unsigned int)prop.maxGridSize[1],(unsigned int)prop.maxGridSize[2]};
   if(numElements < grid.x){
     grid.x = numElements;
