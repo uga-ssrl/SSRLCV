@@ -361,21 +361,7 @@ void ssrlcv::Octree::createFinestNodes(){
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  if(this->points->size() < 65535) grid.x = (unsigned int) this->points->size();
-  else{
-    grid.x = 65535;
-    while(grid.x*block.x < this->points->size()){
-      ++block.x;
-    }
-    while(grid.x*block.x > this->points->size()){
-      --grid.x;
-      if(grid.x*block.x < this->points->size()){
-        ++grid.x;//to ensure that numThreads > this->points->size()
-        break;
-      }
-    }
-  }
-
+  getFlatGridBlock(this->points->size(),grid,block,getNodeKeys);
 
   getNodeKeys<<<grid,block>>>(this->points->device, finestNodeCenters_device, finestNodeKeys_device, this->center, this->width, this->points->size(), this->depth);
   CudaCheckError();
@@ -487,45 +473,42 @@ void ssrlcv::Octree::fillInCoarserDepths(){
   int3* coordPlacementIdentity_device = nullptr;
   CudaSafeCall(cudaMalloc((void**)&coordPlacementIdentity_device,8*sizeof(int3)));
   CudaSafeCall(cudaMemcpy(coordPlacementIdentity_device,coordPlacementIdentity_host,8*sizeof(int3),cudaMemcpyHostToDevice));
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
   for(int d = this->depth; d >= 0; --d){
-    dim3 grid = {1,1,1};
-    dim3 block = {1,1,1};
-    if(numUniqueNodes < 65535) grid.x = (unsigned int) numUniqueNodes;
-    else{
-      grid.x = 65535;
-      while(grid.x*block.x < numUniqueNodes){
-        ++block.x;
-      }
-      while(grid.x*block.x > numUniqueNodes){
-        --grid.x;
-        if(grid.x*block.x < numUniqueNodes){
-          ++grid.x;//to ensure that numThreads > numUniqueNodes
-          break;
-        }
-      }
-    }
 
     CudaSafeCall(cudaMalloc((void**)&nodeNumbers_device, numUniqueNodes * sizeof(int)));
     CudaSafeCall(cudaMalloc((void**)&nodeAddresses_device, numUniqueNodes * sizeof(int)));
     //this is just to fill the arrays with 0s
-    calculateNodeAddresses(grid, block, numUniqueNodes, uniqueNodes_device, nodeAddresses_device, nodeNumbers_device);
+  
+    getFlatGridBlock(numUniqueNodes,grid,block,findAllNodes);
+    findAllNodes<<<grid,block>>>(numUniqueNodes, nodeNumbers_device, uniqueNodes_device);
+    cudaDeviceSynchronize();
+    CudaCheckError();
+
+    thrust::device_ptr<int> nN(nodeNumbers_device);
+    thrust::device_ptr<int> nA(nodeAddresses_device);
+    thrust::inclusive_scan(nN, nN + numUniqueNodes, nA);
 
     int numNodesAtDepth = 0;
     CudaSafeCall(cudaMemcpy(&numNodesAtDepth, nodeAddresses_device + (numUniqueNodes - 1), sizeof(int), cudaMemcpyDeviceToHost));
 
     numNodesAtDepth = (d > 0) ? numNodesAtDepth + 8: 1;
 
-
     CudaSafeCall(cudaMalloc((void**)&nodeArray2D[this->depth - d], numNodesAtDepth*sizeof(Node)));
-
+  
+    getFlatGridBlock(numUniqueNodes,grid,block,fillBlankNodeArray);
     fillBlankNodeArray<<<grid,block>>>(uniqueNodes_device, nodeNumbers_device,  nodeAddresses_device, nodeArray2D[this->depth - d], numUniqueNodes, d, this->width);
     CudaCheckError();
     cudaDeviceSynchronize();
+
     if(this->depth == d){
+      getFlatGridBlock(numUniqueNodes,grid,block,fillFinestNodeArrayWithUniques);
       fillFinestNodeArrayWithUniques<<<grid,block>>>(uniqueNodes_device, nodeAddresses_device,nodeArray2D[this->depth - d], numUniqueNodes, pointNodeIndex_device);
       CudaCheckError();
     }
     else{
+      getFlatGridBlock(numUniqueNodes,grid,block,fillNodeArrayWithUniques);
       fillNodeArrayWithUniques<<<grid,block>>>(uniqueNodes_device, nodeAddresses_device, nodeArray2D[this->depth - d], nodeArray2D[this->depth - d - 1], numUniqueNodes);
       CudaCheckError();
     }
@@ -538,20 +521,8 @@ void ssrlcv::Octree::fillInCoarserDepths(){
     //get unique nodes at next depth
     if(d > 0){
       CudaSafeCall(cudaMalloc((void**)&uniqueNodes_device, numUniqueNodes*sizeof(Node)));
-      if(numUniqueNodes < 65535) grid.x = (unsigned int) numUniqueNodes;
-      else{
-        grid.x = 65535;
-        while(grid.x*block.x < numUniqueNodes){
-          ++block.x;
-        }
-        while(grid.x*block.x > numUniqueNodes){
-          --grid.x;
-          if(grid.x*block.x < numUniqueNodes){
-            ++grid.x;//to ensure that numThreads > numUniqueNodes
-            break;
-          }
-        }
-      }
+      getFlatGridBlock(numUniqueNodes,grid,block,generateParentalUniqueNodes);
+
       generateParentalUniqueNodes<<<grid,block>>>(uniqueNodes_device, nodeArray2D[this->depth - d], numNodesAtDepth, this->width,coordPlacementIdentity_device);
       CudaCheckError();
     }
@@ -657,20 +628,8 @@ void ssrlcv::Octree::fillNeighborhoods(){
     if(i != 0){
       childDepthIndex = nodeDepthIndex_host[i - 1];
     }
-    if(numNodesAtDepth < 65535) grid.x = (unsigned int) numNodesAtDepth;
-    else{
-      grid.x = 65535;
-      while(grid.x*grid.y < numNodesAtDepth){
-        ++grid.y;
-      }
-      while(grid.x*grid.y > numNodesAtDepth){
-        --grid.x;
-        if(grid.x*grid.y < numNodesAtDepth){
-          ++grid.x;//to ensure that numThreads > totalNodes
-          break;
-        }
-      }
-    }
+
+    getGrid(numNodesAtDepth,grid);
     computeNeighboringNodes<<<grid, block>>>(this->nodes->device, numNodesAtDepth, depthStartingIndex, parentLUT_device, childLUT_device, childDepthIndex);
     cudaDeviceSynchronize();
     CudaCheckError();
@@ -730,28 +689,16 @@ void ssrlcv::Octree::computeVertexArray(){
   CudaSafeCall(cudaMalloc((void**)&coordPlacementIdentity_device,8*sizeof(int3)));
   CudaSafeCall(cudaMemcpy(coordPlacementIdentity_device,coordPlacementIdentity_host,8*sizeof(int3),cudaMemcpyHostToDevice));
   for(int i = 0; i <= this->depth; ++i){
-    //reset previously allocated resources
-    grid.y = 1;
-    block.x = 8;
     if(i == this->depth){
       numNodesAtDepth = 1;
     }
     else{
       numNodesAtDepth = nodeDepthIndex_host[i + 1] - nodeDepthIndex_host[i];
     }
-    if(numNodesAtDepth < 65535) grid.x = (unsigned int) numNodesAtDepth;
-    else{
-      grid.x = 65535;
-      while(grid.x*grid.y < numNodesAtDepth){
-        ++grid.y;
-      }
-      while(grid.x*grid.y > numNodesAtDepth){
-        --grid.x;
-      }
-      if(grid.x*grid.y < numNodesAtDepth){
-        ++grid.x;
-      }
-    }
+    //reset previously allocated resources
+    block = {8,1,1};
+    getGrid(numNodesAtDepth,grid);
+    
     int* ownerInidices = new int[numNodesAtDepth*8];
     for(int v = 0;v < numNodesAtDepth*8; ++v){
       ownerInidices[v] = -1;
@@ -791,23 +738,7 @@ void ssrlcv::Octree::computeVertexArray(){
     CudaSafeCall(cudaFree(ownerInidices_device));
     CudaSafeCall(cudaFree(vertexPlacement_device));
 
-    //reset and allocated resources
-    grid.y = 1;
-    block.x = 1;
-    if(numVertices - prevCount < 65535) grid.x = (unsigned int) numVertices - prevCount;
-    else{
-      grid.x = 65535;
-      while(grid.x*block.x < numVertices - prevCount){
-        ++block.x;
-      }
-      while(grid.x*block.x > numVertices - prevCount){
-        --grid.x;
-        if(grid.x*block.x < numVertices - prevCount){
-          ++grid.x;
-          break;
-        }
-      }
-    }
+    getFlatGridBlock(numVertices - prevCount,grid,block,fillUniqueVertexArray);
 
     fillUniqueVertexArray<<<grid, block>>>(this->nodes->device, vertexArray2D[i],
       numVertices - prevCount, vertexDepthIndex_host[i], nodeDepthIndex_host[i], this->depth - i,
@@ -893,29 +824,16 @@ void ssrlcv::Octree::computeEdgeArray(){
   CudaSafeCall(cudaMemcpy(vertexEdgeIdentity_device,vertexEdgeIdentity_host,12*sizeof(int2),cudaMemcpyHostToDevice));
 
   for(int i = 0; i <= this->depth; ++i){
-    //reset previously allocated resources
-    grid.y = 1;
-    block.x = 12;
     if(i == this->depth){
       numNodesAtDepth = 1;
     }
     else{
       numNodesAtDepth = nodeDepthIndex_host[i + 1] - nodeDepthIndex_host[i];
     }
-    if(numNodesAtDepth < 65535) grid.x = (unsigned int) numNodesAtDepth;
-    else{
-      grid.x = 65535;
-      while(grid.x*grid.y < numNodesAtDepth){
-        ++grid.y;
-      }
-      while(grid.x*grid.y > numNodesAtDepth){
-        --grid.x;
+    //reset previously allocated resources
+    block = {12,1,1};
+    getGrid(numNodesAtDepth,grid);
 
-      }
-      if(grid.x*grid.y < numNodesAtDepth){
-        ++grid.x;
-      }
-    }
     int* ownerInidices = new int[numNodesAtDepth*12];
     for(int v = 0;v < numNodesAtDepth*12; ++v){
       ownerInidices[v] = -1;
@@ -955,22 +873,7 @@ void ssrlcv::Octree::computeEdgeArray(){
     CudaSafeCall(cudaFree(edgePlacement_device));
 
     //reset and allocated resources
-    grid.y = 1;
-    block.x = 1;
-    if(numEdges - prevCount < 65535) grid.x = (unsigned int) numEdges - prevCount;
-    else{
-      grid.x = 65535;
-      while(grid.x*block.x < numEdges - prevCount){
-        ++block.x;
-      }
-      while(grid.x*block.x > numEdges - prevCount){
-        --grid.x;
-        if(grid.x*block.x < numEdges - prevCount){
-          ++grid.x;
-          break;
-        }
-      }
-    }
+    getFlatGridBlock(numEdges - prevCount,grid,block,fillUniqueEdgeArray);
 
     fillUniqueEdgeArray<<<grid, block>>>(this->nodes->device, edgeArray2D[i],
       numEdges - prevCount, edgeDepthIndex_host[i], nodeDepthIndex_host[i], this->depth - i,
@@ -1038,29 +941,16 @@ void ssrlcv::Octree::computeFaceArray(){
   CudaSafeCall(cudaMalloc((void**)&edgeFaceIdentity_device,6*sizeof(int4)));
   CudaSafeCall(cudaMemcpy(edgeFaceIdentity_device,edgeFaceIdentity_host,6*sizeof(int4),cudaMemcpyHostToDevice));
   for(int i = 0; i <= this->depth; ++i){
-    //reset previously allocated resources
-    grid.y = 1;
-    block.x = 6;
     if(i == this->depth){
       numNodesAtDepth = 1;
     }
     else{
       numNodesAtDepth = nodeDepthIndex_host[i + 1] - nodeDepthIndex_host[i];
     }
-    if(numNodesAtDepth < 65535) grid.x = (unsigned int) numNodesAtDepth;
-    else{
-      grid.x = 65535;
-      while(grid.x*grid.y < numNodesAtDepth){
-        ++grid.y;
-      }
-      while(grid.x*grid.y > numNodesAtDepth){
-        --grid.x;
+    //reset previously allocated resources
+    block = {6,1,1};
+    getGrid(numNodesAtDepth,grid);
 
-      }
-      if(grid.x*grid.y < numNodesAtDepth){
-        ++grid.x;
-      }
-    }
     int* ownerInidices = new int[numNodesAtDepth*6];
     for(int v = 0;v < numNodesAtDepth*6; ++v){
       ownerInidices[v] = -1;
@@ -1100,24 +990,9 @@ void ssrlcv::Octree::computeFaceArray(){
     CudaSafeCall(cudaFree(facePlacement_device));
 
     //reset and allocated resources
-    grid.y = 1;
-    block.x = 1;
-    if(numFaces - prevCount < 65535) grid.x = (unsigned int) numFaces - prevCount;
-    else{
-      grid.x = 65535;
-      while(grid.x*block.x < numFaces - prevCount){
-        ++block.x;
-      }
-      while(grid.x*block.x > numFaces - prevCount){
-        --grid.x;
-        if(grid.x*block.x < numFaces - prevCount){
-          ++grid.x;
-          break;
-        }
-      }
-    }
+    getFlatGridBlock(numFaces - prevCount,grid,block,fillUniqueFaceArray);
 
-    fillUniqueFaceArray<<<grid, block>>>((Octree::Node*) this->nodes->device, faceArray2D[i],
+    fillUniqueFaceArray<<<grid, block>>>(this->nodes->device, faceArray2D[i],
       numFaces - prevCount, numFaces, nodeDepthIndex_host[i], this->depth - i,
       this->width, faceLUT_device, compactedOwnerArray_device, compactedFacePlacement_device,edgeFaceIdentity_device);
     CudaCheckError();
@@ -1205,11 +1080,6 @@ void ssrlcv::Octree::checkForGeneralNodeErrors(){
       nodesWithOutChildren++;
     }
     if(nodes_host[i].depth == 0){
-      // if(nodes_host[i].numFinestChildren < this->numFinestUniqueNodes){
-      //   std::cout<<"DEPTH 0 DOES NOT INCLUDE ALL FINEST UNIQUE NODES "<<nodes_host[i].numFinestChildren<<",";
-      //   std::cout<<this->numFinestUniqueNodes<<", NUM FULL FINEST NODES SHOULD BE "<<this->nodeDepthIndex[1]<<std::endl;
-      //   exit(-1);
-      // }
       if(nodes_host[i].numPoints != this->points->size()){
         std::cout<<"DEPTH 0 DOES NOT CONTAIN ALL POINTS "<<nodes_host[i].numPoints<<","<<this->points->size()<<std::endl;
         exit(-1);
@@ -1325,203 +1195,6 @@ void ssrlcv::Octree::createVEFArrays(){
 * @param maxNeighbors the maximum number of neightbors to consider for normal calculation
 */
 void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
-  std::cout<<"\n";
-  clock_t cudatimer;
-  cudatimer = clock();
-
-  int numNodesAtDepth = 0;
-  int currentNumNeighbors = 0;
-  int currentNeighborIndex = -1;
-  int maxPointsInOneNode = 0;
-  int minPossibleNeighbors = std::numeric_limits<int>::max();
-  int nodeDepthIndex = 0;
-  int currentDepth = 0;
-  MemoryState node_origin = this->nodes->getMemoryState();
-  MemoryState nodeDepthIndex_origin = this->nodeDepthIndex->getMemoryState();
-
-  if(node_origin != both || node_origin != cpu){
-    this->nodes->transferMemoryTo(cpu);
-  }
-  Node* nodes_host = (Octree::Node*) this->nodes->host;
-  if(nodeDepthIndex_origin != both || nodeDepthIndex_origin != cpu){
-    this->nodes->transferMemoryTo(cpu);
-  }
-  unsigned int* nodeDepthIndex_host = (unsigned int*) this->nodeDepthIndex->host;
-
-  for(int i = 0; i < this->nodes->size(); ++i){
-    currentNumNeighbors = 0;
-    if(minPossibleNeighbors < minNeighForNorms){
-      ++currentDepth;
-      i = nodeDepthIndex_host[currentDepth];
-      minPossibleNeighbors = std::numeric_limits<int>::max();
-      maxPointsInOneNode = 0;
-    }
-    if(this->depth - nodes_host[i].depth != currentDepth){
-      if(minPossibleNeighbors >= minNeighForNorms) break;
-      ++currentDepth;
-    }
-    if(maxPointsInOneNode < nodes_host[i].numPoints){
-      maxPointsInOneNode = nodes_host[i].numPoints;
-    }
-    for(int n = 0; n < 27; ++n){
-      currentNeighborIndex = nodes_host[i].neighbors[n];
-      if(currentNeighborIndex != -1) currentNumNeighbors += nodes_host[currentNeighborIndex].numPoints;
-    }
-    if(minPossibleNeighbors > currentNumNeighbors){
-      minPossibleNeighbors = currentNumNeighbors;
-    }
-  }
-
-  nodeDepthIndex = nodeDepthIndex_host[currentDepth];
-  numNodesAtDepth = nodeDepthIndex_host[currentDepth + 1] - nodeDepthIndex;
-  std::cout<<"Continuing with depth "<<this->depth - currentDepth<<" nodes starting at "<<nodeDepthIndex<<" with "<<numNodesAtDepth<<" nodes"<<std::endl;
-  std::cout<<"Continuing with "<<minPossibleNeighbors<<" minPossibleNeighbors"<<std::endl;
-  std::cout<<"Continuing with "<<maxNeighbors<<" maxNeighborsAllowed"<<std::endl;
-  std::cout<<"Continuing with "<<maxPointsInOneNode<<" maxPointsInOneNode"<<std::endl;
-
-  uint size = this->points->size()*maxNeighbors*3;
-  float* cMatrix_device;
-  int* neighborIndices_device;
-  int* numRealNeighbors_device;
-  int* numRealNeighbors = new int[this->points->size()];
-
-  for(int i = 0; i < this->points->size(); ++i){
-    numRealNeighbors[i] = 0;
-  }
-  int* temp = new int[size/3];
-  for(int i = 0; i < size/3; ++i){
-    temp[i] = -1;
-  }
-
-  CudaSafeCall(cudaMalloc((void**)&numRealNeighbors_device, this->points->size()*sizeof(int)));
-  CudaSafeCall(cudaMalloc((void**)&cMatrix_device, size*sizeof(float)));
-  CudaSafeCall(cudaMalloc((void**)&neighborIndices_device, (size/3)*sizeof(int)));
-  CudaSafeCall(cudaMemcpy(numRealNeighbors_device, numRealNeighbors, this->points->size()*sizeof(int), cudaMemcpyHostToDevice));
-  CudaSafeCall(cudaMemcpy(neighborIndices_device, temp, (size/3)*sizeof(int), cudaMemcpyHostToDevice));
-  delete[] temp;
-
-  dim3 grid = {1,1,1};
-  dim3 block = {1,1,1};
-
-  block.x = (maxPointsInOneNode > 1024) ? 1024 : maxPointsInOneNode;
-  if(numNodesAtDepth < 65535) grid.x = (unsigned int) numNodesAtDepth;
-  else{
-    grid.x = 65535;
-    while(grid.x*grid.y < numNodesAtDepth){
-      ++grid.y;
-    }
-    while(grid.x*grid.y > numNodesAtDepth){
-      --grid.x;
-    }
-    if(grid.x*grid.y < numNodesAtDepth){
-      ++grid.x;
-    }
-  }
-  MemoryState points_origin = this->points->getMemoryState();
-  if(this->points->getMemoryState() != both && this->points->getMemoryState() != gpu){
-    this->points->transferMemoryTo(gpu);
-  }
-  std::cout<<"WARNING: float3 normal calculation is currently performed only on sphere centers"<<std::endl;
-  findNormalNeighborsAndComputeCMatrix<<<grid, block>>>(numNodesAtDepth, nodeDepthIndex, maxNeighbors,
-    this->nodes->device, this->points->device, cMatrix_device, neighborIndices_device, numRealNeighbors_device);
-
-
-  CudaCheckError();
-  CudaSafeCall(cudaMemcpy(numRealNeighbors, numRealNeighbors_device, this->points->size()*sizeof(int), cudaMemcpyDeviceToHost));
-
-  float3* normals_device;
-  CudaSafeCall(cudaMalloc((void**)&normals_device, this->points->size()*sizeof(float3)));
-
-  cusolverDnHandle_t cusolverH = nullptr;
-  cublasHandle_t cublasH = nullptr;
-  cublasStatus_t cublas_status = CUBLAS_STATUS_SUCCESS;
-  cusolverStatus_t cusolver_status = CUSOLVER_STATUS_SUCCESS;
-
-  float *d_A, *d_S, *d_U, *d_VT, *d_work, *d_rwork;
-  int* devInfo;
-
-  cusolver_status = cusolverDnCreate(&cusolverH);
-  assert(CUSOLVER_STATUS_SUCCESS == cublas_status);
-
-  cublas_status = cublasCreate(&cublasH);
-  assert(CUBLAS_STATUS_SUCCESS == cublas_status);
-
-  int n = 3;
-  int m = 0;
-  int lwork = 0;
-
-  //TODO changed this to gesvdjBatched (this will enable doing multiple svds at once)
-  for(int p = 0; p < this->points->size(); ++p){
-    m = numRealNeighbors[p];
-    lwork = 0;
-    if(m < minNeighForNorms){
-      std::cout<<"ERROR...point does not have enough neighbors...increase min neighbors"<<std::endl;
-      exit(-1);
-    }
-    CudaSafeCall(cudaMalloc((void**)&d_A, m*n*sizeof(float)));
-    CudaSafeCall(cudaMalloc((void**)&d_S, n*sizeof(float)));
-    CudaSafeCall(cudaMalloc((void**)&d_U, m*m*sizeof(float)));
-    CudaSafeCall(cudaMalloc((void**)&d_VT, n*n*sizeof(float)));
-    CudaSafeCall(cudaMalloc((void**)&devInfo, sizeof(int)));
-    CudaSafeCall(cudaMemcpy(d_A, cMatrix_device + (p*maxNeighbors*n), m*n*sizeof(float), cudaMemcpyDeviceToDevice));
-    transposeFloatMatrix<<<m*n,1>>>(m,n,d_A);
-    cudaDeviceSynchronize();
-    CudaCheckError();
-
-    //query working space of SVD
-    cusolver_status = cusolverDnSgesvd_bufferSize(cusolverH, m, n, &lwork);
-
-    assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
-
-    CudaSafeCall(cudaMalloc((void**)&d_work, lwork*sizeof(float)));
-    //SVD
-
-    cusolver_status = cusolverDnSgesvd(cusolverH, 'A', 'A', m, n,
-      d_A, m, d_S, d_U, m, d_VT, n, d_work, lwork, d_rwork, devInfo);
-    cudaDeviceSynchronize();
-    assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
-
-    //FIND 2 ROWS OF S WITH HEIGHEST VALUES
-    //TAKE THOSE ROWS IN VT AND GET CROSS PRODUCT = NORMALS ESTIMATE
-    //TODO maybe find better way to cache this and not use only one block
-    setNormal<<<1, 1>>>(p, d_VT, normals_device);
-    CudaCheckError();
-
-    CudaSafeCall(cudaFree(d_A));
-    CudaSafeCall(cudaFree(d_S));
-    CudaSafeCall(cudaFree(d_U));
-    CudaSafeCall(cudaFree(d_VT));
-    CudaSafeCall(cudaFree(d_work));
-    CudaSafeCall(cudaFree(devInfo));
-  }
-  std::cout<<"normals have been estimated by use of svd"<<std::endl;
-  if (cublasH) cublasDestroy(cublasH);
-  if (cusolverH) cusolverDnDestroy(cusolverH);
-
-  delete[] numRealNeighbors;
-  CudaSafeCall(cudaFree(cMatrix_device));
-
-  if(this->normals != nullptr) delete this->normals;
-  this->normals = new Unity<float3>(normals_device, this->points->size(), gpu);
-  this->normals->transferMemoryTo(points_origin);
-  this->points->transferMemoryTo(points_origin);
-  this->nodes->transferMemoryTo(node_origin);
-  this->nodeDepthIndex->transferMemoryTo(nodeDepthIndex_origin);
-
-  CudaSafeCall(cudaFree(numRealNeighbors_device));
-  CudaSafeCall(cudaFree(neighborIndices_device));
-
-  printf("octree computeNormals took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
-}
-
-/**
-* Computes normals for the points within the input points cloud
-* @param minNeighForNorms the minimum number of neighbors to consider for normal calculation
-* @param maxNeighbors the maximum number of neightbors to consider for normal calculation
-* @param numCameras the total number of cameras which resulted in the point cloud
-* @param cameraPositions the x,y,z coordinates of the cameras
-*/
-void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions){
 
   // enable local_debug to have local print statements
   bool local_debug = true;
@@ -1579,12 +1252,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
     std::cout<<"Continuing with depth "<<this->depth - currentDepth<<" nodes starting at "<<nodeDepthIndex<<" with "<<numNodesAtDepth<<" nodes"<<std::endl;
     std::cout<<"Continuing with "<<minPossibleNeighbors<<" minPossibleNeighbors"<<std::endl;
     std::cout<<"Continuing with "<<maxNeighbors<<" maxNeighborsAllowed"<<std::endl;
-    std::cout<<"Continuing with "<<maxPointsInOneNode<<" maxPovoidintsInOneNode"<<std::endl;
-  }
-
-  if(numCameras > 1024){
-    std::cout<<"ERROR numCameras > 1024"<<std::endl;
-    exit(-1);
+    std::cout<<"Continuing with "<<maxPointsInOneNode<<" maxPointsInOneNode"<<std::endl;
   }
 
   uint size = this->points->size()*maxNeighbors*3;
@@ -1610,27 +1278,12 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
+  getGridAndBlock(numNodesAtDepth,grid,maxPointsInOneNode,block,findNormalNeighborsAndComputeCMatrix);
 
-  block.x = (maxPointsInOneNode > 1024) ? 1024 : maxPointsInOneNode;
-  if(numNodesAtDepth < 65535) grid.x = (unsigned int) numNodesAtDepth;
-  else{
-    grid.x = 65535;
-    while(grid.x*grid.y < numNodesAtDepth){
-      ++grid.y;
-    }
-    while(grid.x*grid.y > numNodesAtDepth){
-      --grid.x;
-    }
-    if(grid.x*grid.y < numNodesAtDepth){
-      ++grid.x;
-    }
-  }
-  // getFlatGridBlock()
   MemoryState points_origin = this->points->getMemoryState();
-  if(this->points->getMemoryState() != both && this->points->getMemoryState() != gpu){
+  if(points_origin == cpu){
     this->points->transferMemoryTo(gpu);
   }
-
   std::cout<<"WARNING: float3 normal calculation is currently performed only on sphere centers"<<std::endl;
   findNormalNeighborsAndComputeCMatrix<<<grid, block>>>(numNodesAtDepth, nodeDepthIndex, maxNeighbors,
     this->nodes->device, this->points->device, cMatrix_device, neighborIndices_device, numRealNeighbors_device);
@@ -1638,8 +1291,8 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
   CudaCheckError();
   CudaSafeCall(cudaMemcpy(numRealNeighbors, numRealNeighbors_device, this->points->size()*sizeof(int), cudaMemcpyDeviceToHost));
 
-  float3* normals_device;
-  CudaSafeCall(cudaMalloc((void**)&normals_device, this->points->size()*sizeof(float3)));
+  if(this->normals != nullptr) delete this->normals;
+  this->normals = new Unity<float3>(nullptr, this->points->size(), gpu);
 
   cusolverDnHandle_t cusolverH = nullptr;
   cublasHandle_t cublasH = nullptr;
@@ -1650,7 +1303,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
   int* devInfo;
 
   cusolver_status = cusolverDnCreate(&cusolverH);
-  assert(CUSOLVER_STATUS_SUCCESS == cublas_status);
+  assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
 
   cublas_status = cublasCreate(&cublasH);
   assert(CUBLAS_STATUS_SUCCESS == cublas_status);
@@ -1684,7 +1337,6 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
 
     CudaSafeCall(cudaMalloc((void**)&d_work, lwork*sizeof(float)));
     //SVD
-
     cusolver_status = cusolverDnSgesvd(cusolverH, 'A', 'A', m, n,
       d_A, m, d_S, d_U, m, d_VT, n, d_work, lwork, d_rwork, devInfo);
     cudaDeviceSynchronize();
@@ -1695,7 +1347,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
     //TODO maybe find better way to cache this and not use only one block
     setNormal<<<1, 1>>>(p, d_VT, this->normals->device);
     CudaCheckError();
-
+  
     CudaSafeCall(cudaFree(d_A));
     CudaSafeCall(cudaFree(d_S));
     CudaSafeCall(cudaFree(d_U));
@@ -1710,15 +1362,227 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
   delete[] numRealNeighbors;
   CudaSafeCall(cudaFree(cMatrix_device));
 
-  if(this->normals != nullptr) delete this->normals;
-  this->normals = new Unity<float3>(normals_device, this->points->size(), gpu);
-  this->normals->transferMemoryTo(points_origin);
-  this->points->transferMemoryTo(points_origin);
+  if(points_origin != gpu) this->normals->setMemoryState(points_origin);
+  if(this->points->getMemoryState() != points_origin) this->points->setMemoryState(points_origin);
   this->nodes->transferMemoryTo(node_origin);
   this->nodeDepthIndex->transferMemoryTo(nodeDepthIndex_origin);
 
   CudaSafeCall(cudaFree(numRealNeighbors_device));
   CudaSafeCall(cudaFree(neighborIndices_device));
+
+  if (local_debug) printf("octree computeNormals took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
+}
+
+/**
+* Computes normals for the points within the input points cloud
+* @param minNeighForNorms the minimum number of neighbors to consider for normal calculation
+* @param maxNeighbors the maximum number of neightbors to consider for normal calculation
+* @param numCameras the total number of cameras which resulted in the point cloud
+* @param cameraPositions the x,y,z coordinates of the cameras
+*/
+void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions){
+
+  // enable local_debug to have local print statements
+  bool local_debug = true;
+
+  if (local_debug) std::cout << std::endl;
+  clock_t cudatimer;
+  cudatimer = clock();
+
+  int numNodesAtDepth = 0;
+  int currentNumNeighbors = 0;
+  int currentNeighborIndex = -1;
+  int maxPointsInOneNode = 0;
+  int minPossibleNeighbors = std::numeric_limits<int>::max();
+  int nodeDepthIndex = 0;
+  int currentDepth = 0;
+  MemoryState node_origin = this->nodes->getMemoryState();
+  MemoryState nodeDepthIndex_origin = this->nodeDepthIndex->getMemoryState();
+
+  if(node_origin != both || node_origin != cpu){
+    this->nodes->transferMemoryTo(cpu);
+  }
+  Node* nodes_host = this->nodes->host;
+  if(nodeDepthIndex_origin != both || nodeDepthIndex_origin != cpu){
+    this->nodes->transferMemoryTo(cpu);
+  }
+  unsigned int* nodeDepthIndex_host = (unsigned int*) this->nodeDepthIndex->host;
+
+  for(int i = 0; i < this->nodes->size(); ++i){
+    currentNumNeighbors = 0;
+    if(minPossibleNeighbors < minNeighForNorms){
+      ++currentDepth;
+      i = nodeDepthIndex_host[currentDepth];
+      minPossibleNeighbors = std::numeric_limits<int>::max();
+      maxPointsInOneNode = 0;
+    }
+    if(this->depth - nodes_host[i].depth != currentDepth){
+      if(minPossibleNeighbors >= minNeighForNorms) break;
+      ++currentDepth;
+    }
+    if(maxPointsInOneNode < nodes_host[i].numPoints){
+      maxPointsInOneNode = nodes_host[i].numPoints;
+    }
+    for(int n = 0; n < 27; ++n){
+      currentNeighborIndex = nodes_host[i].neighbors[n];
+      if(currentNeighborIndex != -1) currentNumNeighbors += nodes_host[currentNeighborIndex].numPoints;
+    }
+    if(minPossibleNeighbors > currentNumNeighbors){
+      minPossibleNeighbors = currentNumNeighbors;
+    }
+  }
+
+  nodeDepthIndex = nodeDepthIndex_host[currentDepth];
+  numNodesAtDepth = nodeDepthIndex_host[currentDepth + 1] - nodeDepthIndex;
+  if (local_debug){
+    std::cout<<"Continuing with depth "<<this->depth - currentDepth<<" nodes starting at "<<nodeDepthIndex<<" with "<<numNodesAtDepth<<" nodes"<<std::endl;
+    std::cout<<"Continuing with "<<minPossibleNeighbors<<" minPossibleNeighbors"<<std::endl;
+    std::cout<<"Continuing with "<<maxNeighbors<<" maxNeighborsAllowed"<<std::endl;
+    std::cout<<"Continuing with "<<maxPointsInOneNode<<" maxPointsInOneNode"<<std::endl;
+  }
+
+  uint size = this->points->size()*maxNeighbors*3;
+  float* cMatrix_device;
+  int* neighborIndices_device;
+  int* numRealNeighbors_device;
+  int* numRealNeighbors = new int[this->points->size()];
+
+  for(int i = 0; i < this->points->size(); ++i){
+    numRealNeighbors[i] = 0;
+  }
+  int* temp = new int[size/3];
+  for(int i = 0; i < size/3; ++i){
+    temp[i] = -1;
+  }
+
+  CudaSafeCall(cudaMalloc((void**)&numRealNeighbors_device, this->points->size()*sizeof(int)));
+  CudaSafeCall(cudaMalloc((void**)&cMatrix_device, size*sizeof(float)));
+  CudaSafeCall(cudaMalloc((void**)&neighborIndices_device, (size/3)*sizeof(int)));
+  CudaSafeCall(cudaMemcpy(numRealNeighbors_device, numRealNeighbors, this->points->size()*sizeof(int), cudaMemcpyHostToDevice));
+  CudaSafeCall(cudaMemcpy(neighborIndices_device, temp, (size/3)*sizeof(int), cudaMemcpyHostToDevice));
+  delete[] temp;
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  getGridAndBlock(numNodesAtDepth,grid,maxPointsInOneNode,block,findNormalNeighborsAndComputeCMatrix);
+
+  MemoryState points_origin = this->points->getMemoryState();
+  if(points_origin == cpu){
+    this->points->transferMemoryTo(gpu);
+  }
+  findNormalNeighborsAndComputeCMatrix<<<grid, block>>>(numNodesAtDepth, nodeDepthIndex, maxNeighbors,
+    this->nodes->device, this->points->device, cMatrix_device, neighborIndices_device, numRealNeighbors_device);
+
+  CudaCheckError();
+  CudaSafeCall(cudaMemcpy(numRealNeighbors, numRealNeighbors_device, this->points->size()*sizeof(int), cudaMemcpyDeviceToHost));
+
+  if(this->normals != nullptr) delete this->normals;
+  this->normals = new Unity<float3>(nullptr, this->points->size(), gpu);
+
+  cusolverDnHandle_t cusolverH = nullptr;
+  cublasHandle_t cublasH = nullptr;
+  cublasStatus_t cublas_status = CUBLAS_STATUS_SUCCESS;
+  cusolverStatus_t cusolver_status = CUSOLVER_STATUS_SUCCESS;
+
+  float *d_A, *d_S, *d_U, *d_VT, *d_work, *d_rwork;
+  int* devInfo;
+
+  cusolver_status = cusolverDnCreate(&cusolverH);
+  assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
+
+  cublas_status = cublasCreate(&cublasH);
+  assert(CUBLAS_STATUS_SUCCESS == cublas_status);
+
+  int n = 3;
+  int m = 0;
+  int lwork = 0;
+
+  //TODO changed this to gesvdjBatched (this will enable doing multiple svds at once)
+  for(int p = 0; p < this->points->size(); ++p){
+    m = numRealNeighbors[p];
+    lwork = 0;
+    if(m < minNeighForNorms){
+      std::cout<<"ERROR...point does not have enough neighbors...increase min neighbors"<<std::endl;
+      exit(-1);
+    }
+    CudaSafeCall(cudaMalloc((void**)&d_A, m*n*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&d_S, n*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&d_U, m*m*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&d_VT, n*n*sizeof(float)));
+    CudaSafeCall(cudaMalloc((void**)&devInfo, sizeof(int)));
+    CudaSafeCall(cudaMemcpy(d_A, cMatrix_device + (p*maxNeighbors*n), m*n*sizeof(float), cudaMemcpyDeviceToDevice));
+    transposeFloatMatrix<<<m*n,1>>>(m,n,d_A);
+    cudaDeviceSynchronize();
+    CudaCheckError();
+
+    //query working space of SVD
+    cusolver_status = cusolverDnSgesvd_bufferSize(cusolverH, m, n, &lwork);
+
+    assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
+
+    CudaSafeCall(cudaMalloc((void**)&d_work, lwork*sizeof(float)));
+    //SVD
+    cusolver_status = cusolverDnSgesvd(cusolverH, 'A', 'A', m, n,
+      d_A, m, d_S, d_U, m, d_VT, n, d_work, lwork, d_rwork, devInfo);
+    cudaDeviceSynchronize();
+    assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
+
+    //FIND 2 ROWS OF S WITH HEIGHEST VALUES
+    //TAKE THOSE ROWS IN VT AND GET CROSS PRODUCT = NORMALS ESTIMATE
+    //TODO maybe find better way to cache this and not use only one block
+    setNormal<<<1, 1>>>(p, d_VT, this->normals->device);
+    CudaCheckError();
+  
+    CudaSafeCall(cudaFree(d_A));
+    CudaSafeCall(cudaFree(d_S));
+    CudaSafeCall(cudaFree(d_U));
+    CudaSafeCall(cudaFree(d_VT));
+    CudaSafeCall(cudaFree(d_work));
+    CudaSafeCall(cudaFree(devInfo));
+  }
+  if (local_debug) std::cout<<"normals have been estimated by use of svd"<<std::endl;
+  if (cublasH) cublasDestroy(cublasH);
+  if (cusolverH) cusolverDnDestroy(cusolverH);
+
+  delete[] numRealNeighbors;
+  CudaSafeCall(cudaFree(cMatrix_device));
+
+  //TODO add ambiguity test here
+
+  float3* cameraPositions_device;
+  Unity<bool>* ambiguity = new Unity<bool>(nullptr,this->points->size(),gpu);
+
+  CudaSafeCall(cudaMalloc((void**)&cameraPositions_device, numCameras*sizeof(float3)));
+  CudaSafeCall(cudaMemcpy(cameraPositions_device, cameraPositions, numCameras*sizeof(float3), cudaMemcpyHostToDevice));
+
+  getGridAndBlock(this->points->size(),grid,numCameras,block,checkForAmbiguity);
+
+  checkForAmbiguity<<<grid, block>>>(this->points->size(), numCameras, this->normals->device,
+    this->points->device, cameraPositions_device, ambiguity->device);
+  CudaCheckError();
+  CudaSafeCall(cudaFree(cameraPositions_device));
+
+  ambiguity->transferMemoryTo(cpu);
+
+  int numAmbiguous = 0;
+  for(int i = 0; i < this->points->size(); ++i){
+    if(ambiguity->host[i]) ++numAmbiguous;
+  }
+  std::cout<<"numAmbiguous = "<<numAmbiguous<<"/"<<ambiguity->size()<<std::endl;
+
+  if(this->points->getMemoryState() != points_origin) this->points->setMemoryState(points_origin);
+
+  reorient<<<grid, block>>>(numNodesAtDepth, nodeDepthIndex, this->nodes->device, numRealNeighbors_device, maxNeighbors, this->normals->device,
+    neighborIndices_device, ambiguity->device);
+  CudaCheckError();
+  
+  CudaSafeCall(cudaFree(numRealNeighbors_device));
+  CudaSafeCall(cudaFree(neighborIndices_device));
+  delete ambiguity;
+
+  if(points_origin != gpu) this->normals->setMemoryState(points_origin);
+  this->nodes->transferMemoryTo(node_origin);
+  this->nodeDepthIndex->transferMemoryTo(nodeDepthIndex_origin);
 
   if (local_debug) printf("octree computeNormals took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
@@ -1754,6 +1618,7 @@ ssrlcv::Unity<float3>* ssrlcv::Octree::computeAverageNormal(int minNeighForNorms
 
   this->normals->transferMemoryTo(cpu);
   this->normals->clear(gpu);
+  this->writeNormalPLY();
   average->transferMemoryTo(cpu);
   average->clear(gpu);
 
@@ -2099,15 +1964,6 @@ __global__ void ssrlcv::findAllNodes(int numUniqueNodes, int* nodeNumbers, Octre
     }
   }
 }
-void ssrlcv::calculateNodeAddresses(dim3 grid, dim3 block, int numUniqueNodes, Octree::Node* uniqueNodes_device, int* nodeAddresses_device, int* nodeNumbers_device){
-  findAllNodes<<<grid,block>>>(numUniqueNodes, nodeNumbers_device, uniqueNodes_device);
-  cudaDeviceSynchronize();
-  CudaCheckError();
-  thrust::device_ptr<int> nN(nodeNumbers_device);
-  thrust::device_ptr<int> nA(nodeAddresses_device);
-  thrust::inclusive_scan(nN, nN + numUniqueNodes, nA);
-
-}
 __global__ void ssrlcv::fillBlankNodeArray(Octree::Node* uniqueNodes, int* nodeNumbers, int* nodeAddresses, Octree::Node* outputNodeArray, int numUniqueNodes, int currentDepth, float totalWidth){
   int globalID = blockIdx.x * blockDim.x + threadIdx.x;
   int address = 0;
@@ -2378,20 +2234,23 @@ __global__ void ssrlcv::transposeFloatMatrix(int m, int n, float* matrix){
 __global__ void ssrlcv::setNormal(int currentPoint, float* vt, float3* normals){
   normals[currentPoint] = {vt[2],vt[5],vt[8]};
 }
-__global__ void ssrlcv::checkForAbiguity(int numPoints, int numCameras, float3* normals, float3* points, float3* cameraPositions, bool* ambiguous){
+__global__ void ssrlcv::checkForAmbiguity(int numPoints, int numCameras, float3* normals, float3* points, float3* cameraPositions, bool* ambiguous){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
-  if(blockID < numPoints && threadIdx.x < numCameras){
-    float3 regCameraPosition = cameraPositions[threadIdx.x];
+  if(blockID < numPoints){
     float3 coord = points[blockID];
     float3 norm = normals[blockID];
+    float3 regCameraPosition = {0.0f,0.0f,0.0f};
     __shared__ int directionCheck;
     directionCheck = 0;
     __syncthreads();
-    coord = {regCameraPosition.x - coord.x,regCameraPosition.y - coord.y,regCameraPosition.z - coord.z};
-    float dot = (coord.x*norm.x) + (coord.y*norm.y) + (coord.z*norm.z);
-    if(dot < 0) atomicSub(&directionCheck,1);
-    else atomicAdd(&directionCheck,1);
+    for(int c = threadIdx.x; c < numCameras && !ambiguous[blockID]; c+=blockDim.x){
+      regCameraPosition = cameraPositions[c];
+      coord = {regCameraPosition.x - coord.x,regCameraPosition.y - coord.y,regCameraPosition.z - coord.z};
+      if(dotProduct(coord,norm) < 0.0f) atomicSub(&directionCheck,1);
+      else atomicAdd(&directionCheck,1);
+    }
     __syncthreads();
+    if(!threadIdx.x) return;
     if(abs(directionCheck) == numCameras){
       if(directionCheck < 0){
         normals[blockID] = {-1.0f*norm.x,-1.0f*norm.y,-1.0f*norm.z};
@@ -2418,8 +2277,10 @@ __global__ void ssrlcv::reorient(int numNodesAtDepth, int depthIndex, Octree::No
     int regNumNeighbors = 0;
     int regNeighborIndex = 0;
     bool amb = true;
+    if(numPointsInNode == 0) return;
     while(ambiguityExists){
       ambiguityExists = false;
+      __syncthreads();
       for(int threadID = threadIdx.x; threadID < numPointsInNode; threadID += blockDim.x){
         if(!ambiguous[regPointIndex + threadID]) continue;
         amb = true;
@@ -2440,6 +2301,7 @@ __global__ void ssrlcv::reorient(int numNodesAtDepth, int depthIndex, Octree::No
         }
         if(!amb){
           ambiguous[blockID] = false;
+          //note this was the opposite but everest testing showed normals in the wrong direction
           if(directionCounter.x < directionCounter.y){
             normals[blockID] = {-1.0f*norm.x,-1.0f*norm.y,-1.0f*norm.z};
           }
@@ -2448,8 +2310,9 @@ __global__ void ssrlcv::reorient(int numNodesAtDepth, int depthIndex, Octree::No
           ambiguityExists = true;
         }
       }
-      if(ambiguityExists) __syncthreads();
+      __syncthreads();
     }
+    if(!threadIdx.x) printf("%d reoriented\n",numPointsInNode);
   }
 }
 
