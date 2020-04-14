@@ -1394,6 +1394,7 @@ __global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigne
   // NOTE currently assumes X-Y plane
   int3 planeIndexes = {-1,-1,-1};
   float3 P = pointcloud[globalID];
+  float3 V = vector;
 
   // loops through the faces in search of a face where this points would intersect
   for (int i = 0; i < facenum; i += *faceEncoding) {
@@ -1419,6 +1420,7 @@ __global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigne
         planeIndexes.x = i;
         planeIndexes.y = i+1;
         planeIndexes.z = i+2;
+        break;
       }
 
       // the target area for triangle 2
@@ -1433,22 +1435,64 @@ __global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigne
         planeIndexes.x = i+2;
         planeIndexes.y = i+3;
         planeIndexes.z = i;
+        break;
       }
 
     }
 
     // need to test a single triangle
     if (*faceEncoding == 3){
-      // TODO
+      // potential points
+      float3 A = vertices[i    ];
+      float3 B = vertices[i + 1];
+      float3 C = vertices[i + 2];
+
+      // the target area for triangle 1
+      float ABC = abs((A.x*(B.y-C.y) + B.x*(C.y-A.y)+ C.x*(A.y-B.y)) / 2.0);
+      // candidate areas for triangle 1
+      float PAB = abs((P.x*(A.y-B.y) + A.x*(B.y-P.y)+ B.x*(P.y-A.y)) / 2.0);
+      float PAC = abs((P.x*(A.y-C.y) + A.x*(C.y-P.y)+ C.x*(P.y-A.y)) / 2.0);
+      float PBC = abs((P.x*(A.y-C.y) + A.x*(C.y-P.y)+ C.x*(P.y-A.y)) / 2.0);
+
+      // check
+      if (PAB + PAC + PBC == ABC) {
+        // found point
+        planeIndexes.x = i;
+        planeIndexes.y = i+1;
+        planeIndexes.z = i+2;
+        break;
+      }
     }
   } // end search for best plane
 
   // make sure a valid value was found
   if (planeIndexes.x >= 0 || planeIndexes.y >= 0 || planeIndexes.z >= 0){
     // calculate the intersection between point and plane
-    error = 1.0f;
+
+    // points on the plane
+    float3 A = vertices[planeIndexes.x];
+    float3 B = vertices[planeIndexes.y];
+    float3 C = vertices[planeIndexes.z];
+
+    // normal vector of plane
+    float3 norm = crossProduct((B - A), (C - A));
+
+    // vector betweeen point and a point on the plane
+    float3 diff = P - A;
+
+    // scalar along the point vector line
+    float numer = dotProduct(diff,norm);
+    float demon = dotProduct(V,norm);
+
+    // calculate intersection point
+    float3 I = P - (V * (numer / denom));
+
+    // calculate distance between point cloud point and point on the mesh
+    float dist = sqrtf((P.x - I.x)*(P.x - I.x) + (P.y - I.y)*(P.y - I.y) + (P.z - I.z)*(P.z - I.z));
+
+    error = dist;
   } else {
-    printf("ERROR FINDING COLLISION, there could be an issue with cloud / mesh alignment. discounting point in sum ...\n");
+    printf("ERROR FINDING COLLISION, there could be an issue with cloud / mesh alignment. cannot discount point in sum, so average will be wrong ...\n");
     error = 0.0f;
   }
 
