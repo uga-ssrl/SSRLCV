@@ -194,6 +194,9 @@ int main(int argc, char *argv[]){
       demPoints.scalePointCloud(10.0,points);
       ssrlcv::writePLY("out/scaledx100.ply",points);
       demPoints.scalePointCloud(10.0,points);
+      // rotate pi around the z axis
+      float3 rotation = {0.0f, 0.0f, PI};
+      demPoints.rotatePointCloud(rotation, points);
 
       /*
       // OPTIONAL

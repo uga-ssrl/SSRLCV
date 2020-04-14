@@ -3250,8 +3250,33 @@ void ssrlcv::PointCloudFactory::translatePointCloud(float3 translate, Unity<floa
 * @param points is the point cloud to be altered by r, this value is directly altered
 */
 void ssrlcv::PointCloudFactory::rotatePointCloud(float3 rotate, Unity<float3>* points){
-  // TODO
-  std::cerr << "Point Cloud Bulk Rotation not yet implemented" << std::endl;
+
+  std::cout << "\t Rotating Point Cloud ..." << std::endl;
+
+  Unity<float3>* d_rotate = new ssrlcv::Unity<float3>(nullptr,1,ssrlcv::cpu);
+  d_rotate->host[0].x = rotate.x;
+  d_rotate->host[0].y = rotate.y;
+  d_rotate->host[0].z = rotate.z;
+
+  d_translate->transferMemoryTo(gpu);
+  points->transferMemoryTo(gpu);
+
+  // call kernel
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(float3*, unsigned long, float3*) = &computeRotatePointCloud;
+  getFlatGridBlock(points->size(),grid,block,fp);
+
+  computeRotatePointCloud<<<grid,block>>>(d_rotate->device,points->size(),points->device);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  points->setFore(gpu);
+  points->transferMemoryTo(cpu);
+  points->clear(gpu);
+
+  delete d_rotate;
 
 }
 
@@ -4106,7 +4131,16 @@ __global__ void ssrlcv::computeTranslatePointCloud(float3* translate, unsigned l
   points[globalID].z += translate[0].z;
 }
 
+/**
+* the CUDA kernel for rotatePointCloud
+*/
+__global__ void computeRotatePointCloud(float3* rotation, unsigned long pointnum, float3* points){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (pointnum-1)) return;
 
+  // rotate the point
+  rotatePoint(points[globalID], rotation[0]);
+}
 
 
 
