@@ -36,13 +36,11 @@ namespace ssrlcv{
      * this value is 3 for triangles and 4 for quadrilaterals
      */
     short faceEncoding;
+    // faces stored where ever (N = faceEncoding) are grouped
+    Unity<int>* faces;
 
     // The points within the mesh
     Unity<float3>* points;
-    // If the mesh is quadrilaterally encoded, the quads are used
-    Unity<int4>* quads;
-    // If the mesh is triangularly encoded, the quads are used
-    Unity<int3>* triang;
 
     // =============================================================================================================
     //

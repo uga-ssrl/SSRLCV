@@ -651,31 +651,44 @@ void ssrlcv::writePLY(const char* filePath, Unity<colorPoint>* cpoint){
   of.close(); // done with the file building
 }
 
-// mesh
 /**
  * @brief writes a Mesh PLY file that also contains a surface
  * writes a PLY file that includes a surface along with the points
  * @param filename the desired name of the output file
  * @param points a set of points in the mesh
- * @param faceList a list of "faces" which are just encoded triangles
+ * @param faceList a list of "faces" which are indices for point location
+ * @param faceEncoding a short, where 3 means trianglar and 4 mean quadrilateral
  */
-void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<int3>* faceList){
-
-  std::cerr << "PLY writing with triangular faces not yet supported" << std::endl;
-
-}
-
-/**
- * @brief writes a Mesh PLY file that also contains a surface
- * writes a PLY file that includes a surface along with the points
- * @param filename the desired name of the output file
- * @param points a set of points in the mesh
- * @param faceList a list of "faces" which are just encoded quadrilaterals
- */
-void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<int4>* faceList){
-
-  std::cerr << "PLY writing with quadrilateral faces not yet supported" << std::endl;
-
+void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<int>* faceList, short faceEncoding){
+  // we need triangles or quadrilaterals
+  if (faceEncoding != 3 || faceEncoding != 4){
+    std::cerr << "ERROR: error writing mesh based PLY, unsupported face encoding of " << faceEncoding << std::endl;
+    return;
+  }
+  std::ofstream of;
+  // build header
+  of.open ("out/" + filename + ".ply");
+  of << "ply\nformat ascii 1.0\n";
+  of << "comment author: Caleb Adams & Jackson Parker\n";
+  of << "comment SSRL CV PLY writer\n";
+  of << "element vertex " << size << "\n";
+  of << "property float x\nproperty float y\nproperty float z\n"; // the elements in the guy
+  of << "element face " << (faceList->size() / faceEncoding) << "\n"; // the numer of faces
+  of << "property list uchar uint vertex_indices\n";
+  of << "end_header\n";
+  // loop thru the points
+  for (unsigned int i = 0; i < points->size(); i++){
+    of << std::fixed << std::setprecision(32) << points->host[i].x << " " << points->host[i].y << " " << points->host[i].z << "\n";
+  }
+  // loop thru the faces
+  for (unsinged int i = 0; i < faceList->size(); i += faceEncoding){
+    of << faceEncoding << " ";
+    for (int j = 0; j < faceEncoding; j++){
+      of << faceList->host[i + j] << " ";
+    }
+    of << "\n";
+  }
+  of.close();
 }
 
 // =============================================================================================================

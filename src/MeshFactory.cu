@@ -7,8 +7,9 @@
 // =============================================================================================================
 
 ssrlcv::MeshFactory::MeshFactory(){
-
+  this->faceEncoding = 0;
 }
+
 ssrlcv::MeshFactory::~MeshFactory(){
 
 }
@@ -35,7 +36,11 @@ ssrlcv::MeshFactory::MeshFactory(Octree* octree){
 void ssrlcv::MeshFactory::loadMesh(const char* filePath){
   // TODO perhaps move some of this into io_util
 
-  bool local_debug = true;
+  // disable both of these to remove print statements
+  bool local_debug   = false;
+  bool local_verbose = true;
+
+  if (local_verbose || local_debug) std::cout << "Reading Mesh ... " << std::endl;
 
   // temp storage
   std::vector<float3> tempPoints;
@@ -85,10 +90,10 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
       }
 
       // header is ending
-      if (!tag.compare("end_header"){
+      if (!tag.compare("end_header")){
         inData = true;
       }
-    } else {
+    } else { // parse the data
 
       //
       // Handle the Data reading here
@@ -103,8 +108,8 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
         iss >> point.x;
         iss >> point.y;
         iss >> point.z;
-        tempPoints.push_back();
-        if (local_debug) std::cout << "\t" << points.x << ", " << point.y << ", " << point.z << std::endl;
+        tempPoints.push_back(point);
+        if (local_debug) std::cout << "\t" << point.x << ", " << point.y << ", " << point.z << std::endl;
       } else if (tempFaces.size() < numFaces && numFaces) {
         //
         // add the face
@@ -116,7 +121,7 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
           numFaces *= this->faceEncoding; // because they are not stored as int3 or int4 yet
           if (local_debug) {
             std::cout << "face encoding set to: " << this->faceEncoding << std::endl;
-            std::cout << "faceNum updated to:   " << numFaces << "\t from " << (numFace / this->faceEncoding) << std::endl;
+            std::cout << "faceNum updated to:   " << numFaces << "\t from " << (numFaces / this->faceEncoding) << std::endl;
           }
           if (this->faceEncoding != 3 || this->faceEncoding != 4){
             std::cerr << "ERROR: error with reading mesh PLY face encoding" << std::endl;
@@ -124,7 +129,7 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
         } else {
           int throwAway;
           iss >> throwAway;
-          if (local_debug) << std::cout < "\t face encoding: " << throwAway << " ";
+          if (local_debug) std::cout << "\t face encoding: " << throwAway << " ";
         }
 
         // either quad or triangle
@@ -144,6 +149,22 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
 
   input.close(); // close the stream
 
+  // save the values to the mesh
+  this->points = new ssrlcv::Unity<float3>(nullptr,tempPoints.size(),ssrlcv::cpu);
+  this->faces = new ssrlcv::Unity<int>(nullptr,tempFaces.size(),ssrlcv::cpu);
+  for (int i = 0; i < this->points->size(); i++) {
+    this->points->host[i] = tempPoints[i];
+  }
+  for (int i = 0; i < this->faces->size(); i++) {
+    this->faces->host[i] = tempFaces[i];
+  }
+
+  if (local_verbose || local_debug) {
+    std::cout << "Done reading mesh!" << std::endl;
+    std::cout << "\t Total Points Loaded:  " << this->points->size() << std::endl;
+    std::cout << "\t Total Faces  Loaded:  " << (this->faces->size() / (int) this->faceEncoding) << std::endl;
+  }
+
 }
 
 /**
@@ -151,8 +172,13 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
  * @param filename the filename
  */
 void ssrlcv::MeshFactory::saveMesh(const char* filename){
-  // TODO
-
+  // make sure we are not trying to save an empty thing
+  if (!faceEncoding) {
+    std::cerr << "ERROR: cannot save MESH, no face encoding was set. Have point and face unity's been set?" << std::endl;
+    return;
+  }
+  // save the boi!
+  ssrlcv::writePLY(filename, this->points, this->faces, faceEncoding);
 }
 
 // =============================================================================================================

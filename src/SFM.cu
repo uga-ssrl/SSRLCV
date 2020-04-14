@@ -207,6 +207,7 @@ int main(int argc, char *argv[]){
       demPoints.rotatePointCloud(rotation, points);
       // load the example mesh to do the comparison, here I assume we are using the everst PLY
       meshBoi.loadMesh("data/truth/Everest_ground_truth.ply");
+      meshBoi.saveMesh("testMesh");
 
       /*
       // OPTIONAL

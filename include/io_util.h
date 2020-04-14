@@ -276,18 +276,10 @@ struct arg
    * writes a PLY file that includes a surface along with the points
    * @param filename the desired name of the output file
    * @param points a set of points in the mesh
-   * @param faceList a list of "faces" which are just encoded triangles
+   * @param faceList a list of "faces" which are indices for point location
+   * @param faceEncoding a short, where 3 means trianglar and 4 mean quadrilateral
    */
-  void writePLY(const char* filename, Unity<float3>* points, Unity<int3>* faceList);
-
-  /**
-   * @brief writes a Mesh PLY file that also contains a surface
-   * writes a PLY file that includes a surface along with the points
-   * @param filename the desired name of the output file
-   * @param points a set of points in the mesh
-   * @param faceList a list of "faces" which are just encoded quadrilaterals
-   */
-  void writePLY(const char* filename, Unity<float3>* points, Unity<int4>* faceList);
+  void writePLY(const char* filename, Unity<float3>* points, Unity<int>* faceList, short faceEncoding);
 
   // =============================================================================================================
   //
