@@ -480,7 +480,7 @@ void ssrlcv::Octree::fillInCoarserDepths(){
     CudaSafeCall(cudaMalloc((void**)&nodeNumbers_device, numUniqueNodes * sizeof(int)));
     CudaSafeCall(cudaMalloc((void**)&nodeAddresses_device, numUniqueNodes * sizeof(int)));
     //this is just to fill the arrays with 0s
-  
+
     getFlatGridBlock(numUniqueNodes,grid,block,findAllNodes);
     findAllNodes<<<grid,block>>>(numUniqueNodes, nodeNumbers_device, uniqueNodes_device);
     cudaDeviceSynchronize();
@@ -496,7 +496,7 @@ void ssrlcv::Octree::fillInCoarserDepths(){
     numNodesAtDepth = (d > 0) ? numNodesAtDepth + 8: 1;
 
     CudaSafeCall(cudaMalloc((void**)&nodeArray2D[this->depth - d], numNodesAtDepth*sizeof(Node)));
-  
+
     getFlatGridBlock(numUniqueNodes,grid,block,fillBlankNodeArray);
     fillBlankNodeArray<<<grid,block>>>(uniqueNodes_device, nodeNumbers_device,  nodeAddresses_device, nodeArray2D[this->depth - d], numUniqueNodes, d, this->width);
     CudaCheckError();
@@ -698,7 +698,7 @@ void ssrlcv::Octree::computeVertexArray(){
     //reset previously allocated resources
     block = {8,1,1};
     getGrid(numNodesAtDepth,grid);
-    
+
     int* ownerInidices = new int[numNodesAtDepth*8];
     for(int v = 0;v < numNodesAtDepth*8; ++v){
       ownerInidices[v] = -1;
@@ -1347,7 +1347,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
     //TODO maybe find better way to cache this and not use only one block
     setNormal<<<1, 1>>>(p, d_VT, this->normals->device);
     CudaCheckError();
-  
+
     CudaSafeCall(cudaFree(d_A));
     CudaSafeCall(cudaFree(d_S));
     CudaSafeCall(cudaFree(d_U));
@@ -1532,7 +1532,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
     //TODO maybe find better way to cache this and not use only one block
     setNormal<<<1, 1>>>(p, d_VT, this->normals->device);
     CudaCheckError();
-  
+
     CudaSafeCall(cudaFree(d_A));
     CudaSafeCall(cudaFree(d_S));
     CudaSafeCall(cudaFree(d_U));
@@ -1575,7 +1575,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
   reorient<<<grid, block>>>(numNodesAtDepth, nodeDepthIndex, this->nodes->device, numRealNeighbors_device, maxNeighbors, this->normals->device,
     neighborIndices_device, ambiguity->device);
   CudaCheckError();
-  
+
   CudaSafeCall(cudaFree(numRealNeighbors_device));
   CudaSafeCall(cudaFree(neighborIndices_device));
   delete ambiguity;
@@ -1621,6 +1621,10 @@ ssrlcv::Unity<float3>* ssrlcv::Octree::computeAverageNormal(int minNeighForNorms
   this->writeNormalPLY();
   average->transferMemoryTo(cpu);
   average->clear(gpu);
+
+  // normalize the average
+  float mag = sqrtf((average->host[0].x * average->host[0].x) + (average->host[0].y * average->host[0].y) + (average->host[0].z * average->host[0].z));
+  average->host[0] /= mag;
 
   return average;
 }

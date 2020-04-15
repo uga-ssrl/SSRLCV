@@ -2712,7 +2712,9 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointClo
   if (local_debug) {
     std::cout << "Testing normal point at average location" << std::endl;
     Unity<float3>* point = getAveragePoint(pointCloud);
-    ssrlcv::writePLY("testPoint",point,normal);
+    // scale the norm just so it is obvious
+    normal->host[0] *= 100;
+    ssrlcv::writePLY("testNorm",point,normal);
   }
 
   // find the location with the best density of points along the average normal
@@ -3319,6 +3321,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::getAveragePoint(Unity<float3>*
   points->clear(gpu);
   average->clear(gpu);
 
+  return average;
 }
 
 // =============================================================================
@@ -4209,9 +4212,9 @@ __global__ void ssrlcv::computeAveragePoint(float3* average, unsigned long point
   atomicAdd(&localSum.z,delta.z);
   __syncthreads();
   if (!threadIdx.x) {
-    atomicAdd(average.x,localSum.x);
-    atomicAdd(average.y,localSum.y);
-    atomicAdd(average.z,localSum.z);
+    atomicAdd(&average[0].x,localSum.x);
+    atomicAdd(&average[0].y,localSum.y);
+    atomicAdd(&average[0].z,localSum.z);
   }
 }
 

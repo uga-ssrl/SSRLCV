@@ -174,9 +174,6 @@ int main(int argc, char *argv[]){
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
       std::cout << "Total Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
 
-      // save an error cloud just for testing
-      demPoints.saveDebugLinearErrorCloud(&matchSet,images,"LinearErrorsVisualized");
-
       /*
       // OPTIONAL
       // a sensitivity analysis allows one to view the functions and camera parameter derivates pre bundles adjustment
