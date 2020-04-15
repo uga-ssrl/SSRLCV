@@ -105,6 +105,17 @@ namespace ssrlcv{
      */
     float calculateAverageDifference(Unity<float3>* pointCloud, float3 planeNormal);
 
+    /**
+     * Assuming that a point cloud and the mesh are alligned in the same plane, this method takes each point of the
+     * input pointcloud and calculates the distance purpendicular to the plane they are both in. That discance can be
+     * thought of as the "error" between that point and the mesh. This method caclculates the error between
+     * a mesh and a point cloud for each point and returns it
+     * @param pointCloud the input point cloud to compare to the mesh
+     * @param planeNormal a float3 representing a vector normal to the shared plane of the point cloud and mesh
+     * @return errorList a unity array of floats that contain errors
+     */
+    ssrlcv::Unity<float>* calculatePerPointDifference(Unity<float3>* pointCloud, float3 planeNormal);
+
     // =============================================================================================================
     //
     // Other MeshFactory Methods
@@ -174,9 +185,16 @@ namespace ssrlcv{
 
   /**
    * this measures the distance between each point in a point cloud and where they "collide"
-   * with the mesh along a single given vector fro all points. This is returned as an average
+   * with the mesh along a single given vector fro all points. This is returned as a sum
    */
   __global__ void sumCollisionDistance(float* averageDistance, int* misses, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding);
+
+  /**
+   * Measures individual collision distances between each point in the point cloud and the mesh
+   * and returns those distances in the errors unity
+   */
+  __global__ void generateCollisionDistances(float* errors, int* misses, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding);
+
 
   __global__ void vertexImplicitFromNormals(int numVertices, Octree::Vertex* vertexArray, Octree::Node* nodeArray, float3* normals, float3* points, float* vertexImplicit);
   __global__ void calcVertexNumbers(int numEdges, int depthIndex, Octree::Edge* edgeArray, float* vertexImplicit, int* vertexNumbers);

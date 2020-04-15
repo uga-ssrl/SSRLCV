@@ -211,7 +211,13 @@ int main(int argc, char *argv[]){
         // meshBoi.saveMesh("testMesh");
       // to calculate the "missmatch" between the point cloud and the ground truth you can use this method:
       float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f}); // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
-      std::cout << "Average error to ground truth is: " << error << " km" << std::endl;
+      std::cout << "Average error to ground truth is: " << error << " km \t, " << (error * 1000) << " meters" << std::endl;
+      // this methods saves the error on each point
+      Unity<float>* truthErrors = meshBoi.calculatePerPointDifference(points, {0.0f , 0.0f, 1.0f});
+      // then you can save these errors in a CSV
+      ssrlcv::writeCSV(truthErrors, "resolutionErrors");
+      // you can also save them as color coded
+      ssrlcv::writePLY("resolutionErrors",points,truthErrors);
 
       /*
       // OPTIONAL

@@ -282,6 +282,85 @@ float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud,
   return averageError;
 }
 
+/**
+ * Assuming that a point cloud and the mesh are alligned in the same plane, this method takes each point of the
+ * input pointcloud and calculates the distance purpendicular to the plane they are both in. That discance can be
+ * thought of as the "error" between that point and the mesh. This method caclculates the error between
+ * a mesh and a point cloud for each point and returns it
+ * @param pointCloud the input point cloud to compare to the mesh
+ * @param planeNormal a float3 representing a vector normal to the shared plane of the point cloud and mesh
+ * @return errorList a unity array of floats that contain errors
+ */
+ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculatePerPointDifference(Unity<float3>* pointCloud, float3 planeNormal){
+
+  // disable these for no print statements
+  bool local_debug   = true;
+  bool local_verbose = true;
+
+  if (local_verbose || local_debug) std::cout << "Computing average differnce between mesh and point cloud ..." << std::endl;
+
+  if (!faceEncoding){
+    std::cerr << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" << std::endl;
+    return -1.0f;
+  }
+
+  // prepare the memory
+  Unity<float3>* normal = new ssrlcv::Unity<float3>(nullptr,1,ssrlcv::cpu);
+  normal->host[0].x = planeNormal.x;
+  normal->host[0].y = planeNormal.y;
+  normal->host[0].z = planeNormal.z;
+
+  // normalize, just in case
+  float mag = sqrtf((normal->host[0].x * normal->host[0].x) + (normal->host[0].y * normal->host[0].y) + (normal->host[0].z * normal->host[0].z));
+  normal->host[0].x /= mag;
+  normal->host[0].y /= mag;
+  normal->host[0].z /= mag;
+
+  int* d_encoding;
+  CudaSafeCall(cudaMalloc((void**) &d_encoding,sizeof(int)));
+  CudaSafeCall(cudaMemcpy(d_encoding,&this->faceEncoding,sizeof(int),cudaMemcpyHostToDevice));
+
+  int misses = 0;
+  int* d_misses;
+  CudaSafeCall(cudaMalloc((void**) &d_misses,sizeof(int)));
+  CudaSafeCall(cudaMemcpy(d_misses,&misses,sizeof(int),cudaMemcpyHostToDevice));
+
+  pointCloud->transferMemoryTo(gpu);
+  normal->transferMemoryTo(gpu);
+  this->points->transferMemoryTo(gpu);
+  this->faces->transferMemoryTo(gpu);
+
+  Unity<float>* errors = new ssrlcv::Unity<float>(nullptr,pointCloud->size(),ssrlcv::gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(float*, int *, unsigned long, float3*, float3*, float3*, unsigned long, int*, int*) = &generateCollisionDistances;
+  generateCollisionDistances(pointCloud->size(),grid,block,fp);
+
+  //                    (float* errors, int* misses, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding)
+  generateCollisionDistances<<<grid,block>>>(errors->device,d_misses,pointCloud->size(),pointCloud->device,normal->device,this->points->device,this->faces->size(),this->faces->device,d_encoding);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  errors->transferMemoryTo(cpu);
+  errors->clear(gpu);
+  this->points->transferMemoryTo(cpu);
+  this->points->clear(gpu);
+  this->faces->transferMemoryTo(cpu);
+  this->faces->clear(gpu);
+  pointCloud->transferMemoryTo(cpu);
+  pointCloud->clear(gpu);
+  normal->clear(gpu);
+  delete normal;
+
+  CudaSafeCall(cudaMemcpy(&misses,d_misses,sizeof(int),cudaMemcpyDeviceToHost));
+  cudaFree(d_encoding);
+  cudaFree(d_misses);
+
+  return errors;
+}
+
 // =============================================================================================================
 //
 // Other MeshFactory Methods
@@ -1433,6 +1512,11 @@ __global__ void ssrlcv::sumCollisionDistance(float* averageDistance, int* misses
       float3 C = vertices[faces[i + 2]];
       float3 D = vertices[faces[i + 3]];
 
+      //
+      // method is based off of this wikipedia page:
+      // https://en.wikipedia.org/wiki/Barycentric_coordinate_system
+      //
+
       // Triangle A->B->C
       float alpha = ((B.y - C.y)*(P.x - C.x) + (C.x - B.x)*(P.y - C.y)) / ((B.y - C.y)*(A.x - C.x) + (C.x - B.x)*(A.y - C.y));
       float beta  = ((C.y - A.y)*(P.x - C.x) + (A.x - C.x)*(P.y - C.y)) / ((B.y - C.y)*(A.x - C.x) + (C.x - B.x)*(A.y - C.y));
@@ -1455,57 +1539,23 @@ __global__ void ssrlcv::sumCollisionDistance(float* averageDistance, int* misses
         break;
       }
 
-      /*
-      // the target area for triangle 1
-      float ABC = abs((A.x*(B.y-C.y) + B.x*(C.y-A.y) + C.x*(A.y-B.y)) / 2.0);
-      // candidate areas for triangle 1
-      float PAB = abs((P.x*(A.y-B.y) + A.x*(B.y-P.y) + B.x*(P.y-A.y)) / 2.0);
-      float PAC = abs((P.x*(A.y-C.y) + A.x*(C.y-P.y) + C.x*(P.y-A.y)) / 2.0);
-      float PBC = abs((P.x*(A.y-C.y) + A.x*(C.y-P.y) + C.x*(P.y-A.y)) / 2.0);
-
-      // check
-      if (PAB + PAC + PBC == ABC) {
-        // found point
-        planeIndexes.x = faces[i    ];
-        planeIndexes.y = faces[i + 1];
-        planeIndexes.z = faces[i + 2];
-        //printf("%f %f %f, ",A.x,A.y,A.z);
-        //printf("[1] Area: %f comp to area %f \n",ABC, (PAB + PAC + PBC));
-        break;
-      }
-
-      // the target area for triangle 2
-      float CDA = abs((C.x*(D.y-A.y) + D.x*(A.y-C.y) + A.x*(C.y-D.y)) / 2.0);
-      // candidate areas for triangle 2
-      float PCD = abs((P.x*(C.y-D.y) + C.x*(D.y-P.y) + D.x*(P.y-C.y)) / 2.0);
-      float PCA = abs((P.x*(C.y-A.y) + C.x*(A.y-P.y) + A.x*(P.y-C.y)) / 2.0);
-      float PDA = abs((P.x*(D.y-A.y) + D.x*(A.y-P.y) + A.x*(P.y-D.y)) / 2.0);
-
-      if (PCD + PCA + PDA == CDA) {
-        // found point
-        planeIndexes.x = faces[i + 2];
-        planeIndexes.y = faces[i + 3];
-        planeIndexes.z = faces[i    ];
-        //printf("[2] Area: %f comp to area %f \n",CDA, (PCD + PCA + PDA));
-        break;
-      }
-      */
     } else if (*faceEncoding == 3){ // need to test a single triangle
+
       // potential points
       float3 A = vertices[faces[i    ]];
       float3 B = vertices[faces[i + 1]];
       float3 C = vertices[faces[i + 2]];
 
-      // the target area for triangle 1
-      float ABC = abs((A.x*(B.y-C.y) + B.x*(C.y-A.y)+ C.x*(A.y-B.y)) / 2.0);
-      // candidate areas for triangle 1
-      float PAB = abs((P.x*(A.y-B.y) + A.x*(B.y-P.y)+ B.x*(P.y-A.y)) / 2.0);
-      float PAC = abs((P.x*(A.y-C.y) + A.x*(C.y-P.y)+ C.x*(P.y-A.y)) / 2.0);
-      float PBC = abs((P.x*(A.y-C.y) + A.x*(C.y-P.y)+ C.x*(P.y-A.y)) / 2.0);
+      //
+      // method is based off of this wikipedia page:
+      // https://en.wikipedia.org/wiki/Barycentric_coordinate_system
+      //
 
-      // check
-      if (PAB + PAC + PBC == ABC) {
-        // found point
+      // Triangle A->B->C
+      float alpha = ((B.y - C.y)*(P.x - C.x) + (C.x - B.x)*(P.y - C.y)) / ((B.y - C.y)*(A.x - C.x) + (C.x - B.x)*(A.y - C.y));
+      float beta  = ((C.y - A.y)*(P.x - C.x) + (A.x - C.x)*(P.y - C.y)) / ((B.y - C.y)*(A.x - C.x) + (C.x - B.x)*(A.y - C.y));
+      float gamma = 1.0f - alpha - beta;
+      if (alpha > 0.0f && beta > 0.0f && gamma > 0.0f) {
         planeIndexes.x = faces[i    ];
         planeIndexes.y = faces[i + 1];
         planeIndexes.z = faces[i + 2];
@@ -1576,6 +1626,156 @@ __global__ void ssrlcv::sumCollisionDistance(float* averageDistance, int* misses
     atomicAdd(misses,miss);
   }
 }
+
+/**
+ * Measures individual collision distances between each point in the point cloud and the mesh
+ * and returns those distances in the errors unity
+ */
+__global__ void ssrlcv::generateCollisionDistances(float* errors, int* misses, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding){
+
+  // get ready to do the stuff local memory space
+  // this will later be added back to a global memory space
+  __shared__ int localMisses;
+  if (threadIdx.x == 0) localMisses = 0;
+  __syncthreads();
+
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (pointnum-1)) return;
+
+  float error = 0.0f;
+  int   miss  = 0;
+
+  // NOTE currently assumes X-Y plane
+  int3 planeIndexes = {-1,-1,-1};
+  float3 P = pointcloud[globalID];
+  float3 V = *vector;
+
+  // loops through the faces in search of a face where this points would intersect
+  for (int i = 0; i < facenum; i += *faceEncoding) {
+
+    //printf("en: %d at %d \t Point: %f %f %f \n", *faceEncoding, i, vertices[i].x, vertices[i].y, vertices[i].z);
+
+    if (*faceEncoding == 4) { // need to test 2 trianlges
+
+      // potential points
+      float3 A = vertices[faces[i    ]];
+      float3 B = vertices[faces[i + 1]];
+      float3 C = vertices[faces[i + 2]];
+      float3 D = vertices[faces[i + 3]];
+
+      //
+      // method is based off of this wikipedia page:
+      // https://en.wikipedia.org/wiki/Barycentric_coordinate_system
+      //
+
+      // Triangle A->B->C
+      float alpha = ((B.y - C.y)*(P.x - C.x) + (C.x - B.x)*(P.y - C.y)) / ((B.y - C.y)*(A.x - C.x) + (C.x - B.x)*(A.y - C.y));
+      float beta  = ((C.y - A.y)*(P.x - C.x) + (A.x - C.x)*(P.y - C.y)) / ((B.y - C.y)*(A.x - C.x) + (C.x - B.x)*(A.y - C.y));
+      float gamma = 1.0f - alpha - beta;
+      if (alpha > 0.0f && beta > 0.0f && gamma > 0.0f) {
+        planeIndexes.x = faces[i    ];
+        planeIndexes.y = faces[i + 1];
+        planeIndexes.z = faces[i + 2];
+        break;
+      }
+
+      // Triangle C->D->A
+      alpha = ((D.y - A.y)*(P.x - A.x) + (A.x - D.x)*(P.y - A.y)) / ((D.y - A.y)*(C.x - A.x) + (A.x - D.x)*(C.y - A.y));
+      beta  = ((A.y - C.y)*(P.x - A.x) + (C.x - A.x)*(P.y - A.y)) / ((D.y - A.y)*(C.x - A.x) + (A.x - D.x)*(C.y - A.y));
+      gamma = 1.0f - alpha - beta;
+      if (alpha > 0.0f && beta > 0.0f && gamma > 0.0f) {
+        planeIndexes.x = faces[i + 2];
+        planeIndexes.y = faces[i + 3];
+        planeIndexes.z = faces[i    ];
+        break;
+      }
+
+    } else if (*faceEncoding == 3){ // need to test a single triangle
+
+      // potential points
+      float3 A = vertices[faces[i    ]];
+      float3 B = vertices[faces[i + 1]];
+      float3 C = vertices[faces[i + 2]];
+
+      //
+      // method is based off of this wikipedia page:
+      // https://en.wikipedia.org/wiki/Barycentric_coordinate_system
+      //
+
+      // Triangle A->B->C
+      float alpha = ((B.y - C.y)*(P.x - C.x) + (C.x - B.x)*(P.y - C.y)) / ((B.y - C.y)*(A.x - C.x) + (C.x - B.x)*(A.y - C.y));
+      float beta  = ((C.y - A.y)*(P.x - C.x) + (A.x - C.x)*(P.y - C.y)) / ((B.y - C.y)*(A.x - C.x) + (C.x - B.x)*(A.y - C.y));
+      float gamma = 1.0f - alpha - beta;
+      if (alpha > 0.0f && beta > 0.0f && gamma > 0.0f) {
+        planeIndexes.x = faces[i    ];
+        planeIndexes.y = faces[i + 1];
+        planeIndexes.z = faces[i + 2];
+        break;
+      }
+    } else {
+      printf("BAD FACE ENCODING!!");
+      return;
+    }
+
+  } // end for loop search for best plane
+
+  // make sure a valid value was found
+  if (planeIndexes.x >= 0 || planeIndexes.y >= 0 || planeIndexes.z >= 0){
+    // calculate the intersection between point and plane
+
+    // points on the plane
+    float3 A = vertices[planeIndexes.x];
+    float3 B = vertices[planeIndexes.y];
+    float3 C = vertices[planeIndexes.z];
+
+    // normal vector of plane with vectors in the plane
+    float3 p1 = B - A;
+    float3 p2 = C - A;
+    float3 norm = crossProduct(p1,p2);
+
+    if (isnan(norm.x) || isnan(norm.y) || isnan(norm.z)){
+      printf("NaN in norm\n");
+      return;
+    }
+
+    // vector betweeen point and a point on the plane
+    float3 diff = P - A;
+
+    if (isnan(diff.x) || isnan(diff.y) || isnan(diff.z)){
+       printf("NaN in diff\n");
+       return;
+    }
+
+    // scalar along the point vector line
+    float numer = dotProduct(diff,norm);
+    float denom = dotProduct(V,norm);
+    float scale = numer / denom;
+
+    if (isnan(scale)){
+       printf("fraction has NaN: %f / %f \n norm is: %f %f %f  \t at indexes %d %d %d\n",numer,denom,norm.x,norm.y,norm.z,planeIndexes.x,planeIndexes.y,planeIndexes.z);
+       return;
+     }
+
+    // calculate intersection point
+    float3 I = P - (scale * V);
+
+    // calculate distance between point cloud point and point on the mesh
+    float dist = sqrtf((P.x - I.x)*(P.x - I.x) + (P.y - I.y)*(P.y - I.y) + (P.z - I.z)*(P.z - I.z));
+
+    errors[globalID] = dist;
+  } else {
+    //printf("ERROR FINDING COLLISION, there could be an issue with cloud / mesh alignment. Cannot discount point in sum, so the average will be wrong ...\n");
+    miss  = 1;
+    error = 0.0f;
+    errors[globalID] = -1.0f; // miss error
+  }
+
+  atomicAdd(&localMisses,miss);
+  __syncthreads();
+  if (!threadIdx.x) atomicAdd(misses,miss);
+
+}
+
 
 __global__ void ssrlcv::vertexImplicitFromNormals(int numVertices, Octree::Vertex* vertexArray, Octree::Node* nodeArray, float3* normals, float3* points, float* vertexImplicit){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;

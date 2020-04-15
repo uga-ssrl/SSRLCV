@@ -281,6 +281,14 @@ struct arg
    */
   void writePLY(const char* filename, Unity<float3>* points, Unity<int>* faceList, int faceEncoding);
 
+  /**
+   * @brief write a PLY that is color coded along the associated gradient points passed in
+   * @param filename is the desired name of the output PLY file
+   * @param points is the collection of points to color with the gradient
+   * @param gradient the values that represent the "variance" of values to be colored with a gradient
+   */
+  void writePLY(const char* filename, Unity<float3>* points, Unity<float>* gradient);
+
   // =============================================================================================================
   //
   // CSV and Misc IO

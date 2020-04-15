@@ -692,6 +692,62 @@ void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<int>* f
   of.close();
 }
 
+/**
+ * @brief write a PLY that is color coded along the associated gradient points passed in
+ * @param filename is the desired name of the output PLY file
+ * @param points is the collection of points to color with the gradient
+ * @param gradient the values that represent the "variance" of values to be colored with a gradient
+ */
+void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float>* gradient){
+
+   // build the helpers to make the colors
+  uchar3 colors[2000];
+  float3 good = {108,255,221};
+  float3 meh  = {251,215,134};
+  float3 bad  = {247,121,125};
+  float3 gr1  = (meh - good)/1000;
+  float3 gr2  = (bad - meh )/1000;
+  // initialize the gradient "mapping"
+  float3 temp;
+  std::cout << "building gradient" << std::endl;
+  for (int i = 0; i < 2000; i++){
+    if (i < 1000){
+      temp = good + gr1*i;
+      colors[i].x = (unsigned char) floor(temp.x);
+      colors[i].y = (unsigned char) floor(temp.y);
+      colors[i].z = (unsigned char) floor(temp.z);
+    } else {
+      temp = meh  + gr2*i;
+      colors[i].x = (unsigned char) floor(temp.x);
+      colors[i].y = (unsigned char) floor(temp.y);
+      colors[i].z = (unsigned char) floor(temp.z);
+    }
+  }
+
+  struct colorPoint* cpoints = (colorPoint*)  malloc(points->size() * sizeof(struct colorPoint));
+
+  float max = 0.0; // it would be nice to have a better way to get the max, but because this is only for debug idc
+  for (int i = 0; i < gradient->size(); i++){
+    if (gradient->host[i] > max){
+      max = gradient->host[i];
+    }
+  }
+  // now fill in the color point locations
+  for (int i = 0; i < points->size() - 1; i++){
+    // i assume that the errors and the points will have the same indices
+    cpoints[i].x = points->host[i].x; //
+    cpoints[i].y = points->host[i].y;
+    cpoints[i].z = points->host[i].z;
+    int j = floor(errors->host[i] * (2000 / max));
+    cpoints[i].r = colors[j].x;
+    cpoints[i].g = colors[j].y;
+    cpoints[i].b = colors[j].z;
+  }
+
+  // save the file
+  writePLY(filename, cpoints, points->size());
+}
+
 // =============================================================================================================
 //
 // CSV and Misc IO
