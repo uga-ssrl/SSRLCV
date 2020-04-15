@@ -286,6 +286,17 @@ struct arg
   void writePLY(const char* filePath, Unity<colorPoint>* cpoint);
 
   /**
+  * \brief Will write a ply file based on a set of float3 values with rgb color
+  * \details This method will write a ply in the specified location and can
+  * be written in binary or ASCII format.
+  * \param filePath - c string 
+  * \param cpoint - a colored float3 point
+  * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
+  * \see Unity
+  */
+  void writePLY(const char* filePath, Unity<float3>* points, Unity<int>* faceList, int faceEncoding, Unity<uchar3>* faceList);
+
+  /**
    * @brief writes a Mesh PLY file that also contains a surface
    * writes a PLY file that includes a surface along with the points
    * @param filename the desired name of the output file

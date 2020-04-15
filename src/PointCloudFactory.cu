@@ -231,6 +231,37 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolati
 /**
 * The CPU method that sets up the GPU enabled two view tringulation.
 * @param bundleSet a set of lines and bundles that should be triangulated
+*/
+ssrlcv::Unity<float3>* ssrlcv::twoViewTriangulate(BundleSet bundleSet){
+
+  bundleSet.lines->transferMemoryTo(gpu);
+  bundleSet.bundles->transferMemoryTo(gpu);
+
+  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(unsigned long, Bundle::Line*, Bundle*, float3*) = &computeTwoViewTriangulate;
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
+
+  computeTwoViewTriangulate<<<grid,block>>>(bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  //transfer the poitns back to the CPU
+  pointcloud->transferMemoryTo(cpu);
+  pointcloud->clear(gpu);
+  // clear the other boiz
+  bundleSet.lines->clear(gpu);
+  bundleSet.bundles->clear(gpu);
+
+  return pointcloud;
+}
+
+/**
+* The CPU method that sets up the GPU enabled two view tringulation.
+* @param bundleSet a set of lines and bundles that should be triangulated
 * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
 */
 ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet bundleSet, float* linearError){
@@ -2691,8 +2722,8 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
 void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointCloud, std::vector<ssrlcv::Image*> images, const char* filename){
 
   // disable for local print statments
-  bool local_debug    = true;
-  bool local_verbose  = true;
+  bool local_debug    = false;
+  bool local_verbose  = false;
 
   // extract the camera locations for normal estimation
   Unity<float3>* locations = new ssrlcv::Unity<float3>(nullptr,images.size(),ssrlcv::cpu);
@@ -3213,14 +3244,126 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
 
 /**
  * This method estimates the plane the point cloud sits in and removes points that are outside of a certain
- * threashold distance from the plane
- * @param matchSet a group of matches
+ * threashold distance from the plane. The bad locations are removed from the matchSet
+ * @param matchSet a group of matches. this is altered and bad locations are removed from here
  * @param images a group of images, used only for their stored camera parameters
- * @param cutoff is a cutoff of km distance from the plane, if the point cloud has been scaled then this should also be scaled
+ * @param cutoff is a cutoff of +/- km distance from the plane, if the point cloud has been scaled then this should also be scaled
  */
 void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float cutoff){
+  // disable for local print statments
+  bool local_debug    = true;
+  bool local_verbose  = true;
 
-  
+  // prep for reconstructon
+  ssrlcv::BundleSet bundleSet;
+  ssrlcv::Unity<float3>* points;
+  // now filter from the generated plane
+
+  bundleSet = generateBundles(&matchSet,images);
+  bundleSet.lines->transferMemoryTo(gpu);
+  bundleSet.bundles->transferMemoryTo(gpu);
+
+  // get an initial point cloud for plane estimation
+  if (images.size() == 2){
+    //
+    // 2 view case
+    //
+    points = twoViewTriangulate(bundleSet);
+  } else {
+    //
+    // N view case
+    //
+    points = nViewTriangulate(bundleSet);
+  }
+
+  bundleSet.lines->transferMemoryTo(cpu);
+  bundleSet.bundles->transferMemoryTo(cpu);
+
+  // estimate a plane from the generated point cloud
+
+  // extract the camera locations for normal estimation
+  Unity<float3>* locations = new ssrlcv::Unity<float3>(nullptr,images.size(),ssrlcv::cpu);
+  for (int i = 0; i < images.size(); i++){
+    locations->host[i].x = images[i]->camera.cam_pos.x;
+    locations->host[i].y = images[i]->camera.cam_pos.y;
+    locations->host[i].z = images[i]->camera.cam_pos.z;
+  }
+
+  // create the octree
+  Octree oct = Octree(points, 8, false);
+  // caclulate the estimated plane normal
+  Unity<float3>* normal = oct.computeAverageNormal(3, 10, images.size(), locations->host);
+  // the averate point
+  Unity<float3>* averagePoint = getAveragePoint(points);
+
+  if (local_debug) {
+    std::cout << "Average Point: ( " << averagePoint->host[0].x << ", " << averagePoint->host[0].y << ", " << averagePoint->host[0].z << " )" << std::endl;
+    std::cout << "Normal Vector: < " << normal->host[0].x << ", " << normal->host[0].y << ", " << normal->host[0].z << " )" << std::endl;
+  }
+
+  normal->transferMemoryTo(gpu);
+  averagePoint->transferMemoryTo(gpu);
+
+  bundleSet.lines->transferMemoryTo(gpu);
+  bundleSet.bundles->transferMemoryTo(gpu);
+
+  // move the cutoff to the device
+  float* d_cutoff;
+  CudaSafeCall(cudaMalloc((void**) &d_cutoff,sizeof(float)));
+  CudaSafeCall(cudaMemcpy(d_cutoff,cutoff,sizeof(float),cudaMemcpyHostToDevice));
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+
+  if (images.size() == 2){
+    //
+    // 2 view case
+    //
+
+    void (*fp)(unsigned long, Bundle::Line*, Bundle*, float*, float3*, float3*) = &filterTwoViewFromEstimatedPlane;
+    getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
+
+    // filterTwoViewFromEstimatedPlane(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float* cutoff, float3* point, float3* vector)
+    filterTwoViewFromEstimatedPlane<<<grid,block>>>(bundleSet.bundles->size(), bundleSet.lines->device, bundleSet.bundles->device, d_cutoff, averagePoint->device, normal->device);
+
+
+  } else {
+    //
+    // N view case
+    //
+
+    void (*fp)(unsigned long, Bundle::Line*, Bundle*, float*, float3*, float3*) = &filterNViewFromEstimatedPlane;
+    getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
+
+    // filterNViewFromEstimatedPlane(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float* cutoff, float3* point, float3* vector)
+    filterNViewFromEstimatedPlane<<<grid,block>>>(bundleSet.bundles->size(), bundleSet.lines->device, bundleSet.bundles->device, d_cutoff, averagePoint->device, normal->device);
+
+  }
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  bundleSet.lines->setFore(gpu);
+  bundleSet.bundles->setFore(gpu);
+  bundleSet.lines->transferMemoryTo(cpu);
+  bundleSet.bundles->transferMemoryTo(cpu);
+
+  // to help when modifying the match set
+  ssrlcv::MatchSet tempMatchSet;
+  tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,1,ssrlcv::cpu);
+  tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,1,ssrlcv::cpu);
+
+  // clean up memory
+
+  delete tempMatchSet.keyPoints;
+  delete tempMatchSet.matches;
+  delete points;
+  delete averagePoint;
+  delete normal;
+  delete locations;
+
+  cudaFree(d_cutoff);
+
 }
 
 // =============================================================================================================
@@ -3470,9 +3613,111 @@ __global__ void ssrlcv::interpolateDepth(uint2 disparityMapSize, int influenceRa
 
 // =============================================================================================================
 //
+// Filtering Kernels
+//
+// =============================================================================================================
+
+__global__ void ssrlcv::filterTwoViewFromEstimatedPlane(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float* cutoff, float3* point, float3* vector){
+  // this is same method as the 2View for the first bit
+  // see two view method for details
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (pointnum-1)) return;
+
+  // we can assume that each line, so we don't need to get the numlines
+  // ne guys are made just for easy of writing
+  ssrlcv::Bundle::Line L1 = lines[bundles[globalID].index];
+  ssrlcv::Bundle::Line L2 = lines[bundles[globalID].index+1];
+
+  // calculate the normals
+  float3 n2 = crossProduct(L2.vec,crossProduct(L1.vec,L2.vec));
+  float3 n1 = crossProduct(L1.vec,crossProduct(L1.vec,L2.vec));
+
+  // calculate the numerators
+  float numer1 = dotProduct((L2.pnt - L1.pnt),n2);
+  float numer2 = dotProduct((L1.pnt - L2.pnt),n1);
+
+  // calculate the denominators
+  float denom1 = dotProduct(L1.vec,n2);
+  float denom2 = dotProduct(L2.vec,n1);
+
+  // get the S points
+  float3 s1 = L1.pnt + (numer1/denom1) * L1.vec;
+  float3 s2 = L2.pnt + (numer2/denom2) * L2.vec;
+  float3 P = (s1 + s2)/2.0;
+
+  // now calculate the cloud Point's intersection with plane
+
+  // point on the plane
+  float3 A = point; // the average point
+
+  // vector betweeen point and a point on the plane
+  float3 diff = P - A;
+
+  // scalar along the point vector line
+  float numer = dotProduct(diff,normal);
+  float denom = dotProduct(normal,normal);
+  float scale = numer / denom;
+
+  // calculate intersection point
+  float3 I = P - (scale * V);
+
+  // calculate distance between point cloud point and point on the mesh
+  float dist = sqrtf((P.x - I.x)*(P.x - I.x) + (P.y - I.y)*(P.y - I.y) + (P.z - I.z)*(P.z - I.z));
+
+  // if greater than cutoff remove it
+  if (dist > cutoff) {
+    bundles[globalID].invalid = true;
+  } else {
+    bundles[globalID].invalid = false;
+  }
+}
+
+__global__ void ssrlcv::filterNViewFromEstimatedPlane(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float* cutoff, float3* point, float3* vector){
+
+  // TODO
+
+}
+
+// =============================================================================================================
+//
 // 2 View Kernels
 //
 // =============================================================================================================
+
+/**
+* Does a trigulation with skew lines to find their closest intercetion.
+*/
+__global__ void computeTwoViewTriangulate(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
+  // this method is from wikipedia, last seen janurary 2020
+  // https://en.wikipedia.org/wiki/Skew_lines#Nearest_Points
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (pointnum-1)) return;
+  // we can assume that each line, so we don't need to get the numlines
+  // ne guys are made just for easy of writing
+  ssrlcv::Bundle::Line L1 = lines[bundles[globalID].index];
+  ssrlcv::Bundle::Line L2 = lines[bundles[globalID].index+1];
+
+  // calculate the normals
+  float3 n2 = crossProduct(L2.vec,crossProduct(L1.vec,L2.vec));
+  float3 n1 = crossProduct(L1.vec,crossProduct(L1.vec,L2.vec));
+
+  // calculate the numerators
+  float numer1 = dotProduct((L2.pnt - L1.pnt),n2);
+  float numer2 = dotProduct((L1.pnt - L2.pnt),n1);
+
+  // calculate the denominators
+  float denom1 = dotProduct(L1.vec,n2);
+  float denom2 = dotProduct(L2.vec,n1);
+
+  // get the S points
+  float3 s1 = L1.pnt + (numer1/denom1) * L1.vec;
+  float3 s2 = L2.pnt + (numer2/denom2) * L2.vec;
+  float3 point = (s1 + s2)/2.0;
+
+  // fill in the value for the point cloud
+  pointcloud[globalID] = point;
+  bundles[globalID].invalid = false;
+}
 
 /**
 * Does a trigulation with skew lines to find their closest intercetion.
@@ -4230,7 +4475,6 @@ __global__ void ssrlcv::computeRotatePointCloud(float3* rotation, unsigned long 
   // rotate the point
   points[globalID] = rotatePoint(points[globalID], rotation[0]);
 }
-
 
 /**
  * a CUDA kernel to compute the average point of a point cloud

@@ -51,6 +51,9 @@ namespace ssrlcv{
     // The points within the mesh
     Unity<float3>* points;
 
+    // RBG colors for the point cloud
+    Unity<uchar3>* colors;
+
     // =============================================================================================================
     //
     // Constructors and Destructors
@@ -61,7 +64,7 @@ namespace ssrlcv{
     MeshFactory();
 
     // constructor given existing points and faces
-    MeshFactory(Unity<float3>* in_points, Unity<int>* in_faces, int in_faceEncoding); 
+    MeshFactory(Unity<float3>* in_points, Unity<int>* in_faces, int in_faceEncoding);
 
     // default destructor
     ~MeshFactory();

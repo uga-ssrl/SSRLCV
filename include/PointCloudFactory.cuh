@@ -88,6 +88,12 @@ namespace ssrlcv{
     /**
     * The CPU method that sets up the GPU enabled two view tringulation.
     * @param bundleSet a set of lines and bundles that should be triangulated
+    */
+    ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bundleSet);
+
+    /**
+    * The CPU method that sets up the GPU enabled two view tringulation.
+    * @param bundleSet a set of lines and bundles that should be triangulated
     * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
     */
     ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bundleSet, float* linearError);
@@ -353,10 +359,10 @@ namespace ssrlcv{
 
     /**
      * This method estimates the plane the point cloud sits in and removes points that are outside of a certain
-     * threashold distance from the plane
-     * @param matchSet a group of matches
+     * threashold distance from the plane. The bad locations are removed from the matchSet
+     * @param matchSet a group of matches. this is altered and bad locations are removed from here
      * @param images a group of images, used only for their stored camera parameters
-     * @param cutoff is a cutoff of km distance from the plane, if the point cloud has been scaled then this should also be scaled
+     * @param cutoff is a cutoff of +/- km distance from the plane, if the point cloud has been scaled then this should also be scaled
      */
     void planarCutoffFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float cutoff);
 
@@ -434,9 +440,21 @@ namespace ssrlcv{
 
   // =============================================================================================================
   //
+  // Filtering Kernels
+  //
+  // =============================================================================================================
+
+  __global__ void filterTwoViewFromEstimatedPlane(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float* cutoff, float3* point, float3* vector);
+
+  __global__ void filterNViewFromEstimatedPlane(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float* cutoff, float3* point, float3* vector);
+
+  // =============================================================================================================
+  //
   // 2 View Kernels
   //
   // =============================================================================================================
+
+  __global__ void computeTwoViewTriangulate(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 
   __global__ void computeTwoViewTriangulate(float* linearError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 
