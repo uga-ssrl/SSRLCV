@@ -1394,40 +1394,40 @@ __device__ __host__ int2 operator*=(const int2 &a, const int &b){
 }
 
 __device__ __host__ float4 operator/=(const float4 &a, const float &b){
-  return {a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w};
+  return {a.x / b, a.y / b, a.z / b, a.w / b};
 }
 __device__ __host__ float3 operator/=(const float3 &a, const float &b){
-  return {a.x / b.x, a.y / b.y, a.z / b.z};
+  return {a.x / b, a.y / b, a.z / b};
 }
 __device__ __host__ float2 operator/=(const float2 &a, const float &b){
-  return {a.x / b.x, a.y / b.y};
+  return {a.x / b, a.y / b};
 }
 __device__ __host__ float4 operator/=(const float4 &a, const int &b){
-  return {a.x / ((float) b.x), a.y / ((float) b.y), a.z / ((float) b.z), a.w / ((float) b.w)};
+  return {a.x / ((float) b), a.y / ((float) b), a.z / ((float) b), a.w / ((float) b)};
 }
 __device__ __host__ float3 operator/=(const float3 &a, const int &b){
-  return {a.x / ((float) b.x), a.y / ((float) b.y), a.z / ((float) b.z))};
+  return {a.x / ((float) b), a.y / ((float) b), a.z / ((float) b))};
 }
 __device__ __host__ float2 operator/=(const float2 &a, const int &b){
-  return {a.x / ((float) b.x), a.y / ((float) b.y))};
+  return {a.x / ((float) b), a.y / ((float) b))};
 }
 __device__ __host__ int4 operator/=(const int4 &a, const float &b){
-  return {a.x / ((int) b.x), a.y / ((int) b.y), a.z / ((int) b.z), a.w / ((int) b.w)};
+  return {a.x / ((int) b), a.y / ((int) b), a.z / ((int) b), a.w / ((int) b)};
 }
 __device__ __host__ int3 operator/=(const int3 &a, const float &b){
-  return {a.x / ((int) b.x), a.y / ((int) b.y), a.z / ((int) b.z)};
+  return {a.x / ((int) b), a.y / ((int) b), a.z / ((int) b)};
 }
 __device__ __host__ int2 operator/=(const int2 &a, const float &b){
-  return {a.x / ((int) b.x), a.y / ((int) b.y)};
+  return {a.x / ((int) b), a.y / ((int) b)};
 }
 __device__ __host__ int4 operator/=(const int4 &a, const int &b){
-  return {a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w};
+  return {a.x / b, a.y / b, a.z / b, a.w / b};
 }
 __device__ __host__ int3 operator/=(const int3 &a, const int &b){
-  return {a.x / b.x, a.y / b.y, a.z / b.z};
+  return {a.x / b, a.y / b, a.z / b};
 }
 __device__ __host__ int2 operator/=(const int2 &a, const int &b){
-  return {a.x / b.x, a.y / b.y};
+  return {a.x / b, a.y / b};
 }
 
 
