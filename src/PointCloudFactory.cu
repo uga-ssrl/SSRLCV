@@ -2691,7 +2691,8 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
 void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointCloud, std::vector<ssrlcv::Image*> images, const char* filename){
 
   // disable for local print statments
-  bool local_debug = true;
+  bool local_debug    = true;
+  bool local_verbose  = true;
 
   // extract the camera locations for normal estimation
   Unity<float3>* locations = new ssrlcv::Unity<float3>(nullptr,images.size(),ssrlcv::cpu);
@@ -2706,9 +2707,13 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointClo
   // caclulate the estimated plane normal
   Unity<float3>* normal = oct.computeAverageNormal(3, 10, images.size(), locations->host);
 
-  if (local_debug) std::cout << "Estimated plane normal: (" << normal->host[0].x << ", " << normal->host[0].y << ", " << normal->host[0].z << ")" << std::endl;
+  if (local_debug || local_verbose) std::cout << "Estimated plane normal: (" << normal->host[0].x << ", " << normal->host[0].y << ", " << normal->host[0].z << ")" << std::endl;
 
-
+  if (local_debug) {
+    std::cout << "Testing normal point at average location" << std::endl;
+    Unity<float3>* point = getAveragePoint(pointCloud);
+    ssrlcv::writePLY("testPoint",point,normal);
+  }
 
   // find the location with the best density of points along the average normal
 
@@ -3254,7 +3259,7 @@ void ssrlcv::PointCloudFactory::translatePointCloud(float3 translate, Unity<floa
 * @param rotate is a float3 representing an x,y,z axis rotation
 * @param points is the point cloud to be altered by r, this value is directly altered
 */
-void ssrlcv::PointCloudFactory::rotatePointCloud(float3 rotate, Unity<float3>* points){
+void ssrlcv::PointCloudFactory::rotatePointCloud(float3 rotate, Unity<float3>* points) {
 
   std::cout << "\t Rotating Point Cloud ..." << std::endl;
 
@@ -3282,6 +3287,37 @@ void ssrlcv::PointCloudFactory::rotatePointCloud(float3 rotate, Unity<float3>* p
   points->clear(gpu);
 
   delete d_rotate;
+
+}
+
+/**
+ * A method which simply returns the average point in a point cloud
+ * @param points a unity of float3 which contains the point cloud
+ * @return average a single valued unity of float3 that is the aveage of the points in the point cloud
+ */
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::getAveragePoint(Unity<float3>* points){
+
+  std::cout << "\t Calculating average point ..." << std::endl;
+
+  Unity<float3>* average = new ssrlcv::Unity<float3>(nullptr,1,ssrlcv::gpu);
+
+  points->transferMemoryTo(gpu);
+
+  // call kernel
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1}; // ssrlcv::computeAveragePoint(float3* average, unsigned long pointnum, float3* points){
+  void (*fp)(float3*, unsigned long, float3*) = &computeAveragePoint;
+  getFlatGridBlock(points->size(),grid,block,fp);
+
+  computeAveragePoint<<<grid,block>>>(average->device,points->size(),points->device);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  points->transferMemoryTo(cpu);
+  average->transferMemoryTo(cpu);
+  points->clear(gpu);
+  average->clear(gpu);
 
 }
 
@@ -4105,7 +4141,7 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* angu
 
 // =============================================================================================================
 //
-// Bulk Point Cloud Alteration Methods
+// Bulk Point Cloud Alteration Kernels
 //
 // =============================================================================================================
 
@@ -4153,7 +4189,11 @@ __global__ void ssrlcv::computeRotatePointCloud(float3* rotation, unsigned long 
  */
 __global__ void ssrlcv::computeAveragePoint(float3* average, unsigned long pointnum, float3* points){
   __shared__ float3 localSum;
-  if (threadIdx.x == 0) localSum = 0;
+  if (threadIdx.x == 0) {
+    localSum.x = 0.0f;
+    localSum.y = 0.0f;
+    localSum.z = 0.0f;
+  }
   __syncthreads();
 
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
@@ -4162,7 +4202,7 @@ __global__ void ssrlcv::computeAveragePoint(float3* average, unsigned long point
   float3 delta;
   delta.x = points[globalID].x / pointnum;
   delta.y = points[globalID].y / pointnum;
-  delta.z = points[globalID].z / pointnum;  
+  delta.z = points[globalID].z / pointnum;
 
   atomicAdd(&localSum.x,delta.x);
   atomicAdd(&localSum.y,delta.y);

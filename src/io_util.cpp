@@ -604,10 +604,31 @@ void ssrlcv::writePLY(std::string filename, Unity<float3>* points, bool binary){
  * @param filename the name of the file to be saved in the /out directory
  * @param points the points to save as a PLY
  */
-void writePLY(const char* filename, Unity<float3>* points){
+void ssrlcv::writePLY(const char* filename, Unity<float3>* points){
   std::ofstream of;
   std::string fname = filename;
   of.open ("out/" + fname + ".ply");
+  of << "ply\nformat ascii 1.0\n";
+  of << "comment author: Caleb Adams & Jackson Parker\n";
+  of << "comment SSRL CV simple PLY writer\n";
+  of << "element vertex " << points->size() << "\n";
+  of << "property float x\nproperty float y\nproperty float z\n"; // the elements in the guy
+  of << "end_header\n";
+  // start writing the values
+  for (int i = 0; i < points->size(); i++){
+    of << points->host[i].x << " " << points->host[i].y << " " << points->host[i].z << "\n";
+  }
+  of.close(); // done with the file building
+}
+
+/**
+ * @brief a simple ASCII PLY writing method that does not require the tinyPLY external lib
+ * @param filename the name of the file to be saved in the /out directory
+ * @param points the points to save as a PLY
+ */
+void ssrlcv::writePLY(std::string filename, Unity<float3>* points){
+  std::ofstream of;
+  of.open ("out/" + filename + ".ply");
   of << "ply\nformat ascii 1.0\n";
   of << "comment author: Caleb Adams & Jackson Parker\n";
   of << "comment SSRL CV simple PLY writer\n";

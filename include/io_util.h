@@ -225,7 +225,7 @@ struct arg
   * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
   * \see Unity
   */
-  void writePLY(const char* filePath, Unity<float3>* points, bool binary = false);
+  void writePLY(const char* filePath, Unity<float3>* points, bool binary);
 
   /**
   * \brief Will write a ply file based on a set of float3 values.
@@ -236,7 +236,7 @@ struct arg
   * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
   * \see Unity
   */
-  void writePLY(std::string filename, Unity<float3>* points, bool binary = false);
+  void writePLY(std::string filename, Unity<float3>* points, bool binary);
 
   /**
    * @brief a simple ASCII PLY writing method that does not require the tinyPLY external lib
@@ -244,6 +244,13 @@ struct arg
    * @param points the points to save as a PLY
    */
   void writePLY(const char* filename, Unity<float3>* points);
+
+  /**
+   * @brief a simple ASCII PLY writing method that does not require the tinyPLY external lib
+   * @param filename the name of the file to be saved in the /out directory
+   * @param points the points to save as a PLY
+   */
+  void writePLY(std::string filename, Unity<float3>* points);
 
   /**
   * \brief Will write a ply file based on a set of float3 values with rgb color

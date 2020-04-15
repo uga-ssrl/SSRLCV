@@ -379,6 +379,13 @@ namespace ssrlcv{
     */
     void rotatePointCloud(float3 rotate, Unity<float3>* points);
 
+    /**
+     * A method which simply returns the average point in a point cloud
+     * @param points a unity of float3 which contains the point cloud
+     * @return average a single valued unity of float3 that is the aveage of the points in the point cloud
+     */
+    ssrlcv::Unity<float3>* getAveragePoint(Unity<float3>* points);
+
 
   }; // end PointCloudFactory
 
