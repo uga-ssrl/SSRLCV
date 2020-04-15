@@ -209,8 +209,8 @@ void ssrlcv::MeshFactory::saveMesh(const char* filename){
 float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud, float3 planeNormal){
 
   // disable these for no print statements
-  bool local_debug   = true;
-  bool local_verbose = true;
+  bool local_debug   = false;
+  bool local_verbose = false;
 
   if (local_verbose || local_debug) std::cout << "Computing average differnce between mesh and point cloud ..." << std::endl;
 

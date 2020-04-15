@@ -164,7 +164,7 @@ int main(int argc, char *argv[]){
       */
 
       // Planar filtering is very good at removing noise that is not close to the estimated model.
-      demPoints.filterTwoViewFromEstimatedPlane(&matchSet, images, 10.0f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
+      demPoints.planarCutoffFilter(&matchSet, images, 10.0f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
 
       // OPTIONAL
       // to visualize the estimated plane which the structure lies within you can use
@@ -258,7 +258,7 @@ int main(int argc, char *argv[]){
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
       // Planar filtering is very good at removing noise that is not close to the estimated model.
-      demPoints.filterTwoViewFromEstimatedPlane(&matchSet, images, 10.0f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
+      demPoints.planarCutoffFilter(&matchSet, images, 10.0f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
 
       // OPTIONAL
       // to visualize the estimated plane which the structure lies within you can use

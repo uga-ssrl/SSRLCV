@@ -695,6 +695,19 @@ void ssrlcv::writePLY(const char* filePath, Unity<colorPoint>* cpoint){
 }
 
 /**
+* writes a mesh with colors
+* @param filename the filename
+* @param points the points
+* @param faceList the faces
+* @param faceEncoding the face encoding
+* @param colors the colors of the points
+*/
+void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<int>* faceList, int faceEncoding, Unity<uchar3>* colors){
+  // TODO
+  
+}
+
+/**
  * @brief writes a Mesh PLY file that also contains a surface
  * writes a PLY file that includes a surface along with the points
  * @param filename the desired name of the output file

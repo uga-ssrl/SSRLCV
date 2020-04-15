@@ -232,7 +232,7 @@ void ssrlcv::writeDisparityImage(Unity<float3>* points, unsigned int interpolati
 * The CPU method that sets up the GPU enabled two view tringulation.
 * @param bundleSet a set of lines and bundles that should be triangulated
 */
-ssrlcv::Unity<float3>* ssrlcv::twoViewTriangulate(BundleSet bundleSet){
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet bundleSet){
 
   bundleSet.lines->transferMemoryTo(gpu);
   bundleSet.bundles->transferMemoryTo(gpu);
@@ -3254,12 +3254,14 @@ void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, s
   bool local_debug    = true;
   bool local_verbose  = true;
 
+  if (local_debug || local_verbose) std::cout << "Starting Planar Cutoff Filter ..." << std::endl;
+
   // prep for reconstructon
   ssrlcv::BundleSet bundleSet;
   ssrlcv::Unity<float3>* points;
   // now filter from the generated plane
 
-  bundleSet = generateBundles(&matchSet,images);
+  bundleSet = generateBundles(matchSet,images);
   bundleSet.lines->transferMemoryTo(gpu);
   bundleSet.bundles->transferMemoryTo(gpu);
 
@@ -3310,7 +3312,7 @@ void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, s
   // move the cutoff to the device
   float* d_cutoff;
   CudaSafeCall(cudaMalloc((void**) &d_cutoff,sizeof(float)));
-  CudaSafeCall(cudaMemcpy(d_cutoff,cutoff,sizeof(float),cudaMemcpyHostToDevice));
+  CudaSafeCall(cudaMemcpy(d_cutoff,&cutoff,sizeof(float),cudaMemcpyHostToDevice));
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
@@ -3325,7 +3327,6 @@ void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, s
 
     // filterTwoViewFromEstimatedPlane(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float* cutoff, float3* point, float3* vector)
     filterTwoViewFromEstimatedPlane<<<grid,block>>>(bundleSet.bundles->size(), bundleSet.lines->device, bundleSet.bundles->device, d_cutoff, averagePoint->device, normal->device);
-
 
   } else {
     //
@@ -3353,15 +3354,73 @@ void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, s
   tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,1,ssrlcv::cpu);
   tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,1,ssrlcv::cpu);
 
-  // clean up memory
+  // CLEAR OUT THE DATA STRUCTURES
+  // count the number of bad bundles to be removed
+  int bad_bundles = 0;
+  int bad_lines   = 0;
+  for (int k = 0; k < bundleSet.bundles->size(); k++){
+    if (bundleSet.bundles->host[k].invalid){
+       bad_bundles++;
+       bad_lines += bundleSet.bundles->host[k].numLines;
+    }
+  }
+  if (bad_bundles) {
+    std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
+    std::cout << "\tDetected " << bad_lines << " lines to remove" << std::endl;
+  } else {
+    std::cout << "No bundles or liens to removed! all points are less than " << cutoff  << " km from estimated plane" << std::endl;
+    return;
+  }
+  // Need to generated an adjustment match set
+  // make a temporary match set
+  delete tempMatchSet.keyPoints;
+  delete tempMatchSet.matches;
+  tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matchSet->keyPoints->size(),ssrlcv::cpu);
+  tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+  // fill in the boiz
+  for (int k = 0; k < tempMatchSet.keyPoints->size(); k++){
+    tempMatchSet.keyPoints->host[k] = matchSet->keyPoints->host[k];
+  }
+  for (int k = 0; k < tempMatchSet.matches->size(); k++){
+    tempMatchSet.matches->host[k] = matchSet->matches->host[k];
+  }
+  if (!(matchSet->matches->size() - bad_bundles) || !(matchSet->keyPoints->size() - bad_lines)){
+    std::cerr << "ERROR: filtering is too aggressive, all points would be removed ..." << std::endl;
+    return;
+  }
+  // resize the standard matchSet
+  size_t new_kp_size = matchSet->keyPoints->size() - bad_lines;
+  size_t new_mt_size = matchSet->matches->size() - bad_bundles;
+  delete matchSet->keyPoints;
+  delete matchSet->matches;
+  matchSet->keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,new_kp_size,ssrlcv::cpu);
+  matchSet->matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,new_mt_size,ssrlcv::cpu);
+  // this is much easier because of the 2 view assumption
+  // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
+  int k_adjust = 0;
+  int k_lines  = 0;
+  int k_bundle = 0;
+  for (int k = 0; k < bundleSet.bundles->size(); k++){
+    k_lines = bundleSet.bundles->host[k].numLines;
+    if (!bundleSet.bundles->host[k].invalid){
+      matchSet->matches->host[k_bundle] = {k_lines,k_adjust};
+      for (int j = 0; j < k_lines; j++){
+        matchSet->keyPoints->host[k_adjust + j] = tempMatchSet.keyPoints->host[k_adjust + j];
+      }
+      k_adjust += k_lines;
+      k_bundle++;
+    }
+  }
 
+  if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
+
+  // clean up memory
   delete tempMatchSet.keyPoints;
   delete tempMatchSet.matches;
   delete points;
   delete averagePoint;
   delete normal;
   delete locations;
-
   cudaFree(d_cutoff);
 
 }
@@ -3648,18 +3707,18 @@ __global__ void ssrlcv::filterTwoViewFromEstimatedPlane(unsigned long pointnum, 
   // now calculate the cloud Point's intersection with plane
 
   // point on the plane
-  float3 A = point; // the average point
+  float3 A = point[0]; // the average point
 
   // vector betweeen point and a point on the plane
   float3 diff = P - A;
 
   // scalar along the point vector line
-  float numer = dotProduct(diff,normal);
-  float denom = dotProduct(normal,normal);
+  float numer = dotProduct(diff,vector[0]);
+  float denom = dotProduct(vector[0],vector[0]);
   float scale = numer / denom;
 
   // calculate intersection point
-  float3 I = P - (scale * V);
+  float3 I = P - (scale * vector[0]);
 
   // calculate distance between point cloud point and point on the mesh
   float dist = sqrtf((P.x - I.x)*(P.x - I.x) + (P.y - I.y)*(P.y - I.y) + (P.z - I.z)*(P.z - I.z));
@@ -3674,7 +3733,77 @@ __global__ void ssrlcv::filterTwoViewFromEstimatedPlane(unsigned long pointnum, 
 
 __global__ void ssrlcv::filterNViewFromEstimatedPlane(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float* cutoff, float3* point, float3* vector){
 
-  // TODO
+  // this is same method as the NView for the first bit
+  // see two view method for details
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (pointnum-1)) return;
+
+  //Initializing Variables
+  float3 S [3];
+  float3 C;
+  S[0] = {0,0,0};
+  S[1] = {0,0,0};
+  S[2] = {0,0,0};
+  C = {0,0,0};
+
+  //Iterating through the Lines in a Bundle
+  for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+    ssrlcv::Bundle::Line L1 = lines[i];
+    float3 tmp [3];
+    normalize(L1.vec);
+    matrixProduct(L1.vec, tmp);
+    //Subtracting the 3x3 Identity Matrix from tmp
+    tmp[0].x -= 1;
+    tmp[1].y -= 1;
+    tmp[2].z -= 1;
+    //Adding tmp to S
+    S[0] = S[0] + tmp[0];
+    S[1] = S[1] + tmp[1];
+    S[2] = S[2] + tmp[2];
+    //Adding tmp * pnt to C
+    float3 vectmp;
+    multiply(tmp, L1.pnt, vectmp);
+    C = C + vectmp;
+  }
+
+  /**
+   * If all of the directional vectors are skew and not parallel, then I think S is nonsingular.
+   * However, I will look into this some more. This may have to use a pseudo-inverse matrix if that
+   * is not the case.
+   */
+  float3 Inverse [3];
+  float3 P;
+  if(inverse(S, Inverse)){
+    multiply(Inverse, C, P);
+  } else {
+    // inversion failed
+    bundles[globalID].invalid = true;
+    return;
+  }
+
+  // now calculate the cloud Point's intersection with plane
+  float3 A = point[0];
+
+  // vector betweeen point and a point on the plane
+  float3 diff = P - A;
+
+  // scalar along the point vector line
+  float numer = dotProduct(diff,vector[0]);
+  float denom = dotProduct(vector[0],vector[0]);
+  float scale = numer / denom;
+
+  // calculate intersection point
+  float3 I = P - (scale * vector[0]);
+
+  // calculate distance between point cloud point and point on the mesh
+  float dist = sqrtf((P.x - I.x)*(P.x - I.x) + (P.y - I.y)*(P.y - I.y) + (P.z - I.z)*(P.z - I.z));
+
+  // if greater than cutoff remove it
+  if (dist > cutoff) {
+    bundles[globalID].invalid = true;
+  } else {
+    bundles[globalID].invalid = false;
+  }
 
 }
 
@@ -3687,7 +3816,7 @@ __global__ void ssrlcv::filterNViewFromEstimatedPlane(unsigned long pointnum, Bu
 /**
 * Does a trigulation with skew lines to find their closest intercetion.
 */
-__global__ void computeTwoViewTriangulate(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
+__global__ void ssrlcv::computeTwoViewTriangulate(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
   // this method is from wikipedia, last seen janurary 2020
   // https://en.wikipedia.org/wiki/Skew_lines#Nearest_Points
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
@@ -4153,6 +4282,10 @@ __global__ void ssrlcv::computeNViewTriangulate(unsigned long pointnum, Bundle::
     float3 point;
     multiply(Inverse, C, point);
     pointcloud[globalID] = point;
+  } else {
+    // inversion failed
+    bundles[globalID].invalid = true;
+    return;
   }
 
 

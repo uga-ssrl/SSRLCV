@@ -2277,6 +2277,7 @@ __global__ void ssrlcv::checkForAmbiguity(int numPoints, int numCameras, float3*
 }
 __global__ void ssrlcv::reorient(int numNodesAtDepth, int depthIndex, Octree::Node* nodeArray, int* numNeighbors, int maxNeighbors, float3* normals, int* neighborIndices, bool* ambiguous){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
+  bool local_debug = false;
   if(blockID < numNodesAtDepth){
     __shared__ bool ambiguityExists;
     ambiguityExists = true;
@@ -2324,7 +2325,7 @@ __global__ void ssrlcv::reorient(int numNodesAtDepth, int depthIndex, Octree::No
       }
       __syncthreads();
     }
-    if(!threadIdx.x) printf("%d reoriented\n",numPointsInNode);
+    if(!threadIdx.x && local_debug) printf("%d reoriented\n",numPointsInNode);
   }
 }
 
