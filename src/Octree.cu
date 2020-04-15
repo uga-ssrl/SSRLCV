@@ -1599,6 +1599,8 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
 */
 ssrlcv::Unity<float3>* ssrlcv::Octree::computeAverageNormal(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions){
 
+  bool local_debug = false;
+
   // call the fucntion that already does this!
   computeNormals(minNeighForNorms, maxNeighbors, numCameras, cameraPositions);
 
@@ -1622,9 +1624,16 @@ ssrlcv::Unity<float3>* ssrlcv::Octree::computeAverageNormal(int minNeighForNorms
   average->transferMemoryTo(cpu);
   average->clear(gpu);
 
+  if (local_debug) std::cout << average->host[0].x << ", " << average->host[0].y << ", " << average->host[0].z << std::endl;
+
   // normalize the average
   float mag = sqrtf((average->host[0].x * average->host[0].x) + (average->host[0].y * average->host[0].y) + (average->host[0].z * average->host[0].z));
   average->host[0] /= mag;
+
+  if (local_debug) {
+    std::cout << "mag: " << mag << std::endl;
+    std::cout << average->host[0].x << ", " << average->host[0].y << ", " << average->host[0].z << std::endl;
+  }
 
   return average;
 }
