@@ -176,7 +176,7 @@ namespace ssrlcv{
    * this measures the distance between each point in a point cloud and where they "collide"
    * with the mesh along a single given vector fro all points. This is returned as an average
    */
-  __global__ void averageCollisionDistance(float* averageDistance, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding);
+  __global__ void sumCollisionDistance(float* averageDistance, int* misses, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding);
 
   __global__ void vertexImplicitFromNormals(int numVertices, Octree::Vertex* vertexArray, Octree::Node* nodeArray, float3* normals, float3* points, float* vertexImplicit);
   __global__ void calcVertexNumbers(int numEdges, int depthIndex, Octree::Edge* edgeArray, float* vertexImplicit, int* vertexNumbers);

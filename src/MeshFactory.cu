@@ -233,6 +233,11 @@ float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud,
   CudaSafeCall(cudaMalloc((void**) &d_encoding,sizeof(int)));
   CudaSafeCall(cudaMemcpy(d_encoding,&this->faceEncoding,sizeof(int),cudaMemcpyHostToDevice));
 
+  int misses = 0;
+  int* d_misses;
+  CudaSafeCall(cudaMalloc((void**) &d_misses,sizeof(int)));
+  CudaSafeCall(cudaMemcpy(d_misses,&misses,sizeof(int),cudaMemcpyHostToDevice));
+
   pointCloud->transferMemoryTo(gpu);
   normal->transferMemoryTo(gpu);
   this->points->transferMemoryTo(gpu);
@@ -240,11 +245,11 @@ float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud,
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  void (*fp)(float*, unsigned long, float3*, float3*, float3*, unsigned long, int*, int*) = &averageCollisionDistance;
+  void (*fp)(float*, unsigned long, float3*, float3*, float3*, unsigned long, int*, int*) = &sumCollisionDistance;
   getFlatGridBlock(pointCloud->size(),grid,block,fp);
 
-  //                    (float* averageDistance, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding){
-  averageCollisionDistance<<<grid,block>>>(d_averageError,pointCloud->size(),pointCloud->device,normal->device,this->points->device,this->faces->size(),this->faces->device,d_encoding);
+  //                    (float* averageDistance, int* misses, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding){
+  sumCollisionDistance<<<grid,block>>>(d_averageError,d_misses,pointCloud->size(),pointCloud->device,normal->device,this->points->device,this->faces->size(),this->faces->device,d_encoding);
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -259,8 +264,18 @@ float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud,
   delete normal;
 
   CudaSafeCall(cudaMemcpy(&averageError,d_averageError,sizeof(float),cudaMemcpyDeviceToHost));
+  CudaSafeCall(cudaMemcpy(&misses,d_misses,sizeof(int),cudaMemcpyDeviceToHost));
   cudaFree(d_averageError);
   cudaFree(d_encoding);
+  cudaFree(d_misses);
+
+  if (local_debug || local_verbose) {
+    std::cout << "\t " << (pointCloud->size() - misses) << " / " << pointCloud->size() << " are valid errors" << std::endl;
+  }
+  if (misses) {
+    // discount the misses
+    averageError /= (pointCloud->size() - misses);
+  }
 
   return averageError;
 }
@@ -1379,19 +1394,24 @@ __constant__ int ssrlcv::numTrianglesInCubeCategory[256] = {0, 1, 1, 2, 1, 2, 2,
 
   /**
    * this measures the distance between each point in a point cloud and where they "collide"
-   * with the mesh along a single given vector fro all points. This is returned as an average
+   * with the mesh along a single given vector fro all points. This is returned as a sum
    */
-__global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding){
+__global__ void ssrlcv::sumCollisionDistance(float* averageDistance, int* misses, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding){
   // get ready to do the stuff local memory space
   // this will later be added back to a global memory space
   __shared__ float localSum;
-  if (threadIdx.x == 0) localSum = 0;
+  __shared__ int localMisses;
+  if (threadIdx.x == 0) {
+    localSum = 0;
+    localMisses = 0;
+  }
   __syncthreads();
 
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if (globalID > (pointnum-1)) return;
 
   float error = 0.0f;
+  int   miss  = 0;
 
   // NOTE currently assumes X-Y plane
   int3 planeIndexes = {-1,-1,-1};
@@ -1401,7 +1421,7 @@ __global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigne
   // loops through the faces in search of a face where this points would intersect
   for (int i = 0; i < facenum; i += *faceEncoding) {
 
-    printf("en: %d at %d \t Point: %f %f %f \n", *faceEncoding, i, vertices[i].x, vertices[i].y, vertices[i].z);
+    //printf("en: %d at %d \t Point: %f %f %f \n", *faceEncoding, i, vertices[i].x, vertices[i].y, vertices[i].z);
 
     if (*faceEncoding == 4) { // need to test 2 trianlges
 
@@ -1421,10 +1441,10 @@ __global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigne
       // check
       if (PAB + PAC + PBC == ABC) {
         // found point
-        planeIndexes.x = i;
-        planeIndexes.y = i+1;
-        planeIndexes.z = i+2;
-        printf("%f %f %f, ",A.x,A.y,A.z);
+        planeIndexes.x = faces[i    ];
+        planeIndexes.y = faces[i + 1];
+        planeIndexes.z = faces[i + 2];
+        //printf("%f %f %f, ",A.x,A.y,A.z);
         //printf("[1] Area: %f comp to area %f \n",ABC, (PAB + PAC + PBC));
         break;
       }
@@ -1438,17 +1458,17 @@ __global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigne
 
       if (PCD + PCA + PDA == CDA) {
         // found point
-        planeIndexes.x = i+2;
-        planeIndexes.y = i+3;
-        planeIndexes.z = i;
+        planeIndexes.x = faces[i + 2];
+        planeIndexes.y = faces[i + 3];
+        planeIndexes.z = faces[i    ];
         //printf("[2] Area: %f comp to area %f \n",CDA, (PCD + PCA + PDA));
         break;
       }
     } else if (*faceEncoding == 3){ // need to test a single triangle
       // potential points
-      float3 A = vertices[face[i    ]];
-      float3 B = vertices[face[i + 1]];
-      float3 C = vertices[face[i + 2]];
+      float3 A = vertices[faces[i    ]];
+      float3 B = vertices[faces[i + 1]];
+      float3 C = vertices[faces[i + 2]];
 
       // the target area for triangle 1
       float ABC = abs((A.x*(B.y-C.y) + B.x*(C.y-A.y)+ C.x*(A.y-B.y)) / 2.0);
@@ -1460,9 +1480,9 @@ __global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigne
       // check
       if (PAB + PAC + PBC == ABC) {
         // found point
-        planeIndexes.x = i;
-        planeIndexes.y = i+1;
-        planeIndexes.z = i+2;
+        planeIndexes.x = faces[i    ];
+        planeIndexes.y = faces[i + 1];
+        planeIndexes.z = faces[i + 2];
         break;
       }
     } else {
@@ -1517,13 +1537,18 @@ __global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigne
 
     error = (dist / pointnum);
   } else {
-    printf("ERROR FINDING COLLISION, there could be an issue with cloud / mesh alignment. Cannot discount point in sum, so the average will be wrong ...\n");
+    //printf("ERROR FINDING COLLISION, there could be an issue with cloud / mesh alignment. Cannot discount point in sum, so the average will be wrong ...\n");
+    miss  = 1;
     error = 0.0f;
   }
 
   atomicAdd(&localSum,error);
+  atomicAdd(&localMisses,miss);
   __syncthreads();
-  if (!threadIdx.x) atomicAdd(averageDistance,localSum);
+  if (!threadIdx.x) {
+    atomicAdd(averageDistance,localSum);
+    atomicAdd(misses,miss);
+  }
 }
 
 __global__ void ssrlcv::vertexImplicitFromNormals(int numVertices, Octree::Vertex* vertexArray, Octree::Node* nodeArray, float3* normals, float3* points, float* vertexImplicit){
