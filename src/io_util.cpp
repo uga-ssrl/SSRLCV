@@ -709,7 +709,7 @@ void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float>*
   float3 gr2  = (bad - meh )/1000;
   // initialize the gradient "mapping"
   float3 temp;
-  std::cout << "building gradient" << std::endl;
+  // std::cout << "building gradient" << std::endl;
   for (int i = 0; i < 2000; i++){
     if (i < 1000){
       temp = good + gr1*i;
@@ -733,7 +733,7 @@ void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float>*
     }
   }
   // now fill in the color point locations
-  for (int i = 0; i < points->size() - 1; i++){
+  for (int i = 0; i < points->size(); i++){
     // i assume that the errors and the points will have the same indices
     cpoints[i].x = points->host[i].x; //
     cpoints[i].y = points->host[i].y;
@@ -755,7 +755,7 @@ void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float>*
  * @param gradient the values that represent the "variance" of values to be colored with a gradient
  * @param cutoff the max gradient value, where the gradient should end. all points after this will be the same color
  */
-void writePLY(const char* filename, Unity<float3>* points, Unity<float>* gradient, float cutoff){
+void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float>* gradient, float cutoff){
 
   // build the helpers to make the colors
  uchar3 colors[2000];
@@ -766,7 +766,7 @@ void writePLY(const char* filename, Unity<float3>* points, Unity<float>* gradien
  float3 gr2  = (bad - meh )/1000;
  // initialize the gradient "mapping"
  float3 temp;
- std::cout << "building gradient" << std::endl;
+ // std::cout << "building gradient" << std::endl;
  for (int i = 0; i < 2000; i++){
    if (i < 1000){
      temp = good + gr1*i;
@@ -784,12 +784,12 @@ void writePLY(const char* filename, Unity<float3>* points, Unity<float>* gradien
  struct colorPoint* cpoints = (colorPoint*)  malloc(points->size() * sizeof(struct colorPoint));
 
  // now fill in the color point locations
- for (int i = 0; i < points->size() - 1; i++){
+ for (int i = 0; i < points->size(); i++){
    // i assume that the errors and the points will have the same indices
    cpoints[i].x = points->host[i].x; //
    cpoints[i].y = points->host[i].y;
    cpoints[i].z = points->host[i].z;
-   int j = floor(gradient->host[i] * (2000 / cutoff));
+   int j = floor(gradient->host[i] * (2000.0f / cutoff));
    if (j > 1999) j = 1999; // sets to max cutoff no matter what
    cpoints[i].r = colors[j].x;
    cpoints[i].g = colors[j].y;
