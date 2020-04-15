@@ -217,7 +217,7 @@ int main(int argc, char *argv[]){
       // then you can save these errors in a CSV
       ssrlcv::writeCSV(truthErrors, "resolutionErrors");
       // you can also save them as color coded
-      ssrlcv::writePLY("resolutionErrors",points,truthErrors);
+      ssrlcv::writePLY("resolutionErrors",points,truthErrors, 0.006); // just set the "MAX cuttoff" to 0.006 km, which is 60 meters
 
       /*
       // OPTIONAL

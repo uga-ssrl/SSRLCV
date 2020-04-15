@@ -748,6 +748,59 @@ void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float>*
   writePLY(filename, cpoints, points->size());
 }
 
+/**
+ * @brief write a PLY that is color coded along the associated gradient points passed in
+ * @param filename is the desired name of the output PLY file
+ * @param points is the collection of points to color with the gradient
+ * @param gradient the values that represent the "variance" of values to be colored with a gradient
+ * @param cutoff the max gradient value, where the gradient should end. all points after this will be the same color
+ */
+void writePLY(const char* filename, Unity<float3>* points, Unity<float>* gradient, float cutoff){
+
+  // build the helpers to make the colors
+ uchar3 colors[2000];
+ float3 good = {108,255,221};
+ float3 meh  = {251,215,134};
+ float3 bad  = {247,121,125};
+ float3 gr1  = (meh - good)/1000;
+ float3 gr2  = (bad - meh )/1000;
+ // initialize the gradient "mapping"
+ float3 temp;
+ std::cout << "building gradient" << std::endl;
+ for (int i = 0; i < 2000; i++){
+   if (i < 1000){
+     temp = good + gr1*i;
+     colors[i].x = (unsigned char) floor(temp.x);
+     colors[i].y = (unsigned char) floor(temp.y);
+     colors[i].z = (unsigned char) floor(temp.z);
+   } else {
+     temp = meh  + gr2*i;
+     colors[i].x = (unsigned char) floor(temp.x);
+     colors[i].y = (unsigned char) floor(temp.y);
+     colors[i].z = (unsigned char) floor(temp.z);
+   }
+ }
+
+ struct colorPoint* cpoints = (colorPoint*)  malloc(points->size() * sizeof(struct colorPoint));
+
+ // now fill in the color point locations
+ for (int i = 0; i < points->size() - 1; i++){
+   // i assume that the errors and the points will have the same indices
+   cpoints[i].x = points->host[i].x; //
+   cpoints[i].y = points->host[i].y;
+   cpoints[i].z = points->host[i].z;
+   int j = floor(gradient->host[i] * (2000 / cutoff));
+   if (j > 1999) j = 1999; // sets to max cutoff no matter what
+   cpoints[i].r = colors[j].x;
+   cpoints[i].g = colors[j].y;
+   cpoints[i].b = colors[j].z;
+ }
+
+ // save the file
+ writePLY(filename, cpoints, points->size());
+
+}
+
 // =============================================================================================================
 //
 // CSV and Misc IO
@@ -809,7 +862,8 @@ void ssrlcv::writeCSV(std::vector<float> x, std::vector<float> y, std::string fi
  */
 void ssrlcv::writeCSV(Unity<float>* values, const char* filename){
   std::ofstream outfile;
-  outfile.open("out/" + filename + ".csv");
+  std::string fname = filename;
+  outfile.open("out/" + fname + ".csv");
   for (int i = 0; i < values->size(); i++) outfile << std::fixed << std::setprecision(32) << values->host[i] << ",";
   outfile.close();
 }
