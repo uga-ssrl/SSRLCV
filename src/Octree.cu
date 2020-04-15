@@ -1197,7 +1197,7 @@ void ssrlcv::Octree::createVEFArrays(){
 void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
 
   // enable local_debug to have local print statements
-  bool local_debug = true;
+  bool local_debug = false;
 
   if (local_debug) std::cout << std::endl;
   clock_t cudatimer;
@@ -1383,7 +1383,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
 void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions){
 
   // enable local_debug to have local print statements
-  bool local_debug = true;
+  bool local_debug = false;
 
   if (local_debug) std::cout << std::endl;
   clock_t cudatimer;

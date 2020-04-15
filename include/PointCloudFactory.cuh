@@ -351,6 +351,15 @@ namespace ssrlcv{
      */
     void linearCutoffFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float cutoff);
 
+    /**
+     * This method estimates the plane the point cloud sits in and removes points that are outside of a certain
+     * threashold distance from the plane
+     * @param matchSet a group of matches
+     * @param images a group of images, used only for their stored camera parameters
+     * @param cutoff is a cutoff of km distance from the plane, if the point cloud has been scaled then this should also be scaled
+     */
+    void planarCutoffFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float cutoff);
+
     // =============================================================================================================
     //
     // Bulk Point Cloud Alteration Methods

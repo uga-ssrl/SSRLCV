@@ -11,7 +11,7 @@ ssrlcv::MeshFactory::MeshFactory(){
 }
 
 // constructor given existing points and faces
-MeshFactory(Unity<float3>* in_points, Unity<int>* in_faces, int in_faceEncoding){
+ssrlcv::MeshFactory::MeshFactory(Unity<float3>* in_points, Unity<int>* in_faces, int in_faceEncoding){
   this->faceEncoding = in_faceEncoding;
   this->points       = in_points;
   this->faces        = in_faces;

@@ -163,8 +163,6 @@ int main(int argc, char *argv[]){
       bundleSet = demPoints.generateBundles(&matchSet,images);
       */
 
-
-
       // OPTIONAL
       // to visualize the estimated plane which the structure lies within you can use
       // the demPoints.visualizePlaneEstimation() method like so:
@@ -256,6 +254,11 @@ int main(int argc, char *argv[]){
       demPoints.linearCutoffFilter(&matchSet,images,300);
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
+      // OPTIONAL
+      // to visualize the estimated plane which the structure lies within you can use
+      // the demPoints.visualizePlaneEstimation() method like so:
+      demPoints.visualizePlaneEstimation(points, images, "planeEstimation");
+
       // multiple filters are needed, because outlier points are discovered in stages
       // decreasing sigma over time is best because the real "mean" error becomes more
       // accurate as truely noisey points are removed
@@ -280,7 +283,7 @@ int main(int argc, char *argv[]){
     }
 
     std::cout << "writing final PLY ..." << std::endl;
-    ssrlcv::writePLY("out/test.ply",points);
+    ssrlcv::writePLY("final",points);
 
     // cleanup
     delete points;

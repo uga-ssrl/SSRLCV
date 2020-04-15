@@ -2723,9 +2723,9 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointClo
   // generate the example plane vertices
   // loop through x and y and caclulate z using the equation of the plane, see: https://en.wikipedia.org/wiki/Plane_(geometry)#Point-normal_form_and_general_form_of_the_equation_of_a_plane
   int step   = 10; // keep this evenly divisible
-  int bounds = 100;
+  int bounds = 100; // does +/- at these bounds in x and y
   int index  = 0;
-  Unity<float3>* vertices = new ssrlcv::Unity<float3>(nullptr, (size_t) (2 * bounds / step),ssrlcv::cpu);
+  Unity<float3>* vertices = new ssrlcv::Unity<float3>(nullptr, (size_t) (2 * bounds / step)*(2 * bounds / step),ssrlcv::cpu);
   for (int x = - 1 * bounds; x < bounds; x += step){
     for (int y = - 1 * bounds; y < bounds; y += step){
       float z  = point->host[0].z - ((normal->host[0].x * ( (float) x - point->host[0].x)) + (normal->host[0].y * ( (float) y - point->host[0].y))) / normal->host[0].z;
@@ -2736,17 +2736,18 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointClo
   // generate the example faces
   // uses quadrilateral encoding
   int side    = (int) sqrt(vertices->size());
-  int faceNum = 4 * (side - 1); // number of vertex indices stored for faces
+  int faceNum = 4 * (side - 1)*(side - 1); // number of vertex indices stored for faces
   index   = 0;
   Unity<int>* faces = new ssrlcv::Unity<int>(nullptr, (size_t) faceNum ,ssrlcv::cpu);
   for (int x = 0; x < side; x++){
     for (int y = 0; y < side; y++){
-      if (x != (side - 1)  && y != (side - 1)) { // avoid the side "lines" of the plane we don't need to do those
+      if (!(x == (side - 1) || y == (side - 1))) { // avoid the side "lines" of the plane we don't need to do those
         // curl around per the standard
-        faces->host[index    ] = y    ; // top left
-        faces->host[index + 1] = y + 1; // top right
-        faces->host[index + 2] = ((x + 1)*side) + (y + 1); // bottom right
-        faces->host[index + 3] = ((x + 1)*side) + y      ; // bottom left
+        int location = (x * side) + y; // the refrence location
+        faces->host[index    ] = location    ; // top left
+        faces->host[index + 1] = location + 1; // top right
+        faces->host[index + 2] = location + side + 1; // bottom right
+        faces->host[index + 3] = location + side    ; // bottom left
         index += 4;
       }
     }
@@ -3208,6 +3209,18 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
 
   }
+}
+
+/**
+ * This method estimates the plane the point cloud sits in and removes points that are outside of a certain
+ * threashold distance from the plane
+ * @param matchSet a group of matches
+ * @param images a group of images, used only for their stored camera parameters
+ * @param cutoff is a cutoff of km distance from the plane, if the point cloud has been scaled then this should also be scaled
+ */
+void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float cutoff){
+
+  
 }
 
 // =============================================================================================================
