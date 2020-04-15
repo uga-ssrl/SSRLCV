@@ -1283,148 +1283,148 @@ __device__ __host__ uint2 operator/(const uint2 &a, const uint2 &b){
 // =============================================================================================================
 
 __device__ __host__ float4& operator+=(float4 &a, const float4 &b){
-  a.x += b;
-  a.y += b;
-  a.z += b;
-  a.w += b;
+  a.x += b.x;
+  a.y += b.y;
+  a.z += b.z;
+  a.w += b.w;
   return a;
 }
 __device__ __host__ float3& operator+=(float3 &a, const float3 &b){
-  a.x += b;
-  a.y += b;
-  a.z += b;
+  a.x += b.x;
+  a.y += b.y;
+  a.z += b.z;
   return a;
 }
 __device__ __host__ float2& operator+=(float2 &a, const float2 &b){
-  a.x += b;
-  a.y += b;
-  return a;
+  a.x += b.x;
+  a.y += b.y;
+  return a.z;
 }
 __device__ __host__ float4& operator+=(float4 &a, const int4 &b){
-  a.x += (float) b;
-  a.y += (float) b;
-  a.z += (float) b;
-  a.w += (float) b;
+  a.x += (float) b.x;
+  a.y += (float) b.y;
+  a.z += (float) b.z;
+  a.w += (float) b.w;
   return a;
 }
 __device__ __host__ float3& operator+=(float3 &a, const int3 &b){
-  a.x += (float) b;
-  a.y += (float) b;
-  a.z += (float) b;
+  a.x += (float) b.x;
+  a.y += (float) b.y;
+  a.z += (float) b.z;
   return a;
 }
 __device__ __host__ float2& operator+=(float2 &a, const int2 &b){
-  a.x += (float) b;
-  a.y += (float) b;
+  a.x += (float) b.x;
+  a.y += (float) b.y;
   return a;
 }
 __device__ __host__ int4& operator+=(int4 &a, const float4 &b){
-  a.x += (int) b;
-  a.y += (int) b;
-  a.z += (int) b;
-  a.w += (int) b;
+  a.x += (int) b.x;
+  a.y += (int) b.y;
+  a.z += (int) b.z;
+  a.w += (int) b.w;
   return a;
 }
 __device__ __host__ int3& operator+=(int3 &a, const float3 &b){
-  a.x += (int) b;
-  a.y += (int) b;
-  a.z += (int) b;
+  a.x += (int) b.x;
+  a.y += (int) b.y;
+  a.z += (int) b.z;
   return a;
 }
 __device__ __host__ int2& operator+=(int2 &a, const float2 &b){
-  a.x += (int) b;
-  a.y += (int) b;
+  a.x += (int) b.x;
+  a.y += (int) b.y;
   return a;
 }
 __device__ __host__ int4& operator+=(int4 &a, const int4 &b){
-  a.x += b;
-  a.y += b;
-  a.z += b;
-  a.w += b;
+  a.x += b.x;
+  a.y += b.y;
+  a.z += b.z;
+  a.w += b.w;
   return a;
 }
 __device__ __host__ int3& operator+=(int3 &a, const int3 &b){
-  a.x += b;
-  a.y += b;
-  a.z += b;
+  a.x += b.x;
+  a.y += b.y;
+  a.z += b.z;
   return a;
 }
 __device__ __host__ int2& operator+=(int2 &a, const int2 &b){
-  a.x += b;
-  a.y += b;
+  a.x += b.x;
+  a.y += b.y;
   return a;
 }
 
 __device__ __host__ float4& operator-=(float4 &a, const float4 &b){
-  a.x -= b;
-  a.y -= b;
-  a.z -= b;
-  a.w -= b;
+  a.x -= b.x;
+  a.y -= b.y;
+  a.z -= b.z;
+  a.w -= b.w;
   return a;
 }
 __device__ __host__ float3& operator-=(float3 &a, const float3 &b){
-  a.x -= b;
-  a.y -= b;
-  a.z -= b;
+  a.x -= b.x;
+  a.y -= b.y;
+  a.z -= b.z;
   return a;
 }
 __device__ __host__ float2& operator-=(float2 &a, const float2 &b){
-  a.x -= b;
-  a.y -= b;
+  a.x -= b.x;
+  a.y -= b.y;
   return a;
 }
 __device__ __host__ float4& operator-=(float4 &a, const int4 &b){
-  a.x -= (float) b;
-  a.y -= (float) b;
-  a.z -= (float) b;
-  a.w -= (float) b;
+  a.x -= (float) b.x;
+  a.y -= (float) b.y;
+  a.z -= (float) b.z;
+  a.w -= (float) b.w;
   return a;
 }
 __device__ __host__ float3& operator-=(float3 &a, const int3 &b){
-  a.x -= (float) b;
-  a.y -= (float) b;
-  a.z -= (float) b;
+  a.x -= (float) b.x;
+  a.y -= (float) b.y;
+  a.z -= (float) b.z;
   return a;
 }
 __device__ __host__ float2& operator-=(float2 &a, const int2 &b){
-  a.x -= (float) b;
-  a.y -= (float) b;
+  a.x -= (float) b.x;
+  a.y -= (float) b.y;
   return a;
 }
 __device__ __host__ int4& operator-=(int4 &a, const float4 &b){
-  a.x -= (int) b;
-  a.y -= (int) b;
-  a.z -= (int) b;
-  a.w -= (int) b;
+  a.x -= (int) b.x;
+  a.y -= (int) b.y;
+  a.z -= (int) b.z;
+  a.w -= (int) b.w;
   return a;
 }
 __device__ __host__ int3& operator-=(int3 &a, const float3 &b){
-  a.x -= (int) b;
-  a.y -= (int) b;
-  a.z -= (int) b;
+  a.x -= (int) b.x;
+  a.y -= (int) b.y;
+  a.z -= (int) b.z;
   return a;
 }
 __device__ __host__ int2& operator-=(int2 &a, const float2 &b){
-  a.x -= (int) b;
-  a.y -= (int) b;
+  a.x -= (int) b.x;
+  a.y -= (int) b.y;
   return a;
 }
 __device__ __host__ int4& operator-=(int4 &a, const int4 &b){
-  a.x -= b;
-  a.y -= b;
-  a.z -= b;
-  a.w -= b;
+  a.x -= b.x;
+  a.y -= b.y;
+  a.z -= b.z;
+  a.w -= b.w;
   return a;
 }
 __device__ __host__ int3& operator-=(int3 &a, const int3 &b){
-  a.x -= b;
-  a.y -= b;
-  a.z -= b;
+  a.x -= b.x;
+  a.y -= b.y;
+  a.z -= b.z;
   return a;
 }
 __device__ __host__ int2& operator-=(int2 &a, const int2 &b){
-  a.x -= b;
-  a.y -= b;
+  a.x -= b.x;
+  a.y -= b.y;
   return a;
 }
 
