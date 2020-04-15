@@ -320,6 +320,13 @@ struct arg
    */
   void writeCSV(std::vector<float> x, std::vector<float> y, std::string filename);
 
+  /*
+   * saves a CSV file with a unity input
+   * @param values a unity float input
+   * @param filename the desired filename
+   */
+  void writeCSV(Unity<float>* values, const char* filename);
+
   //
   // Binary files - Gitlab #58
   //

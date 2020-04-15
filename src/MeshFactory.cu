@@ -301,7 +301,7 @@ ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculatePerPointDifference(Unity<flo
 
   if (!faceEncoding){
     std::cerr << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" << std::endl;
-    return -1.0f;
+    return nullptr;
   }
 
   // prepare the memory
@@ -335,7 +335,7 @@ ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculatePerPointDifference(Unity<flo
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(float*, int *, unsigned long, float3*, float3*, float3*, unsigned long, int*, int*) = &generateCollisionDistances;
-  generateCollisionDistances(pointCloud->size(),grid,block,fp);
+  getFlatGridBlock(pointCloud->size(),grid,block,fp);
 
   //                    (float* errors, int* misses, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding)
   generateCollisionDistances<<<grid,block>>>(errors->device,d_misses,pointCloud->size(),pointCloud->device,normal->device,this->points->device,this->faces->size(),this->faces->device,d_encoding);

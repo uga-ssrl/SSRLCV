@@ -738,7 +738,7 @@ void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float>*
     cpoints[i].x = points->host[i].x; //
     cpoints[i].y = points->host[i].y;
     cpoints[i].z = points->host[i].z;
-    int j = floor(errors->host[i] * (2000 / max));
+    int j = floor(gradient->host[i] * (2000 / max));
     cpoints[i].r = colors[j].x;
     cpoints[i].g = colors[j].y;
     cpoints[i].b = colors[j].z;
@@ -802,7 +802,17 @@ void ssrlcv::writeCSV(std::vector<float> x, std::vector<float> y, std::string fi
   outfile.close();
 }
 
-
+/*
+ * saves a CSV file with a unity input
+ * @param values a unity float input
+ * @param filename the desired filename
+ */
+void ssrlcv::writeCSV(Unity<float>* values, const char* filename){
+  std::ofstream outfile;
+  outfile.open("out/" + filename + ".csv");
+  for (int i = 0; i < values->size(); i++) outfile << std::fixed << std::setprecision(32) << values->host[i] << ",";
+  outfile.close();
+}
 
 
 
