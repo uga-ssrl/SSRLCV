@@ -122,8 +122,9 @@ int main(int argc, char *argv[]){
       // matchSet.matches->checkpoint(0,"out/m");
     }
 
-    // the point boi
+    // the bois
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
+    ssrlcv::MeshFactory meshBoi = ssrlcv::MeshFactory();
     ssrlcv::Unity<float3>* points;
     ssrlcv::Unity<float>* errors;
     ssrlcv::BundleSet bundleSet;
@@ -163,6 +164,7 @@ int main(int argc, char *argv[]){
       */
 
 
+      /*
       // OPTIONAL
       // to visualize the estimated plane which the structure lies within you can use
       // the demPoints.visualizePlaneEstimation() method like so:
@@ -183,13 +185,37 @@ int main(int argc, char *argv[]){
       demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename);
       */
 
+      /*
+      // OPTIONAL
+      // Varoius scaling examples:
+        demPoints.scalePointCloud(10.0,points);
+        ssrlcv::writePLY("out/scaledx10.ply",points);
+        demPoints.scalePointCloud(10.0,points);
+        ssrlcv::writePLY("out/scaledx100.ply",points);
+        demPoints.scalePointCloud(10.0,points);
+        ssrlcv::writePLY("out/scaledx1000.ply",points);
+      */
+
       // OPTIONAL
       // to compare a points cloud with a ground truth model the first need to be scaled
       // the distance values here are in km but most truth models are in meters
-      demPoints.scalePointCloud(10.0,points);
-      ssrlcv::writePLY("out/scaledx10.ply",points);
-      demPoints.scalePointCloud(10.0,points);
-      ssrlcv::writePLY("out/scaledx100.ply",points);
+      demPoints.scalePointCloud(1000.0,points); // scales from km into meters
+      // rotate pi around the y axis
+      float3 rotation = {0.0f, PI, 0.0f};
+      demPoints.rotatePointCloud(rotation, points);
+      // load the example mesh to do the comparison, here I assume we are using the everst PLY
+      meshBoi.loadMesh("data/truth/Everest_ground_truth.ply");
+        // to save a mesh as a PLY simply:
+        // meshBoi.saveMesh("testMesh");
+      // to calculate the "missmatch" between the point cloud and the ground truth you can use this method:
+      float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f}); // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
+      std::cout << "Average error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
+      // this methods saves the error on each point
+      ssrlcv::Unity<float>* truthErrors = meshBoi.calculatePerPointDifference(points, {0.0f , 0.0f, 1.0f});
+      // then you can save these errors in a CSV
+      ssrlcv::writeCSV(truthErrors, "resolutionErrors");
+      // you can also save them as color coded
+      ssrlcv::writePLY("resolutionErrors",points, truthErrors, 300); // NOTE it has already been scaled to meters, set error the cutoff to 300 meters
 
       /*
       // OPTIONAL

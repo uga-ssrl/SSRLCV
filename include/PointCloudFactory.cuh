@@ -480,6 +480,12 @@ namespace ssrlcv{
   */
   __global__ void computeTranslatePointCloud(float3* translate, unsigned long pointnum, float3* points);
 
+  /**
+  * the CUDA kernel for rotatePointCloud
+  */
+  __global__ void computeRotatePointCloud(float3* rotation, unsigned long pointnum, float3* points);
+
+
 }
 
 

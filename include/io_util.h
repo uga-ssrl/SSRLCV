@@ -276,18 +276,27 @@ struct arg
    * writes a PLY file that includes a surface along with the points
    * @param filename the desired name of the output file
    * @param points a set of points in the mesh
-   * @param faceList a list of "faces" which are just encoded triangles
+   * @param faceList a list of "faces" which are indices for point location
+   * @param faceEncoding an int where 3 means trianglar and 4 mean quadrilateral
    */
-  void writePLY(const char* filename, Unity<float3>* points, Unity<int3>* faceList);
+  void writePLY(const char* filename, Unity<float3>* points, Unity<int>* faceList, int faceEncoding);
 
   /**
-   * @brief writes a Mesh PLY file that also contains a surface
-   * writes a PLY file that includes a surface along with the points
-   * @param filename the desired name of the output file
-   * @param points a set of points in the mesh
-   * @param faceList a list of "faces" which are just encoded quadrilaterals
+   * @brief write a PLY that is color coded along the associated gradient points passed in
+   * @param filename is the desired name of the output PLY file
+   * @param points is the collection of points to color with the gradient
+   * @param gradient the values that represent the "variance" of values to be colored with a gradient
    */
-  void writePLY(const char* filename, Unity<float3>* points, Unity<int4>* faceList);
+  void writePLY(const char* filename, Unity<float3>* points, Unity<float>* gradient);
+
+  /**
+   * @brief write a PLY that is color coded along the associated gradient points passed in
+   * @param filename is the desired name of the output PLY file
+   * @param points is the collection of points to color with the gradient
+   * @param gradient the values that represent the "variance" of values to be colored with a gradient
+   * @param cutoff the max gradient value, where the gradient should end. all points after this will be the same color
+   */
+  void writePLY(const char* filename, Unity<float3>* points, Unity<float>* gradient, float cutoff);
 
   // =============================================================================================================
   //
@@ -319,6 +328,13 @@ struct arg
    * @param filename a string representing the desired filename of the csv output
    */
   void writeCSV(std::vector<float> x, std::vector<float> y, std::string filename);
+
+  /*
+   * saves a CSV file with a unity input
+   * @param values a unity float input
+   * @param filename the desired filename
+   */
+  void writeCSV(Unity<float>* values, const char* filename);
 
   //
   // Binary files - Gitlab #58

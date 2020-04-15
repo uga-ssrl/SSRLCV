@@ -651,30 +651,153 @@ void ssrlcv::writePLY(const char* filePath, Unity<colorPoint>* cpoint){
   of.close(); // done with the file building
 }
 
-// mesh
 /**
  * @brief writes a Mesh PLY file that also contains a surface
  * writes a PLY file that includes a surface along with the points
  * @param filename the desired name of the output file
  * @param points a set of points in the mesh
- * @param faceList a list of "faces" which are just encoded triangles
+ * @param faceList a list of "faces" which are indices for point location
+ * @param faceEncoding an int where 3 means trianglar and 4 mean quadrilateral
  */
-void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<int3>* faceList){
-
-  std::cerr << "PLY writing with triangular faces not yet supported" << std::endl;
-
+void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<int>* faceList, int faceEncoding){
+  std::string fname = filename;
+  // we need triangles or quadrilaterals
+  if (!(faceEncoding == 3 || faceEncoding == 4)){
+    std::cerr << "ERROR: error writing mesh based PLY, unsupported face encoding of " << faceEncoding << std::endl;
+    return;
+  }
+  std::ofstream of;
+  // build header
+  of.open ("out/" + fname + ".ply");
+  of << "ply\nformat ascii 1.0\n";
+  of << "comment author: Caleb Adams & Jackson Parker\n";
+  of << "comment SSRL CV PLY writer\n";
+  of << "element vertex " << points->size() << "\n";
+  of << "property float x\nproperty float y\nproperty float z\n"; // the elements in the guy
+  of << "element face " << (faceList->size() / faceEncoding) << "\n"; // the numer of faces
+  of << "property list uchar uint vertex_indices\n";
+  of << "end_header\n";
+  // loop thru the points
+  for (unsigned int i = 0; i < points->size(); i++){
+    of << std::fixed << std::setprecision(32) << points->host[i].x << " " << points->host[i].y << " " << points->host[i].z << "\n";
+  }
+  // loop thru the faces
+  for (unsigned int i = 0; i < faceList->size(); i += faceEncoding){
+    of << faceEncoding << " ";
+    for (int j = 0; j < faceEncoding; j++){
+      of << faceList->host[i + j] << " ";
+    }
+    of << "\n";
+  }
+  of.close();
 }
 
 /**
- * @brief writes a Mesh PLY file that also contains a surface
- * writes a PLY file that includes a surface along with the points
- * @param filename the desired name of the output file
- * @param points a set of points in the mesh
- * @param faceList a list of "faces" which are just encoded quadrilaterals
+ * @brief write a PLY that is color coded along the associated gradient points passed in
+ * @param filename is the desired name of the output PLY file
+ * @param points is the collection of points to color with the gradient
+ * @param gradient the values that represent the "variance" of values to be colored with a gradient
  */
-void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<int4>* faceList){
+void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float>* gradient){
 
-  std::cerr << "PLY writing with quadrilateral faces not yet supported" << std::endl;
+   // build the helpers to make the colors
+  uchar3 colors[2000];
+  float3 good = {108,255,221};
+  float3 meh  = {251,215,134};
+  float3 bad  = {247,121,125};
+  float3 gr1  = (meh - good)/1000;
+  float3 gr2  = (bad - meh )/1000;
+  // initialize the gradient "mapping"
+  float3 temp;
+  // std::cout << "building gradient" << std::endl;
+  for (int i = 0; i < 2000; i++){
+    if (i < 1000){
+      temp = good + gr1*i;
+      colors[i].x = (unsigned char) floor(temp.x);
+      colors[i].y = (unsigned char) floor(temp.y);
+      colors[i].z = (unsigned char) floor(temp.z);
+    } else {
+      temp = meh  + gr2*i;
+      colors[i].x = (unsigned char) floor(temp.x);
+      colors[i].y = (unsigned char) floor(temp.y);
+      colors[i].z = (unsigned char) floor(temp.z);
+    }
+  }
+
+  struct colorPoint* cpoints = (colorPoint*)  malloc(points->size() * sizeof(struct colorPoint));
+
+  float max = 0.0; // it would be nice to have a better way to get the max, but because this is only for debug idc
+  for (int i = 0; i < gradient->size(); i++){
+    if (gradient->host[i] > max){
+      max = gradient->host[i];
+    }
+  }
+  // now fill in the color point locations
+  for (int i = 0; i < points->size(); i++){
+    // i assume that the errors and the points will have the same indices
+    cpoints[i].x = points->host[i].x; //
+    cpoints[i].y = points->host[i].y;
+    cpoints[i].z = points->host[i].z;
+    int j = floor(gradient->host[i] * (2000 / max));
+    cpoints[i].r = colors[j].x;
+    cpoints[i].g = colors[j].y;
+    cpoints[i].b = colors[j].z;
+  }
+
+  // save the file
+  writePLY(filename, cpoints, points->size());
+}
+
+/**
+ * @brief write a PLY that is color coded along the associated gradient points passed in
+ * @param filename is the desired name of the output PLY file
+ * @param points is the collection of points to color with the gradient
+ * @param gradient the values that represent the "variance" of values to be colored with a gradient
+ * @param cutoff the max gradient value, where the gradient should end. all points after this will be the same color
+ */
+void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float>* gradient, float cutoff){
+
+  // build the helpers to make the colors
+ uchar3 colors[2000];
+ float3 good = {108,255,221};
+ float3 meh  = {251,215,134};
+ float3 bad  = {247,121,125};
+ float3 gr1  = (meh - good)/1000;
+ float3 gr2  = (bad - meh )/1000;
+ // initialize the gradient "mapping"
+ float3 temp;
+ // std::cout << "building gradient" << std::endl;
+ for (int i = 0; i < 2000; i++){
+   if (i < 1000){
+     temp = good + gr1*i;
+     colors[i].x = (unsigned char) floor(temp.x);
+     colors[i].y = (unsigned char) floor(temp.y);
+     colors[i].z = (unsigned char) floor(temp.z);
+   } else {
+     temp = meh  + gr2*i;
+     colors[i].x = (unsigned char) floor(temp.x);
+     colors[i].y = (unsigned char) floor(temp.y);
+     colors[i].z = (unsigned char) floor(temp.z);
+   }
+ }
+
+ struct colorPoint* cpoints = (colorPoint*)  malloc(points->size() * sizeof(struct colorPoint));
+
+ // now fill in the color point locations
+ for (int i = 0; i < points->size(); i++){
+   // i assume that the errors and the points will have the same indices
+   cpoints[i].x = points->host[i].x; //
+   cpoints[i].y = points->host[i].y;
+   cpoints[i].z = points->host[i].z;
+   int j = floor(gradient->host[i] * (2000.0f / cutoff));
+   if (j > 1999) j = 1999; // sets to max cutoff no matter what
+   cpoints[i].r = colors[j].x;
+   cpoints[i].g = colors[j].y;
+   cpoints[i].b = colors[j].z;
+ }
+
+ // save the file
+ writePLY(filename, cpoints, points->size());
 
 }
 
@@ -732,7 +855,18 @@ void ssrlcv::writeCSV(std::vector<float> x, std::vector<float> y, std::string fi
   outfile.close();
 }
 
-
+/*
+ * saves a CSV file with a unity input
+ * @param values a unity float input
+ * @param filename the desired filename
+ */
+void ssrlcv::writeCSV(Unity<float>* values, const char* filename){
+  std::ofstream outfile;
+  std::string fname = filename;
+  outfile.open("out/" + fname + ".csv");
+  for (int i = 0; i < values->size(); i++) outfile << std::fixed << std::setprecision(32) << values->host[i] << ",";
+  outfile.close();
+}
 
 
 

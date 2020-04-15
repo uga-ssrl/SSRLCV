@@ -152,6 +152,12 @@ __device__ __host__ void ssrlcv::transpose(const float (&M)[2][2], float (&M_out
   }
 }
 
+/**
+ * \brief Multiplies a 3x1 vector by its transpose producing a 3x3 matrix.
+ * \details Multiplies a 3x1 vector by its transpose producing a 3x3 matrix.
+ * \param M vector
+ * \param M_out the resulting matrix product
+ */
 __device__ __host__ void ssrlcv::matrixProduct(const float3 (&M), float3(&M_out)[3]){
   M_out[0].x = M.x * M.x;
   M_out[0].y = M.x * M.y;
@@ -236,6 +242,13 @@ __device__ float3 ssrlcv::getVectorAngles(float3 v){
   return angles;
 }
 
+/**
+ * \brief Rotates a point around the x, y, and z.
+ * \details Rotates a point around the x, y, and z axis by the given angles.
+ * \param point point to rotate
+ * \param angles angle to rotate
+ * \return point after rotation
+ */
 __device__ float3 ssrlcv::rotatePoint(float3 point, float3 angle) {
   float rotationMatrix[3][3];
   rotationMatrix[0][0] = cosf(angle.z) * cosf(angle.y);
@@ -251,6 +264,16 @@ __device__ float3 ssrlcv::rotatePoint(float3 point, float3 angle) {
   return point;
 }
 
+/**
+ * \brief Rotates a point around a given axis.
+ * \details Rotates a point around a given axis given by a unit vector through the origin
+ * by a given angle. The resulting point can be found by first rotating the axis
+ * to the z-axis, performing the rotation, and rotating the axis back to the orginal orientation.
+ * \param point point to rotate
+ * \param axis axis to rotate
+ * \param angle angle to rotate
+ * \return point after the rotation
+ */
 __device__ float3 ssrlcv::rotatePointArbitrary(float3 point, float3 axis, float angle) {
   float rotationMatrix[3][3];
   float k = (1- cosf(angle));
