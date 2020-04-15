@@ -485,6 +485,10 @@ namespace ssrlcv{
   */
   __global__ void computeRotatePointCloud(float3* rotation, unsigned long pointnum, float3* points);
 
+  /**
+   * a CUDA kernel to compute the average point of a point cloud
+   */
+  __global__ void computeAveragePoint(float3* average, unsigned long pointnum, float3* points);
 
 }
 

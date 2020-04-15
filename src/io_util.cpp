@@ -599,6 +599,28 @@ void ssrlcv::writePLY(std::string filename, Unity<float3>* points, bool binary){
   if(origin == gpu) points->setMemoryState(gpu);
 }
 
+/**
+ * @brief a simple ASCII PLY writing method that does not require the tinyPLY external lib
+ * @param filename the name of the file to be saved in the /out directory
+ * @param points the points to save as a PLY
+ */
+void writePLY(const char* filename, Unity<float3>* points){
+  std::ofstream of;
+  std::string fname = filename;
+  of.open ("out/" + fname + ".ply");
+  of << "ply\nformat ascii 1.0\n";
+  of << "comment author: Caleb Adams & Jackson Parker\n";
+  of << "comment SSRL CV simple PLY writer\n";
+  of << "element vertex " << points->size() << "\n";
+  of << "property float x\nproperty float y\nproperty float z\n"; // the elements in the guy
+  of << "end_header\n";
+  // start writing the values
+  for (int i = 0; i < points->size(); i++){
+    of << points->host[i].x << " " << points->host[i].y << " " << points->host[i].z << "\n";
+  }
+  of.close(); // done with the file building
+}
+
 // colored PLY writing
 void ssrlcv::writePLY(std::string filename, colorPoint* cpoint, int size){
   std::ofstream of;
@@ -799,6 +821,29 @@ void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float>*
  // save the file
  writePLY(filename, cpoints, points->size());
 
+}
+
+/**
+ * @brief write a PLY that is a point cloud including normals
+ * @param filename is the desired name of the output PLY file
+ * @param points is the collection of points
+ * @param normals are the normal vectors (assumed to have been normalized) for each of the point cloud's points
+ */
+void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float3>* normals){
+  std::ofstream of;
+  std::string fname = filename;
+  of.open ("out/" + fname + ".ply");
+  of << "ply\nformat ascii 1.0\n";
+  of << "comment author: Caleb Adams & Jackson Parker\n";
+  of << "comment SSRL CV points with normals PLY writer\n";
+  of << "element vertex " << points->size() << "\n";
+  of << "property float x\nproperty float y\nproperty float z\nproperty float nx\nproperty float ny\nproperty float nz\n"; // the elements in the guy
+  of << "end_header\n";
+  // start writing the values
+  for (int i = 0; i < points->size(); i++){
+    of << points->host[i].x << " " << points->host[i].y << " " << points->host[i].z << normals->host[i].x << " " << normals->host[i].y << " " << normals->host[i].z << "\n";
+  }
+  of.close(); // done with the file building
 }
 
 // =============================================================================================================

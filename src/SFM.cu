@@ -164,7 +164,7 @@ int main(int argc, char *argv[]){
       */
 
 
-      /*
+
       // OPTIONAL
       // to visualize the estimated plane which the structure lies within you can use
       // the demPoints.visualizePlaneEstimation() method like so:

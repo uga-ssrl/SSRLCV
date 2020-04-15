@@ -239,6 +239,13 @@ struct arg
   void writePLY(std::string filename, Unity<float3>* points, bool binary = false);
 
   /**
+   * @brief a simple ASCII PLY writing method that does not require the tinyPLY external lib
+   * @param filename the name of the file to be saved in the /out directory
+   * @param points the points to save as a PLY
+   */
+  void writePLY(const char* filename, Unity<float3>* points);
+
+  /**
   * \brief Will write a ply file based on a set of float3 values with rgb color
   * \details This method will write a ply in the specified location and can
   * be written in binary or ASCII format.
@@ -297,6 +304,14 @@ struct arg
    * @param cutoff the max gradient value, where the gradient should end. all points after this will be the same color
    */
   void writePLY(const char* filename, Unity<float3>* points, Unity<float>* gradient, float cutoff);
+
+  /**
+   * @brief write a PLY that is a point cloud including normals
+   * @param filename is the desired name of the output PLY file
+   * @param points is the collection of points
+   * @param normals are the normal vectors (assumed to have been normalized) for each of the point cloud's points
+   */
+  void writePLY(const char* filename, Unity<float3>* points, Unity<float3>* normals);
 
   // =============================================================================================================
   //

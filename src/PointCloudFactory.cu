@@ -2690,6 +2690,9 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
 */
 void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointCloud, std::vector<ssrlcv::Image*> images, const char* filename){
 
+  // disable for local print statments
+  bool local_debug = true;
+
   // extract the camera locations for normal estimation
   Unity<float3>* locations = new ssrlcv::Unity<float3>(nullptr,images.size(),ssrlcv::cpu);
   for (int i = 0; i < images.size(); i++){
@@ -2703,7 +2706,9 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointClo
   // caclulate the estimated plane normal
   Unity<float3>* normal = oct.computeAverageNormal(3, 10, images.size(), locations->host);
 
-  std::cout << "Estimated plane normal: (" << normal->host[0].x << ", " << normal->host[0].y << ", " << normal->host[0].z << ")" << std::endl;
+  if (local_debug) std::cout << "Estimated plane normal: (" << normal->host[0].x << ", " << normal->host[0].y << ", " << normal->host[0].z << ")" << std::endl;
+
+
 
   // find the location with the best density of points along the average normal
 
@@ -4143,7 +4148,32 @@ __global__ void ssrlcv::computeRotatePointCloud(float3* rotation, unsigned long 
 }
 
 
+/**
+ * a CUDA kernel to compute the average point of a point cloud
+ */
+__global__ void ssrlcv::computeAveragePoint(float3* average, unsigned long pointnum, float3* points){
+  __shared__ float3 localSum;
+  if (threadIdx.x == 0) localSum = 0;
+  __syncthreads();
 
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (pointnum-1)) return;
+
+  float3 delta;
+  delta.x = points[globalID].x / pointnum;
+  delta.y = points[globalID].y / pointnum;
+  delta.z = points[globalID].z / pointnum;  
+
+  atomicAdd(&localSum.x,delta.x);
+  atomicAdd(&localSum.y,delta.y);
+  atomicAdd(&localSum.z,delta.z);
+  __syncthreads();
+  if (!threadIdx.x) {
+    atomicAdd(average.x,localSum.x);
+    atomicAdd(average.y,localSum.y);
+    atomicAdd(average.z,localSum.z);
+  }
+}
 
 
 
