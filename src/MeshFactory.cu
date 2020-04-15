@@ -245,10 +245,10 @@ float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud,
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  void (*fp)(float*, unsigned long, float3*, float3*, float3*, unsigned long, int*, int*) = &sumCollisionDistance;
+  void (*fp)(float*, int *, unsigned long, float3*, float3*, float3*, unsigned long, int*, int*) = &sumCollisionDistance;
   getFlatGridBlock(pointCloud->size(),grid,block,fp);
 
-  //                    (float* averageDistance, int* misses, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding){
+  //                    (float* averageDistance, int* misses, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding)
   sumCollisionDistance<<<grid,block>>>(d_averageError,d_misses,pointCloud->size(),pointCloud->device,normal->device,this->points->device,this->faces->size(),this->faces->device,d_encoding);
 
   cudaDeviceSynchronize();
@@ -275,6 +275,8 @@ float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud,
   if (misses) {
     // discount the misses
     averageError /= (pointCloud->size() - misses);
+  } else {
+    averageError /= pointCloud->size();
   }
 
   return averageError;
@@ -1431,6 +1433,29 @@ __global__ void ssrlcv::sumCollisionDistance(float* averageDistance, int* misses
       float3 C = vertices[faces[i + 2]];
       float3 D = vertices[faces[i + 3]];
 
+      // Triangle A->B->C
+      float alpha = ((B.y - C.y)*(P.x - C.x) + (C.x - B.x)*(P.y - C.y)) / ((B.y - C.y)*(A.x - C.x) + (C.x - B.x)*(A.y - C.y));
+      float beta  = ((C.y - A.y)*(P.x - C.x) + (A.x - C.x)*(P.y - C.y)) / ((B.y - C.y)*(A.x - C.x) + (C.x - B.x)*(A.y - C.y));
+      float gamma = 1.0f - alpha - beta;
+      if (alpha > 0.0f && beta > 0.0f && gamma > 0.0f) {
+        planeIndexes.x = faces[i    ];
+        planeIndexes.y = faces[i + 1];
+        planeIndexes.z = faces[i + 2];
+        break;
+      }
+
+      // Triangle C->D->A
+      alpha = ((D.y - A.y)*(P.x - A.x) + (A.x - D.x)*(P.y - A.y)) / ((D.y - A.y)*(C.x - A.x) + (A.x - D.x)*(C.y - A.y));
+      beta  = ((A.y - C.y)*(P.x - A.x) + (C.x - A.x)*(P.y - A.y)) / ((D.y - A.y)*(C.x - A.x) + (A.x - D.x)*(C.y - A.y));
+      gamma = 1.0f - alpha - beta;
+      if (alpha > 0.0f && beta > 0.0f && gamma > 0.0f) {
+        planeIndexes.x = faces[i + 2];
+        planeIndexes.y = faces[i + 3];
+        planeIndexes.z = faces[i    ];
+        break;
+      }
+
+      /*
       // the target area for triangle 1
       float ABC = abs((A.x*(B.y-C.y) + B.x*(C.y-A.y) + C.x*(A.y-B.y)) / 2.0);
       // candidate areas for triangle 1
@@ -1464,6 +1489,7 @@ __global__ void ssrlcv::sumCollisionDistance(float* averageDistance, int* misses
         //printf("[2] Area: %f comp to area %f \n",CDA, (PCD + PCA + PDA));
         break;
       }
+      */
     } else if (*faceEncoding == 3){ // need to test a single triangle
       // potential points
       float3 A = vertices[faces[i    ]];
