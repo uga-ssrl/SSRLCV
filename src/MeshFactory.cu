@@ -10,11 +10,19 @@ ssrlcv::MeshFactory::MeshFactory(){
   this->faceEncoding = 0;
 }
 
+// constructor given existing points and faces
+MeshFactory(Unity<float3>* in_points, Unity<int>* in_faces, int in_faceEncoding){
+  this->faceEncoding = in_faceEncoding;
+  this->points       = in_points;
+  this->faces        = in_faces;
+}
+
 ssrlcv::MeshFactory::~MeshFactory(){
 
 }
 
 ssrlcv::MeshFactory::MeshFactory(Octree* octree){
+  this->faceEncoding = 0;
   this->octree = octree;
   if(this->octree->normals == nullptr || this->octree->normals->getMemoryState() == null){
     this->octree->computeNormals(3, 20);

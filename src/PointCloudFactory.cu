@@ -2737,7 +2737,7 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointClo
   // uses quadrilateral encoding
   int side    = (int) sqrt(vertices->size());
   int faceNum = 4 * (side - 1); // number of vertex indices stored for faces
-  int index   = 0;
+  index   = 0;
   Unity<int>* faces = new ssrlcv::Unity<int>(nullptr, (size_t) faceNum ,ssrlcv::cpu);
   for (int x = 0; x < side; x++){
     for (int y = 0; y < side; y++){
@@ -2752,7 +2752,7 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointClo
     }
   }
   // save the output mesh
-  ssrlcv::savePLY("estimatedPlane", vertices, faces, 4);
+  ssrlcv::writePLY("estimatedPlane", vertices, faces, 4);
 }
 
 /**

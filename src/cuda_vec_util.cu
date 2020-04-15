@@ -1298,7 +1298,7 @@ __device__ __host__ float3& operator+=(float3 &a, const float3 &b){
 __device__ __host__ float2& operator+=(float2 &a, const float2 &b){
   a.x += b.x;
   a.y += b.y;
-  return a.z;
+  return a;
 }
 __device__ __host__ float4& operator+=(float4 &a, const int4 &b){
   a.x += (float) b.x;
@@ -1506,72 +1506,72 @@ __device__ __host__ float4& operator/=(float4 &a, const float &b){
   a.y /= b;
   a.z /= b;
   a.w /= b;
-  return;
+  return a;
 }
 __device__ __host__ float3& operator/=(float3 &a, const float &b){
   a.x /= b;
   a.y /= b;
   a.z /= b;
-  return;
+  return a;
 }
 __device__ __host__ float2& operator/=(float2 &a, const float &b){
   a.x /= b;
   a.y /= b;
-  return;
+  return a;
 }
 __device__ __host__ float4& operator/=(float4 &a, const int &b){
   a.x /= (float) b;
   a.y /= (float) b;
   a.z /= (float) b;
   a.w /= (float) b;
-  return;
+  return a;
 }
 __device__ __host__ float3& operator/=(float3 &a, const int &b){
   a.x /= (float) b;
   a.y /= (float) b;
   a.z /= (float) b;
-  return;
+  return a;
 }
 __device__ __host__ float2& operator/=(float2 &a, const int &b){
   a.x /= (float) b;
   a.y /= (float) b;
-  return;
+  return a;
 }
 __device__ __host__ int4& operator/=(int4 &a, const float &b){
   a.x /= (int) b;
   a.y /= (int) b;
   a.z /= (int) b;
   a.w /= (int) b;
-  return;
+  return a;
 }
 __device__ __host__ int3& operator/=(int3 &a, const float &b){
   a.x /= (int) b;
   a.y /= (int) b;
   a.z /= (int) b;
-  return;
+  return a;
 }
 __device__ __host__ int2& operator/=(int2 &a, const float &b){
   a.x /= (int) b;
   a.y /= (int) b;
-  return;
+  return a;
 }
 __device__ __host__ int4& operator/=(int4 &a, const int &b){
   a.x /= b;
   a.y /= b;
   a.z /= b;
   a.w /= b;
-  return;
+  return a;
 }
 __device__ __host__ int3& operator/=(int3 &a, const int &b){
   a.x /= b;
   a.y /= b;
   a.z /= b;
-  return;
+  return a;
 }
 __device__ __host__ int2& operator/=(int2 &a, const int &b){
   a.x /= b;
   a.y /= b;
-  return;
+  return a;
 }
 // =============================================================================================================
 //
@@ -1589,7 +1589,7 @@ __device__ __host__ float3 operator/(const float3 &a, const float &b){
   return {a.x/b, a.y/b, a.z/b};
 }
 __device__ __host__ float3 operator*(const float3 &a, const float &b){
-  return {a.x*b, a.y*b, a.z*b}}
+  return {a.x*b, a.y*b, a.z*b};
 __device__ __host__ float3 operator+(const float &a, const float3 &b) {
   return {a+b.x, a+b.y, a+b.z};
 }
@@ -1608,7 +1608,7 @@ __device__ __host__ float2 operator+(const float2 &a, const float &b){
 __device__ __host__ float2 operator-(const float2 &a, const float &b){
   return {a.x - b, a.y - b};
 }
-__device__ __host__ float2 opetor/(const float2 &a, const float &b){
+__device__ __host__ float2 operator/(const float2 &a, const float &b){
   return {a.x / b, a.y / b};
 }
 __device__ __host__ float2 operator*(const float2 &a, const float &b){

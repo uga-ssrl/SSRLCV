@@ -60,6 +60,9 @@ namespace ssrlcv{
     // default constructor
     MeshFactory();
 
+    // constructor given existing points and faces
+    MeshFactory(Unity<float3>* in_points, Unity<int>* in_faces, int in_faceEncoding); 
+
     // default destructor
     ~MeshFactory();
 
