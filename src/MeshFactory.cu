@@ -134,7 +134,7 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
         }
 
         // either quad or triangle
-        for (int i = 0; i < (int) (this->faceEncoding); i++){
+        for (int i = 0; i < (this->faceEncoding); i++){
           int index;
           iss >> index;
           tempFaces.push_back(index);
@@ -164,6 +164,7 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
     std::cout << "Done reading mesh!" << std::endl;
     std::cout << "\t Total Points Loaded:  " << this->points->size() << std::endl;
     std::cout << "\t Total Faces  Loaded:  " << (this->faces->size() / (int) this->faceEncoding) << std::endl;
+    std::cout << "\t Faces Num: " << this->faces->size() << std::endl;
   }
 
 }
@@ -242,6 +243,7 @@ float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud,
   void (*fp)(float*, unsigned long, float3*, float3*, float3*, unsigned long, int*, int*) = &averageCollisionDistance;
   getFlatGridBlock(pointCloud->size(),grid,block,fp);
 
+  //                    (float* averageDistance, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding){
   averageCollisionDistance<<<grid,block>>>(d_averageError,pointCloud->size(),pointCloud->device,normal->device,this->points->device,this->faces->size(),this->faces->device,d_encoding);
 
   cudaDeviceSynchronize();
@@ -1394,25 +1396,27 @@ __global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigne
   // NOTE currently assumes X-Y plane
   int3 planeIndexes = {-1,-1,-1};
   float3 P = pointcloud[globalID];
-  float3 V = vector;
+  float3 V = *vector;
 
   // loops through the faces in search of a face where this points would intersect
   for (int i = 0; i < facenum; i += *faceEncoding) {
 
-    // need to test 2 trianlges
-    if (*faceEncoding == 4) {
+    printf("en: %d at %d \t Point: %f %f %f \n", *faceEncoding, i, vertices[i].x, vertices[i].y, vertices[i].z);
+
+    if (*faceEncoding == 4) { // need to test 2 trianlges
+
       // potential points
-      float3 A = vertices[i    ];
-      float3 B = vertices[i + 1];
-      float3 C = vertices[i + 2];
-      float3 D = vertices[i + 3];
+      float3 A = vertices[faces[i    ]];
+      float3 B = vertices[faces[i + 1]];
+      float3 C = vertices[faces[i + 2]];
+      float3 D = vertices[faces[i + 3]];
 
       // the target area for triangle 1
-      float ABC = abs((A.x*(B.y-C.y) + B.x*(C.y-A.y)+ C.x*(A.y-B.y)) / 2.0);
+      float ABC = abs((A.x*(B.y-C.y) + B.x*(C.y-A.y) + C.x*(A.y-B.y)) / 2.0);
       // candidate areas for triangle 1
-      float PAB = abs((P.x*(A.y-B.y) + A.x*(B.y-P.y)+ B.x*(P.y-A.y)) / 2.0);
-      float PAC = abs((P.x*(A.y-C.y) + A.x*(C.y-P.y)+ C.x*(P.y-A.y)) / 2.0);
-      float PBC = abs((P.x*(A.y-C.y) + A.x*(C.y-P.y)+ C.x*(P.y-A.y)) / 2.0);
+      float PAB = abs((P.x*(A.y-B.y) + A.x*(B.y-P.y) + B.x*(P.y-A.y)) / 2.0);
+      float PAC = abs((P.x*(A.y-C.y) + A.x*(C.y-P.y) + C.x*(P.y-A.y)) / 2.0);
+      float PBC = abs((P.x*(A.y-C.y) + A.x*(C.y-P.y) + C.x*(P.y-A.y)) / 2.0);
 
       // check
       if (PAB + PAC + PBC == ABC) {
@@ -1420,32 +1424,31 @@ __global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigne
         planeIndexes.x = i;
         planeIndexes.y = i+1;
         planeIndexes.z = i+2;
+        printf("%f %f %f, ",A.x,A.y,A.z);
+        //printf("[1] Area: %f comp to area %f \n",ABC, (PAB + PAC + PBC));
         break;
       }
 
       // the target area for triangle 2
-      float CDA = abs((C.x*(D.y-A.y) + D.x*(A.y-C.y)+ A.x*(C.y-D.y)) / 2.0);
+      float CDA = abs((C.x*(D.y-A.y) + D.x*(A.y-C.y) + A.x*(C.y-D.y)) / 2.0);
       // candidate areas for triangle 2
-      float PCD = abs((P.x*(C.y-D.y) + C.x*(D.y-P.y)+ D.x*(P.y-C.y)) / 2.0);
-      float PCA = abs((P.x*(C.y-A.y) + C.x*(A.y-P.y)+ A.x*(P.y-C.y)) / 2.0);
-      float PDA = abs((P.x*(D.y-A.y) + D.x*(A.y-P.y)+ A.x*(P.y-D.y)) / 2.0);
+      float PCD = abs((P.x*(C.y-D.y) + C.x*(D.y-P.y) + D.x*(P.y-C.y)) / 2.0);
+      float PCA = abs((P.x*(C.y-A.y) + C.x*(A.y-P.y) + A.x*(P.y-C.y)) / 2.0);
+      float PDA = abs((P.x*(D.y-A.y) + D.x*(A.y-P.y) + A.x*(P.y-D.y)) / 2.0);
 
       if (PCD + PCA + PDA == CDA) {
         // found point
         planeIndexes.x = i+2;
         planeIndexes.y = i+3;
         planeIndexes.z = i;
+        //printf("[2] Area: %f comp to area %f \n",CDA, (PCD + PCA + PDA));
         break;
       }
-
-    }
-
-    // need to test a single triangle
-    if (*faceEncoding == 3){
+    } else if (*faceEncoding == 3){ // need to test a single triangle
       // potential points
-      float3 A = vertices[i    ];
-      float3 B = vertices[i + 1];
-      float3 C = vertices[i + 2];
+      float3 A = vertices[face[i    ]];
+      float3 B = vertices[face[i + 1]];
+      float3 C = vertices[face[i + 2]];
 
       // the target area for triangle 1
       float ABC = abs((A.x*(B.y-C.y) + B.x*(C.y-A.y)+ C.x*(A.y-B.y)) / 2.0);
@@ -1462,8 +1465,12 @@ __global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigne
         planeIndexes.z = i+2;
         break;
       }
+    } else {
+      printf("BAD FACE ENCODING!!");
+      return;
     }
-  } // end search for best plane
+
+  } // end for loop search for best plane
 
   // make sure a valid value was found
   if (planeIndexes.x >= 0 || planeIndexes.y >= 0 || planeIndexes.z >= 0){
@@ -1474,25 +1481,43 @@ __global__ void ssrlcv::averageCollisionDistance(float* averageDistance, unsigne
     float3 B = vertices[planeIndexes.y];
     float3 C = vertices[planeIndexes.z];
 
-    // normal vector of plane
-    float3 norm = crossProduct((B - A), (C - A));
+    // normal vector of plane with vectors in the plane
+    float3 p1 = B - A;
+    float3 p2 = C - A;
+    float3 norm = crossProduct(p1,p2);
+
+    if (isnan(norm.x) || isnan(norm.y) || isnan(norm.z)){
+      printf("NaN in norm\n");
+      return;
+    }
 
     // vector betweeen point and a point on the plane
     float3 diff = P - A;
 
+    if (isnan(diff.x) || isnan(diff.y) || isnan(diff.z)){
+       printf("NaN in diff\n");
+       return;
+    }
+
     // scalar along the point vector line
     float numer = dotProduct(diff,norm);
-    float demon = dotProduct(V,norm);
+    float denom = dotProduct(V,norm);
+    float scale = numer / denom;
+
+    if (isnan(scale)){
+       printf("fraction has NaN: %f / %f \n norm is: %f %f %f  \t at indexes %d %d %d\n",numer,denom,norm.x,norm.y,norm.z,planeIndexes.x,planeIndexes.y,planeIndexes.z);
+       return;
+     }
 
     // calculate intersection point
-    float3 I = P - (V * (numer / denom));
+    float3 I = P - (scale * V);
 
     // calculate distance between point cloud point and point on the mesh
     float dist = sqrtf((P.x - I.x)*(P.x - I.x) + (P.y - I.y)*(P.y - I.y) + (P.z - I.z)*(P.z - I.z));
 
-    error = dist;
+    error = (dist / pointnum);
   } else {
-    printf("ERROR FINDING COLLISION, there could be an issue with cloud / mesh alignment. cannot discount point in sum, so average will be wrong ...\n");
+    printf("ERROR FINDING COLLISION, there could be an issue with cloud / mesh alignment. Cannot discount point in sum, so the average will be wrong ...\n");
     error = 0.0f;
   }
 
