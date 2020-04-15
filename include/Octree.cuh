@@ -182,6 +182,8 @@ namespace ssrlcv{
     * @param maxNeighbors the maximum number of neightbors to consider for normal calculation
     * @param numCameras the total number of cameras which resulted in the point cloud
     * @param cameraPositions the x,y,z coordinates of the cameras
+    * \warning This method assumes that all cameras are on one side of the point cloud, so this should be purposed 
+    * for landscape surface reconstruction and not small object recostruction. 
     */
     void computeNormals(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions);
 
@@ -282,7 +284,6 @@ namespace ssrlcv{
 
   //following methods are used to fill in the node array in a top down manor
   __global__ void findAllNodes(int numUniqueNodes, int* nodeNumbers, Octree::Node* uniqueNodes);
-  void calculateNodeAddresses(dim3 grid, dim3 block,int numUniqueNodes, Octree::Node* uniqueNodes, int* nodeAddresses_device, int* nodeNumbers_device);
   __global__ void fillBlankNodeArray(Octree::Node* uniqueNodes, int* nodeNumbers, int* nodeAddresses, Octree::Node* outputNodeArray, int numUniqueNodes, int currentDepth, float totalWidth);
   __global__ void fillFinestNodeArrayWithUniques(Octree::Node* uniqueNodes, int* nodeAddresses, Octree::Node* outputNodeArray, int numUniqueNodes, unsigned int* pointNodeIndex);
   __global__ void fillNodeArrayWithUniques(Octree::Node* uniqueNodes, int* nodeAddresses, Octree::Node* outputNodeArray, Octree::Node* childNodeArray ,int numUniqueNodes);
@@ -295,7 +296,7 @@ namespace ssrlcv{
   __global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Octree::Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors);
   __global__ void transposeFloatMatrix(int m, int n, float* matrix);
   __global__ void setNormal(int currentPoint, float* vt, float3* normals);
-  __global__ void checkForAbiguity(int numPoints, int numCameras, float3* normals, float3* points, float3* cameraPositions, bool* ambiguous);
+  __global__ void checkForAmbiguity(int numPoints, int numCameras, float3* normals, float3* points, float3* cameraPositions, bool* ambiguous);
   __global__ void reorient(int numNodesAtDepth, int depthIndex, Octree::Node* nodeArray, int* numNeighbors, int maxNeighbors, float3* normals, int* neighborIndices, bool* ambiguous);
 
   __global__ void findVertexOwners(Octree::Node* nodeArray, int numNodes, int depthIndex, int* vertexLUT, int* numVertices, int* ownerInidices, int* vertexPlacement);

@@ -52,6 +52,8 @@
 */
 template<typename... Types>
 void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0){
+  grid = {1,1,1};
+  block = {1,1,1};
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
   
@@ -87,6 +89,88 @@ void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (
     grid = {gridSize,1,1};
   }
 }
+
+
+
+template<typename... Types>
+void getGridWMaxBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0){
+  grid = {1,1,1};
+  block = {1,1,1};
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, device);
+  
+  int blockSize;
+  int minGridSize;
+  cudaOccupancyMaxPotentialBlockSize(
+    &minGridSize,
+    &blockSize,
+    kernel,
+    dynamicSharedMem,
+    0
+  );
+  block = {(unsigned int)blockSize,1,1}; 
+  if(numElements > prop.maxGridSize[0]){
+    if(numElements >= 65535L*65535L*65535L){
+      grid = {65535,65535,65535};
+    }
+    else{
+      numElements = (numElements/65535L) + 1;
+      grid.x = 65535;
+      if(numElements > 65535){
+        grid.z = (grid.y/65535) + 1;
+        grid.y = 65535; 
+      }
+      else{ 
+        grid.y = 65535;
+        grid.z = 1;
+      }
+    }
+  }
+  else{
+    grid = {numElements,1,1};
+  }
+}
+template<typename... Types>
+void getGridAndBlock(unsigned long numElements, dim3 &grid, unsigned int desiredBlockSize, dim3 &block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0){
+  grid = {1,1,1};
+  block = {1,1,1};
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, device);
+  
+  int blockSize;
+  int minGridSize;
+  cudaOccupancyMaxPotentialBlockSize(
+    &minGridSize,
+    &blockSize,
+    kernel,
+    dynamicSharedMem,
+    0
+  );
+  block = {(blockSize > desiredBlockSize) ? desiredBlockSize : (unsigned int) blockSize,1,1}; 
+
+  if(numElements > prop.maxGridSize[0]){
+    if(numElements >= 65535L*65535L*65535L){
+      grid = {65535,65535,65535};
+    }
+    else{
+      numElements = (numElements/65535L) + 1;
+      grid.x = 65535;
+      if(numElements > 65535){
+        grid.z = (grid.y/65535) + 1;
+        grid.y = 65535; 
+      }
+      else{ 
+        grid.y = 65535;
+        grid.z = 1;
+      }
+    }
+  }
+  else{
+    grid = {numElements,1,1};
+  }
+}
+
+
 /**
 * \brief Method for getting grid and block for a 2D kernel.
 * \details This method calculates a grid and block configuration 

@@ -2701,7 +2701,7 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointClo
   // create the octree
   Octree oct = Octree(pointCloud, 8, false);
   // caclulate the estimated plane normal
-  Unity<float3>* normal = oct.computeAverageNormal(4, 6, images.size(), locations->host);
+  Unity<float3>* normal = oct.computeAverageNormal(3, 10, images.size(), locations->host);
 
   std::cout << "Estimated plane normal: (" << normal->host[0].x << ", " << normal->host[0].y << ", " << normal->host[0].z << ")" << std::endl;
 

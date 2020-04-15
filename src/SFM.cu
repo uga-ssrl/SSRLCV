@@ -169,8 +169,6 @@ int main(int argc, char *argv[]){
       // to visualize the estimated plane which the structure lies within you can use
       // the demPoints.visualizePlaneEstimation() method like so:
       demPoints.visualizePlaneEstimation(points, images, "planeEstimation");
-      */
-
 
       // the version that will be used normally
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
