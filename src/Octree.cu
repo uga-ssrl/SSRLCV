@@ -1253,7 +1253,7 @@ ssrlcv::Unity<float>* ssrlcv::Octree::averageNeighboorDistances(int n){
  * @param the numer of neighbors to consider
  * @return average the average distance from any given point to it's neighbors
  */
-float ssrlcv::Octree::averageNeighboorDistances(int n){
+float ssrlcv::Octree::averageNeighboorDistance(int n){
   // the number of neightbors to check
   int* d_num;
   CudaSafeCall(cudaMalloc((void**) &d_num,sizeof(int)));
@@ -1280,9 +1280,9 @@ float ssrlcv::Octree::averageNeighboorDistances(int n){
   this->pointNodeIndex->transferMemoryTo(cpu);
   this->nodes->transferMemoryTo(cpu);
 
-  averages->setFore(gpu);
-  averages->transferMemoryTo(cpu);
-  averages->clear(gpu);
+  average->setFore(gpu);
+  average->transferMemoryTo(cpu);
+  average->clear(gpu);
 
   // clean up memory
   cudaFree(d_num);
@@ -2339,6 +2339,7 @@ __global__ void ssrlcv::computeAverageNeighboorDistance(int* n, unsigned long nu
 
    int neighborsFound = 0;
    float sum = 0.0f;
+   float local_avg = 0.0f;
 
    // and nodes at this leaf depth are considered close neighbors
    for (unsigned long i = node.pointIndex; i < (node.pointIndex + node.numPoints); i++){
@@ -2381,15 +2382,15 @@ __global__ void ssrlcv::computeAverageNeighboorDistance(int* n, unsigned long nu
 
    // otherwise you tried your best (sort of, traversal can garuntee n is reached), just return what you have!
    if (!neighborsFound) {
-     *average = 0.0f; // just give it something bad
+     local_avg = 0.0f; // just give it something bad
      printf("WARNING: average neightbor error is being skewed due to lack of neighbors at certain depth\n");
    } else {
-     *average = (sum / (float) neighborsFound) / numpoints; // TEMP fill
+     local_avg = (sum / (float) neighborsFound) / numpoints; // TEMP fill
    }
 
-   atomicAdd(&localSum,error);
+   atomicAdd(&localSum,local_avg);
    __syncthreads();
-   if (!threadIdx.x) atomicAdd(linearError,localSum);
+   if (!threadIdx.x) atomicAdd(average,localSum);
 }
 
 __global__ void ssrlcv::findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Octree::Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors){

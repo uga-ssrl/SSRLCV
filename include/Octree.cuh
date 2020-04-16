@@ -181,7 +181,7 @@ namespace ssrlcv{
      * @param the numer of neighbors to consider
      * @return average the average distance from any given point to it's neighbors
      */
-    float averageNeighboorDistances(int n);
+    float averageNeighboorDistance(int n);
 
     // =============================================================================================================
     //
