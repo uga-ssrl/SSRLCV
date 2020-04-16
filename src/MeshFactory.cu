@@ -236,6 +236,14 @@ void ssrlcv::MeshFactory::saveMesh(const char* filename){
   ssrlcv::writePLY(filename, this->points, this->faces, faceEncoding);
 }
 
+/**
+ * saves only the points as a PLY
+ * @param filename the filename
+ */
+void ssrlcv::MeshFactory::savePoints(const char* filename){
+  ssrlcv::writePLY(filename, this->points);
+}
+
 // =============================================================================================================
 //
 // Comparison and Error methods
@@ -444,7 +452,8 @@ float ssrlcv::MeshFactory::calculateAverageDistanceToNeighbors(int n){
  * @param sigma the statistical value to remove points after
  */
 void ssrlcv::MeshFactory::filterByNeighborDistance(float sigma){
-  bool local_debug = true;
+  bool local_debug   = true;
+  bool local_verbose = true;
   // TODO verify that the at last the points and the octree have been made
   ssrlcv::Unity<float>* samples = calculateAverageDistancesToNeighbors(6);
   float average = calculateAverageDistanceToNeighbors(6);
@@ -465,6 +474,14 @@ void ssrlcv::MeshFactory::filterByNeighborDistance(float sigma){
   cutoff = sigma * sqrtf(variance);
 
   // now remove the points that are not good!
+  ssrlcv::Unity<float3>* newPoints = this->octree->removeLowDensityPoints(cutoff, 6);
+  int bad_points = 0;
+  for (int i = 0; i < newPoints->size(); i++){
+    if (newPoints->host[i] == nullptr) bad_points++;
+  }
+  if (local_debug || local_verbose) std::cout << "Detected " << bad_points << " points in low density regions to remove ..." << std::endl;
+
+  // allocate new space
 
 }
 

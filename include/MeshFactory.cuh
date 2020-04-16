@@ -109,6 +109,12 @@ namespace ssrlcv{
      */
     void saveMesh(const char* filename);
 
+    /**
+     * saves only the points as a PLY
+     * @param filename the filename
+     */
+    void savePoints(const char* filename);
+
     // =============================================================================================================
     //
     // Comparison and Error methods

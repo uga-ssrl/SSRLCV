@@ -248,7 +248,7 @@ int main(int argc, char *argv[]){
       std::cout << "Average Distance to 6 neighbors is: " << avgDist << std::endl;
 
       // to only keep points within a certain sigma of neighbor distance use the following filter
-      finalMesh.filterByNeighborDistance(2.0); // <--- filter bois past 2.5 sigma (about 95% of points)
+      finalMesh.filterByNeighborDistance(2.0); // <--- filter bois past 2.0 sigma (about 95% of points)
 
     } else {
       //
@@ -333,7 +333,7 @@ int main(int argc, char *argv[]){
       std::cout << "Average Distance to 6 neighbors is: " << avgDist << std::endl;
 
       // to only keep points within a certain sigma of neighbor distance use the following filter
-      finalMesh.filterByNeighborDistance(2.0); // <--- filter bois past 2.5 sigma (about 95% of points)
+      finalMesh.filterByNeighborDistance(2.0); // <--- filter bois past 2.0 sigma (about 95% of points)
 
     }
 

@@ -183,6 +183,15 @@ namespace ssrlcv{
      */
     float averageNeighboorDistance(int n);
 
+    /**
+     * finds the point indexes that should be removed this is done for each point.
+     * returns a NULL index if the point does not need to be removed, returns the actual index if it does need to be
+     * @param cutoff is the minimum average distance from a point to N of its neightbors
+     * @param n the number of neighbor points to consider
+     * @return points returns unity pf float3 points that are densly packed enough within the cutoff
+     */
+    Unity<float3>* removeLowDensityPoints(float cutoff, int n);
+
     // =============================================================================================================
     //
     // Normal Caclulation Methods
@@ -318,6 +327,9 @@ namespace ssrlcv{
 
   // calculates average distance to N neighbors
   __global__ void computeAverageNeighboorDistance(int* n, unsigned long numpoints, float3* points, unsigned int* pointNodeIndex, Octree::Node* nodes, float* averages);
+
+  // finds the point indexes that should be removed
+  __global__ void getGoodDensePoints(int* n, float* cutoff, unsigned long numpoints, float3* points, unsigned int* pointNodeIndex, Octree::Node* nodes, float3* indexes);
 
   __global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Octree::Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors);
   __global__ void transposeFloatMatrix(int m, int n, float* matrix);
