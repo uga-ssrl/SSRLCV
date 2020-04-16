@@ -308,8 +308,9 @@ namespace ssrlcv{
     * this methods saves a plane which can be visualized as a mesh
     * @param pointCloud the point cloud to visualize plane estimation from
     * @param filename a string representing the filename that should be saved
+    * @param range a float representing 1/2 of a side in km, so +/- range is how but the plane will be 
     */
-    void visualizePlaneEstimation(Unity<float3>* pointCloud, std::vector<ssrlcv::Image*> images, const char* filename);
+    void visualizePlaneEstimation(Unity<float3>* pointCloud, std::vector<ssrlcv::Image*> images, const char* filename, float range);
 
     /**
     * This function is used to test bundle adjustment by adding a bit of noise to the input data

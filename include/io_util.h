@@ -217,6 +217,13 @@ struct arg
   // =============================================================================================================
 
   /**
+   * Reads an input ASCII encoded PLY and
+   * @param filePath the relative path to the input file
+   * @return points the points of the point cloud in a float3 unity
+   */
+  ssrlcv::Unity<float3>* readPLY(const char* filePath);
+
+  /**
   * \brief Will write a ply file based on a set of float3 values.
   * \details This method will write a ply in the specified location and can
   * be written in binary or ASCII format.
@@ -291,7 +298,7 @@ struct arg
   * @param points the points
   * @param faceList the faces
   * @param faceEncoding the face encoding
-  * @param colors the colors of the points 
+  * @param colors the colors of the points
   */
   void writePLY(const char* filename, Unity<float3>* points, Unity<int>* faceList, int faceEncoding, Unity<uchar3>* colors);
 

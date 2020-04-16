@@ -545,6 +545,108 @@ bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out)
 //
 // =============================================================================================================
 
+/**
+ * Reads an input ASCII encoded PLY and
+ * @param filePath the relative path to the input file
+ * @return points the points of the point cloud in a float3 unity
+ */
+ssrlcv::Unity<float3>* ssrlcv::readPLY(const char* filePath){
+  // disable both of these to remove print statements
+  bool local_debug   = false;
+  bool local_verbose = true;
+
+  if (local_verbose || local_debug) std::cout << "Reading Mesh ... " << std::endl;
+
+  // temp storage
+  std::vector<float3> tempPoints;
+  // std::vector<int> tempFaces;
+  std::ifstream input(filePath);
+  int numPoints = 0;
+  int numFaces  = 0;
+  int numEdges  = 0;
+  bool inData   = false;
+
+  // assuming ASCII encoding
+  std::string line;
+  while (std::getline(input, line)){
+    std::istringstream iss(line);
+
+    if (!inData){ // parse the header
+
+      std::string tag;
+      iss >> tag;
+
+      //
+      // Handle elements here
+      //
+      if (!tag.compare("element")){
+        if(local_debug) std::cout << "element found" << std::endl;
+        // temp vars for strings
+        std::string elem;
+        std::string type;
+        int num;
+
+        iss >> type;
+        iss >> num;
+
+        // set the correct value
+        if (!type.compare("vertex")){
+          numPoints = num;
+          if(local_debug) std::cout << "detected " << num << " Points" << std::endl;
+        } else if (!type.compare("face")) {
+          numFaces = num;
+          if(local_debug) std::cout << "detected " << num << " Faces" << std::endl;
+        } else if (!type.compare("edge")) {
+          // TODO read in edges if desired
+          std::cout << "\tWARN: edge reading is not currently supported in MeshFactory" << std::endl;
+          if(local_debug) std::cout << "detected " << num << " Edges" << std::endl;
+        }
+
+      }
+
+      // header is ending
+      if (!tag.compare("end_header")){
+        inData = true;
+      }
+    } else { // parse the data
+
+      //
+      // Handle the Data reading here
+      //
+
+      if (tempPoints.size() < numPoints && numPoints) {
+        //
+        // add the point
+        //
+
+        float3 point;
+        iss >> point.x;
+        iss >> point.y;
+        iss >> point.z;
+        tempPoints.push_back(point);
+        if (local_debug) std::cout << "\t" << point.x << ", " << point.y << ", " << point.z << std::endl;
+      }
+
+    } // end data reading
+
+  } // end while
+
+  input.close(); // close the stream
+
+  // save the values to the mesh
+  ssrlcv::Unity<float3>* points = new ssrlcv::Unity<float3>(nullptr,tempPoints.size(),ssrlcv::cpu);
+  for (int i = 0; i < points->size(); i++) {
+    points->host[i] = tempPoints[i];
+  }
+
+  if (local_verbose || local_debug) {
+    std::cout << "Done reading PLY!" << std::endl;
+    std::cout << "\t Total Points Loaded:  " << points->size() << std::endl;
+  }
+
+  return points;
+}
+
 void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
   std::cout << "saving " << points->size() << " points ..." << std::endl;
   MemoryState origin = points->getMemoryState();
@@ -704,7 +806,7 @@ void ssrlcv::writePLY(const char* filePath, Unity<colorPoint>* cpoint){
 */
 void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<int>* faceList, int faceEncoding, Unity<uchar3>* colors){
   // TODO
-  
+
 }
 
 /**

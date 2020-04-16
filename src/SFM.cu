@@ -143,7 +143,8 @@ int main(int argc, char *argv[]){
       // it's good to do a cutoff filter first how this is chosen is mostly based on ur gut
       // if a poor estimate is chosen then you will have to statistical filter multiple times
       // option 1: pick a fixed value
-        demPoints.linearCutoffFilter(&matchSet,images,1000); // <--- removes linear errors over 1000
+        // unless scaled, the point cloud is in km. This is the maximum "missmatch" distance between lines to allow in km
+        demPoints.linearCutoffFilter(&matchSet,images, 100.0); // <--- removes linear errors over 100 km
       // option 2: tie the initial cutoff to some fraction of the initial linear error
         // demPoints.linearCutoffFilter(&matchSet,images,*linearError / (bundleSet.bundles->size() * 3));
       // option 3: don't use the linear cutoff at all and just use multiple statistical filters (it is safer)
@@ -165,11 +166,7 @@ int main(int argc, char *argv[]){
 
       // Planar filtering is very good at removing noise that is not close to the estimated model.
       demPoints.planarCutoffFilter(&matchSet, images, 10.0f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
-
-      // OPTIONAL
-      // to visualize the estimated plane which the structure lies within you can use
-      // the demPoints.visualizePlaneEstimation() method like so:
-      demPoints.visualizePlaneEstimation(points, images, "planeEstimation");
+      bundleSet = demPoints.generateBundles(&matchSet,images);
 
       // the version that will be used normally
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
@@ -201,6 +198,10 @@ int main(int argc, char *argv[]){
       // rotate pi around the y axis
       float3 rotation = {0.0f, PI, 0.0f};
       demPoints.rotatePointCloud(rotation, points);
+      // OPTIONAL
+      // to visualize the estimated plane which the structure lies within you can use
+      // the demPoints.visualizePlaneEstimation() method like so:
+      demPoints.visualizePlaneEstimation(points, images, "planeEstimation", 10000); // usually in km, this is now only 10 km bc of scaling
       // load the example mesh to do the comparison, here I assume we are using the everst PLY
       meshBoi.loadMesh("data/truth/Everest_ground_truth.ply");
         // to save a mesh as a PLY simply:
@@ -254,16 +255,12 @@ int main(int argc, char *argv[]){
       std::cout << "Initial Angular Error: " << *angularError << std::endl;
       //ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors1");
 
-      demPoints.linearCutoffFilter(&matchSet,images,300);
+      demPoints.linearCutoffFilter(&matchSet, images, 100.0); // unless scaled, the point cloud is in km. This is the maximum "missmatch" distance between lines to allow in km
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
       // Planar filtering is very good at removing noise that is not close to the estimated model.
       demPoints.planarCutoffFilter(&matchSet, images, 10.0f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
-
-      // OPTIONAL
-      // to visualize the estimated plane which the structure lies within you can use
-      // the demPoints.visualizePlaneEstimation() method like so:
-      demPoints.visualizePlaneEstimation(points, images, "planeEstimation");
+      bundleSet = demPoints.generateBundles(&matchSet,images);
 
       // multiple filters are needed, because outlier points are discovered in stages
       // decreasing sigma over time is best because the real "mean" error becomes more
@@ -290,6 +287,10 @@ int main(int argc, char *argv[]){
       // rotate pi around the y axis
       float3 rotation = {0.0f, PI, 0.0f};
       demPoints.rotatePointCloud(rotation, points);
+      // OPTIONAL
+      // to visualize the estimated plane which the structure lies within you can use
+      // the demPoints.visualizePlaneEstimation() method like so:
+      demPoints.visualizePlaneEstimation(points, images, "planeEstimation", 10000); // usually in km, this is now only 10 km bc of scaling
       // you can compare to a "ground truth" mesh
       // load the example mesh to do the comparison, here I assume we are using the everst PLY
       meshBoi.loadMesh("data/truth/Everest_ground_truth.ply");

@@ -2716,10 +2716,10 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
 * Saves the plane that was estimated to be the "primary" plane of the pointCloud
 * this methods saves a plane which can be visualized as a mesh
 * @param pointCloud the point cloud to visualize plane estimation from
-* @param images the images which contain camera paramters that are used in normal estimation
 * @param filename a string representing the filename that should be saved
+* @param range a float representing 1/2 of a side in km, so +/- range is how but the plane will be
 */
-void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointCloud, std::vector<ssrlcv::Image*> images, const char* filename){
+void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointCloud, std::vector<ssrlcv::Image*> images, const char* filename, float scale){
 
   // disable for local print statments
   bool local_debug    = false;
@@ -2754,7 +2754,7 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointClo
   // generate the example plane vertices
   // loop through x and y and caclulate z using the equation of the plane, see: https://en.wikipedia.org/wiki/Plane_(geometry)#Point-normal_form_and_general_form_of_the_equation_of_a_plane
   int step   = 10; // keep this evenly divisible
-  int bounds = 100; // does +/- at these bounds in x and y
+  int bounds = (int) ( (int) scale - ( (int) scale % step)); // does +/- at these bounds in x and y, needs to be divisible by step 
   int index  = 0;
   Unity<float3>* vertices = new ssrlcv::Unity<float3>(nullptr, (size_t) (2 * bounds / step)*(2 * bounds / step),ssrlcv::cpu);
   for (int x = - 1 * bounds; x < bounds; x += step){
@@ -3122,15 +3122,21 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
   size_t sample_size = (int) errors->size() * sampleSize;
   errors_sample      = new ssrlcv::Unity<float>(nullptr,sample_size,ssrlcv::cpu);
   float sample_sum   = 0;
-  for (int k = 0; k < sample_size; k++){
-    // swap random indices of the error
-
-  }
-  for (int k = 0; k < sample_size; k++){
+  // fill in indices to do a random shuffle
+  // code snippet from: https://en.cppreference.com/w/cpp/algorithm/random_shuffle
+  std::srand ( unsigned ( std::time(0) ) );
+  std::vector<int> indexes;
+  std::random_device rd;
+  std::mt19937 g(rd());
+  std::shuffle(indexes.begin(), indexes.end(), g);
+  for (int i = 0; i < sample_size; i++) indexes.push_back(i);
+  std::random_shuffle ( indexes.begin(), indexes.end(), myrandom);
+  for (int k = 0; i < sample_size; i++){
     // set the random indices to the sample
-    errors_sample->host[k] = errors->host[k];
-    sample_sum += errors->host[k];
+    errors_sample->host[i] = errors->host[indexes[i]];
+    sample_sum += errors->host[indexes[i]];
   }
+  indexes.clear();
 
   float sample_mean = sample_sum / errors_sample->size();
   std::cout << "\tSample Sum: " << std::setprecision(32) << sample_sum << std::endl;
@@ -3267,6 +3273,7 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
     }
 
     if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
+  }
 }
 
 /**
@@ -3893,24 +3900,14 @@ __global__ void ssrlcv::filterTwoViewFromEstimatedPlane(unsigned long pointnum, 
   float3 s2 = L2.pnt + (numer2/denom2) * L2.vec;
   float3 P = (s1 + s2)/2.0;
 
-  // now calculate the cloud Point's intersection with plane
+  // see: https://mathworld.wolfram.com/Point-PlaneDistance.html
+  float3 A = point[0];  // a point on the plane
+  float3 N = vector[0]; // the plane's normal
 
-  // point on the plane
-  float3 A = point[0]; // the average point
+  float numer = abs((N.x * ( A.x - P.x)) + (N.y * ( A.y - P.y)) + (N.z * ( A.z - P.z)));
+  float denom = sqrtf((N.x * N.x) + (N.y * N.y) + (N.z * N.z));
 
-  // vector betweeen point and a point on the plane
-  float3 diff = P - A;
-
-  // scalar along the point vector line
-  float numer = dotProduct(diff,vector[0]);
-  float denom = dotProduct(vector[0],vector[0]);
-  float scale = numer / denom;
-
-  // calculate intersection point
-  float3 I = P - (scale * vector[0]);
-
-  // calculate distance between point cloud point and point on the mesh
-  float dist = sqrtf((P.x - I.x)*(P.x - I.x) + (P.y - I.y)*(P.y - I.y) + (P.z - I.z)*(P.z - I.z));
+  float dist = numer / denom;
 
   // if greater than cutoff remove it
   if (dist > *cutoff) {
@@ -3970,22 +3967,14 @@ __global__ void ssrlcv::filterNViewFromEstimatedPlane(unsigned long pointnum, Bu
     return;
   }
 
-  // now calculate the cloud Point's intersection with plane
-  float3 A = point[0];
+  // see: https://mathworld.wolfram.com/Point-PlaneDistance.html
+  float3 A = point[0];  // a point on the plane
+  float3 N = vector[0]; // the plane's normal
 
-  // vector betweeen point and a point on the plane
-  float3 diff = P - A;
+  float numer = abs((N.x * ( A.x - P.x)) + (N.y * ( A.y - P.y)) + (N.z * ( A.z - P.z)));
+  float denom = sqrtf((N.x * N.x) + (N.y * N.y) + (N.z * N.z));
 
-  // scalar along the point vector line
-  float numer = dotProduct(diff,vector[0]);
-  float denom = dotProduct(vector[0],vector[0]);
-  float scale = numer / denom;
-
-  // calculate intersection point
-  float3 I = P - (scale * vector[0]);
-
-  // calculate distance between point cloud point and point on the mesh
-  float dist = sqrtf((P.x - I.x)*(P.x - I.x) + (P.y - I.y)*(P.y - I.y) + (P.z - I.z)*(P.z - I.z));
+  float dist = numer / denom;
 
   // if greater than cutoff remove it
   if (dist > *cutoff) {
