@@ -416,7 +416,7 @@ ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculatePerPointDifference(Unity<flo
 
 // =============================================================================================================
 //
-// Other MeshFactory Methods
+// Filtering Methods
 //
 // =============================================================================================================
 
@@ -428,6 +428,21 @@ ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculatePerPointDifference(Unity<flo
 ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculateAverageDistancesToNeighbors(int n){
   return this->octree->averageNeighboorDistances(n); // basically a pass through to octree
 }
+
+/**
+ * caclualtes the average distance to N neightbors for each point on average
+ * @param n the number of neignbors to calculate an average distance to
+ * @return float which is the average distance to n neighbors
+ */
+float ssrlcv::MeshFactory::calculateAverageDistanceToNeighbors(int n){
+  return this->octree->averageNeighboorDistance(n); // basically a pass through to octree
+}
+
+// =============================================================================================================
+//
+// Other MeshFactory Methods
+//
+// =============================================================================================================
 
 void ssrlcv::MeshFactory::computeVertexImplicitJAX(int focusDepth){
   clock_t timer;

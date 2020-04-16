@@ -139,6 +139,26 @@ namespace ssrlcv{
 
     // =============================================================================================================
     //
+    // Filtering Methods
+    //
+    // =============================================================================================================
+
+    /**
+     * caclualtes the average distance to N neightbors for each points
+     * @param n the number of neignbors to calculate an average distance to
+     * @return float a unity of floats representing the average distance to N neighbors
+     */
+    ssrlcv::Unity<float>* calculateAverageDistancesToNeighbors(int n);
+
+    /**
+     * caclualtes the average distance to N neightbors for each point on average
+     * @param n the number of neignbors to calculate an average distance to
+     * @return float which is the average distance to n neighbors
+     */
+    float calculateAverageDistanceToNeighbors(int n);
+
+    // =============================================================================================================
+    //
     // Other MeshFactory Methods
     //
     // =============================================================================================================

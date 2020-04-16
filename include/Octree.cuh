@@ -176,6 +176,13 @@ namespace ssrlcv{
      */
     Unity<float>* averageNeighboorDistances(int n);
 
+    /**
+     * calculates the average distance from a point to N of it's neighbors and finds that average for all points
+     * @param the numer of neighbors to consider
+     * @return average the average distance from any given point to it's neighbors
+     */
+    float averageNeighboorDistances(int n);
+
     // =============================================================================================================
     //
     // Normal Caclulation Methods
@@ -306,8 +313,11 @@ namespace ssrlcv{
   // calculates the average normal
   __global__ void calculateCloudAverageNormal(float3* average, unsigned long num, float3* normals);
 
-  // calculates average distance to N neighbors
+  // calculates average distances to N neighbors
   __global__ void computeAverageNeighboorDistances(int* n, unsigned long numpoints, float3* points, unsigned int* pointNodeIndex, Octree::Node* nodes, float* averages);
+
+  // calculates average distance to N neighbors
+  __global__ void computeAverageNeighboorDistance(int* n, unsigned long numpoints, float3* points, unsigned int* pointNodeIndex, Octree::Node* nodes, float* averages);
 
   __global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Octree::Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors);
   __global__ void transposeFloatMatrix(int m, int n, float* matrix);

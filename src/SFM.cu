@@ -240,8 +240,14 @@ int main(int argc, char *argv[]){
 
       // set the mesh points
       finalMesh.setPoints(points);
+
+      // you can filter these points and view their distributions in multiple ways
       ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6); // calculate average distance to 6 neighbors
       ssrlcv::writeCSV(neighborDists, "neighborDistances");
+      float avgDist = finalMesh.calculateAverageDistancesToNeighbors(6); // the average distance from any even node to another
+      std::cout << "Average Distance to 6 neighbors is: " << avgDist << std::endl;
+
+      // to only keep points within a certain sigma of neighbor distance use the following filter
 
 
     } else {
@@ -314,6 +320,19 @@ int main(int argc, char *argv[]){
 
       //ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors2");
       demPoints.saveDebugCloud(points, bundleSet, images);
+
+      // begin mesh-level tasks, there are no more cameras or matches after this stage
+
+      // set the mesh points
+      finalMesh.setPoints(points);
+
+      // you can filter these points and view their distributions in multiple ways
+      ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6); // calculate average distance to 6 neighbors
+      ssrlcv::writeCSV(neighborDists, "neighborDistances");
+      float avgDist = finalMesh.calculateAverageDistancesToNeighbors(6); // the average distance from any even node to another
+      std::cout << "Average Distance to 6 neighbors is: " << avgDist << std::endl;
+
+      // to only keep points within a certain sigma of neighbor distance use the following filter
 
     }
 

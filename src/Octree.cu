@@ -1248,6 +1248,48 @@ ssrlcv::Unity<float>* ssrlcv::Octree::averageNeighboorDistances(int n){
   return averages;
 }
 
+/**
+ * calculates the average distance from a point to N of it's neighbors and finds that average for all points
+ * @param the numer of neighbors to consider
+ * @return average the average distance from any given point to it's neighbors
+ */
+float ssrlcv::Octree::averageNeighboorDistances(int n){
+  // the number of neightbors to check
+  int* d_num;
+  CudaSafeCall(cudaMalloc((void**) &d_num,sizeof(int)));
+  CudaSafeCall(cudaMemcpy(d_num,&n,sizeof(int),cudaMemcpyHostToDevice));
+
+  Unity<float>* average = new Unity<float>(nullptr,1,gpu);
+
+  this->points->transferMemoryTo(gpu);
+  this->pointNodeIndex->transferMemoryTo(gpu);
+  this->nodes->transferMemoryTo(gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(int *, unsigned long, float3*, unsigned int *, Octree::Node *, float *) = &computeAverageNeighboorDistance;
+  getFlatGridBlock(this->points->size(),grid,block,fp);
+
+  computeAverageNeighboorDistance<<<grid,block>>>(d_num, this->pointNodeIndex->size(),this->points->device, this->pointNodeIndex->device, this->nodes->device, average->device);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  // transfer the poitns back to the CPU
+  this->points->transferMemoryTo(cpu);
+  this->pointNodeIndex->transferMemoryTo(cpu);
+  this->nodes->transferMemoryTo(cpu);
+
+  averages->setFore(gpu);
+  averages->transferMemoryTo(cpu);
+  averages->clear(gpu);
+
+  // clean up memory
+  cudaFree(d_num);
+
+  return average;
+}
+
 // =============================================================================================================
 //
 // Normal Caclulation Methods
@@ -2232,7 +2274,7 @@ __global__ void ssrlcv::computeAverageNeighboorDistances(int* n, unsigned long n
    float sum = 0.0f;
 
    // and nodes at this leaf depth are considered close neighbors
-   for (unsigned long i = node.pointIndex; i < (node.pointIndex node.numPoints); i++){
+   for (unsigned long i = node.pointIndex; i < (node.pointIndex + node.numPoints); i++){
      if (i != globalID){ // if not self
        float3 A = points[i];
        float dist = sqrtf((P.x - A.x) + (P.y - A.y) + (P.z - A.z));
@@ -2251,9 +2293,9 @@ __global__ void ssrlcv::computeAverageNeighboorDistances(int* n, unsigned long n
       // see if there is a point in that
       node = nodes[i];
       // and nodes at this leaf depth are considered close neighbors
-      for (unsigned long i = node.pointIndex; i < (node.pointIndex node.numPoints); i++){
-        if (i != globalID){ // if not self
-          float3 A = points[i];
+      for (unsigned long j = node.pointIndex; j < (node.pointIndex + node.numPoints); j++){
+        if (j != globalID){ // if not self
+          float3 A = points[j];
           float dist = sqrtf((P.x - A.x) + (P.y - A.y) + (P.z - A.z));
           sum += dist;
           neighborsFound++;
@@ -2276,6 +2318,78 @@ __global__ void ssrlcv::computeAverageNeighboorDistances(int* n, unsigned long n
    } else {
      averages[globalID] = (sum / (float) neighborsFound); // TEMP fill
    }
+}
+
+// calculates average distance to N neighbors
+__global__ void ssrlcv::computeAverageNeighboorDistance(int* n, unsigned long numpoints, float3* points, unsigned int* pointNodeIndex, Octree::Node* nodes, float* average){
+
+  __shared__ float localSum;
+  if (threadIdx.x == 0) localSum = 0;
+  __syncthreads();
+
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (numpoints-1)) return;
+
+   // the point we want neighbors for!
+   float3 P = points[globalID];
+   // the index of the node in the octree containing the point
+   unsigned int nodeIndex = pointNodeIndex[globalID];
+   // the node containing point P from which we can search for neighbors
+   Octree::Node node = nodes[nodeIndex];
+
+   int neighborsFound = 0;
+   float sum = 0.0f;
+
+   // and nodes at this leaf depth are considered close neighbors
+   for (unsigned long i = node.pointIndex; i < (node.pointIndex + node.numPoints); i++){
+     if (i != globalID){ // if not self
+       float3 A = points[i];
+       float dist = sqrtf((P.x - A.x) + (P.y - A.y) + (P.z - A.z));
+       sum += dist;
+       neighborsFound++;
+     }
+     if (neighborsFound == *n){ // then we have found the max
+       // averages[globalID] = (sum / (float) neighborsFound);
+       break;
+     }
+   }
+
+   // now search neighbor nodes for neighbor points
+   for (unsigned long i = 0; i < 27; i++){
+     if (node.neighbors[i] > 0 && i != 13){
+      // see if there is a point in that
+      node = nodes[i];
+      // and nodes at this leaf depth are considered close neighbors
+      for (unsigned long j = node.pointIndex; j < (node.pointIndex + node.numPoints); j++){
+        if (j != globalID){ // if not self
+          float3 A = points[j];
+          float dist = sqrtf((P.x - A.x) + (P.y - A.y) + (P.z - A.z));
+          sum += dist;
+          neighborsFound++;
+        }
+        if (neighborsFound == *n){ // then we have found the max
+          // averages[globalID] = (sum / (float) neighborsFound);
+          break;
+        }
+      }
+     }
+     if (neighborsFound == *n){ // then we have found the max
+       // averages[globalID] = (sum / (float) neighborsFound);
+       break;
+     }
+   }
+
+   // otherwise you tried your best (sort of, traversal can garuntee n is reached), just return what you have!
+   if (!neighborsFound) {
+     *average = 0.0f; // just give it something bad
+     printf("WARNING: average neightbor error is being skewed due to lack of neighbors at certain depth\n");
+   } else {
+     *average = (sum / (float) neighborsFound) / numpoints; // TEMP fill
+   }
+
+   atomicAdd(&localSum,error);
+   __syncthreads();
+   if (!threadIdx.x) atomicAdd(linearError,localSum);
 }
 
 __global__ void ssrlcv::findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Octree::Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors){
