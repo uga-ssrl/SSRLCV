@@ -20,6 +20,7 @@
 #include "MatchFactory.cuh"
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
+#include "Logger.hpp"
 
 //TODO fix gaussian operators - currently creating very low values
 
@@ -31,6 +32,10 @@ int main(int argc, char *argv[]){
     cuInit(0);
     clock_t totalTimer = clock();
     clock_t partialTimer = clock();
+
+    // initialize the logger
+    ssrlcv::Logger logger = new ssrlcv::Logger("out"); // log in the out directory
+    logger.log("this is a test");
 
     //ARG PARSING
 
@@ -192,9 +197,11 @@ int main(int argc, char *argv[]){
         ssrlcv::writePLY("out/scaledx1000.ply",points);
       */
 
-      // could putput pre mesh related stuff:
-      ssrlcv::savePLY("pointcloud01", points);
-      ssrlcv::saveCSV(points, "pointcloud01");
+      /*
+      // could output pre mesh related stuff:
+      ssrlcv::writePLY("pointcloud01", points);
+      ssrlcv::writeCSV(points, "pointcloud01");
+      */
 
       // OPTIONAL
       // to compare a points cloud with a ground truth model the first need to be scaled

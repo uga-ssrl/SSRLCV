@@ -1071,11 +1071,11 @@ void ssrlcv::writeCSV(Unity<float>* values, const char* filename){
  * all pairs are on a new line. Assumes the vectors are the same size
  * @param v a unity float3 that is used to save `x,y,z`
  */
-void ssrlcv::writeCSV(std::vector<float3>* v, const char* filename){
+void ssrlcv::writeCSV(Unity<float3>* v, const char* filename){
   std::ofstream outfile;
   std::string fname = filename;
   outfile.open("out/" + fname + ".csv");
-  for (int i = 0; i < v->host->size(); i++) {
+  for (int i = 0; i < v->size(); i++) {
       outfile << std::fixed << std::setprecision(32) << v->host[i].x << "," << v->host[i].y << "," << v->host[i].z << std::endl;
   }
   outfile.close();

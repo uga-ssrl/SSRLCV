@@ -389,7 +389,7 @@ struct arg
    * all pairs are on a new line. Assumes the vectors are the same size
    * @param v a unity float3 that is used to save `x,y,z`
    */
-  void writeCSV(std::vector<float3>* v, const char* filename);
+  void writeCSV(Unity<float3>* v, const char* filename);
 
   //
   // Binary files - Gitlab #58
