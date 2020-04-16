@@ -2334,7 +2334,7 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
   float3 gr2  = (bad - meh )/1000;
   // initialize the gradient "mapping"
   float3 temp;
-  std::cout << "building gradient" << std::endl;
+  // std::cout << "building gradient" << std::endl;
   for (int i = 0; i < 2000; i++){
     if (i < 1000){
       temp = good + gr1*i;
@@ -2348,7 +2348,7 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
       colors[i].z = (unsigned char) floor(temp.z);
     }
   }
-  std::cout << "the boiz" << std::endl;
+  // std::cout << "the boiz" << std::endl;
   float* linearError = (float*) malloc(sizeof(float));
   *linearError = 0.0; // just something to start
   float* linearErrorCutoff = (float*) malloc(sizeof(float));
@@ -2870,7 +2870,7 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ssrlcv::MatchSet* ma
  */
 void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float sigma, float sampleSize){
   if (sampleSize > 1.0 || sampleSize < 0.0) {
-    std::cerr << "ERROR:  not statistical filtering possible with percentage greater than 1.0 or less than 0.0" << std::endl;
+    std::cerr << "ERROR:  no statistical filtering possible with percentage greater than 1.0 or less than 0.0" << std::endl;
     return;
   }
   // find an integer skip that can be used
@@ -3074,10 +3074,199 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
  */
 void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float sigma, float sampleSize){
   if (sampleSize > 1.0 || sampleSize < 0.0) {
-    std::cerr << "ERROR:  not statistical filtering possible with percentage greater than 1.0 or less than 0.0" << std::endl;
+    std::cerr << "ERROR:  no statistical filtering possible with percentage greater than 1.0 or less than 0.0" << std::endl;
     return;
   }
-  std::cout << "TODO" << std::endl;
+
+  // the initial linear error
+  float* linearError = (float*) malloc(sizeof(float));
+  *linearError = 0.0; // just something to start
+  // the cutoff
+  float* linearErrorCutoff = (float*) malloc(sizeof(float));
+  *linearErrorCutoff = 0.0; // just somethihng to start
+
+  // the boiz
+  ssrlcv::BundleSet bundleSet;
+  ssrlcv::MatchSet tempMatchSet;
+  tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,1,ssrlcv::cpu);
+  tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,1,ssrlcv::cpu);
+  ssrlcv::Unity<float>*    errors;
+  ssrlcv::Unity<float>*    errors_sample;
+  ssrlcv::Unity<float3>*   points;
+
+  // need bundles
+  bundleSet = generateBundles(matchSet,images);
+  // do an initial triangulation
+  errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+
+  std::cout << "Starting Determinstic Statistical Filter ..." << std::endl;
+
+  // do an initial triangulate
+
+  if (images.size() == 2){
+    //
+    // This is the 2-View case
+    //
+
+    points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+  } else {
+    //
+    // This is the N-View case
+    //
+
+    points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+  }
+
+  // https://en.wikipedia.org/wiki/Variance#Sample_variance
+
+  size_t sample_size = (int) errors->size() * sampleSize;
+  errors_sample      = new ssrlcv::Unity<float>(nullptr,sample_size,ssrlcv::cpu);
+  float sample_sum   = 0;
+  for (int k = 0; k < sample_size; k++){
+    // swap random indices of the error
+
+  }
+  for (int k = 0; k < sample_size; k++){
+    // set the random indices to the sample
+    errors_sample->host[k] = errors->host[k];
+    sample_sum += errors->host[k];
+  }
+
+  float sample_mean = sample_sum / errors_sample->size();
+  std::cout << "\tSample Sum: " << std::setprecision(32) << sample_sum << std::endl;
+  std::cout << "\tSample Mean: " << std::setprecision(32) << sample_mean << std::endl;
+  float squared_sum = 0;
+  for (int k = 0; k < sample_size; k++){
+    squared_sum += (errors_sample->host[k] - sample_mean)*(errors_sample->host[k] - sample_mean);
+  }
+  float variance = squared_sum / errors_sample->size();
+  std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
+  std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
+  std::cout << "\tLinear Error Cutoff Adjusted To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
+  *linearErrorCutoff = sigma * sqrtf(variance);
+
+  // do the two view version of this (easier for now)
+  if (images.size() == 2){
+    //
+    // This is the 2-View case
+    //
+
+    // recalculate with new cutoff
+    points = twoViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+
+    // CLEAR OUT THE DATA STRUCTURES
+    // count the number of bad bundles to be removed
+    int bad_bundles = 0;
+    for (int k = 0; k < bundleSet.bundles->size(); k++){
+      if (bundleSet.bundles->host[k].invalid){
+         bad_bundles++;
+      }
+    }
+    if (bad_bundles) std::cout << "\tDetected " << bad_bundles << " bad bundles to remove" << std::endl;
+    // Need to generated and adjustment match set
+    // make a temporary match set
+    delete tempMatchSet.keyPoints;
+    delete tempMatchSet.matches;
+    tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matchSet->matches->size()*2,ssrlcv::cpu);
+    tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+    // fill in the boiz
+    for (int k = 0; k < tempMatchSet.keyPoints->size(); k++){
+      tempMatchSet.keyPoints->host[k] = matchSet->keyPoints->host[k];
+    }
+    for (int k = 0; k < tempMatchSet.matches->size(); k++){
+      tempMatchSet.matches->host[k] = matchSet->matches->host[k];
+    }
+    if (!(matchSet->matches->size() - bad_bundles)){
+      std::cerr << "ERROR: filtering is too aggressive, all points would be removed ..." << std::endl;
+      return;
+    }
+    // resize the standard matchSet
+    size_t new_kp_size = 2*(matchSet->matches->size() - bad_bundles);
+    size_t new_mt_size = matchSet->matches->size() - bad_bundles;
+    delete matchSet->keyPoints;
+    delete matchSet->matches;
+    matchSet->keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,new_kp_size,ssrlcv::cpu);
+    matchSet->matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,new_mt_size,ssrlcv::cpu);
+    // this is much easier because of the 2 view assumption
+    // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
+    int k_adjust = 0;
+    // if (bad_bundles){
+    for (int k = 0; k < bundleSet.bundles->size(); k++){
+    	if (!bundleSet.bundles->host[k].invalid){
+    	  matchSet->keyPoints->host[2*k_adjust]     = tempMatchSet.keyPoints->host[2*k];
+    	  matchSet->keyPoints->host[2*k_adjust + 1] = tempMatchSet.keyPoints->host[2*k + 1];
+        matchSet->matches->host[k_adjust]         = {2,2*k_adjust};
+    	  k_adjust++;
+    	}
+    }
+    if (bad_bundles) std::cout << "\tRemoved bad bundles" << std::endl;
+  } else {
+    //
+    // This is the N-view case
+    //
+
+    // recalculate with new cutoff
+    points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+
+    // CLEAR OUT THE DATA STRUCTURES
+    // count the number of bad bundles to be removed
+    int bad_bundles = 0;
+    int bad_lines   = 0;
+    for (int k = 0; k < bundleSet.bundles->size(); k++){
+      if (bundleSet.bundles->host[k].invalid){
+         bad_bundles++;
+         bad_lines += bundleSet.bundles->host[k].numLines;
+      }
+    }
+    if (bad_bundles) {
+      std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
+      std::cout << "\tDetected " << bad_lines << " lines to remove" << std::endl;
+    } else {
+      std::cout << "No points removed! all are less than " << linearErrorCutoff << std::endl;
+      return;
+    }
+    // Need to generated and adjustment match set
+    // make a temporary match set
+    delete tempMatchSet.keyPoints;
+    delete tempMatchSet.matches;
+    tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matchSet->keyPoints->size(),ssrlcv::cpu);
+    tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+    // fill in the boiz
+    for (int k = 0; k < tempMatchSet.keyPoints->size(); k++){
+      tempMatchSet.keyPoints->host[k] = matchSet->keyPoints->host[k];
+    }
+    for (int k = 0; k < tempMatchSet.matches->size(); k++){
+      tempMatchSet.matches->host[k] = matchSet->matches->host[k];
+    }
+    if (!(matchSet->matches->size() - bad_bundles) || !(matchSet->keyPoints->size() - bad_lines)){
+      std::cerr << "ERROR: filtering is too aggressive, all points would be removed ..." << std::endl;
+      return;
+    }
+    // resize the standard matchSet
+    size_t new_kp_size = matchSet->keyPoints->size() - bad_lines;
+    size_t new_mt_size = matchSet->matches->size() - bad_bundles;
+    delete matchSet->keyPoints;
+    delete matchSet->matches;
+    matchSet->keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,new_kp_size,ssrlcv::cpu);
+    matchSet->matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,new_mt_size,ssrlcv::cpu);
+    // this is much easier because of the 2 view assumption
+    // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
+    int k_adjust = 0;
+    int k_lines  = 0;
+    int k_bundle = 0;
+    for (int k = 0; k < bundleSet.bundles->size(); k++){
+      k_lines = bundleSet.bundles->host[k].numLines;
+      if (!bundleSet.bundles->host[k].invalid){
+        matchSet->matches->host[k_bundle] = {k_lines,k_adjust};
+        for (int j = 0; j < k_lines; j++){
+          matchSet->keyPoints->host[k_adjust + j] = tempMatchSet.keyPoints->host[k_adjust + j];
+        }
+        k_adjust += k_lines;
+        k_bundle++;
+      }
+    }
+
+    if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
 }
 
 /**
@@ -3724,7 +3913,7 @@ __global__ void ssrlcv::filterTwoViewFromEstimatedPlane(unsigned long pointnum, 
   float dist = sqrtf((P.x - I.x)*(P.x - I.x) + (P.y - I.y)*(P.y - I.y) + (P.z - I.z)*(P.z - I.z));
 
   // if greater than cutoff remove it
-  if (dist > cutoff) {
+  if (dist > *cutoff) {
     bundles[globalID].invalid = true;
   } else {
     bundles[globalID].invalid = false;
@@ -3734,7 +3923,7 @@ __global__ void ssrlcv::filterTwoViewFromEstimatedPlane(unsigned long pointnum, 
 __global__ void ssrlcv::filterNViewFromEstimatedPlane(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float* cutoff, float3* point, float3* vector){
 
   // this is same method as the NView for the first bit
-  // see two view method for details
+  // see multi view method for details
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if (globalID > (pointnum-1)) return;
 
@@ -3772,7 +3961,7 @@ __global__ void ssrlcv::filterNViewFromEstimatedPlane(unsigned long pointnum, Bu
    * is not the case.
    */
   float3 Inverse [3];
-  float3 P;
+  float3 P; // the multiview estimated point
   if(inverse(S, Inverse)){
     multiply(Inverse, C, P);
   } else {
@@ -3799,7 +3988,7 @@ __global__ void ssrlcv::filterNViewFromEstimatedPlane(unsigned long pointnum, Bu
   float dist = sqrtf((P.x - I.x)*(P.x - I.x) + (P.y - I.y)*(P.y - I.y) + (P.z - I.z)*(P.z - I.z));
 
   // if greater than cutoff remove it
-  if (dist > cutoff) {
+  if (dist > *cutoff) {
     bundles[globalID].invalid = true;
   } else {
     bundles[globalID].invalid = false;

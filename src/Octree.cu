@@ -48,6 +48,8 @@ ssrlcv::Octree::Octree(int numPoints, float3* points, int depth, bool createVEF)
   this->edgeDepthIndex = nullptr;
   this->faceDepthIndex = nullptr;
 
+  bool local_debug = false;
+
   this->depth = depth;
   if(this->depth >= 10){
     std::cout<<"ERROR this octree currently only supports a depth of 10 at the max"<<std::endl;
@@ -79,11 +81,13 @@ ssrlcv::Octree::Octree(int numPoints, float3* points, int depth, bool createVEF)
   this->max = this->center + (this->width/2);
   this->min = this->center - (this->width/2);
 
-  printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
-  printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
-  printf("bounding box width = %f\n", this->width);
-  printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
-  printf("number of points = %lu\n\n", this->points->size());
+  if (local_debug){
+    printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
+    printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
+    printf("bounding box width = %f\n", this->width);
+    printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
+    printf("number of points = %lu\n\n", this->points->size());
+  }
 
   this->createFinestNodes();
   this->fillInCoarserDepths();
@@ -104,6 +108,8 @@ ssrlcv::Octree::Octree(int numPoints, float3* points, float deepestWidth, bool c
   this->vertexDepthIndex = nullptr;
   this->edgeDepthIndex = nullptr;
   this->faceDepthIndex = nullptr;
+
+  bool local_debug = false;
 
   this->points = new Unity<float3>(points, numPoints, cpu);
 
@@ -130,11 +136,13 @@ ssrlcv::Octree::Octree(int numPoints, float3* points, float deepestWidth, bool c
   this->max = this->center + (this->width/2);
   this->min = this->center - (this->width/2);
 
-  printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
-  printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
-  printf("bounding box width = %f\n", this->width);
-  printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
-  printf("number of points = %lu\n\n", this->points->size());
+  if (local_debug){
+    printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
+    printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
+    printf("bounding box width = %f\n", this->width);
+    printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
+    printf("number of points = %lu\n\n", this->points->size());
+  }
 
   this->depth = 0;
   float finestWidth = this->width;
@@ -166,6 +174,8 @@ ssrlcv::Octree::Octree(Unity<float3>* points, int depth, bool createVEF){
   this->vertexDepthIndex = nullptr;
   this->edgeDepthIndex = nullptr;
   this->faceDepthIndex = nullptr;
+
+  bool local_debug = false;
 
   this->points = points;
   if(this->points->getMemoryState() == gpu || this->points->getFore() != cpu){
@@ -199,11 +209,13 @@ ssrlcv::Octree::Octree(Unity<float3>* points, int depth, bool createVEF){
   this->max = this->center + (this->width/2);
   this->min = this->center - (this->width/2);
 
-  printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
-  printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
-  printf("bounding box width = %f\n", this->width);
-  printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
-  printf("number of points = %lu\n\n", this->points->size());
+  if (local_debug){
+      printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
+      printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
+      printf("bounding box width = %f\n", this->width);
+      printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
+      printf("number of points = %lu\n\n", this->points->size());
+    }
 
   this->depth = depth;
   if(this->depth > 10){
@@ -229,6 +241,8 @@ ssrlcv::Octree::Octree(Unity<float3>* points, float deepestWidth, bool createVEF
   this->vertexDepthIndex = nullptr;
   this->edgeDepthIndex = nullptr;
   this->faceDepthIndex = nullptr;
+
+  bool local_debug = false;
 
   this->points = points;
   if(this->points->getMemoryState() == gpu) this->points->transferMemoryTo(cpu);
@@ -259,11 +273,13 @@ ssrlcv::Octree::Octree(Unity<float3>* points, float deepestWidth, bool createVEF
   this->max = this->center + (this->width/2);
   this->min = this->center - (this->width/2);
 
-  printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
-  printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
-  printf("bounding box width = %f\n", this->width);
-  printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
-  printf("number of points = %lu\n\n", this->points->size());
+  if (local_debug){
+    printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
+    printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
+    printf("bounding box width = %f\n", this->width);
+    printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
+    printf("number of points = %lu\n\n", this->points->size());
+  }
 
   this->depth = 0;
   float finestWidth = this->width;
@@ -1568,7 +1584,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
   for(int i = 0; i < this->points->size(); ++i){
     if(ambiguity->host[i]) ++numAmbiguous;
   }
-  std::cout<<"numAmbiguous = "<<numAmbiguous<<"/"<<ambiguity->size()<<std::endl;
+  if (local_debug) std::cout<<"numAmbiguous = "<<numAmbiguous<<"/"<<ambiguity->size()<<std::endl;
 
   if(this->points->getMemoryState() != points_origin) this->points->setMemoryState(points_origin);
 

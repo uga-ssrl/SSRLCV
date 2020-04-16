@@ -283,6 +283,25 @@ int main(int argc, char *argv[]){
       // now redo triangulation with the newlyfiltered boi
       points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
 
+      // OPTIONAL
+      // to compare a points cloud with a ground truth model the first need to be scaled
+      // the distance values here are in km but most truth models are in meters
+      demPoints.scalePointCloud(1000.0,points); // scales from km into meters
+      // rotate pi around the y axis
+      float3 rotation = {0.0f, PI, 0.0f};
+      demPoints.rotatePointCloud(rotation, points);
+      // you can compare to a "ground truth" mesh
+      // load the example mesh to do the comparison, here I assume we are using the everst PLY
+      meshBoi.loadMesh("data/truth/Everest_ground_truth.ply");
+      float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f}); // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
+      std::cout << "Average error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
+      ssrlcv::Unity<float>* truthErrors = meshBoi.calculatePerPointDifference(points, {0.0f , 0.0f, 1.0f});
+      // then you can save these errors in a CSV
+      ssrlcv::writeCSV(truthErrors, "resolutionErrors");
+      // you can also save them as color coded
+      ssrlcv::writePLY("resolutionErrors",points, truthErrors, 300); // NOTE it has already been scaled to meters, set error the cutoff to 300 meters
+
+
       //ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors2");
       demPoints.saveDebugCloud(points, bundleSet, images);
 
