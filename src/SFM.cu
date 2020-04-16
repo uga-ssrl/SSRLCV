@@ -125,6 +125,7 @@ int main(int argc, char *argv[]){
     // the bois
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
     ssrlcv::MeshFactory meshBoi = ssrlcv::MeshFactory();
+    ssrlcv::MeshFactory finalMesh = ssrlcv::MeshFactory();
     ssrlcv::Unity<float3>* points;
     ssrlcv::Unity<float>* errors;
     ssrlcv::BundleSet bundleSet;
@@ -165,7 +166,7 @@ int main(int argc, char *argv[]){
       */
 
       // Planar filtering is very good at removing noise that is not close to the estimated model.
-      demPoints.planarCutoffFilter(&matchSet, images, 10.0f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
+      demPoints.planarCutoffFilter(&matchSet, images, 0.1f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
       // the version that will be used normally
@@ -208,7 +209,7 @@ int main(int argc, char *argv[]){
         // meshBoi.saveMesh("testMesh");
       // to calculate the "missmatch" between the point cloud and the ground truth you can use this method:
       float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f}); // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
-      std::cout << "Average error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
+      std::cout << "Average error to ground truth is: " << error << " m, " << (error * 1000) << " meters" << std::endl;
       // this methods saves the error on each point
       ssrlcv::Unity<float>* truthErrors = meshBoi.calculatePerPointDifference(points, {0.0f , 0.0f, 1.0f});
       // then you can save these errors in a CSV
@@ -233,6 +234,12 @@ int main(int argc, char *argv[]){
       // starting bundle adjustment here
       // std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
       // points = demPoints.BundleAdjustTwoView(&matchSet,images, 10);
+
+
+      // begin mesh-level tasks, there are no more cameras or matches after this stage
+
+      // set the mesh points
+      finalMesh.setPoints(points);
 
 
     } else {

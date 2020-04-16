@@ -126,7 +126,7 @@ namespace ssrlcv{
      * e.g.
      * points->host[5] has index 5 so look at 5
      * pointNodeIndex->host[5] has value 1234
-     * nodes->host[1234] this is the leaf node that contains the point originally searched for 
+     * nodes->host[1234] this is the leaf node that contains the point originally searched for
      */
     Unity<unsigned int>* pointNodeIndex;
 
@@ -165,6 +165,19 @@ namespace ssrlcv{
 
     // =============================================================================================================
     //
+    // Filtering Methods
+    //
+    // =============================================================================================================
+
+    /**
+     * calculates the average distance from a point to N of it's neighbors
+     * @param the numer of neighbors to consider
+     * @return averages a unity float of the average distance for n neighbors per point
+     */
+    Unity<float>* averageNeighboorDistances(int n);
+
+    // =============================================================================================================
+    //
     // Normal Caclulation Methods
     //
     // =============================================================================================================
@@ -182,8 +195,8 @@ namespace ssrlcv{
     * @param maxNeighbors the maximum number of neightbors to consider for normal calculation
     * @param numCameras the total number of cameras which resulted in the point cloud
     * @param cameraPositions the x,y,z coordinates of the cameras
-    * \warning This method assumes that all cameras are on one side of the point cloud, so this should be purposed 
-    * for landscape surface reconstruction and not small object recostruction. 
+    * \warning This method assumes that all cameras are on one side of the point cloud, so this should be purposed
+    * for landscape surface reconstruction and not small object recostruction.
     */
     void computeNormals(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions);
 
@@ -292,6 +305,9 @@ namespace ssrlcv{
 
   // calculates the average normal
   __global__ void calculateCloudAverageNormal(float3* average, unsigned long num, float3* normals);
+
+  // calculates average distance to N neighbors
+  __global__ void computeAverageNeighboorDistances(int* n, unsigned long numpoints, float3* points, unsigned int* pointNodeIndex, Octree::Node* nodes, float* averages);
 
   __global__ void findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Octree::Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors);
   __global__ void transposeFloatMatrix(int m, int n, float* matrix);

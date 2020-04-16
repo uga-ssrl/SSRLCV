@@ -13,8 +13,16 @@ ssrlcv::MeshFactory::MeshFactory(){
 // constructor given existing points and faces
 ssrlcv::MeshFactory::MeshFactory(Unity<float3>* in_points, Unity<int>* in_faces, int in_faceEncoding){
   this->faceEncoding = in_faceEncoding;
-  this->points       = in_points;
-  this->faces        = in_faces;
+  this->points       = new Unity<float3>(nullptr,in_points->size(),cpu);
+  this->faces        = new Unity<int>(nullptr,in_faces->size(),cpu);
+  for (int i = 0; i < this->points->size(); i++) {
+    this->points->host[i] = in_points->host[i];
+  }
+  for (int i = 0; i < this->faces->size(); i++) {
+    this->faces->host[i] = in_faces->host[i];
+  }
+  if (this->octree == nullptr) delete this->octree;
+  this->octree = Octree(this->points, 8, false);
 }
 
 ssrlcv::MeshFactory::~MeshFactory(){
@@ -35,6 +43,38 @@ ssrlcv::MeshFactory::MeshFactory(Octree* octree){
 // Mesh Loading Methods
 //
 // =============================================================================================================
+
+/**
+ * Loads in a point cloud into the mesh, this will override any existing point data
+ * and should be used sparingly
+ * @param pointcloud a unity of float3 that represents a point cloud to be set to internal points
+ */
+void ssrlcv::MeshFactory::setPointCloud(Unity<float3>* pointcloud){
+  if (!(this->points == nullptr)) delete this->points; // reset
+  this->points = new Unity<float3>(nullptr,pointcloud->size(),cpu);
+  // set
+  for (int i = 0; i < this->points->size(); i++) {
+    this->points->host[i] = pointcloud->host[i];
+  }
+  if (this->octree == nullptr) delete this->octree;
+  this->octree = Octree(this->points, 8, false);
+}
+
+/**
+ * Loads faces into the mesh, this will override any existing face data
+ * and should be used sparingly
+ * @param faces a unity of int that represents the indexes of points which make faces
+ * @param faceEncoding the face encoding scheme 3 or 4
+ */
+void ssrlcv::MeshFactory::setFaces(Unity<int>* faces, int faceEncoding){
+  this->faceEncoding = faceEncoding;
+  if (!(this->faces == nullptr)) delete this->faces; // reset
+  this->faces = new Unity<int>(nullptr,faces->size(),cpu);
+  // set
+  for (int i = 0; i < this->faces->size(); i++) {
+    this->faces->host[i] = faces->host[i];
+  }
+}
 
 /**
  * loads a mesh from a file into

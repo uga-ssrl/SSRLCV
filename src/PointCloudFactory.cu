@@ -2753,8 +2753,8 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointClo
 
   // generate the example plane vertices
   // loop through x and y and caclulate z using the equation of the plane, see: https://en.wikipedia.org/wiki/Plane_(geometry)#Point-normal_form_and_general_form_of_the_equation_of_a_plane
-  int step   = 10; // keep this evenly divisible
-  int bounds = (int) ( (int) scale - ( (int) scale % step)); // does +/- at these bounds in x and y, needs to be divisible by step 
+  int step   = (int) ( (int) scale / 20); // keep this evenly divisible
+  int bounds = (int) ( (int) scale - ( (int) scale % step)); // does +/- at these bounds in x and y, needs to be divisible by step
   int index  = 0;
   Unity<float3>* vertices = new ssrlcv::Unity<float3>(nullptr, (size_t) (2 * bounds / step)*(2 * bounds / step),ssrlcv::cpu);
   for (int x = - 1 * bounds; x < bounds; x += step){
@@ -3128,10 +3128,9 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
   std::vector<int> indexes;
   std::random_device rd;
   std::mt19937 g(rd());
-  std::shuffle(indexes.begin(), indexes.end(), g);
   for (int i = 0; i < sample_size; i++) indexes.push_back(i);
-  std::random_shuffle ( indexes.begin(), indexes.end(), myrandom);
-  for (int k = 0; i < sample_size; i++){
+  std::shuffle(indexes.begin(), indexes.end(), g);
+  for (int i = 0; i < sample_size; i++){
     // set the random indices to the sample
     errors_sample->host[i] = errors->host[indexes[i]];
     sample_sum += errors->host[indexes[i]];

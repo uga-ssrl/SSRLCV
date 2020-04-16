@@ -1201,6 +1201,51 @@ void ssrlcv::Octree::createVEFArrays(){
 
 // =============================================================================================================
 //
+// Filtering Methods
+//
+// =============================================================================================================
+
+/**
+ * calculates the average distance from a point to N of it's neighbors
+ * @param the numer of neighbors to consider
+ * @return averages a unity float of the average distance for n neighbors per point
+ */
+ssrlcv::Unity<float>* ssrlcv::Octree::averageNeighboorDistances(int n){
+
+  // the number of neightbors to check
+  int* d_num;
+  CudaSafeCall(cudaMalloc((void**) &d_num,sizeof(int)));
+  CudaSafeCall(cudaMemcpy(d_num,&n,sizeof(int),cudaMemcpyHostToDevice));
+
+  Unity<float>* averages = new Unity<float>(nullptr,this->points->size(),gpu);
+
+  this->points->transferMemoryTo(gpu);
+  this->pointNodeIndex->transferMemoryTo(gpu);
+  this->nodes->transferMemoryTo(gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(int *, unsigned long, float3*, unsigned int *, Octree::Node *, float *) = &computeAverageNeighboorDistances;
+  getFlatGridBlock(this->points->size(),grid,block,fp);
+
+  computeAverageNeighboorDistances<<<grid,block>>>(d_num, this->pointNodeIndex->size(),this->points->device, this->pointNodeIndex->device, this->nodes->device, averages->device);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  // transfer the poitns back to the CPU
+  this->points->transferMemoryTo(cpu);
+  this->pointNodeIndex->transferMemoryTo(cpu);
+  this->nodes->transferMemoryTo(cpu);
+
+  // clean up memory
+  cudaFree(d_num);
+
+  return averages;
+}
+
+// =============================================================================================================
+//
 // Normal Caclulation Methods
 //
 // =============================================================================================================
@@ -2167,6 +2212,32 @@ __global__ void ssrlcv::calculateCloudAverageNormal(float3* average, unsigned lo
   }
 }
 
+// calculates average distance to N neighbors
+__global__ void ssrlcv::computeAverageNeighboorDistances(int* n, unsigned long numpoints, float3* points, unsigned int* pointNodeIndex, Octree::Node* nodes, float* averages){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (numpoints-1)) return;
+
+  /** the index to the leaf nodes that the points are in (gauruneed to contain points)
+   * the value at this index is the location of the leaf node in the node array for this points
+   * e.g.
+   * points->host[5] has index 5 so look at 5
+   * pointNodeIndex->host[5] has value 1234
+   * nodes->host[1234] this is the leaf node that contains the point originally searched for
+   */
+
+   // the point we want neighbors for!
+   float3 P = points[globalID];
+   // the index of the node in the octree containing the point
+   unsigned int nodeIndex = pointNodeIndex[globalID];
+   // the node containing point P from which we can search for neighbors
+   Octree::Node node = nodes[nodeIndex];
+
+   int neighborsFound = 0;
+   // now traverse until we find N neighbors
+   
+
+   averages[globalID] == 0.0f; // TEMP fill
+}
 
 __global__ void ssrlcv::findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Octree::Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;

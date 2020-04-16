@@ -82,6 +82,21 @@ namespace ssrlcv{
     // =============================================================================================================
 
     /**
+     * Loads in a point cloud into the mesh, this will override any existing point data
+     * and should be used sparingly
+     * @param pointcloud a unity of float3 that represents a point cloud to be set to internal points
+     */
+    void setPoints(Unity<float3>* pointcloud);
+
+    /**
+     * Loads faces into the mesh, this will override any existing face data
+     * and should be used sparingly
+     * @param faces a unity of int that represents the indexes of points which make faces
+     * @param faceEncoding the face encoding scheme 3 or 4
+     */
+    void setFaces(Unity<int>* faces, int faceEncoding);
+
+    /**
      * loads a mesh from a file into
      * currently only ASCII encoded PLY files are supported
      * @param filePath the filepath, relative to the install location
