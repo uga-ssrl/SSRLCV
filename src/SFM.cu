@@ -166,7 +166,7 @@ int main(int argc, char *argv[]){
       */
 
       // Planar filtering is very good at removing noise that is not close to the estimated model.
-      demPoints.planarCutoffFilter(&matchSet, images, 0.1f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
+      demPoints.planarCutoffFilter(&matchSet, images, 1.0f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
       // the version that will be used normally
@@ -240,6 +240,8 @@ int main(int argc, char *argv[]){
 
       // set the mesh points
       finalMesh.setPoints(points);
+      ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6); // calculate average distance to 6 neighbors
+      ssrlcv::writeCSV(neighborDists, "neighborDistances");
 
 
     } else {

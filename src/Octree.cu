@@ -1238,6 +1238,10 @@ ssrlcv::Unity<float>* ssrlcv::Octree::averageNeighboorDistances(int n){
   this->pointNodeIndex->transferMemoryTo(cpu);
   this->nodes->transferMemoryTo(cpu);
 
+  averages->setFore(gpu);
+  averages->transferMemoryTo(cpu);
+  averages->clear(gpu);
+
   // clean up memory
   cudaFree(d_num);
 
@@ -2217,14 +2221,6 @@ __global__ void ssrlcv::computeAverageNeighboorDistances(int* n, unsigned long n
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if (globalID > (numpoints-1)) return;
 
-  /** the index to the leaf nodes that the points are in (gauruneed to contain points)
-   * the value at this index is the location of the leaf node in the node array for this points
-   * e.g.
-   * points->host[5] has index 5 so look at 5
-   * pointNodeIndex->host[5] has value 1234
-   * nodes->host[1234] this is the leaf node that contains the point originally searched for
-   */
-
    // the point we want neighbors for!
    float3 P = points[globalID];
    // the index of the node in the octree containing the point
@@ -2233,10 +2229,53 @@ __global__ void ssrlcv::computeAverageNeighboorDistances(int* n, unsigned long n
    Octree::Node node = nodes[nodeIndex];
 
    int neighborsFound = 0;
-   // now traverse until we find N neighbors
-   
+   float sum = 0.0f;
 
-   averages[globalID] == 0.0f; // TEMP fill
+   // and nodes at this leaf depth are considered close neighbors
+   for (unsigned long i = node.pointIndex; i < (node.pointIndex node.numPoints); i++){
+     if (i != globalID){ // if not self
+       float3 A = points[i];
+       float dist = sqrtf((P.x - A.x) + (P.y - A.y) + (P.z - A.z));
+       sum += dist;
+       neighborsFound++;
+     }
+     if (neighborsFound == *n){ // then we have found the max
+       averages[globalID] = (sum / (float) neighborsFound);
+       return;
+     }
+   }
+
+   // now search neighbor nodes for neighbor points
+   for (unsigned long i = 0; i < 27; i++){
+     if (node.neighbors[i] > 0 && i != 13){
+      // see if there is a point in that
+      node = nodes[i];
+      // and nodes at this leaf depth are considered close neighbors
+      for (unsigned long i = node.pointIndex; i < (node.pointIndex node.numPoints); i++){
+        if (i != globalID){ // if not self
+          float3 A = points[i];
+          float dist = sqrtf((P.x - A.x) + (P.y - A.y) + (P.z - A.z));
+          sum += dist;
+          neighborsFound++;
+        }
+        if (neighborsFound == *n){ // then we have found the max
+          averages[globalID] = (sum / (float) neighborsFound);
+          return;
+        }
+      }
+     }
+     if (neighborsFound == *n){ // then we have found the max
+       averages[globalID] = (sum / (float) neighborsFound);
+       return;
+     }
+   }
+
+   // otherwise you tried your best (sort of, traversal can garuntee n is reached), just return what you have!
+   if (!neighborsFound) {
+     averages[globalID] = 100000.0f; // just give it something bad
+   } else {
+     averages[globalID] = (sum / (float) neighborsFound); // TEMP fill
+   }
 }
 
 __global__ void ssrlcv::findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Octree::Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors){

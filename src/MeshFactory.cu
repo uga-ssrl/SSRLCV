@@ -25,8 +25,8 @@ ssrlcv::MeshFactory::MeshFactory(Unity<float3>* in_points, Unity<int>* in_faces,
     this->faces->host[i] = in_faces->host[i];
   }
   if (this->octree == nullptr) delete this->octree;
-  Octree oct = Octree(this->points, 8, false);
-  this->octree = &oct;
+  // Octree oct = Octree(this->points, 8, false);
+  this->octree = new Octree(this->points, 8, false);
 }
 
 ssrlcv::MeshFactory::~MeshFactory(){
@@ -61,8 +61,8 @@ void ssrlcv::MeshFactory::setPoints(Unity<float3>* pointcloud){
     this->points->host[i] = pointcloud->host[i];
   }
   if (this->octree == nullptr) delete this->octree;
-  Octree oct = Octree(this->points, 8, false);
-  this->octree = &oct;
+  // Octree oct = Octree(this->points, 8, false);
+  this->octree = new Octree(this->points, 8, false);
 }
 
 /**
@@ -419,6 +419,15 @@ ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculatePerPointDifference(Unity<flo
 // Other MeshFactory Methods
 //
 // =============================================================================================================
+
+/**
+ * caclualtes the average distance to N neightbors for each points
+ * @param n the number of neignbors to calculate an average distance to
+ * @return float a unity of floats representing the average distance to N neighbors
+ */
+ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculateAverageDistancesToNeighbors(int n){
+  return this->octree->averageNeighboorDistances(n); // basically a pass through to octree
+}
 
 void ssrlcv::MeshFactory::computeVertexImplicitJAX(int focusDepth){
   clock_t timer;

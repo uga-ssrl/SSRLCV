@@ -143,6 +143,13 @@ namespace ssrlcv{
     //
     // =============================================================================================================
 
+    /**
+     * caclualtes the average distance to N neightbors for each points
+     * @param n the number of neignbors to calculate an average distance to
+     * @return float a unity of floats representing the average distance to N neighbors
+     */
+    ssrlcv::Unity<float>* calculateAverageDistancesToNeighbors(int n);
+
     void computeVertexImplicitJAX(int focusDepth);
     void adaptiveMarchingCubes();
     void marchingCubes();

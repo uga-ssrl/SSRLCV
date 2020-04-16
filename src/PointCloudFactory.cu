@@ -2753,7 +2753,7 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointClo
 
   // generate the example plane vertices
   // loop through x and y and caclulate z using the equation of the plane, see: https://en.wikipedia.org/wiki/Plane_(geometry)#Point-normal_form_and_general_form_of_the_equation_of_a_plane
-  int step   = (int) ( (int) scale / 20); // keep this evenly divisible
+  int step   = 40; // keep this evenly divisible
   int bounds = (int) ( (int) scale - ( (int) scale % step)); // does +/- at these bounds in x and y, needs to be divisible by step
   int index  = 0;
   Unity<float3>* vertices = new ssrlcv::Unity<float3>(nullptr, (size_t) (2 * bounds / step)*(2 * bounds / step),ssrlcv::cpu);
@@ -3903,7 +3903,8 @@ __global__ void ssrlcv::filterTwoViewFromEstimatedPlane(unsigned long pointnum, 
   float3 A = point[0];  // a point on the plane
   float3 N = vector[0]; // the plane's normal
 
-  float numer = abs((N.x * ( A.x - P.x)) + (N.y * ( A.y - P.y)) + (N.z * ( A.z - P.z)));
+  float d     = N.x * A.x + N.y * A.y + N.z * A.z;
+  float numer = abs( N.x * P.x + N.y * P.y + N.z * P.z - d);
   float denom = sqrtf((N.x * N.x) + (N.y * N.y) + (N.z * N.z));
 
   float dist = numer / denom;
@@ -3970,7 +3971,8 @@ __global__ void ssrlcv::filterNViewFromEstimatedPlane(unsigned long pointnum, Bu
   float3 A = point[0];  // a point on the plane
   float3 N = vector[0]; // the plane's normal
 
-  float numer = abs((N.x * ( A.x - P.x)) + (N.y * ( A.y - P.y)) + (N.z * ( A.z - P.z)));
+  float d     = N.x * A.x + N.y * A.y + N.z * A.z;
+  float numer = abs( N.x * P.x + N.y * P.y + N.z * P.z - d);
   float denom = sqrtf((N.x * N.x) + (N.y * N.y) + (N.z * N.z));
 
   float dist = numer / denom;
