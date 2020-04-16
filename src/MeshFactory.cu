@@ -223,6 +223,16 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
 }
 
 /**
+* loads points from an ASCII encoded PLY file into the mesh
+* overloads existing points
+* @param filePath the filepath, relative to the install location
+*/
+void ssrlcv::MeshFactory::loadPoints(const char* filePath){
+  ssrlcv::Unity<float3>* newBoi = readPLY(filePath);
+  setPoints(newBoi);
+}
+
+/**
  * saves a PLY encoded Mesh as a given filename to the out directory
  * @param filename the filename
  */
@@ -477,12 +487,22 @@ void ssrlcv::MeshFactory::filterByNeighborDistance(float sigma){
   ssrlcv::Unity<float3>* newPoints = this->octree->removeLowDensityPoints(cutoff, 6);
   int bad_points = 0;
   for (int i = 0; i < newPoints->size(); i++){
-    if (newPoints->host[i] == nullptr) bad_points++;
+    if (isnan(newPoints->host[i].x)) bad_points++;
+    // std::cout << "boi: " << newPoints->host[i].x << "\t";
   }
   if (local_debug || local_verbose) std::cout << "Detected " << bad_points << " points in low density regions to remove ..." << std::endl;
 
-  // allocate new space
-
+  // allocate new space and fill the points
+  delete this->points;
+  this->points = = new Unity<float3>(nullptr,(newPoints->size() - bad_points),cpu);
+  int index = 0;
+  for (int i = 0; i < this->points->size(); i++){
+    if (!isnan(newPoints->host[i].x)) {
+      this->points->host[index] = newPoints->host[i];
+    }
+  }
+  delete newPoints;
+  if (local_debug || local_verbose) std::cout << "Removed " << bad_points << " bad points, " <<  this->points->size() << " good points remain ..." << std::endl;
 }
 
 // =============================================================================================================

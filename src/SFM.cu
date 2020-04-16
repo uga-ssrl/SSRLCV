@@ -249,6 +249,14 @@ int main(int argc, char *argv[]){
 
       // to only keep points within a certain sigma of neighbor distance use the following filter
       finalMesh.filterByNeighborDistance(2.0); // <--- filter bois past 2.0 sigma (about 95% of points)
+      finalMesh.savePoints("octreeFiltering");
+
+      //  try a VSFM compare
+      ssrlcv::MeshFactory vsfm = ssrlcv::MeshFactory();
+      vsfm.loadPoints("../vsfm-test.ply");
+      demPoints.scalePointCloud(1000.0,vsfm->points); //
+      // save the new VSFM scaled points
+      ssrlcv::writePLY("vsfm", vsfm->points,
 
     } else {
       //
@@ -334,6 +342,9 @@ int main(int argc, char *argv[]){
 
       // to only keep points within a certain sigma of neighbor distance use the following filter
       finalMesh.filterByNeighborDistance(2.0); // <--- filter bois past 2.0 sigma (about 95% of points)
+      finalMesh.savePoints("octreeFiltering");
+
+
 
     }
 

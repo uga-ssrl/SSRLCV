@@ -104,6 +104,13 @@ namespace ssrlcv{
     void loadMesh(const char* filePath);
 
     /**
+    * loads points from an ASCII encoded PLY file into the mesh
+    * overloads existing points
+    * @param filePath the filepath, relative to the install location
+    */
+    void loadPoints(const char* filePath);
+
+    /**
      * saves a PLY encoded Mesh as a given filename to the out directory
      * @param filename the filename
      */

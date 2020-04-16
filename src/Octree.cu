@@ -1297,7 +1297,7 @@ float ssrlcv::Octree::averageNeighboorDistance(int n){
  * @param n the number of neighbor points to consider
  * @return points returns unity pf float3 points that are densly packed enough within the cutoff
  */
-ssrlcv::Unity<float3>* removeLowDensityPoints(float cutoff, int n){
+ssrlcv::Unity<float3>* ssrlcv::Octree::removeLowDensityPoints(float cutoff, int n){
   // the number of neightbors to check
   int* d_num;
   CudaSafeCall(cudaMalloc((void**) &d_num,sizeof(int)));
@@ -1315,10 +1315,10 @@ ssrlcv::Unity<float3>* removeLowDensityPoints(float cutoff, int n){
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  void (*fp)(int *, float*, unsigned long, float3*, unsigned int *, Octree::Node *, float3 *) = &getGoodDenseIndexes;
+  void (*fp)(int *, float*, unsigned long, float3*, unsigned int *, Octree::Node *, float3 *) = &getGoodDensePoints;
   getFlatGridBlock(this->points->size(),grid,block,fp);
 
-  getGoodDenseIndexes<<<grid,block>>>(d_num, d_cutoff, this->pointNodeIndex->size(),this->points->device, this->pointNodeIndex->device, this->nodes->device, indexes->device);
+  getGoodDensePoints<<<grid,block>>>(d_num, d_cutoff, this->pointNodeIndex->size(),this->points->device, this->pointNodeIndex->device, this->nodes->device, indexes->device);
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -1334,7 +1334,7 @@ ssrlcv::Unity<float3>* removeLowDensityPoints(float cutoff, int n){
 
   // clean up memory
   cudaFree(d_num);
-  cudaFree(d_cutoff)
+  cudaFree(d_cutoff);
 
   return indexes;
 }
@@ -2443,7 +2443,7 @@ __global__ void ssrlcv::computeAverageNeighboorDistance(int* n, unsigned long nu
 }
 
 // gives back good indexes
-__global__ void getGoodDenseIndexes(int* n, float* cutoff, unsigned long numpoints, float3* points, unsigned int* pointNodeIndex, Octree::Node* nodes, float3* goodPoints){
+__global__ void ssrlcv::getGoodDensePoints(int* n, float* cutoff, unsigned long numpoints, float3* points, unsigned int* pointNodeIndex, Octree::Node* nodes, float3* goodPoints){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if (globalID > (numpoints-1)) return;
 
@@ -2499,15 +2499,17 @@ __global__ void getGoodDenseIndexes(int* n, float* cutoff, unsigned long numpoin
 
    // otherwise you tried your best (sort of, traversal can garuntee n is reached), just return what you have!
    if (!neighborsFound) { // this case means it's prob an outlier
-     goodPoints[globalID] = nullptr;
+     float nanboi = 0.0f / 0.0f;
+     goodPoints[globalID] = {nanboi,nanboi,nanboi};
      return;
      //printf("WARNING: average neightbor error is being skewed due to lack of neighbors at certain depth\n");
-   } else {
-     local_avg = (sum / (float) neighborsFound) / numpoints; // TEMP fill
    }
 
+   local_avg = (sum / (float) neighborsFound); // TEMP fill
+
    if (local_avg > *cutoff){
-     goodPoints[globalID] = nullptr; // bad
+     float nanboi = 0.0f / 0.0f;
+     goodPoints[globalID] = {nanboi,nanboi,nanboi}; // bad
      return;
    } else {
      goodPoints[globalID] = P;
