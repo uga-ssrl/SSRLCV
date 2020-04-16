@@ -8,6 +8,9 @@
 
 ssrlcv::MeshFactory::MeshFactory(){
   this->faceEncoding = 0;
+  this->octree = nullptr;
+  this->points = nullptr;
+  this->faces  = nullptr;
 }
 
 // constructor given existing points and faces
@@ -22,7 +25,8 @@ ssrlcv::MeshFactory::MeshFactory(Unity<float3>* in_points, Unity<int>* in_faces,
     this->faces->host[i] = in_faces->host[i];
   }
   if (this->octree == nullptr) delete this->octree;
-  this->octree = Octree(this->points, 8, false);
+  Octree oct = Octree(this->points, 8, false);
+  this->octree = &oct;
 }
 
 ssrlcv::MeshFactory::~MeshFactory(){
@@ -40,7 +44,7 @@ ssrlcv::MeshFactory::MeshFactory(Octree* octree){
 
 // =============================================================================================================
 //
-// Mesh Loading Methods
+// Mesh Setters, Getter, Loading, and Saving Methods
 //
 // =============================================================================================================
 
@@ -49,7 +53,7 @@ ssrlcv::MeshFactory::MeshFactory(Octree* octree){
  * and should be used sparingly
  * @param pointcloud a unity of float3 that represents a point cloud to be set to internal points
  */
-void ssrlcv::MeshFactory::setPointCloud(Unity<float3>* pointcloud){
+void ssrlcv::MeshFactory::setPoints(Unity<float3>* pointcloud){
   if (!(this->points == nullptr)) delete this->points; // reset
   this->points = new Unity<float3>(nullptr,pointcloud->size(),cpu);
   // set
@@ -57,7 +61,8 @@ void ssrlcv::MeshFactory::setPointCloud(Unity<float3>* pointcloud){
     this->points->host[i] = pointcloud->host[i];
   }
   if (this->octree == nullptr) delete this->octree;
-  this->octree = Octree(this->points, 8, false);
+  Octree oct = Octree(this->points, 8, false);
+  this->octree = &oct;
 }
 
 /**
@@ -250,9 +255,9 @@ float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud,
 
   // disable these for no print statements
   bool local_debug   = false;
-  bool local_verbose = false;
+  bool local_verbose = true;
 
-  if (local_verbose || local_debug) std::cout << "Computing average differnce between mesh and point cloud ..." << std::endl;
+  if (local_verbose || local_debug) std::cout << "Computing average diff between mesh and point cloud ..." << std::endl;
 
   if (!faceEncoding){
     std::cerr << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" << std::endl;
@@ -342,10 +347,10 @@ float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud,
 ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculatePerPointDifference(Unity<float3>* pointCloud, float3 planeNormal){
 
   // disable these for no print statements
-  bool local_debug   = true;
+  bool local_debug   = false;
   bool local_verbose = true;
 
-  if (local_verbose || local_debug) std::cout << "Computing average differnce between mesh and point cloud ..." << std::endl;
+  if (local_verbose || local_debug) std::cout << "Computing per point diff between mesh and point cloud ..." << std::endl;
 
   if (!faceEncoding){
     std::cerr << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" << std::endl;
@@ -373,12 +378,12 @@ ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculatePerPointDifference(Unity<flo
   CudaSafeCall(cudaMalloc((void**) &d_misses,sizeof(int)));
   CudaSafeCall(cudaMemcpy(d_misses,&misses,sizeof(int),cudaMemcpyHostToDevice));
 
+  Unity<float>* errors = new ssrlcv::Unity<float>(nullptr,pointCloud->size(),ssrlcv::gpu);
+
   pointCloud->transferMemoryTo(gpu);
   normal->transferMemoryTo(gpu);
   this->points->transferMemoryTo(gpu);
   this->faces->transferMemoryTo(gpu);
-
-  Unity<float>* errors = new ssrlcv::Unity<float>(nullptr,pointCloud->size(),ssrlcv::gpu);
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
