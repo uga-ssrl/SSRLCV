@@ -1287,7 +1287,7 @@ float ssrlcv::Octree::averageNeighboorDistance(int n){
   // clean up memory
   cudaFree(d_num);
 
-  return average;
+  return average->host[0];
 }
 
 // =============================================================================================================
@@ -2277,7 +2277,7 @@ __global__ void ssrlcv::computeAverageNeighboorDistances(int* n, unsigned long n
    for (unsigned long i = node.pointIndex; i < (node.pointIndex + node.numPoints); i++){
      if (i != globalID){ // if not self
        float3 A = points[i];
-       float dist = sqrtf((P.x - A.x) + (P.y - A.y) + (P.z - A.z));
+       float dist = sqrtf((P.x - A.x)*(P.x - A.x) + (P.y - A.y)*(P.y - A.y) + (P.z - A.z)*(P.z - A.z));
        sum += dist;
        neighborsFound++;
      }
@@ -2296,7 +2296,7 @@ __global__ void ssrlcv::computeAverageNeighboorDistances(int* n, unsigned long n
       for (unsigned long j = node.pointIndex; j < (node.pointIndex + node.numPoints); j++){
         if (j != globalID){ // if not self
           float3 A = points[j];
-          float dist = sqrtf((P.x - A.x) + (P.y - A.y) + (P.z - A.z));
+          float dist = sqrtf((P.x - A.x)*(P.x - A.x) + (P.y - A.y)*(P.y - A.y) + (P.z - A.z)*(P.z - A.z));
           sum += dist;
           neighborsFound++;
         }
@@ -2345,7 +2345,7 @@ __global__ void ssrlcv::computeAverageNeighboorDistance(int* n, unsigned long nu
    for (unsigned long i = node.pointIndex; i < (node.pointIndex + node.numPoints); i++){
      if (i != globalID){ // if not self
        float3 A = points[i];
-       float dist = sqrtf((P.x - A.x) + (P.y - A.y) + (P.z - A.z));
+       float dist = sqrtf((P.x - A.x)*(P.x - A.x) + (P.y - A.y)*(P.y - A.y) + (P.z - A.z)*(P.z - A.z));
        sum += dist;
        neighborsFound++;
      }
@@ -2364,7 +2364,7 @@ __global__ void ssrlcv::computeAverageNeighboorDistance(int* n, unsigned long nu
       for (unsigned long j = node.pointIndex; j < (node.pointIndex + node.numPoints); j++){
         if (j != globalID){ // if not self
           float3 A = points[j];
-          float dist = sqrtf((P.x - A.x) + (P.y - A.y) + (P.z - A.z));
+          float dist = sqrtf((P.x - A.x)*(P.x - A.x) + (P.y - A.y)*(P.y - A.y) + (P.z - A.z)*(P.z - A.z));
           sum += dist;
           neighborsFound++;
         }

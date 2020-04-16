@@ -244,11 +244,11 @@ int main(int argc, char *argv[]){
       // you can filter these points and view their distributions in multiple ways
       ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6); // calculate average distance to 6 neighbors
       ssrlcv::writeCSV(neighborDists, "neighborDistances");
-      float avgDist = finalMesh.calculateAverageDistancesToNeighbors(6); // the average distance from any even node to another
+      float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6); // the average distance from any even node to another
       std::cout << "Average Distance to 6 neighbors is: " << avgDist << std::endl;
 
       // to only keep points within a certain sigma of neighbor distance use the following filter
-
+      finalMesh.filterByNeighborDistance(2.0); // <--- filter bois past 2.5 sigma (about 95% of points)
 
     } else {
       //
@@ -333,6 +333,7 @@ int main(int argc, char *argv[]){
       std::cout << "Average Distance to 6 neighbors is: " << avgDist << std::endl;
 
       // to only keep points within a certain sigma of neighbor distance use the following filter
+      finalMesh.filterByNeighborDistance(2.0); // <--- filter bois past 2.5 sigma (about 95% of points)
 
     }
 

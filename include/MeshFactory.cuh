@@ -157,18 +157,18 @@ namespace ssrlcv{
      */
     float calculateAverageDistanceToNeighbors(int n);
 
+    /**
+     * filters points from the mesh by caclulating their average distances to their neighbors
+     * and then calculating the variance of the data, and removing points past sigma
+     * @param sigma the statistical value to remove points after
+     */
+    void filterByNeighborDistance(float sigma);
+
     // =============================================================================================================
     //
     // Other MeshFactory Methods
     //
     // =============================================================================================================
-
-    /**
-     * caclualtes the average distance to N neightbors for each points
-     * @param n the number of neignbors to calculate an average distance to
-     * @return float a unity of floats representing the average distance to N neighbors
-     */
-    ssrlcv::Unity<float>* calculateAverageDistancesToNeighbors(int n);
 
     void computeVertexImplicitJAX(int focusDepth);
     void adaptiveMarchingCubes();

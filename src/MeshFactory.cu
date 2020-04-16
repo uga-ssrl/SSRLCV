@@ -438,6 +438,36 @@ float ssrlcv::MeshFactory::calculateAverageDistanceToNeighbors(int n){
   return this->octree->averageNeighboorDistance(n); // basically a pass through to octree
 }
 
+/**
+ * filters points from the mesh by caclulating their average distances to their neighbors
+ * and then calculating the variance of the data, and removing points past sigma
+ * @param sigma the statistical value to remove points after
+ */
+void ssrlcv::MeshFactory::filterByNeighborDistance(float sigma){
+  bool local_debug = true;
+  // TODO verify that the at last the points and the octree have been made
+  ssrlcv::Unity<float>* samples = calculateAverageDistancesToNeighbors(6);
+  float average = calculateAverageDistanceToNeighbors(6);
+  // now calculate the variance
+  float sum = 0.0f;
+  for (int i = 0; i < samples->size(); i++){
+    if (samples->host[i] < 10000.0f){ // don't count points this bad
+      sum += (samples->host[i] - average) * (samples->host[i] - average);
+    }
+  }
+  float variance = sum / samples->size();
+  float cutoff;
+  if (local_debug){
+    std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
+    std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
+    std::cout << "\tCutoff Set To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
+  }
+  cutoff = sigma * sqrtf(variance);
+
+  // now remove the points that are not good!
+
+}
+
 // =============================================================================================================
 //
 // Other MeshFactory Methods
