@@ -494,11 +494,12 @@ void ssrlcv::MeshFactory::filterByNeighborDistance(float sigma){
 
   // allocate new space and fill the points
   delete this->points;
-  this->points = = new Unity<float3>(nullptr,(newPoints->size() - bad_points),cpu);
+  this->points = new Unity<float3>(nullptr,(newPoints->size() - bad_points),cpu);
   int index = 0;
   for (int i = 0; i < this->points->size(); i++){
     if (!isnan(newPoints->host[i].x)) {
       this->points->host[index] = newPoints->host[i];
+      index++;
     }
   }
   delete newPoints;

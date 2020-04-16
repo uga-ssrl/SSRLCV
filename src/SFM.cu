@@ -166,7 +166,7 @@ int main(int argc, char *argv[]){
       */
 
       // Planar filtering is very good at removing noise that is not close to the estimated model.
-      demPoints.planarCutoffFilter(&matchSet, images, 1.0f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
+      demPoints.planarCutoffFilter(&matchSet, images, 10.0f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
       // the version that will be used normally
@@ -192,6 +192,10 @@ int main(int argc, char *argv[]){
         ssrlcv::writePLY("out/scaledx1000.ply",points);
       */
 
+      // could putput pre mesh related stuff:
+      ssrlcv::savePLY("pointcloud01", points);
+      ssrlcv::saveCSV(points, "pointcloud01");
+
       // OPTIONAL
       // to compare a points cloud with a ground truth model the first need to be scaled
       // the distance values here are in km but most truth models are in meters
@@ -208,8 +212,8 @@ int main(int argc, char *argv[]){
         // to save a mesh as a PLY simply:
         // meshBoi.saveMesh("testMesh");
       // to calculate the "missmatch" between the point cloud and the ground truth you can use this method:
-      float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f}); // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
-      std::cout << "Average error to ground truth is: " << error << " m, " << (error * 1000) << " meters" << std::endl;
+      float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 10.0f}); // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
+      std::cout << "Average error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
       // this methods saves the error on each point
       ssrlcv::Unity<float>* truthErrors = meshBoi.calculatePerPointDifference(points, {0.0f , 0.0f, 1.0f});
       // then you can save these errors in a CSV
@@ -247,16 +251,30 @@ int main(int argc, char *argv[]){
       float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6); // the average distance from any even node to another
       std::cout << "Average Distance to 6 neighbors is: " << avgDist << std::endl;
 
+
       // to only keep points within a certain sigma of neighbor distance use the following filter
       finalMesh.filterByNeighborDistance(2.0); // <--- filter bois past 2.0 sigma (about 95% of points)
       finalMesh.savePoints("octreeFiltering");
 
+
       //  try a VSFM compare
       ssrlcv::MeshFactory vsfm = ssrlcv::MeshFactory();
       vsfm.loadPoints("../vsfm-test.ply");
-      demPoints.scalePointCloud(1000.0,vsfm->points); //
+      demPoints.scalePointCloud(1000.0,vsfm.points); //
+      float3 rotation2 = {0.0f, PI, 0.0f};
+      demPoints.rotatePointCloud(rotation2,vsfm.points);
+      // now try to translate it back where it should go
+      ssrlcv::Unity<float3>* point1 = demPoints.getAveragePoint(meshBoi.points);
+      ssrlcv::Unity<float3>* point2 = demPoints.getAveragePoint(vsfm.points);
+      point1->host[0] -= point2->host[0];
+      demPoints.translatePointCloud(point2->host[0], vsfm.points);
       // save the new VSFM scaled points
-      ssrlcv::writePLY("vsfm", vsfm->points,
+      ssrlcv::writePLY("vsfm", vsfm.points);
+      // compare to ground truth
+      float error2 = meshBoi.calculateAverageDifference(vsfm.points, {0.0f , 0.0f, 1.0f}); // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
+      std::cout << "VSFM average error to ground truth is: " << error2 << " meters" << std::endl;
+
+
 
     } else {
       //

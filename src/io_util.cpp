@@ -1037,6 +1037,22 @@ void ssrlcv::writeCSV(std::vector<float> x, std::vector<float> y, std::string fi
 }
 
 /*
+ * Takes in two c++ vectors and writes their values as:
+ * `x,y,z` on a single line for all values in a CSV encoeded format
+ * all pairs are on a new line. Assumes the vectors are the same size
+ * @param v a vector of float3 that is used to save `x,y,z`
+ */
+void ssrlcv::writeCSV(std::vector<float3> v, const char* filename){
+  std::ofstream outfile;
+  std::string fname = filename;
+  outfile.open("out/" + fname + ".csv");
+  for (int i = 0; i < v.size(); i++) {
+      outfile << std::fixed << std::setprecision(32) << v[i].x << "," << v[i].y << "," << v[i].z << std::endl;
+  }
+  outfile.close();
+}
+
+/*
  * saves a CSV file with a unity input
  * @param values a unity float input
  * @param filename the desired filename
@@ -1049,8 +1065,21 @@ void ssrlcv::writeCSV(Unity<float>* values, const char* filename){
   outfile.close();
 }
 
-
-
+/*
+ * Takes in two c++ vectors and writes their values as:
+ * `x,y,z` on a single line for all values in a CSV encoeded format
+ * all pairs are on a new line. Assumes the vectors are the same size
+ * @param v a unity float3 that is used to save `x,y,z`
+ */
+void ssrlcv::writeCSV(std::vector<float3>* v, const char* filename){
+  std::ofstream outfile;
+  std::string fname = filename;
+  outfile.open("out/" + fname + ".csv");
+  for (int i = 0; i < v->host->size(); i++) {
+      outfile << std::fixed << std::setprecision(32) << v->host[i].x << "," << v->host[i].y << "," << v->host[i].z << std::endl;
+  }
+  outfile.close();
+}
 
 
 
