@@ -73,7 +73,7 @@ namespace ssrlcv{
     std::string logFileLocation;
 
     // the out stream
-    std::ofstream outstream;
+    std::fstream* stream;
 
   }; // end Logger class
 }

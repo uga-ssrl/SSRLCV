@@ -16,10 +16,12 @@ ssrlcv::Logger::Logger(){
   std::ifstream exist(this->logFileLocation.c_str());
   if (!exist.good()){
     // make the file
-    this->outstream.open(this->logFileLocation);
-    this->outstream << "Log File Created at: " << this->logFileLocation << std::endl;
-    this->outstream.close();
+    std::ofstream temp;
+    temp.open(this->logFileLocation);
+    temp << "Log File Created at: " << this->logFileLocation << std::endl;
+    temp.close();
   }
+  this->stream = new fstream();
 }
 
 /**
@@ -30,17 +32,18 @@ ssrlcv::Logger::Logger(const char* logPath){
   // check if the log file exists
   if (this->logPath.back == '/'){
     this->logFileLocation = this->logPath + this->logName;
-
   } else {
     this->logFileLocation = this->logPath + "/" + this->logName;
   }
   std::ifstream exist(this->logFileLocation.c_str());
   if (!exist.good()){
     // make the file
-    this->outstream.open(this->logFileLocation);
-    this->outstream << "Log File Created at: " << this->logFileLocation << std::endl;
-    this->outstream.close();
+    std::ofstream temp;
+    temp.open(this->logFileLocation);
+    temp << "Log File Created at: " << this->logFileLocation << std::endl;
+    temp.close();
   }
+  this->stream = new fstream();
 }
 
 /**
@@ -62,9 +65,9 @@ ssrlcv::Logger::~Logger(){
  */
 void ssrlcv::Logger::log(const char* input){
   // TODO add time stamp
-  this->outstream.open(this->logFileLocation, std::ofstream::app);
-  this->outstream << input << std::endl;
-  this->outstream.close();
+  this->stream->open(this->logFileLocation, std::ofstream::app);
+  &this->stream << input << std::endl;
+  this->stream->close();
 }
 
 /**
@@ -73,7 +76,7 @@ void ssrlcv::Logger::log(const char* input){
  */
 void ssrlcv::Logger::log(std::string input){
   // TODO add time stamp
-  this->outstream.open(this->logFileLocation, std::ofstream::app);
-  this->outstream << input << std::endl;
-  this->outstream.close();
+  this->stream->open(this->logFileLocation, std::ofstream::app);
+  &this->stream << input << std::endl;
+  this->stream->close();
 }

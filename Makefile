@@ -63,7 +63,7 @@ _BASE_OBJS += matrix_util.cu.o
 _BASE_OBJS += Octree.cu.o
 _BASE_OBJS += PointCloudFactory.cu.o
 _BASE_OBJS += MeshFactory.cu.o
-_BASE_OJBS += Logger.cpp.o
+_BASE_OBJS += Logger.cpp.o
 _SFM_OBJS = SFM.cu.o
 _T_OBJS += Tester.cu.o
 

@@ -34,7 +34,7 @@ int main(int argc, char *argv[]){
     clock_t partialTimer = clock();
 
     // initialize the logger
-    ssrlcv::Logger logger = new ssrlcv::Logger("out"); // log in the out directory
+    ssrlcv::Logger logger = ssrlcv::Logger("out"); // log in the out directory
     logger.log("this is a test");
 
     //ARG PARSING
