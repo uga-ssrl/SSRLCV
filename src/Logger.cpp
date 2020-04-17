@@ -70,10 +70,10 @@ ssrlcv::Logger::Logger(ssrlcv::Logger const &loggerCopy){
  * Overloaded Assignment Operator, needed to keep unitied mutex locking
  */
 ssrlcv::Logger &ssrlcv::Logger::operator=(ssrlcv::Logger const &loggerCopy){
-  if (&localCopy != this) {
+  if (&loggerCopy != this) {
     // lock both objects
     std::unique_lock<std::mutex> lock_this(mtx, std::defer_lock);
-    std::unique_lock<std::mutex> lock_copy(swarmNetCopy.mtx, std::defer_lock);
+    std::unique_lock<std::mutex> lock_copy(loggerCopy.mtx, std::defer_lock);
     // ensure no deadlock
     std::lock(lock_this, lock_copy);
     // default backgound states
@@ -102,6 +102,7 @@ ssrlcv::Logger::~Logger(){
  */
 void ssrlcv::Logger::log(const char* input){
   std::ofstream outstream;
+  mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
   std::time_t t = std::time(0);
@@ -109,6 +110,7 @@ void ssrlcv::Logger::log(const char* input){
   // now print the real junk
   outstream << input << std::endl;
   outstream.close();
+  mtx.unlock();
 }
 
 /**
@@ -117,13 +119,15 @@ void ssrlcv::Logger::log(const char* input){
  */
 void ssrlcv::Logger::log(std::string input){
   std::ofstream outstream;
+  mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
   std::time_t t = std::time(0);
   outstream << t << ",comment,";
   // now print the real junk
-  outstream << state << std::endl;
+  outstream << input << std::endl;
   outstream.close();
+  mtx.unlock();
 }
 
 /**
@@ -132,6 +136,7 @@ void ssrlcv::Logger::log(std::string input){
  */
 void ssrlcv::Logger::logState(const char* state){
   std::ofstream outstream;
+  mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
   std::time_t t = std::time(0);
@@ -139,6 +144,7 @@ void ssrlcv::Logger::logState(const char* state){
   // now print the real junk
   outstream << state << std::endl;
   outstream.close();
+  mtx.unlock();
 }
 
 /**
@@ -147,13 +153,49 @@ void ssrlcv::Logger::logState(const char* state){
  */
 void ssrlcv::Logger::logState(std::string state){
   std::ofstream outstream;
+  mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
   std::time_t t = std::time(0);
   outstream << t << ",state,";
   // now print the real junk
+  outstream << state << std::endl;
+  outstream.close();
+  mtx.unlock();
+}
+
+/**
+ * logs a message with an error tag
+ * @param input a string to write to the log
+ */
+void srlcv::Logger::logError(const char* input){
+  std::ofstream outstream;
+  mtx.lock();
+  outstream.open(this->logFileLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  std::time_t t = std::time(0);
+  outstream << t << ",comment,";
+  // now print the real junk
   outstream << input << std::endl;
   outstream.close();
+  mtx.unlock();
+}
+
+/**
+ * logs a message with an error tag
+ * @param input a string to write to the log
+ */
+void srlcv::Logger::logError(std::string input){
+  std::ofstream outstream;
+  mtx.lock();
+  outstream.open(this->logFileLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  std::time_t t = std::time(0);
+  outstream << t << ",comment,";
+  // now print the real junk
+  outstream << input << std::endl;
+  outstream.close();
+  mtx.unlock();
 }
 
 /**
@@ -176,6 +218,7 @@ void ssrlcv::Logger::logCPUnames(){
   // log the Denver Cores
   for (int i = 0; i < 2; i++){
     for (int j = 0; j < 3; j++){
+      mtx.lock();
       std::ifstream infile(startPath + std::to_string(Denver_IDs[i]) + endPath + std::to_string(j) + "/name" );
       if (infile.is_open()){
         std::string line;
@@ -187,12 +230,14 @@ void ssrlcv::Logger::logCPUnames(){
       } else {
         std::cerr << "ERROR: logger could not open CPU name " << std::endl;
       }
+      mtx.unlock();
     }
   }
 
   // log the A57 Cores
   for (int i = 0; i < 4; i++){
     for (int j = 0; j < 2; j++){
+      mtx.lock();
       std::ifstream infile(startPath + std::to_string(A57_IDs[i]) + endPath + std::to_string(j) + "/name" );
       if (infile.is_open()){
         std::string line;
@@ -204,11 +249,13 @@ void ssrlcv::Logger::logCPUnames(){
       } else {
         std::cerr << "ERROR: logger could not open CPU name " << std::endl;
       }
+      mtx.unlock();
     }
   }
 
   // log to the file
   std::ofstream outstream;
+  mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
   std::time_t t = std::time(0);
@@ -216,6 +263,7 @@ void ssrlcv::Logger::logCPUnames(){
   // now print the real junk
   outstream << logline << std::endl;
   outstream.close();
+  mtx.unlock();
 }
 
 /**
@@ -232,6 +280,7 @@ void ssrlcv::Logger::logVoltage(){
   std::string monitor1 = "/sys/bus/i2c/drivers/ina3221x/0-0041/iio:device1";
 
   // read in VDD_SYS_GPU voltage
+  mtx.lock();
   std::ifstream infile1(monitor0 + "/in_voltage0_input");
   if (infile1.is_open()){
     std::string line;
@@ -243,8 +292,10 @@ void ssrlcv::Logger::logVoltage(){
   } else {
     std::cerr << "ERROR: logger could not log voltage " << std::endl;
   }
+  mtx.unlock();
 
   // read in VDD_SYS_GPU voltage
+  mtx.lock();
   std::ifstream infile2(monitor0 + "/in_voltage1_input");
   if (infile2.is_open()){
     std::string line;
@@ -256,8 +307,10 @@ void ssrlcv::Logger::logVoltage(){
   } else {
     std::cerr << "ERROR: logger could not log voltage " << std::endl;
   }
+  mtx.unlock();
 
   // read in VDD_IN voltage
+  mtx.lock();
   std::ifstream infile3(monitor1 + "/in_voltage0_input");
   if (infile3.is_open()){
     std::string line;
@@ -269,8 +322,10 @@ void ssrlcv::Logger::logVoltage(){
   } else {
     std::cerr << "ERROR: logger could not log voltage " << std::endl;
   }
+  mtx.unlock();
 
   // read in VDD_SYS_GPU voltage
+  mtx.lock();
   std::ifstream infile4(monitor1 + "/in_voltage1_input");
   if (infile4.is_open()){
     std::string line;
@@ -282,8 +337,10 @@ void ssrlcv::Logger::logVoltage(){
   } else {
     std::cerr << "ERROR: logger could not log voltage " << std::endl;
   }
+  mtx.unlock();
   // log to the file
   std::ofstream outstream;
+  mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
   std::time_t t = std::time(0);
@@ -291,6 +348,7 @@ void ssrlcv::Logger::logVoltage(){
   // now print the real junk
   outstream << logline << std::endl;
   outstream.close();
+  mtx.unlock();
 }
 
 /**
@@ -307,6 +365,7 @@ void ssrlcv::Logger::logCurrent(){
   std::string monitor1 = "/sys/bus/i2c/drivers/ina3221x/0-0041/iio:device1";
 
   // read in VDD_SYS_GPU voltage
+  mtx.lock();
   std::ifstream infile1(monitor0 + "/in_current0_input");
   if (infile1.is_open()){
     std::string line;
@@ -318,8 +377,10 @@ void ssrlcv::Logger::logCurrent(){
   } else {
     std::cerr << "ERROR: logger could not log current " << std::endl;
   }
+  mtx.unlock();
 
   // read in VDD_SYS_GPU voltage
+  mtx.lock();
   std::ifstream infile2(monitor0 + "/in_current1_input");
   if (infile2.is_open()){
     std::string line;
@@ -331,8 +392,10 @@ void ssrlcv::Logger::logCurrent(){
   } else {
     std::cerr << "ERROR: logger could not log current " << std::endl;
   }
+  mtx.unlock();
 
   // read in VDD_IN voltage
+  mtx.lock();
   std::ifstream infile3(monitor1 + "/in_current0_input");
   if (infile3.is_open()){
     std::string line;
@@ -344,8 +407,10 @@ void ssrlcv::Logger::logCurrent(){
   } else {
     std::cerr << "ERROR: logger could not log current " << std::endl;
   }
+  mtx.unlock();
 
   // read in VDD_SYS_GPU voltage
+  mtx.lock();
   std::ifstream infile4(monitor1 + "/in_current1_input");
   if (infile4.is_open()){
     std::string line;
@@ -357,8 +422,10 @@ void ssrlcv::Logger::logCurrent(){
   } else {
     std::cerr << "ERROR: logger could not log current " << std::endl;
   }
+  mtx.unlock();
   // log to the file
   std::ofstream outstream;
+  mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
   std::time_t t = std::time(0);
@@ -366,6 +433,7 @@ void ssrlcv::Logger::logCurrent(){
   // now print the real junk
   outstream << logline << std::endl;
   outstream.close();
+  mtx.unlock();
 }
 
 /**
@@ -382,6 +450,7 @@ void ssrlcv::Logger::logPower(){
     std::string monitor1 = "/sys/bus/i2c/drivers/ina3221x/0-0041/iio:device1";
 
     // read in VDD_SYS_GPU voltage
+    mtx.lock();
     std::ifstream infile1(monitor0 + "/in_power0_input");
     if (infile1.is_open()){
       std::string line;
@@ -393,8 +462,10 @@ void ssrlcv::Logger::logPower(){
     } else {
       std::cerr << "ERROR: logger could not log power " << std::endl;
     }
+    mtx.unlock();
 
     // read in VDD_SYS_GPU voltage
+    mtx.lock();
     std::ifstream infile2(monitor0 + "/in_power1_input");
     if (infile2.is_open()){
       std::string line;
@@ -406,8 +477,10 @@ void ssrlcv::Logger::logPower(){
     } else {
       std::cerr << "ERROR: logger could not log power " << std::endl;
     }
+    mtx.unlock();
 
     // read in VDD_IN voltage
+    mtx.lock();
     std::ifstream infile3(monitor1 + "/in_power0_input");
     if (infile3.is_open()){
       std::string line;
@@ -419,8 +492,10 @@ void ssrlcv::Logger::logPower(){
     } else {
       std::cerr << "ERROR: logger could not log power " << std::endl;
     }
+    mtx.unlock();
 
     // read in VDD_SYS_GPU voltage
+    mtx.lock();
     std::ifstream infile4(monitor1 + "/in_power1_input");
     if (infile4.is_open()){
       std::string line;
@@ -432,8 +507,10 @@ void ssrlcv::Logger::logPower(){
     } else {
       std::cerr << "ERROR: logger could not log power " << std::endl;
     }
+    mtx.unlock();
     // log to the file
     std::ofstream outstream;
+    mtx.lock();
     outstream.open(this->logFileLocation, std::ofstream::app);
     // ALWAYS LOG THE TIME!
     std::time_t t = std::time(0);
@@ -441,12 +518,77 @@ void ssrlcv::Logger::logPower(){
     // now print the real junk
     outstream << logline << std::endl;
     outstream.close();
+    mtx.unlock();
 }
 
+/**
+ * starts logging in the backgound
+ * for now this only logs Voltage, Power, and Current
+ * @param rate is the number of seconds in between logging
+ */
+void ssrlcv::Logger::startBackgoundLogging(int rate){
+  mtx.lock();
+  logDelay = rate;
+  mtx.unlock();
+  mtx.lock();
+  if (isLogging) {
+    std::cerr << "ERROR: unable to start backgound logging because a background log is currently running. Stop it and restart it if so desired" << std::endl;
+    mtx.unlock();
+  } else {
+    // spawn the new thread
+    mtx.unlock()
+    std::thread log_thread(&Logger::looper, this, rate);
+    log_thread.detach();
+    mtx.lock();
+    isLogging = true;
+    mtx.unlock();
+  }
+}
 
+/**
+ * stops the backgound if it is running
+ */
+void ssrlcv::Logger::stopBackgroundLogging(){
+  // forces variables into this configeration
+  mtx.lock();
+  killLogging = true;
+  mtx.unlock();
+  mtx.lock();
+  isLogging = false;
+  mtx.unlock();
+}
 
+// =============================================================================================================
+//
+// Private Logging Methods
+//
+// =============================================================================================================
 
+/**
+ * Used my startBackgoundLogging to keep logging in the backgound
+ * @param @param delay the time in seconds to wait in between logging
+ */
+void ssrlcv::Logger::looper(int delay){
+  // loop and log!
+  while(true){
+    mtx.lock();
+    bool b = killLogging;
+    mtx.unlock();
+    if (killLogging){
+      log("stoping logging thread safely");
+      return;
+    }
 
+    // TODO could update logging paramters here by doing a mutex check of object variables which can change on the fly by the user
+
+    logVoltage();
+    logCurrent();
+    logPower();
+
+    // wait to log again
+    sleep(delay);
+  }
+}
 
 
 

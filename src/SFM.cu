@@ -28,11 +28,14 @@
 ssrlcv::Logger logger;
 
 /**
- * the safe shutdown methods is initiated when a SIGINT is captured, handleing of
- * memory and safely shutting down CPU threads should occur here.
+ * the safe shutdown methods is initiated when a SIGINT is captured, but can be extended
+ * to many other types of exeption handleing. Here we should makes sure that
+ * memory is safely shutting down, CPU threads are killed, and whatever else is desired.
  */
-void safeShutodwn(int sig){
+void safeShutdown(int sig){
   std::cout << "Safely Ending SSRLCV ..." << std::endl;
+  logger.logState("safeShutdown");
+  logger.stopBackgroundLogging();
   exit(sig); // exit with the same signal
 }
 
@@ -52,13 +55,14 @@ int main(int argc, char *argv[]){
     // so that the logger.shutdown() method can be called.
     logger = ssrlcv::Logger("out"); // log in the out directory
     // run some examples
-    logger.log("this is a test");
+    logger.log("this is a log comment");
     logger.logState("test");
     logger.logCPUnames();
     logger.logVoltage();
     logger.logCurrent();
     logger.logPower();
     logger.logState("start");
+    logger.startBackgoundLogging(5); // write a voltage, current, power log every 5 seconds
 
 
     //ARG PARSING

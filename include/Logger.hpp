@@ -86,6 +86,18 @@ namespace ssrlcv{
     void logState(std::string state);
 
     /**
+     * logs a message with an error tag
+     * @param input a string to write to the log
+     */
+    void logError(const char* input);
+
+    /**
+     * logs a message with an error tag
+     * @param input a string to write to the log
+     */
+    void logError(std::string input);
+
+    /**
      * logs the CPU names
      * for details see https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%2520Linux%2520Driver%2520Package%2520Development%2520Guide%2Fpower_management_tx2_32.html%23wwpID0E0ZS0HA
      */
@@ -109,6 +121,18 @@ namespace ssrlcv{
      */
     void logPower();
 
+    /**
+     * starts logging in the backgound
+     * for now this only logs Voltage, Power, and Current
+     * @param rate is the number of seconds in between logging
+     */
+    void startBackgoundLogging(int rate);
+
+    /**
+     * stops the backgound logging if it is running
+     */
+    void stopBackgroundLogging();
+
   private:
 
     // private variables
@@ -129,8 +153,23 @@ namespace ssrlcv{
     // this is enabled when the user wants to kill a background log
     bool killLogging;
 
+    // the seconds in between logging
+    int logDelay;
+
     // logging thread
     std::thread background_thread;
+
+    // =============================================================================================================
+    //
+    // Private Logging Methods
+    //
+    // =============================================================================================================
+
+    /**
+     * Used my startBackgoundLogging to keep logging in the backgound
+     * @param @param delay the time in seconds to wait in between logging
+     */
+    void looper(int delay);
 
   }; // end Logger class
 }
