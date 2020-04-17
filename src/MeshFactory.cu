@@ -513,9 +513,54 @@ void ssrlcv::MeshFactory::filterByOctreeNeighborDistance(float sigma){
  * @param n the number of neignbors to calculate an average distance to
  * @return float a unity of floats representing the average distance to N neighbors
  */
-ssrlcv::Unity<float>* ssrlcv::MeshFactory::calcualteAverageDistanceToNeighbors(int n){
+ssrlcv::Unity<float>* ssrlcv::MeshFactory::calcualteAverageDistancesToNeighbors(int n){
 
-  return nullptr;
+  bool local_verbose = true;
+
+  if (n > 6){
+    std::cout << "WARN: values larger than N = 6 neighbors are not nesseary, chaning N from " << n << " to 6 ..." << std::endl;
+  }
+
+  int* d_num;
+  CudaSafeCall(cudaMalloc((void**) &d_num,sizeof(int)));
+  CudaSafeCall(cudaMemcpy(d_num,&n,sizeof(int),cudaMemcpyHostToDevice));
+
+  Unity<float>* averages = new ssrlcv::Unity<float>(nullptr,this->points->size(),ssrlcv::gpu);
+
+  this->points->transferMemoryTo(gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(int *, unsigned long, float3*, float*) = &averageDistToNeighbors;
+  getFlatGridBlock(this->points->size(),grid,block,fp);
+
+  if (local_verbose) std::cout << "calulating nearest neighbors via exaustive kernel search ..." << std::endl;
+
+  averageDistToNeighbors<<<grid,block>>>(d_num,this->points->size(),this->points->device,averages->device);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  averages->setFore(gpu);
+  averages->transferMemoryTo(cpu);
+  this->points->transferMemoryTo(cpu);
+  cudaFree(d_num);
+
+  return averages;
+}
+
+/**
+ * caclualtes the average distance to N neightbors for each point on average
+ * @param n the number of neignbors to calculate an average distance to
+ * @return float which is the average distance to n neighbors
+ */
+float ssrlcv::MeshFactory::calcualteAverageDistanceToNeighbors(int n){
+    ssrlcv::Unity<float>* averages = calculateAverageDistancesToNeighbors(n);
+    sum = 0.0f;
+    for (int i = 0; i < averages->size(); i++) {
+      sum += averages->host[i];
+    }
+    return ( sum / ((float) averages_>size()));
 }
 
 // =============================================================================================================
@@ -1933,6 +1978,53 @@ __global__ void ssrlcv::generateCollisionDistances(float* errors, int* misses, u
 
 }
 
+/**
+ * exaustivley caclulates the average distance to N nearest neightbors
+ */
+__global__ void ssrlcv::averageDistToNeighbors(int * d_num, unsigned long pointnum, float3* points, float* averages){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (pointnum-1)) return;
+
+  // this _should_ be replaced with a priority queue tbh
+  // don't actually need to keep track of the IDs but it will make future things easier if I do
+  unsigned int* ids = (unsigned int *) malloc(sizeof(unsigned int) * d_num); // indexes of current best points
+  float*  distances = (float *) malloc(sizeof(float) * d_num); // distances at those points indexes
+  int filled = 0; // number of elements "filled" for a min distance caclulation
+
+  // the local point
+  float3 P = points[globalID];
+
+  // exaustive search for N nearest neighbors
+  // this is dumb
+  for (unsigned int i = 0; i < pointnum; i++){
+    if (i != globalID){ // don't count self
+      float3 Q = points[i]; // the candidate point
+      float dist = sqrtf((P.x - Q.x)*(P.x - Q.x) + (P.y - Q.y)*(P.y - Q.y) + (P.z - Q.z)*(P.z - Q.z));
+      if (filled < *d_num){
+        // go ahead and fill the guy
+        ids[filled] = i;
+        distances[filled] = dist;
+        filled++;
+      } else {
+        // check if this point is closer that the others
+        for (int j = 0; j < *d_num; j++){
+          if (dist < distances[j]){
+            distances[j] = dist;
+            ids[j] = i;
+            break; // found new closest point
+          } // end if
+        } // end for
+      } // end else
+    } // end not self
+  } // end all points loop
+
+  // after search caclulate the average distance
+  float sum = 0.0f;
+  for (int i = 0; i < *d_num; i++) {
+    sum += distances[i];
+  }
+  averages[globalID] = sum / *d_num;
+}
 
 __global__ void ssrlcv::vertexImplicitFromNormals(int numVertices, Octree::Vertex* vertexArray, Octree::Node* nodeArray, float3* normals, float3* points, float* vertexImplicit){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;

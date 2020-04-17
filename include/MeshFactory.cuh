@@ -175,14 +175,21 @@ namespace ssrlcv{
      * and then calculating the variance of the data, and removing points past sigma
      * @param sigma the statistical value to remove points after
      */
-    void filterByCotreeOctreeNeighborDistance(float sigma);
+    void filterByOctreeNeighborDistance(float sigma);
 
     /**
      * caclualtes the average distance to N neightbors for each points
      * @param n the number of neignbors to calculate an average distance to
      * @return float a unity of floats representing the average distance to N neighbors
      */
-    ssrlcv::Unity<float>* calcualteAverageDistanceToNeighbors(int n);
+    ssrlcv::Unity<float>* calcualteAverageDistancesToNeighbors(int n);
+
+    /**
+     * caclualtes the average distance to N neightbors for each point on average
+     * @param n the number of neignbors to calculate an average distance to
+     * @return float which is the average distance to n neighbors
+     */
+    float calcualteAverageDistanceToNeighbors(int n);
 
     // =============================================================================================================
     //
@@ -263,6 +270,10 @@ namespace ssrlcv{
    */
   __global__ void generateCollisionDistances(float* errors, int* misses, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding);
 
+  /**
+   * exaustivley caclulates the average distance to N nearest neightbors
+   */
+  __global__ void averageDistToNeighbors(int * d_num, unsigned long pointnum, float3* points, float* averages);
 
   __global__ void vertexImplicitFromNormals(int numVertices, Octree::Vertex* vertexArray, Octree::Node* nodeArray, float3* normals, float3* points, float* vertexImplicit);
   __global__ void calcVertexNumbers(int numEdges, int depthIndex, Octree::Edge* edgeArray, float* vertexImplicit, int* vertexNumbers);

@@ -80,7 +80,7 @@ ssrlcv::Logger &ssrlcv::Logger::operator=(ssrlcv::Logger const &loggerCopy){
     this->isLogging   = false;
     this->killLogging = false;
     this->logPath         = loggerCopy.logPath;
-    this->logFileLocation = loggerCopy.logFileLocation;  
+    this->logFileLocation = loggerCopy.logFileLocation;
   }
   return *this;
 }
@@ -538,9 +538,9 @@ void ssrlcv::Logger::startBackgoundLogging(int rate){
     mtx.unlock();
   } else {
     // spawn the new thread
-    mtx.unlock()
-    std::thread this->background_thread(&Logger::looper, this, rate);
-    this->background_thread.detach();
+    mtx.unlock();
+    std::thread background_thread(&Logger::looper, this, rate);
+    background_thread.detach();
     mtx.lock();
     this->isLogging = true;
     mtx.unlock();
