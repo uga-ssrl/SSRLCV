@@ -22,6 +22,12 @@ float1,2,3,4
 double1,2,3,4
 */
 
+// =============================================================================================================
+//
+// Struct Definitions
+//
+// =============================================================================================================
+
 struct colorPoint : float3 {
   u_char r;
   u_char b;
@@ -147,6 +153,12 @@ struct ulonglong4_b : ulonglong4{
 * \}
 */
 
+// =============================================================================================================
+//
+// Vector Removes
+//
+// =============================================================================================================
+
 /**
 * \ingroup cuda_util
 * \defgroup cuda_vector_removes
@@ -194,6 +206,12 @@ void remove(ssrlcv::Unity<ulonglong4_b>* array);
 * \ingroup cuda_util
 * \defgroup cuda_vector_operators
 */
+
+// =============================================================================================================
+//
+// Comparison Operators
+//
+// =============================================================================================================
 
 /**
 * \ingroup cuda_vector_operators
@@ -424,11 +442,21 @@ __device__ __host__ bool operator>=(const ulonglong4 &a, const ulonglong4 &b);
 * \}
 */
 
+// =============================================================================================================
+//
+// Vector Dot Products
+//
+// =============================================================================================================
+
 __device__ __host__ float dotProduct(const float2 &a, const float2 &b);
 __device__ __host__ float dotProduct(const float3 &a, const float3 &b);
 __device__ __host__ int dotProduct(const int2 &a, const int2 &b);
 
-
+// =============================================================================================================
+//
+// Arithmetic Operators
+//
+// =============================================================================================================
 
 /**
 * \ingroup cuda_vector_operators
@@ -454,6 +482,81 @@ __device__ __host__ uint2 operator/(const uint2 &a, const uint2 &b);
 /**
 * \}
 */
+
+// =============================================================================================================
+//
+// Compound Assignment Operators
+//
+// =============================================================================================================
+
+/**
+* \ingroup cuda_vector_operators
+* \defgroup compound_assignment_operators
+* \{
+*/
+
+__device__ __host__ float4& operator+=(float4 &a, const float4 &b);
+__device__ __host__ float3& operator+=(float3 &a, const float3 &b);
+__device__ __host__ float2& operator+=(float2 &a, const float2 &b);
+__device__ __host__ float4& operator+=(float4 &a, const int4 &b);
+__device__ __host__ float3& operator+=(float3 &a, const int3 &b);
+__device__ __host__ float2& operator+=(float2 &a, const int2 &b);
+__device__ __host__ int4& operator+=(int4 &a, const float4 &b);
+__device__ __host__ int3& operator+=(int3 &a, const float3 &b);
+__device__ __host__ int2& operator+=(int2 &a, const float2 &b);
+__device__ __host__ int4& operator+=(int4 &a, const int4 &b);
+__device__ __host__ int3& operator+=(int3 &a, const int3 &b);
+__device__ __host__ int2& operator+=(int2 &a, const int2 &b);
+
+__device__ __host__ float4& operator-=(float4 &a, const float4 &b);
+__device__ __host__ float3& operator-=(float3 &a, const float3 &b);
+__device__ __host__ float2& operator-=(float2 &a, const float2 &b);
+__device__ __host__ float4& operator-=(float4 &a, const int4 &b);
+__device__ __host__ float3& operator-=(float3 &a, const int3 &b);
+__device__ __host__ float2& operator-=(float2 &a, const int2 &b);
+__device__ __host__ int4& operator-=(int4 &a, const float4 &b);
+__device__ __host__ int3& operator-=(int3 &a, const float3 &b);
+__device__ __host__ int2& operator-=(int2 &a, const float2 &b);
+__device__ __host__ int4& operator-=(int4 &a, const int4 &b);
+__device__ __host__ int3& operator-=(int3 &a, const int3 &b);
+__device__ __host__ int2& operator-=(int2 &a, const int2 &b);
+
+__device__ __host__ float4& operator*=(float4 &a, const float &b);
+__device__ __host__ float3& operator*=(float3 &a, const float &b);
+__device__ __host__ float2& operator*=(float2 &a, const float &b);
+__device__ __host__ float4& operator*=(float4 &a, const int &b);
+__device__ __host__ float3& operator*=(float3 &a, const int &b);
+__device__ __host__ float2& operator*=(float2 &a, const int &b);
+__device__ __host__ int4& operator*=(int4 &a, const float &b);
+__device__ __host__ int3& operator*=(int3 &a, const float &b);
+__device__ __host__ int2& operator*=(int2 &a, const float &b);
+__device__ __host__ int4& operator*=(int4 &a, const int &b);
+__device__ __host__ int3& operator*=(int3 &a, const int &b);
+__device__ __host__ int2& operator*=(int2 &a, const int &b);
+
+__device__ __host__ float4& operator/=(float4 &a, const float &b);
+__device__ __host__ float3& operator/=(float3 &a, const float &b);
+__device__ __host__ float2& operator/=(float2 &a, const float &b);
+__device__ __host__ float4& operator/=(float4 &a, const int &b);
+__device__ __host__ float3& operator/=(float3 &a, const int &b);
+__device__ __host__ float2& operator/=(float2 &a, const int &b);
+__device__ __host__ int4& operator/=(int4 &a, const float &b);
+__device__ __host__ int3& operator/=(int3 &a, const float &b);
+__device__ __host__ int2& operator/=(int2 &a, const float &b);
+__device__ __host__ int4& operator/=(int4 &a, const int &b);
+__device__ __host__ int3& operator/=(int3 &a, const int &b);
+__device__ __host__ int2& operator/=(int2 &a, const int &b);
+
+
+/**
+* \}
+*/
+
+// =============================================================================================================
+//
+// Missmatched Arithmetic Operators
+//
+// =============================================================================================================
 
 /**
 * \ingroup arithmetic
@@ -534,6 +637,7 @@ __device__ __host__ bool operator<(const float2 &a, const int2 &b);
 /**
 * \}
 */
+
 
 
 #endif /* CUDA_VEC_UTIL_CUH */

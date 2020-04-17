@@ -51,6 +51,9 @@ namespace ssrlcv{
     // The points within the mesh
     Unity<float3>* points;
 
+    // RBG colors for the point cloud
+    Unity<uchar3>* colors;
+
     // =============================================================================================================
     //
     // Constructors and Destructors
@@ -59,6 +62,9 @@ namespace ssrlcv{
 
     // default constructor
     MeshFactory();
+
+    // constructor given existing points and faces
+    MeshFactory(Unity<float3>* in_points, Unity<int>* in_faces, int in_faceEncoding);
 
     // default destructor
     ~MeshFactory();
@@ -71,9 +77,24 @@ namespace ssrlcv{
 
     // =============================================================================================================
     //
-    // Mesh Loading & Saving Methods
+    // Mesh Setters, Getter, Loading, and Saving Methods
     //
     // =============================================================================================================
+
+    /**
+     * Loads in a point cloud into the mesh, this will override any existing point data
+     * and should be used sparingly
+     * @param pointcloud a unity of float3 that represents a point cloud to be set to internal points
+     */
+    void setPoints(Unity<float3>* pointcloud);
+
+    /**
+     * Loads faces into the mesh, this will override any existing face data
+     * and should be used sparingly
+     * @param faces a unity of int that represents the indexes of points which make faces
+     * @param faceEncoding the face encoding scheme 3 or 4
+     */
+    void setFaces(Unity<int>* faces, int faceEncoding);
 
     /**
      * loads a mesh from a file into
@@ -83,10 +104,23 @@ namespace ssrlcv{
     void loadMesh(const char* filePath);
 
     /**
+    * loads points from an ASCII encoded PLY file into the mesh
+    * overloads existing points
+    * @param filePath the filepath, relative to the install location
+    */
+    void loadPoints(const char* filePath);
+
+    /**
      * saves a PLY encoded Mesh as a given filename to the out directory
      * @param filename the filename
      */
     void saveMesh(const char* filename);
+
+    /**
+     * saves only the points as a PLY
+     * @param filename the filename
+     */
+    void savePoints(const char* filename);
 
     // =============================================================================================================
     //
@@ -115,6 +149,54 @@ namespace ssrlcv{
      * @return errorList a unity array of floats that contain errors
      */
     ssrlcv::Unity<float>* calculatePerPointDifference(Unity<float3>* pointCloud, float3 planeNormal);
+
+    // =============================================================================================================
+    //
+    // Filtering Methods
+    //
+    // =============================================================================================================
+
+    /**
+     * caclualtes the average distance to N neightbors for each points
+     * @param n the number of neignbors to calculate an average distance to
+     * @return float a unity of floats representing the average distance to N neighbors
+     */
+    ssrlcv::Unity<float>* calculateAverageDistancesToOctreeNeighbors(int n);
+
+    /**
+     * caclualtes the average distance to N neightbors for each point on average
+     * @param n the number of neignbors to calculate an average distance to
+     * @return float which is the average distance to n neighbors
+     */
+    float calculateAverageDistanceToOctreeNeighbors(int n);
+
+    /**
+     * filters points from the mesh by caclulating their average distances to their neighbors
+     * and then calculating the variance of the data, and removing points past sigma
+     * @param sigma the statistical value to remove points after
+     */
+    void filterByOctreeNeighborDistance(float sigma);
+
+    /**
+     * caclualtes the average distance to N neightbors for each points
+     * @param n the number of neignbors to calculate an average distance to
+     * @return float a unity of floats representing the average distance to N neighbors
+     */
+    ssrlcv::Unity<float>* calculateAverageDistancesToNeighbors(int n);
+
+    /**
+     * caclualtes the average distance to N neightbors for each point on average
+     * @param n the number of neignbors to calculate an average distance to
+     * @return float which is the average distance to n neighbors
+     */
+    float calculateAverageDistanceToNeighbors(int n);
+
+    /**
+     * filters points from the mesh by caclulating their average distances to their neighbors
+     * and then calculating the variance of the data, and removing points past sigma
+     * @param sigma the statistical value to remove points after
+     */
+    void filterByNeighborDistance(float sigma);
 
     // =============================================================================================================
     //
@@ -195,6 +277,10 @@ namespace ssrlcv{
    */
   __global__ void generateCollisionDistances(float* errors, int* misses, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding);
 
+  /**
+   * exaustivley caclulates the average distance to N nearest neightbors
+   */
+  __global__ void averageDistToNeighbors(int * d_num, unsigned long pointnum, float3* points, float* averages);
 
   __global__ void vertexImplicitFromNormals(int numVertices, Octree::Vertex* vertexArray, Octree::Node* nodeArray, float3* normals, float3* points, float* vertexImplicit);
   __global__ void calcVertexNumbers(int numEdges, int depthIndex, Octree::Edge* edgeArray, float* vertexImplicit, int* vertexNumbers);

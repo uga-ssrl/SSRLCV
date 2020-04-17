@@ -48,6 +48,8 @@ ssrlcv::Octree::Octree(int numPoints, float3* points, int depth, bool createVEF)
   this->edgeDepthIndex = nullptr;
   this->faceDepthIndex = nullptr;
 
+  bool local_debug = false;
+
   this->depth = depth;
   if(this->depth >= 10){
     std::cout<<"ERROR this octree currently only supports a depth of 10 at the max"<<std::endl;
@@ -79,11 +81,13 @@ ssrlcv::Octree::Octree(int numPoints, float3* points, int depth, bool createVEF)
   this->max = this->center + (this->width/2);
   this->min = this->center - (this->width/2);
 
-  printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
-  printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
-  printf("bounding box width = %f\n", this->width);
-  printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
-  printf("number of points = %lu\n\n", this->points->size());
+  if (local_debug){
+    printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
+    printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
+    printf("bounding box width = %f\n", this->width);
+    printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
+    printf("number of points = %lu\n\n", this->points->size());
+  }
 
   this->createFinestNodes();
   this->fillInCoarserDepths();
@@ -104,6 +108,8 @@ ssrlcv::Octree::Octree(int numPoints, float3* points, float deepestWidth, bool c
   this->vertexDepthIndex = nullptr;
   this->edgeDepthIndex = nullptr;
   this->faceDepthIndex = nullptr;
+
+  bool local_debug = false;
 
   this->points = new Unity<float3>(points, numPoints, cpu);
 
@@ -130,11 +136,13 @@ ssrlcv::Octree::Octree(int numPoints, float3* points, float deepestWidth, bool c
   this->max = this->center + (this->width/2);
   this->min = this->center - (this->width/2);
 
-  printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
-  printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
-  printf("bounding box width = %f\n", this->width);
-  printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
-  printf("number of points = %lu\n\n", this->points->size());
+  if (local_debug){
+    printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
+    printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
+    printf("bounding box width = %f\n", this->width);
+    printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
+    printf("number of points = %lu\n\n", this->points->size());
+  }
 
   this->depth = 0;
   float finestWidth = this->width;
@@ -166,6 +174,8 @@ ssrlcv::Octree::Octree(Unity<float3>* points, int depth, bool createVEF){
   this->vertexDepthIndex = nullptr;
   this->edgeDepthIndex = nullptr;
   this->faceDepthIndex = nullptr;
+
+  bool local_debug = false;
 
   this->points = points;
   if(this->points->getMemoryState() == gpu || this->points->getFore() != cpu){
@@ -199,11 +209,13 @@ ssrlcv::Octree::Octree(Unity<float3>* points, int depth, bool createVEF){
   this->max = this->center + (this->width/2);
   this->min = this->center - (this->width/2);
 
-  printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
-  printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
-  printf("bounding box width = %f\n", this->width);
-  printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
-  printf("number of points = %lu\n\n", this->points->size());
+  if (local_debug){
+      printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
+      printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
+      printf("bounding box width = %f\n", this->width);
+      printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
+      printf("number of points = %lu\n\n", this->points->size());
+    }
 
   this->depth = depth;
   if(this->depth > 10){
@@ -229,6 +241,8 @@ ssrlcv::Octree::Octree(Unity<float3>* points, float deepestWidth, bool createVEF
   this->vertexDepthIndex = nullptr;
   this->edgeDepthIndex = nullptr;
   this->faceDepthIndex = nullptr;
+
+  bool local_debug = false;
 
   this->points = points;
   if(this->points->getMemoryState() == gpu) this->points->transferMemoryTo(cpu);
@@ -259,11 +273,13 @@ ssrlcv::Octree::Octree(Unity<float3>* points, float deepestWidth, bool createVEF
   this->max = this->center + (this->width/2);
   this->min = this->center - (this->width/2);
 
-  printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
-  printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
-  printf("bounding box width = %f\n", this->width);
-  printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
-  printf("number of points = %lu\n\n", this->points->size());
+  if (local_debug){
+    printf("\nmin = %f,%f,%f\n",this->min.x,this->min.y,this->min.z);
+    printf("max = %f,%f,%f\n",this->max.x,this->max.y,this->max.z);
+    printf("bounding box width = %f\n", this->width);
+    printf("center = %f,%f,%f\n",this->center.x,this->center.y,this->center.z);
+    printf("number of points = %lu\n\n", this->points->size());
+  }
 
   this->depth = 0;
   float finestWidth = this->width;
@@ -480,7 +496,7 @@ void ssrlcv::Octree::fillInCoarserDepths(){
     CudaSafeCall(cudaMalloc((void**)&nodeNumbers_device, numUniqueNodes * sizeof(int)));
     CudaSafeCall(cudaMalloc((void**)&nodeAddresses_device, numUniqueNodes * sizeof(int)));
     //this is just to fill the arrays with 0s
-  
+
     getFlatGridBlock(numUniqueNodes,grid,block,findAllNodes);
     findAllNodes<<<grid,block>>>(numUniqueNodes, nodeNumbers_device, uniqueNodes_device);
     cudaDeviceSynchronize();
@@ -496,7 +512,7 @@ void ssrlcv::Octree::fillInCoarserDepths(){
     numNodesAtDepth = (d > 0) ? numNodesAtDepth + 8: 1;
 
     CudaSafeCall(cudaMalloc((void**)&nodeArray2D[this->depth - d], numNodesAtDepth*sizeof(Node)));
-  
+
     getFlatGridBlock(numUniqueNodes,grid,block,fillBlankNodeArray);
     fillBlankNodeArray<<<grid,block>>>(uniqueNodes_device, nodeNumbers_device,  nodeAddresses_device, nodeArray2D[this->depth - d], numUniqueNodes, d, this->width);
     CudaCheckError();
@@ -698,7 +714,7 @@ void ssrlcv::Octree::computeVertexArray(){
     //reset previously allocated resources
     block = {8,1,1};
     getGrid(numNodesAtDepth,grid);
-    
+
     int* ownerInidices = new int[numNodesAtDepth*8];
     for(int v = 0;v < numNodesAtDepth*8; ++v){
       ownerInidices[v] = -1;
@@ -1185,6 +1201,146 @@ void ssrlcv::Octree::createVEFArrays(){
 
 // =============================================================================================================
 //
+// Filtering Methods
+//
+// =============================================================================================================
+
+/**
+ * calculates the average distance from a point to N of it's neighbors
+ * @param the numer of neighbors to consider
+ * @return averages a unity float of the average distance for n neighbors per point
+ */
+ssrlcv::Unity<float>* ssrlcv::Octree::averageNeighboorDistances(int n){
+
+  // the number of neightbors to check
+  int* d_num;
+  CudaSafeCall(cudaMalloc((void**) &d_num,sizeof(int)));
+  CudaSafeCall(cudaMemcpy(d_num,&n,sizeof(int),cudaMemcpyHostToDevice));
+
+  Unity<float>* averages = new Unity<float>(nullptr,this->points->size(),gpu);
+
+  this->points->transferMemoryTo(gpu);
+  this->pointNodeIndex->transferMemoryTo(gpu);
+  this->nodes->transferMemoryTo(gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(int *, unsigned long, float3*, unsigned int *, Octree::Node *, float *) = &computeAverageNeighboorDistances;
+  getFlatGridBlock(this->points->size(),grid,block,fp);
+
+  computeAverageNeighboorDistances<<<grid,block>>>(d_num, this->pointNodeIndex->size(),this->points->device, this->pointNodeIndex->device, this->nodes->device, averages->device);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  // transfer the poitns back to the CPU
+  this->points->transferMemoryTo(cpu);
+  this->pointNodeIndex->transferMemoryTo(cpu);
+  this->nodes->transferMemoryTo(cpu);
+
+  averages->setFore(gpu);
+  averages->transferMemoryTo(cpu);
+  averages->clear(gpu);
+
+  // clean up memory
+  cudaFree(d_num);
+
+  return averages;
+}
+
+/**
+ * calculates the average distance from a point to N of it's neighbors and finds that average for all points
+ * @param the numer of neighbors to consider
+ * @return average the average distance from any given point to it's neighbors
+ */
+float ssrlcv::Octree::averageNeighboorDistance(int n){
+  // the number of neightbors to check
+  int* d_num;
+  CudaSafeCall(cudaMalloc((void**) &d_num,sizeof(int)));
+  CudaSafeCall(cudaMemcpy(d_num,&n,sizeof(int),cudaMemcpyHostToDevice));
+
+  Unity<float>* average = new Unity<float>(nullptr,1,gpu);
+
+  this->points->transferMemoryTo(gpu);
+  this->pointNodeIndex->transferMemoryTo(gpu);
+  this->nodes->transferMemoryTo(gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(int *, unsigned long, float3*, unsigned int *, Octree::Node *, float *) = &computeAverageNeighboorDistance;
+  getFlatGridBlock(this->points->size(),grid,block,fp);
+
+  computeAverageNeighboorDistance<<<grid,block>>>(d_num, this->pointNodeIndex->size(),this->points->device, this->pointNodeIndex->device, this->nodes->device, average->device);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  // transfer the poitns back to the CPU
+  this->points->transferMemoryTo(cpu);
+  this->pointNodeIndex->transferMemoryTo(cpu);
+  this->nodes->transferMemoryTo(cpu);
+
+  average->setFore(gpu);
+  average->transferMemoryTo(cpu);
+  average->clear(gpu);
+
+  // clean up memory
+  cudaFree(d_num);
+
+  return average->host[0];
+}
+
+/**
+ * finds the point indexes that should be removed this is done for each point.
+ * returns a NULL index if the point does not need to be removed, returns the actual index if it does need to be
+ * @param cutoff is the minimum average distance from a point to N of its neightbors
+ * @param n the number of neighbor points to consider
+ * @return points returns unity pf float3 points that are densly packed enough within the cutoff
+ */
+ssrlcv::Unity<float3>* ssrlcv::Octree::removeLowDensityPoints(float cutoff, int n){
+  // the number of neightbors to check
+  int* d_num;
+  CudaSafeCall(cudaMalloc((void**) &d_num,sizeof(int)));
+  CudaSafeCall(cudaMemcpy(d_num,&n,sizeof(int),cudaMemcpyHostToDevice));
+
+  float* d_cutoff;
+  CudaSafeCall(cudaMalloc((void**) &d_cutoff,sizeof(float)));
+  CudaSafeCall(cudaMemcpy(d_cutoff,&cutoff,sizeof(float),cudaMemcpyHostToDevice));
+
+  Unity<float3>* indexes = new Unity<float3>(nullptr,this->points->size(),gpu);
+
+  this->points->transferMemoryTo(gpu);
+  this->pointNodeIndex->transferMemoryTo(gpu);
+  this->nodes->transferMemoryTo(gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(int *, float*, unsigned long, float3*, unsigned int *, Octree::Node *, float3 *) = &getGoodDensePoints;
+  getFlatGridBlock(this->points->size(),grid,block,fp);
+
+  getGoodDensePoints<<<grid,block>>>(d_num, d_cutoff, this->pointNodeIndex->size(),this->points->device, this->pointNodeIndex->device, this->nodes->device, indexes->device);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  // transfer the poitns back to the CPU
+  this->points->transferMemoryTo(cpu);
+  this->pointNodeIndex->transferMemoryTo(cpu);
+  this->nodes->transferMemoryTo(cpu);
+
+  indexes->setFore(gpu);
+  indexes->transferMemoryTo(cpu);
+  indexes->clear(gpu);
+
+  // clean up memory
+  cudaFree(d_num);
+  cudaFree(d_cutoff);
+
+  return indexes;
+}
+
+// =============================================================================================================
+//
 // Normal Caclulation Methods
 //
 // =============================================================================================================
@@ -1197,7 +1353,7 @@ void ssrlcv::Octree::createVEFArrays(){
 void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
 
   // enable local_debug to have local print statements
-  bool local_debug = true;
+  bool local_debug = false;
 
   if (local_debug) std::cout << std::endl;
   clock_t cudatimer;
@@ -1347,7 +1503,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
     //TODO maybe find better way to cache this and not use only one block
     setNormal<<<1, 1>>>(p, d_VT, this->normals->device);
     CudaCheckError();
-  
+
     CudaSafeCall(cudaFree(d_A));
     CudaSafeCall(cudaFree(d_S));
     CudaSafeCall(cudaFree(d_U));
@@ -1383,7 +1539,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
 void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions){
 
   // enable local_debug to have local print statements
-  bool local_debug = true;
+  bool local_debug = false;
 
   if (local_debug) std::cout << std::endl;
   clock_t cudatimer;
@@ -1532,7 +1688,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
     //TODO maybe find better way to cache this and not use only one block
     setNormal<<<1, 1>>>(p, d_VT, this->normals->device);
     CudaCheckError();
-  
+
     CudaSafeCall(cudaFree(d_A));
     CudaSafeCall(cudaFree(d_S));
     CudaSafeCall(cudaFree(d_U));
@@ -1568,14 +1724,14 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
   for(int i = 0; i < this->points->size(); ++i){
     if(ambiguity->host[i]) ++numAmbiguous;
   }
-  std::cout<<"numAmbiguous = "<<numAmbiguous<<"/"<<ambiguity->size()<<std::endl;
+  if (local_debug) std::cout<<"numAmbiguous = "<<numAmbiguous<<"/"<<ambiguity->size()<<std::endl;
 
   if(this->points->getMemoryState() != points_origin) this->points->setMemoryState(points_origin);
 
   reorient<<<grid, block>>>(numNodesAtDepth, nodeDepthIndex, this->nodes->device, numRealNeighbors_device, maxNeighbors, this->normals->device,
     neighborIndices_device, ambiguity->device);
   CudaCheckError();
-  
+
   CudaSafeCall(cudaFree(numRealNeighbors_device));
   CudaSafeCall(cudaFree(neighborIndices_device));
   delete ambiguity;
@@ -1599,6 +1755,8 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
 */
 ssrlcv::Unity<float3>* ssrlcv::Octree::computeAverageNormal(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions){
 
+  bool local_debug = false;
+
   // call the fucntion that already does this!
   computeNormals(minNeighForNorms, maxNeighbors, numCameras, cameraPositions);
 
@@ -1621,6 +1779,17 @@ ssrlcv::Unity<float3>* ssrlcv::Octree::computeAverageNormal(int minNeighForNorms
   this->writeNormalPLY();
   average->transferMemoryTo(cpu);
   average->clear(gpu);
+
+  if (local_debug) std::cout << average->host[0].x << ", " << average->host[0].y << ", " << average->host[0].z << std::endl;
+
+  // normalize the average
+  float mag = sqrtf((average->host[0].x * average->host[0].x) + (average->host[0].y * average->host[0].y) + (average->host[0].z * average->host[0].z));
+  average->host[0] /= mag;
+
+  if (local_debug) {
+    std::cout << "mag: " << mag << std::endl;
+    std::cout << average->host[0].x << ", " << average->host[0].y << ", " << average->host[0].z << std::endl;
+  }
 
   return average;
 }
@@ -2138,6 +2307,215 @@ __global__ void ssrlcv::calculateCloudAverageNormal(float3* average, unsigned lo
   }
 }
 
+// calculates average distance to N neighbors
+__global__ void ssrlcv::computeAverageNeighboorDistances(int* n, unsigned long numpoints, float3* points, unsigned int* pointNodeIndex, Octree::Node* nodes, float* averages){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (numpoints-1)) return;
+
+   // the point we want neighbors for!
+   float3 P = points[globalID];
+   // the index of the node in the octree containing the point
+   unsigned int nodeIndex = pointNodeIndex[globalID];
+   // the node containing point P from which we can search for neighbors
+   Octree::Node node = nodes[nodeIndex];
+
+   int neighborsFound = 0;
+   float sum = 0.0f;
+
+   // and nodes at this leaf depth are considered close neighbors
+   for (unsigned long i = node.pointIndex; i < (node.pointIndex + node.numPoints); i++){
+     if (i != globalID){ // if not self
+       float3 A = points[i];
+       float dist = sqrtf((P.x - A.x)*(P.x - A.x) + (P.y - A.y)*(P.y - A.y) + (P.z - A.z)*(P.z - A.z));
+       sum += dist;
+       neighborsFound++;
+     }
+     if (neighborsFound == *n){ // then we have found the max
+       averages[globalID] = (sum / (float) neighborsFound);
+       return;
+     }
+   }
+
+   // now search neighbor nodes for neighbor points
+   for (unsigned long i = 0; i < 27; i++){
+     if (node.neighbors[i] > 0 && i != 13){
+      // see if there is a point in that
+      node = nodes[i];
+      // and nodes at this leaf depth are considered close neighbors
+      for (unsigned long j = node.pointIndex; j < (node.pointIndex + node.numPoints); j++){
+        if (j != globalID){ // if not self
+          float3 A = points[j];
+          float dist = sqrtf((P.x - A.x)*(P.x - A.x) + (P.y - A.y)*(P.y - A.y) + (P.z - A.z)*(P.z - A.z));
+          sum += dist;
+          neighborsFound++;
+        }
+        if (neighborsFound == *n){ // then we have found the max
+          averages[globalID] = (sum / (float) neighborsFound);
+          return;
+        }
+      }
+     }
+     if (neighborsFound == *n){ // then we have found the max
+       averages[globalID] = (sum / (float) neighborsFound);
+       return;
+     }
+   }
+
+   // otherwise you tried your best (sort of, traversal can garuntee n is reached), just return what you have!
+   if (!neighborsFound) {
+     averages[globalID] = 100000.0f; // just give it something bad
+   } else {
+     averages[globalID] = (sum / (float) neighborsFound); // TEMP fill
+   }
+}
+
+// calculates average distance to N neighbors
+__global__ void ssrlcv::computeAverageNeighboorDistance(int* n, unsigned long numpoints, float3* points, unsigned int* pointNodeIndex, Octree::Node* nodes, float* average){
+
+  __shared__ float localSum;
+  if (threadIdx.x == 0) localSum = 0;
+  __syncthreads();
+
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (numpoints-1)) return;
+
+   // the point we want neighbors for!
+   float3 P = points[globalID];
+   // the index of the node in the octree containing the point
+   unsigned int nodeIndex = pointNodeIndex[globalID];
+   // the node containing point P from which we can search for neighbors
+   Octree::Node node = nodes[nodeIndex];
+
+   int neighborsFound = 0;
+   float sum = 0.0f;
+   float local_avg = 0.0f;
+
+   // and nodes at this leaf depth are considered close neighbors
+   for (unsigned long i = node.pointIndex; i < (node.pointIndex + node.numPoints); i++){
+     if (i != globalID){ // if not self
+       float3 A = points[i];
+       float dist = sqrtf((P.x - A.x)*(P.x - A.x) + (P.y - A.y)*(P.y - A.y) + (P.z - A.z)*(P.z - A.z));
+       sum += dist;
+       neighborsFound++;
+     }
+     if (neighborsFound == *n){ // then we have found the max
+       // averages[globalID] = (sum / (float) neighborsFound);
+       break;
+     }
+   }
+
+   // now search neighbor nodes for neighbor points
+   for (unsigned long i = 0; i < 27; i++){
+     if (node.neighbors[i] > 0 && i != 13){
+      // see if there is a point in that
+      node = nodes[i];
+      // and nodes at this leaf depth are considered close neighbors
+      for (unsigned long j = node.pointIndex; j < (node.pointIndex + node.numPoints); j++){
+        if (j != globalID){ // if not self
+          float3 A = points[j];
+          float dist = sqrtf((P.x - A.x)*(P.x - A.x) + (P.y - A.y)*(P.y - A.y) + (P.z - A.z)*(P.z - A.z));
+          sum += dist;
+          neighborsFound++;
+        }
+        if (neighborsFound == *n){ // then we have found the max
+          // averages[globalID] = (sum / (float) neighborsFound);
+          break;
+        }
+      }
+     }
+     if (neighborsFound == *n){ // then we have found the max
+       // averages[globalID] = (sum / (float) neighborsFound);
+       break;
+     }
+   }
+
+   // otherwise you tried your best (sort of, traversal can garuntee n is reached), just return what you have!
+   if (!neighborsFound) {
+     local_avg = 0.0f; // just give it something bad
+     //printf("WARNING: average neightbor error is being skewed due to lack of neighbors at certain depth\n");
+   } else {
+     local_avg = (sum / (float) neighborsFound) / numpoints; // TEMP fill
+   }
+
+   atomicAdd(&localSum,local_avg);
+   __syncthreads();
+   if (!threadIdx.x) atomicAdd(average,localSum);
+}
+
+// gives back good indexes
+__global__ void ssrlcv::getGoodDensePoints(int* n, float* cutoff, unsigned long numpoints, float3* points, unsigned int* pointNodeIndex, Octree::Node* nodes, float3* goodPoints){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (numpoints-1)) return;
+
+   // the point we want neighbors for!
+   float3 P = points[globalID];
+   // the index of the node in the octree containing the point
+   unsigned int nodeIndex = pointNodeIndex[globalID];
+   // the node containing point P from which we can search for neighbors
+   Octree::Node node = nodes[nodeIndex];
+
+   int neighborsFound = 0;
+   float sum = 0.0f;
+   float local_avg = 0.0f;
+
+   // and nodes at this leaf depth are considered close neighbors
+   for (unsigned long i = node.pointIndex; i < (node.pointIndex + node.numPoints); i++){
+     if (i != globalID){ // if not self
+       float3 A = points[i];
+       float dist = sqrtf((P.x - A.x)*(P.x - A.x) + (P.y - A.y)*(P.y - A.y) + (P.z - A.z)*(P.z - A.z));
+       sum += dist;
+       neighborsFound++;
+     }
+     if (neighborsFound == *n){ // then we have found the max
+       // averages[globalID] = (sum / (float) neighborsFound);
+       break;
+     }
+   }
+
+   // now search neighbor nodes for neighbor points
+   for (unsigned long i = 0; i < 27; i++){
+     if (node.neighbors[i] > 0 && i != 13){
+      // see if there is a point in that
+      node = nodes[i];
+      // and nodes at this leaf depth are considered close neighbors
+      for (unsigned long j = node.pointIndex; j < (node.pointIndex + node.numPoints); j++){
+        if (j != globalID){ // if not self
+          float3 A = points[j];
+          float dist = sqrtf((P.x - A.x)*(P.x - A.x) + (P.y - A.y)*(P.y - A.y) + (P.z - A.z)*(P.z - A.z));
+          sum += dist;
+          neighborsFound++;
+        }
+        if (neighborsFound == *n){ // then we have found the max
+          // averages[globalID] = (sum / (float) neighborsFound);
+          break;
+        }
+      }
+     }
+     if (neighborsFound == *n){ // then we have found the max
+       // averages[globalID] = (sum / (float) neighborsFound);
+       break;
+     }
+   }
+
+   // otherwise you tried your best (sort of, traversal can garuntee n is reached), just return what you have!
+   if (!neighborsFound) { // this case means it's prob an outlier
+     float nanboi = 0.0f / 0.0f;
+     goodPoints[globalID] = {nanboi,nanboi,nanboi};
+     return;
+     //printf("WARNING: average neightbor error is being skewed due to lack of neighbors at certain depth\n");
+   }
+
+   local_avg = (sum / (float) neighborsFound); // TEMP fill
+
+   if (local_avg > *cutoff){
+     float nanboi = 0.0f / 0.0f;
+     goodPoints[globalID] = {nanboi,nanboi,nanboi}; // bad
+     return;
+   } else {
+     goodPoints[globalID] = P;
+   }
+
+}
 
 __global__ void ssrlcv::findNormalNeighborsAndComputeCMatrix(int numNodesAtDepth, int depthIndex, int maxNeighbors, Octree::Node* nodeArray, float3* points, float* cMatrix, int* neighborIndices, int* numNeighbors){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
@@ -2264,6 +2642,7 @@ __global__ void ssrlcv::checkForAmbiguity(int numPoints, int numCameras, float3*
 }
 __global__ void ssrlcv::reorient(int numNodesAtDepth, int depthIndex, Octree::Node* nodeArray, int* numNeighbors, int maxNeighbors, float3* normals, int* neighborIndices, bool* ambiguous){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;
+  bool local_debug = false;
   if(blockID < numNodesAtDepth){
     __shared__ bool ambiguityExists;
     ambiguityExists = true;
@@ -2311,7 +2690,7 @@ __global__ void ssrlcv::reorient(int numNodesAtDepth, int depthIndex, Octree::No
       }
       __syncthreads();
     }
-    if(!threadIdx.x) printf("%d reoriented\n",numPointsInNode);
+    if(!threadIdx.x && local_debug) printf("%d reoriented\n",numPointsInNode);
   }
 }
 

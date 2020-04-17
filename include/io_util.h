@@ -217,15 +217,11 @@ struct arg
   // =============================================================================================================
 
   /**
-  * \brief Will write a ply file based on a set of float3 values.
-  * \details This method will write a ply in the specified location and can
-  * be written in binary or ASCII format.
-  * \param filePath - path where image will be written (<string>.c_str() is easiest way to use a string path)
-  * \param points - a Unity<float3>* where the points are listed
-  * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
-  * \see Unity
-  */
-  void writePLY(const char* filePath, Unity<float3>* points, bool binary = false);
+   * Reads an input ASCII encoded PLY and
+   * @param filePath the relative path to the input file
+   * @return points the points of the point cloud in a float3 unity
+   */
+  ssrlcv::Unity<float3>* readPLY(const char* filePath);
 
   /**
   * \brief Will write a ply file based on a set of float3 values.
@@ -236,7 +232,32 @@ struct arg
   * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
   * \see Unity
   */
-  void writePLY(std::string filename, Unity<float3>* points, bool binary = false);
+  void writePLY(const char* filePath, Unity<float3>* points, bool binary);
+
+  /**
+  * \brief Will write a ply file based on a set of float3 values.
+  * \details This method will write a ply in the specified location and can
+  * be written in binary or ASCII format.
+  * \param filePath - path where image will be written (<string>.c_str() is easiest way to use a string path)
+  * \param points - a Unity<float3>* where the points are listed
+  * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
+  * \see Unity
+  */
+  void writePLY(std::string filename, Unity<float3>* points, bool binary);
+
+  /**
+   * @brief a simple ASCII PLY writing method that does not require the tinyPLY external lib
+   * @param filename the name of the file to be saved in the /out directory
+   * @param points the points to save as a PLY
+   */
+  void writePLY(const char* filename, Unity<float3>* points);
+
+  /**
+   * @brief a simple ASCII PLY writing method that does not require the tinyPLY external lib
+   * @param filename the name of the file to be saved in the /out directory
+   * @param points the points to save as a PLY
+   */
+  void writePLY(std::string filename, Unity<float3>* points);
 
   /**
   * \brief Will write a ply file based on a set of float3 values with rgb color
@@ -272,6 +293,16 @@ struct arg
   void writePLY(const char* filePath, Unity<colorPoint>* cpoint);
 
   /**
+  * writes a mesh with colors
+  * @param filename the filename
+  * @param points the points
+  * @param faceList the faces
+  * @param faceEncoding the face encoding
+  * @param colors the colors of the points
+  */
+  void writePLY(const char* filename, Unity<float3>* points, Unity<int>* faceList, int faceEncoding, Unity<uchar3>* colors);
+
+  /**
    * @brief writes a Mesh PLY file that also contains a surface
    * writes a PLY file that includes a surface along with the points
    * @param filename the desired name of the output file
@@ -297,6 +328,14 @@ struct arg
    * @param cutoff the max gradient value, where the gradient should end. all points after this will be the same color
    */
   void writePLY(const char* filename, Unity<float3>* points, Unity<float>* gradient, float cutoff);
+
+  /**
+   * @brief write a PLY that is a point cloud including normals
+   * @param filename is the desired name of the output PLY file
+   * @param points is the collection of points
+   * @param normals are the normal vectors (assumed to have been normalized) for each of the point cloud's points
+   */
+  void writePLY(const char* filename, Unity<float3>* points, Unity<float3>* normals);
 
   // =============================================================================================================
   //
@@ -330,11 +369,27 @@ struct arg
   void writeCSV(std::vector<float> x, std::vector<float> y, std::string filename);
 
   /*
+   * Takes in two c++ vectors and writes their values as:
+   * `x,y,z` on a single line for all values in a CSV encoeded format
+   * all pairs are on a new line. Assumes the vectors are the same size
+   * @param v a vector of float3 that is used to save `x,y,z`
+   */
+  void writeCSV(std::vector<float3> v, const char* filename);
+
+  /*
    * saves a CSV file with a unity input
    * @param values a unity float input
    * @param filename the desired filename
    */
   void writeCSV(Unity<float>* values, const char* filename);
+
+  /*
+   * Takes in two c++ vectors and writes their values as:
+   * `x,y,z` on a single line for all values in a CSV encoeded format
+   * all pairs are on a new line. Assumes the vectors are the same size
+   * @param v a unity float3 that is used to save `x,y,z`
+   */
+  void writeCSV(Unity<float3>* v, const char* filename);
 
   //
   // Binary files - Gitlab #58

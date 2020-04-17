@@ -8,6 +8,25 @@
 
 ssrlcv::MeshFactory::MeshFactory(){
   this->faceEncoding = 0;
+  this->octree = nullptr;
+  this->points = nullptr;
+  this->faces  = nullptr;
+}
+
+// constructor given existing points and faces
+ssrlcv::MeshFactory::MeshFactory(Unity<float3>* in_points, Unity<int>* in_faces, int in_faceEncoding){
+  this->faceEncoding = in_faceEncoding;
+  this->points       = new Unity<float3>(nullptr,in_points->size(),cpu);
+  this->faces        = new Unity<int>(nullptr,in_faces->size(),cpu);
+  for (int i = 0; i < this->points->size(); i++) {
+    this->points->host[i] = in_points->host[i];
+  }
+  for (int i = 0; i < this->faces->size(); i++) {
+    this->faces->host[i] = in_faces->host[i];
+  }
+  if (this->octree == nullptr) delete this->octree;
+  // Octree oct = Octree(this->points, 8, false);
+  this->octree = new Octree(this->points, 8, false);
 }
 
 ssrlcv::MeshFactory::~MeshFactory(){
@@ -15,6 +34,7 @@ ssrlcv::MeshFactory::~MeshFactory(){
 }
 
 ssrlcv::MeshFactory::MeshFactory(Octree* octree){
+  this->faceEncoding = 0;
   this->octree = octree;
   if(this->octree->normals == nullptr || this->octree->normals->getMemoryState() == null){
     this->octree->computeNormals(3, 20);
@@ -24,9 +44,42 @@ ssrlcv::MeshFactory::MeshFactory(Octree* octree){
 
 // =============================================================================================================
 //
-// Mesh Loading Methods
+// Mesh Setters, Getter, Loading, and Saving Methods
 //
 // =============================================================================================================
+
+/**
+ * Loads in a point cloud into the mesh, this will override any existing point data
+ * and should be used sparingly
+ * @param pointcloud a unity of float3 that represents a point cloud to be set to internal points
+ */
+void ssrlcv::MeshFactory::setPoints(Unity<float3>* pointcloud){
+  if (!(this->points == nullptr)) delete this->points; // reset
+  this->points = new Unity<float3>(nullptr,pointcloud->size(),cpu);
+  // set
+  for (int i = 0; i < this->points->size(); i++) {
+    this->points->host[i] = pointcloud->host[i];
+  }
+  if (this->octree == nullptr) delete this->octree;
+  // Octree oct = Octree(this->points, 8, false);
+  this->octree = new Octree(this->points, 8, false);
+}
+
+/**
+ * Loads faces into the mesh, this will override any existing face data
+ * and should be used sparingly
+ * @param faces a unity of int that represents the indexes of points which make faces
+ * @param faceEncoding the face encoding scheme 3 or 4
+ */
+void ssrlcv::MeshFactory::setFaces(Unity<int>* faces, int faceEncoding){
+  this->faceEncoding = faceEncoding;
+  if (!(this->faces == nullptr)) delete this->faces; // reset
+  this->faces = new Unity<int>(nullptr,faces->size(),cpu);
+  // set
+  for (int i = 0; i < this->faces->size(); i++) {
+    this->faces->host[i] = faces->host[i];
+  }
+}
 
 /**
  * loads a mesh from a file into
@@ -170,6 +223,16 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
 }
 
 /**
+* loads points from an ASCII encoded PLY file into the mesh
+* overloads existing points
+* @param filePath the filepath, relative to the install location
+*/
+void ssrlcv::MeshFactory::loadPoints(const char* filePath){
+  ssrlcv::Unity<float3>* newBoi = readPLY(filePath);
+  setPoints(newBoi);
+}
+
+/**
  * saves a PLY encoded Mesh as a given filename to the out directory
  * @param filename the filename
  */
@@ -181,6 +244,14 @@ void ssrlcv::MeshFactory::saveMesh(const char* filename){
   }
   // save the boi!
   ssrlcv::writePLY(filename, this->points, this->faces, faceEncoding);
+}
+
+/**
+ * saves only the points as a PLY
+ * @param filename the filename
+ */
+void ssrlcv::MeshFactory::savePoints(const char* filename){
+  ssrlcv::writePLY(filename, this->points);
 }
 
 // =============================================================================================================
@@ -201,10 +272,10 @@ void ssrlcv::MeshFactory::saveMesh(const char* filename){
 float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud, float3 planeNormal){
 
   // disable these for no print statements
-  bool local_debug   = true;
+  bool local_debug   = false;
   bool local_verbose = true;
 
-  if (local_verbose || local_debug) std::cout << "Computing average differnce between mesh and point cloud ..." << std::endl;
+  if (local_verbose || local_debug) std::cout << "Computing average diff between mesh and point cloud ..." << std::endl;
 
   if (!faceEncoding){
     std::cerr << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" << std::endl;
@@ -294,10 +365,10 @@ float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud,
 ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculatePerPointDifference(Unity<float3>* pointCloud, float3 planeNormal){
 
   // disable these for no print statements
-  bool local_debug   = true;
+  bool local_debug   = false;
   bool local_verbose = true;
 
-  if (local_verbose || local_debug) std::cout << "Computing average differnce between mesh and point cloud ..." << std::endl;
+  if (local_verbose || local_debug) std::cout << "Computing per point diff between mesh and point cloud ..." << std::endl;
 
   if (!faceEncoding){
     std::cerr << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" << std::endl;
@@ -325,12 +396,12 @@ ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculatePerPointDifference(Unity<flo
   CudaSafeCall(cudaMalloc((void**) &d_misses,sizeof(int)));
   CudaSafeCall(cudaMemcpy(d_misses,&misses,sizeof(int),cudaMemcpyHostToDevice));
 
+  Unity<float>* errors = new ssrlcv::Unity<float>(nullptr,pointCloud->size(),ssrlcv::gpu);
+
   pointCloud->transferMemoryTo(gpu);
   normal->transferMemoryTo(gpu);
   this->points->transferMemoryTo(gpu);
   this->faces->transferMemoryTo(gpu);
-
-  Unity<float>* errors = new ssrlcv::Unity<float>(nullptr,pointCloud->size(),ssrlcv::gpu);
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
@@ -360,6 +431,198 @@ ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculatePerPointDifference(Unity<flo
 
   return errors;
 }
+
+// =============================================================================================================
+//
+// Filtering Methods
+//
+// =============================================================================================================
+
+/**
+ * caclualtes the average distance to N neightbors for each points
+ * @param n the number of neignbors to calculate an average distance to
+ * @return float a unity of floats representing the average distance to N neighbors
+ */
+ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculateAverageDistancesToOctreeNeighbors(int n){
+  return this->octree->averageNeighboorDistances(n); // basically a pass through to octree
+}
+
+/**
+ * caclualtes the average distance to N neightbors for each point on average
+ * @param n the number of neignbors to calculate an average distance to
+ * @return float which is the average distance to n neighbors
+ */
+float ssrlcv::MeshFactory::calculateAverageDistanceToOctreeNeighbors(int n){
+  return this->octree->averageNeighboorDistance(n); // basically a pass through to octree
+}
+
+/**
+ * filters points from the mesh by caclulating their average distances to their neighbors
+ * and then calculating the variance of the data, and removing points past sigma
+ * @param sigma the statistical value to remove points after
+ */
+void ssrlcv::MeshFactory::filterByOctreeNeighborDistance(float sigma){
+
+  bool local_debug   = false;
+  bool local_verbose = true;
+
+  // TODO verify that the at last the points and the octree have been made
+  ssrlcv::Unity<float>* samples = calculateAverageDistancesToOctreeNeighbors(6);
+  float average = calculateAverageDistanceToOctreeNeighbors(6);
+  // now calculate the variance
+  float sum = 0.0f;
+  for (int i = 0; i < samples->size(); i++){
+    if (samples->host[i] < 10000.0f){ // don't count points this bad
+      sum += (samples->host[i] - average) * (samples->host[i] - average);
+    }
+  }
+  float variance = sum / samples->size();
+  float cutoff;
+  if (local_debug){
+    std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
+    std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
+    std::cout << "\tCutoff Set To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
+  }
+  cutoff = sigma * sqrtf(variance);
+
+  // now remove the points that are not good!
+  ssrlcv::Unity<float3>* newPoints = this->octree->removeLowDensityPoints(cutoff, 6);
+  int bad_points = 0;
+  for (int i = 0; i < newPoints->size(); i++){
+    if (isnan(newPoints->host[i].x)) bad_points++;
+    // std::cout << "boi: " << newPoints->host[i].x << "\t";
+  }
+  if (local_debug || local_verbose) std::cout << "Detected " << bad_points << " points in low density regions to remove ..." << std::endl;
+
+  // allocate new space and fill the points
+  delete this->points;
+  this->points = new Unity<float3>(nullptr,(newPoints->size() - bad_points),cpu);
+  int index = 0;
+  for (int i = 0; i < this->points->size(); i++){
+    if (!isnan(newPoints->host[i].x)) {
+      this->points->host[index] = newPoints->host[i];
+      index++;
+    }
+  }
+  delete newPoints;
+  if (local_debug || local_verbose) std::cout << "Removed " << bad_points << " bad points, " <<  this->points->size() << " good points remain ..." << std::endl;
+}
+
+/**
+ * caclualtes the average distance to N neightbors for each points
+ * @param n the number of neignbors to calculate an average distance to
+ * @return float a unity of floats representing the average distance to N neighbors
+ */
+ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculateAverageDistancesToNeighbors(int n){
+
+  bool local_verbose = true;
+
+  if (n > 6){
+    std::cout << "WARN: values larger than N = 6 neighbors are not nesseary, chaning N from " << n << " to 6 ..." << std::endl;
+  }
+
+  int* d_num;
+  CudaSafeCall(cudaMalloc((void**) &d_num,sizeof(int)));
+  CudaSafeCall(cudaMemcpy(d_num,&n,sizeof(int),cudaMemcpyHostToDevice));
+
+  Unity<float>* averages = new ssrlcv::Unity<float>(nullptr,this->points->size(),ssrlcv::gpu);
+
+  this->points->transferMemoryTo(gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*fp)(int *, unsigned long, float3*, float*) = &averageDistToNeighbors;
+  getFlatGridBlock(this->points->size(),grid,block,fp);
+
+  if (local_verbose) std::cout << "calulating nearest neighbors via exaustive kernel search ..." << std::endl;
+
+  averageDistToNeighbors<<<grid,block>>>(d_num,this->points->size(),this->points->device,averages->device);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  averages->setFore(gpu);
+  averages->transferMemoryTo(cpu);
+  this->points->transferMemoryTo(cpu);
+  cudaFree(d_num);
+
+  return averages;
+}
+
+/**
+ * caclualtes the average distance to N neightbors for each point on average
+ * @param n the number of neignbors to calculate an average distance to
+ * @return float which is the average distance to n neighbors
+ */
+float ssrlcv::MeshFactory::calculateAverageDistanceToNeighbors(int n){
+    ssrlcv::Unity<float>* averages = calculateAverageDistancesToNeighbors(n);
+    float sum = 0.0f;
+    for (int i = 0; i < averages->size(); i++) {
+      sum += averages->host[i];
+    }
+    float ret_val = ( sum / ((float) averages->size()));
+    delete averages;
+    return ret_val;
+}
+
+/**
+ * filters points from the mesh by caclulating their average distances to their neighbors
+ * and then calculating the variance of the data, and removing points past sigma
+ * @param sigma the statistical value to remove points after
+ */
+void ssrlcv::MeshFactory::filterByNeighborDistance(float sigma){
+
+  // desable both of these to remove local print statements
+  bool local_debug   = false;
+  bool local_verbose = true;
+
+  // TODO verify that the at last the points and the octree have been made
+  ssrlcv::Unity<float>* samples = calculateAverageDistancesToNeighbors(6);
+  float average = calculateAverageDistanceToNeighbors(6);
+  // now calculate the variance
+  float sum = 0.0f;
+  for (int i = 0; i < samples->size(); i++){
+    if (samples->host[i] < 10000.0f){ // don't count points this bad
+      sum += (samples->host[i] - average) * (samples->host[i] - average);
+    }
+  }
+  float variance = sum / samples->size();
+  float cutoff;
+  if (local_debug){
+    std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
+    std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
+    std::cout << "\tCutoff Set To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
+  }
+  cutoff = sigma * sqrtf(variance);
+
+  // loop and find bad points
+  int bad_points = 0;
+  for (int i = 0; i < samples->size(); i++) {
+    if (samples->host[i] > cutoff) bad_points++;
+  }
+
+  if (local_debug || local_verbose) std::cout << "Detected " << bad_points << " points in low density regions to remove ..." << std::endl;
+
+  // allocate new space and fill the points
+  ssrlcv::Unity<float3>* temp = new Unity<float3>(nullptr,(this->points->size() - bad_points),cpu);
+  int index = 0;
+  for (int i = 0; i < temp->size(); i++) {
+    if (samples->host[i] < cutoff) {
+      temp->host[index] = this->points->host[i];
+      index++;
+    }
+  }
+  delete this->points;
+  this->points = new Unity<float3>(nullptr,(this->points->size() - bad_points),cpu);
+  for (int i = 0; i < this->points->size(); i++){
+    this->points->host[i] = temp->host[i];
+  }
+
+  delete samples;
+  delete temp;
+  if (local_debug || local_verbose) std::cout << "Removed " << bad_points << " bad points, " <<  this->points->size() << " good points remain ..." << std::endl;
+}
+
 
 // =============================================================================================================
 //
@@ -1776,6 +2039,58 @@ __global__ void ssrlcv::generateCollisionDistances(float* errors, int* misses, u
 
 }
 
+/**
+ * exaustivley caclulates the average distance to N nearest neightbors
+ */
+__global__ void ssrlcv::averageDistToNeighbors(int * d_num, unsigned long pointnum, float3* points, float* averages){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > (pointnum-1)) return;
+
+  // this _should_ be replaced with a priority queue tbh
+  // don't actually need to keep track of the IDs but it will make future things easier if I do
+  unsigned int* ids = (unsigned int *) malloc(sizeof(unsigned int) * (*d_num)); // indexes of current best points
+  float*  distances = (float *) malloc(sizeof(float) * (*d_num)); // distances at those points indexes
+  int filled = 0; // number of elements "filled" for a min distance caclulation
+
+  // the local point
+  float3 P = points[globalID];
+
+  // exaustive search for N nearest neighbors
+  // this is dumb
+  for (unsigned int i = 0; i < pointnum; i++){
+    if (i != globalID){ // don't count self
+      float3 Q = points[i]; // the candidate point
+      float dist = sqrtf((P.x - Q.x)*(P.x - Q.x) + (P.y - Q.y)*(P.y - Q.y) + (P.z - Q.z)*(P.z - Q.z));
+      if (filled < *d_num){
+        // go ahead and fill the guy
+        ids[filled] = i;
+        distances[filled] = dist;
+        filled++;
+      } else {
+        // check if this point is closer that the others
+        for (int j = 0; j < *d_num; j++){
+          if (dist < distances[j]){
+            distances[j] = dist;
+            ids[j] = i;
+            break; // found new closest point
+          } // end if
+        } // end for
+      } // end else
+    } // end not self
+  } // end all points loop
+
+  // after search caclulate the average distance
+  float sum = 0.0f;
+  for (int i = 0; i < *d_num; i++) {
+    sum += distances[i];
+  }
+
+  // free mem
+  free(ids);
+  free(distances);
+
+  averages[globalID] = sum / *d_num;
+}
 
 __global__ void ssrlcv::vertexImplicitFromNormals(int numVertices, Octree::Vertex* vertexArray, Octree::Node* nodeArray, float3* normals, float3* points, float* vertexImplicit){
   int blockID = blockIdx.y * gridDim.x + blockIdx.x;

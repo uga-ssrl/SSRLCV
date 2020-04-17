@@ -545,6 +545,108 @@ bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out)
 //
 // =============================================================================================================
 
+/**
+ * Reads an input ASCII encoded PLY and
+ * @param filePath the relative path to the input file
+ * @return points the points of the point cloud in a float3 unity
+ */
+ssrlcv::Unity<float3>* ssrlcv::readPLY(const char* filePath){
+  // disable both of these to remove print statements
+  bool local_debug   = false;
+  bool local_verbose = true;
+
+  if (local_verbose || local_debug) std::cout << "Reading Mesh ... " << std::endl;
+
+  // temp storage
+  std::vector<float3> tempPoints;
+  // std::vector<int> tempFaces;
+  std::ifstream input(filePath);
+  int numPoints = 0;
+  int numFaces  = 0;
+  int numEdges  = 0;
+  bool inData   = false;
+
+  // assuming ASCII encoding
+  std::string line;
+  while (std::getline(input, line)){
+    std::istringstream iss(line);
+
+    if (!inData){ // parse the header
+
+      std::string tag;
+      iss >> tag;
+
+      //
+      // Handle elements here
+      //
+      if (!tag.compare("element")){
+        if(local_debug) std::cout << "element found" << std::endl;
+        // temp vars for strings
+        std::string elem;
+        std::string type;
+        int num;
+
+        iss >> type;
+        iss >> num;
+
+        // set the correct value
+        if (!type.compare("vertex")){
+          numPoints = num;
+          if(local_debug) std::cout << "detected " << num << " Points" << std::endl;
+        } else if (!type.compare("face")) {
+          numFaces = num;
+          if(local_debug) std::cout << "detected " << num << " Faces" << std::endl;
+        } else if (!type.compare("edge")) {
+          // TODO read in edges if desired
+          std::cout << "\tWARN: edge reading is not currently supported in MeshFactory" << std::endl;
+          if(local_debug) std::cout << "detected " << num << " Edges" << std::endl;
+        }
+
+      }
+
+      // header is ending
+      if (!tag.compare("end_header")){
+        inData = true;
+      }
+    } else { // parse the data
+
+      //
+      // Handle the Data reading here
+      //
+
+      if (tempPoints.size() < numPoints && numPoints) {
+        //
+        // add the point
+        //
+
+        float3 point;
+        iss >> point.x;
+        iss >> point.y;
+        iss >> point.z;
+        tempPoints.push_back(point);
+        if (local_debug) std::cout << "\t" << point.x << ", " << point.y << ", " << point.z << std::endl;
+      }
+
+    } // end data reading
+
+  } // end while
+
+  input.close(); // close the stream
+
+  // save the values to the mesh
+  ssrlcv::Unity<float3>* points = new ssrlcv::Unity<float3>(nullptr,tempPoints.size(),ssrlcv::cpu);
+  for (int i = 0; i < points->size(); i++) {
+    points->host[i] = tempPoints[i];
+  }
+
+  if (local_verbose || local_debug) {
+    std::cout << "Done reading PLY!" << std::endl;
+    std::cout << "\t Total Points Loaded:  " << points->size() << std::endl;
+  }
+
+  return points;
+}
+
 void ssrlcv::writePLY(const char* filePath, Unity<float3>* points, bool binary){
   std::cout << "saving " << points->size() << " points ..." << std::endl;
   MemoryState origin = points->getMemoryState();
@@ -599,6 +701,49 @@ void ssrlcv::writePLY(std::string filename, Unity<float3>* points, bool binary){
   if(origin == gpu) points->setMemoryState(gpu);
 }
 
+/**
+ * @brief a simple ASCII PLY writing method that does not require the tinyPLY external lib
+ * @param filename the name of the file to be saved in the /out directory
+ * @param points the points to save as a PLY
+ */
+void ssrlcv::writePLY(const char* filename, Unity<float3>* points){
+  std::ofstream of;
+  std::string fname = filename;
+  of.open ("out/" + fname + ".ply");
+  of << "ply\nformat ascii 1.0\n";
+  of << "comment author: Caleb Adams & Jackson Parker\n";
+  of << "comment SSRL CV simple PLY writer\n";
+  of << "element vertex " << points->size() << "\n";
+  of << "property float x\nproperty float y\nproperty float z\n"; // the elements in the guy
+  of << "end_header\n";
+  // start writing the values
+  for (int i = 0; i < points->size(); i++){
+    of << points->host[i].x << " " << points->host[i].y << " " << points->host[i].z << "\n";
+  }
+  of.close(); // done with the file building
+}
+
+/**
+ * @brief a simple ASCII PLY writing method that does not require the tinyPLY external lib
+ * @param filename the name of the file to be saved in the /out directory
+ * @param points the points to save as a PLY
+ */
+void ssrlcv::writePLY(std::string filename, Unity<float3>* points){
+  std::ofstream of;
+  of.open ("out/" + filename + ".ply");
+  of << "ply\nformat ascii 1.0\n";
+  of << "comment author: Caleb Adams & Jackson Parker\n";
+  of << "comment SSRL CV simple PLY writer\n";
+  of << "element vertex " << points->size() << "\n";
+  of << "property float x\nproperty float y\nproperty float z\n"; // the elements in the guy
+  of << "end_header\n";
+  // start writing the values
+  for (int i = 0; i < points->size(); i++){
+    of << points->host[i].x << " " << points->host[i].y << " " << points->host[i].z << "\n";
+  }
+  of.close(); // done with the file building
+}
+
 // colored PLY writing
 void ssrlcv::writePLY(std::string filename, colorPoint* cpoint, int size){
   std::ofstream of;
@@ -649,6 +794,19 @@ void ssrlcv::writePLY(const char* filePath, Unity<colorPoint>* cpoint){
     of << std::fixed << std::setprecision(32) << cpoint->host[i].x << " " << cpoint->host[i].y << " " << cpoint->host[i].z << " " << (unsigned int) cpoint->host[i].r << " " << (unsigned int) cpoint->host[i].g << " " << (unsigned int) cpoint->host[i].b << "\n";
   }
   of.close(); // done with the file building
+}
+
+/**
+* writes a mesh with colors
+* @param filename the filename
+* @param points the points
+* @param faceList the faces
+* @param faceEncoding the face encoding
+* @param colors the colors of the points
+*/
+void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<int>* faceList, int faceEncoding, Unity<uchar3>* colors){
+  // TODO
+
 }
 
 /**
@@ -801,6 +959,29 @@ void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float>*
 
 }
 
+/**
+ * @brief write a PLY that is a point cloud including normals
+ * @param filename is the desired name of the output PLY file
+ * @param points is the collection of points
+ * @param normals are the normal vectors (assumed to have been normalized) for each of the point cloud's points
+ */
+void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float3>* normals){
+  std::ofstream of;
+  std::string fname = filename;
+  of.open ("out/" + fname + ".ply");
+  of << "ply\nformat ascii 1.0\n";
+  of << "comment author: Caleb Adams & Jackson Parker\n";
+  of << "comment SSRL CV points with normals PLY writer\n";
+  of << "element vertex " << points->size() << "\n";
+  of << "property float x\nproperty float y\nproperty float z\nproperty float nx\nproperty float ny\nproperty float nz\n"; // the elements in the guy
+  of << "end_header\n";
+  // start writing the values
+  for (int i = 0; i < points->size(); i++){
+    of << points->host[i].x << " " << points->host[i].y << " " << points->host[i].z << " " << normals->host[i].x << " " << normals->host[i].y << " " << normals->host[i].z << "\n";
+  }
+  of.close(); // done with the file building
+}
+
 // =============================================================================================================
 //
 // CSV and Misc IO
@@ -856,6 +1037,22 @@ void ssrlcv::writeCSV(std::vector<float> x, std::vector<float> y, std::string fi
 }
 
 /*
+ * Takes in two c++ vectors and writes their values as:
+ * `x,y,z` on a single line for all values in a CSV encoeded format
+ * all pairs are on a new line. Assumes the vectors are the same size
+ * @param v a vector of float3 that is used to save `x,y,z`
+ */
+void ssrlcv::writeCSV(std::vector<float3> v, const char* filename){
+  std::ofstream outfile;
+  std::string fname = filename;
+  outfile.open("out/" + fname + ".csv");
+  for (int i = 0; i < v.size(); i++) {
+      outfile << std::fixed << std::setprecision(32) << v[i].x << "," << v[i].y << "," << v[i].z << std::endl;
+  }
+  outfile.close();
+}
+
+/*
  * saves a CSV file with a unity input
  * @param values a unity float input
  * @param filename the desired filename
@@ -868,8 +1065,21 @@ void ssrlcv::writeCSV(Unity<float>* values, const char* filename){
   outfile.close();
 }
 
-
-
+/*
+ * Takes in two c++ vectors and writes their values as:
+ * `x,y,z` on a single line for all values in a CSV encoeded format
+ * all pairs are on a new line. Assumes the vectors are the same size
+ * @param v a unity float3 that is used to save `x,y,z`
+ */
+void ssrlcv::writeCSV(Unity<float3>* v, const char* filename){
+  std::ofstream outfile;
+  std::string fname = filename;
+  outfile.open("out/" + fname + ".csv");
+  for (int i = 0; i < v->size(); i++) {
+      outfile << std::fixed << std::setprecision(32) << v->host[i].x << "," << v->host[i].y << "," << v->host[i].z << std::endl;
+  }
+  outfile.close();
+}
 
 
 

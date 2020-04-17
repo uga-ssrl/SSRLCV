@@ -88,6 +88,12 @@ namespace ssrlcv{
     /**
     * The CPU method that sets up the GPU enabled two view tringulation.
     * @param bundleSet a set of lines and bundles that should be triangulated
+    */
+    ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bundleSet);
+
+    /**
+    * The CPU method that sets up the GPU enabled two view tringulation.
+    * @param bundleSet a set of lines and bundles that should be triangulated
     * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
     */
     ssrlcv::Unity<float3>* twoViewTriangulate(BundleSet bundleSet, float* linearError);
@@ -302,8 +308,9 @@ namespace ssrlcv{
     * this methods saves a plane which can be visualized as a mesh
     * @param pointCloud the point cloud to visualize plane estimation from
     * @param filename a string representing the filename that should be saved
+    * @param range a float representing 1/2 of a side in km, so +/- range is how but the plane will be 
     */
-    void visualizePlaneEstimation(Unity<float3>* pointCloud, std::vector<ssrlcv::Image*> images, const char* filename);
+    void visualizePlaneEstimation(Unity<float3>* pointCloud, std::vector<ssrlcv::Image*> images, const char* filename, float range);
 
     /**
     * This function is used to test bundle adjustment by adding a bit of noise to the input data
@@ -351,6 +358,15 @@ namespace ssrlcv{
      */
     void linearCutoffFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float cutoff);
 
+    /**
+     * This method estimates the plane the point cloud sits in and removes points that are outside of a certain
+     * threashold distance from the plane. The bad locations are removed from the matchSet
+     * @param matchSet a group of matches. this is altered and bad locations are removed from here
+     * @param images a group of images, used only for their stored camera parameters
+     * @param cutoff is a cutoff of +/- km distance from the plane, if the point cloud has been scaled then this should also be scaled
+     */
+    void planarCutoffFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float cutoff);
+
     // =============================================================================================================
     //
     // Bulk Point Cloud Alteration Methods
@@ -378,6 +394,13 @@ namespace ssrlcv{
     * @param points is the point cloud to be altered by r, this value is directly altered
     */
     void rotatePointCloud(float3 rotate, Unity<float3>* points);
+
+    /**
+     * A method which simply returns the average point in a point cloud
+     * @param points a unity of float3 which contains the point cloud
+     * @return average a single valued unity of float3 that is the aveage of the points in the point cloud
+     */
+    ssrlcv::Unity<float3>* getAveragePoint(Unity<float3>* points);
 
 
   }; // end PointCloudFactory
@@ -418,9 +441,21 @@ namespace ssrlcv{
 
   // =============================================================================================================
   //
+  // Filtering Kernels
+  //
+  // =============================================================================================================
+
+  __global__ void filterTwoViewFromEstimatedPlane(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float* cutoff, float3* point, float3* vector);
+
+  __global__ void filterNViewFromEstimatedPlane(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float* cutoff, float3* point, float3* vector);
+
+  // =============================================================================================================
+  //
   // 2 View Kernels
   //
   // =============================================================================================================
+
+  __global__ void computeTwoViewTriangulate(unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 
   __global__ void computeTwoViewTriangulate(float* linearError, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 
@@ -485,6 +520,10 @@ namespace ssrlcv{
   */
   __global__ void computeRotatePointCloud(float3* rotation, unsigned long pointnum, float3* points);
 
+  /**
+   * a CUDA kernel to compute the average point of a point cloud
+   */
+  __global__ void computeAveragePoint(float3* average, unsigned long pointnum, float3* points);
 
 }
 
