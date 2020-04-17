@@ -18,7 +18,11 @@ ssrlcv::Logger::Logger(){
     // make the file
     std::ofstream temp;
     temp.open(this->logFileLocation);
-    temp << "Log File Created at: " << this->logFileLocation << std::endl;
+    // ALWAYS LOG THE TIME!
+    std::time_t t = std::time(nullptr);
+    outstream << t << ",";
+    // now print the real junk
+    temp << "Log Generated," << this->logFileLocation << std::endl;
     temp.close();
   }
 }
@@ -39,7 +43,11 @@ ssrlcv::Logger::Logger(const char* logPath){
     // make the file
     std::ofstream temp;
     temp.open(this->logFileLocation);
-    temp << "Log File Created at: " << this->logFileLocation << std::endl;
+    // ALWAYS LOG THE TIME!
+    std::time_t t = std::time(nullptr);
+    outstream << t << ",";
+    // now print the real junk
+    temp << "Log Generated," << this->logFileLocation << std::endl;
     temp.close();
   }
 }
@@ -53,7 +61,7 @@ ssrlcv::Logger::~Logger(){
 
 // =============================================================================================================
 //
-// Logging Methods
+// Direct Logging Methods
 //
 // =============================================================================================================
 
@@ -62,9 +70,12 @@ ssrlcv::Logger::~Logger(){
  * @param input a string to write to the log
  */
 void ssrlcv::Logger::log(const char* input){
-  // TODO add time stamp
   std::ofstream outstream;
   outstream.open(this->logFileLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  std::time_t t = std::time(nullptr);
+  outstream << t << ",comment,";
+  // now print the real junk
   outstream << input << std::endl;
   outstream.close();
 }
@@ -74,16 +85,49 @@ void ssrlcv::Logger::log(const char* input){
  * @param input a string to write to the log
  */
 void ssrlcv::Logger::log(std::string input){
-  // TODO add time stamp
   std::ofstream outstream;
   outstream.open(this->logFileLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  std::time_t t = std::time(nullptr);
+  outstream << t << ",comment,";
+  // now print the real junk
+  outstream << input << std::endl;
+  outstream.close();
+}
+
+/**
+ * logs a state with a state tag, it is expected that the programmer has a set of pre-defined states
+ * @param state a string to be tagged as a state
+ */
+void log(const char* state){
+  std::ofstream outstream;
+  outstream.open(this->logFileLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  std::time_t t = std::time(nullptr);
+  outstream << t << ",state,";
+  // now print the real junk
+  outstream << input << std::endl;
+  outstream.close();
+}
+
+/**
+ * logs a state with a state tag, it is expected that the programmer has a set of pre-defined states
+ * @param state a string to be tagged as a state
+ */
+void log(std::string state){
+  std::ofstream outstream;
+  outstream.open(this->logFileLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  std::time_t t = std::time(nullptr);
+  outstream << t << ",state,";
+  // now print the real junk
   outstream << input << std::endl;
   outstream.close();
 }
 
 /**
  * logs the CPU names
- * for details, see https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%2520Linux%2520Driver%2520Package%2520Development%2520Guide%2Fpower_management_tx2_32.html%23wwpID0E0ZS0HA
+ * for details see https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%2520Linux%2520Driver%2520Package%2520Development%2520Guide%2Fpower_management_tx2_32.html%23wwpID0E0ZS0HA
  */
 void ssrlcv::Logger::logCPUnames(){
 
@@ -104,8 +148,9 @@ void ssrlcv::Logger::logCPUnames(){
       std::ifstream infile(startPath + std::to_string(Denver_IDs[i]) + endPath + std::to_string(j) + "/name" );
       if (infile.is_open()){
         std::string line;
-        while (getline(infile,line){
+        while (getline(infile,line)){
           logline += line;
+          logline += ",";
         }
         infile.close();
       } else {
@@ -120,8 +165,9 @@ void ssrlcv::Logger::logCPUnames(){
       std::ifstream infile(startPath + std::to_string(A57_IDs[i]) + endPath + std::to_string(j) + "/name" );
       if (infile.is_open()){
         std::string line;
-        while (getline(infile,line){
+        while (getline(infile,line)){
           logline += line;
+          logline += ",";
         }
         infile.close();
       } else {
@@ -133,13 +179,17 @@ void ssrlcv::Logger::logCPUnames(){
   // log to the file
   std::ofstream outstream;
   outstream.open(this->logFileLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  std::time_t t = std::time(nullptr);
+  outstream << t << ",";
+  // now print the real junk
   outstream << logline << std::endl;
   outstream.close();
 }
 
 /**
  * logs the system voltage
- * for details, see https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%2520Linux%2520Driver%2520Package%2520Development%2520Guide%2Fpower_management_tx2_32.html%23wwpID0E05H0HA
+ * for details see https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%2520Linux%2520Driver%2520Package%2520Development%2520Guide%2Fpower_management_tx2_32.html%23wwpID0E05H0HA
  */
 void ssrlcv::Logger::logVoltage(){
 
@@ -151,67 +201,216 @@ void ssrlcv::Logger::logVoltage(){
   std::string monitor1 = "/sys/bus/i2c/drivers/ina3221x/0-0041/iio:device1";
 
   // read in VDD_SYS_GPU voltage
-  std::ifstream infile(monitor0 + "/in_voltage0_input");
-  if (infile.is_open()){
+  std::ifstream infile1(monitor0 + "/in_voltage0_input");
+  if (infile1.is_open()){
     std::string line;
-    while (getline(infile,line){
+    while (getline(infile1,line)){
       logline += "VDD_SYS_GPU,";
-      logline += line;
+      logline += line + ",";
     }
-    infile.close();
+    infile1.close();
   } else {
     std::cerr << "ERROR: logger could not log voltage " << std::endl;
   }
 
   // read in VDD_SYS_GPU voltage
-  std::ifstream infile(monitor0 + "/in_voltage1_input");
-  if (infile.is_open()){
+  std::ifstream infile2(monitor0 + "/in_voltage1_input");
+  if (infile2.is_open()){
     std::string line;
-    while (getline(infile,line){
+    while (getline(infile2,line)){
       logline += "VDD_SYS_SOC,";
-      logline += line;
+      logline += line + ",";
     }
-    infile.close();
+    infile2.close();
   } else {
     std::cerr << "ERROR: logger could not log voltage " << std::endl;
   }
 
   // read in VDD_IN voltage
-  std::ifstream infile(monitor1 + "/in_voltage0_input");
-  if (infile.is_open()){
+  std::ifstream infile3(monitor1 + "/in_voltage0_input");
+  if (infile3.is_open()){
     std::string line;
-    while (getline(infile,line){
+    while (getline(infile3,line)){
       logline += "VDD_IN,";
-      logline += line;
+      logline += line + ",";
     }
-    infile.close();
+    infile3.close();
   } else {
     std::cerr << "ERROR: logger could not log voltage " << std::endl;
   }
 
   // read in VDD_SYS_GPU voltage
-  std::ifstream infile(monitor1 + "/in_voltage1_input");
-  if (infile.is_open()){
+  std::ifstream infile4(monitor1 + "/in_voltage1_input");
+  if (infile4.is_open()){
     std::string line;
-    while (getline(infile,line){
+    while (getline(infile4,line)){
       logline += "VDD_SYS_CPU,";
-      logline += line;
+      logline += line + ",";
     }
-    infile.close();
+    infile4.close();
   } else {
     std::cerr << "ERROR: logger could not log voltage " << std::endl;
   }
-
   // log to the file
   std::ofstream outstream;
   outstream.open(this->logFileLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  std::time_t t = std::time(nullptr);
+  outstream << t << ",";
+  // now print the real junk
   outstream << logline << std::endl;
   outstream.close();
 }
 
+/**
+ * logs the system current
+ * for details see https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%2520Linux%2520Driver%2520Package%2520Development%2520Guide%2Fpower_management_tx2_32.html%23wwpID0E05H0HA
+ */
+void ssrlcv::Logger::logCurrent(){
 
+  std::string logline = "";
 
+  // 0 and 1 are on the module, 2 and 3 are on the carrier board
+  // at i2c address 0x40 and 0x41
+  std::string monitor0 = "/sys/bus/i2c/drivers/ina3221x/0-0040/iio:device0";
+  std::string monitor1 = "/sys/bus/i2c/drivers/ina3221x/0-0041/iio:device1";
 
+  // read in VDD_SYS_GPU voltage
+  std::ifstream infile1(monitor0 + "/in_current0_input");
+  if (infile1.is_open()){
+    std::string line;
+    while (getline(infile1,line)){
+      logline += "CRR_SYS_GPU,";
+      logline += line + ",";
+    }
+    infile1.close();
+  } else {
+    std::cerr << "ERROR: logger could not log current " << std::endl;
+  }
+
+  // read in VDD_SYS_GPU voltage
+  std::ifstream infile2(monitor0 + "/in_current1_input");
+  if (infile2.is_open()){
+    std::string line;
+    while (getline(infile2,line)){
+      logline += "CRR_SYS_SOC,";
+      logline += line + ",";
+    }
+    infile2.close();
+  } else {
+    std::cerr << "ERROR: logger could not log current " << std::endl;
+  }
+
+  // read in VDD_IN voltage
+  std::ifstream infile3(monitor1 + "/in_current0_input");
+  if (infile3.is_open()){
+    std::string line;
+    while (getline(infile3,line)){
+      logline += "CRR_IN,";
+      logline += line + ",";
+    }
+    infile3.close();
+  } else {
+    std::cerr << "ERROR: logger could not log current " << std::endl;
+  }
+
+  // read in VDD_SYS_GPU voltage
+  std::ifstream infile4(monitor1 + "/in_current1_input");
+  if (infile4.is_open()){
+    std::string line;
+    while (getline(infile4,line)){
+      logline += "CRR_SYS_CPU,";
+      logline += line + ",";
+    }
+    infile4.close();
+  } else {
+    std::cerr << "ERROR: logger could not log current " << std::endl;
+  }
+  // log to the file
+  std::ofstream outstream;
+  outstream.open(this->logFileLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  std::time_t t = std::time(nullptr);
+  outstream << t << ",";
+  // now print the real junk
+  outstream << logline << std::endl;
+  outstream.close();
+}
+
+/**
+ * logs the system power
+ * for details see https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%2520Linux%2520Driver%2520Package%2520Development%2520Guide%2Fpower_management_tx2_32.html%23wwpID0E05H0HA
+ */
+void ssrlcv::Logger::logPower(){
+
+    std::string logline = "";
+
+    // 0 and 1 are on the module, 2 and 3 are on the carrier board
+    // at i2c address 0x40 and 0x41
+    std::string monitor0 = "/sys/bus/i2c/drivers/ina3221x/0-0040/iio:device0";
+    std::string monitor1 = "/sys/bus/i2c/drivers/ina3221x/0-0041/iio:device1";
+
+    // read in VDD_SYS_GPU voltage
+    std::ifstream infile1(monitor0 + "/in_power0_input");
+    if (infile1.is_open()){
+      std::string line;
+      while (getline(infile1,line)){
+        logline += "PWR_SYS_GPU,";
+        logline += line + ",";
+      }
+      infile1.close();
+    } else {
+      std::cerr << "ERROR: logger could not log power " << std::endl;
+    }
+
+    // read in VDD_SYS_GPU voltage
+    std::ifstream infile2(monitor0 + "/in_power1_input");
+    if (infile2.is_open()){
+      std::string line;
+      while (getline(infile2,line)){
+        logline += "PWR_SYS_SOC,";
+        logline += line + ",";
+      }
+      infile2.close();
+    } else {
+      std::cerr << "ERROR: logger could not log power " << std::endl;
+    }
+
+    // read in VDD_IN voltage
+    std::ifstream infile3(monitor1 + "/in_power0_input");
+    if (infile3.is_open()){
+      std::string line;
+      while (getline(infile3,line)){
+        logline += "PWR_IN,";
+        logline += line + ",";
+      }
+      infile3.close();
+    } else {
+      std::cerr << "ERROR: logger could not log power " << std::endl;
+    }
+
+    // read in VDD_SYS_GPU voltage
+    std::ifstream infile4(monitor1 + "/in_power1_input");
+    if (infile4.is_open()){
+      std::string line;
+      while (getline(infile4,line)){
+        logline += "PWR_SYS_CPU,";
+        logline += line + ",";
+      }
+      infile4.close();
+    } else {
+      std::cerr << "ERROR: logger could not log power " << std::endl;
+    }
+    // log to the file
+    std::ofstream outstream;
+    outstream.open(this->logFileLocation, std::ofstream::app);
+    // ALWAYS LOG THE TIME!
+    std::time_t t = std::time(nullptr);
+    outstream << t << ",";
+    // now print the real junk
+    outstream << logline << std::endl;
+    outstream.close();
+}
 
 
 

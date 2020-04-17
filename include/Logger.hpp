@@ -21,6 +21,7 @@ namespace ssrlcv{
 
     // public variables here
 
+
     // =============================================================================================================
     //
     // Constructors and Destructors
@@ -44,33 +45,57 @@ namespace ssrlcv{
 
     // =============================================================================================================
     //
-    // Logging Methods
+    // Direct Logging Methods
     //
     // =============================================================================================================
 
     /**
-     * write the input string to the log
+     * write the input string to the log, tags it as a comment
      * @param input a string to write to the log
      */
     void log(const char* input);
 
     /**
-     * write the input string to the log
+     * write the input string to the log, tags it as a comment
      * @param input a string to write to the log
      */
     void log(std::string input);
 
     /**
+     * logs a state with a state tag, it is expected that the programmer has a set of pre-defined states
+     * @param state a string to be tagged as a state
+     */
+    void log(const char* state);
+
+    /**
+     * logs a state with a state tag, it is expected that the programmer has a set of pre-defined states
+     * @param state a string to be tagged as a state
+     */
+    void log(std::string state);
+
+    /**
      * logs the CPU names
-     * for details, see https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%2520Linux%2520Driver%2520Package%2520Development%2520Guide%2Fpower_management_tx2_32.html%23wwpID0E0ZS0HA
+     * for details see https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%2520Linux%2520Driver%2520Package%2520Development%2520Guide%2Fpower_management_tx2_32.html%23wwpID0E0ZS0HA
      */
     void logCPUnames();
 
     /**
      * logs the system voltage
-     * for details, see https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%2520Linux%2520Driver%2520Package%2520Development%2520Guide%2Fpower_management_tx2_32.html%23wwpID0E05H0HA
+     * for details see https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%2520Linux%2520Driver%2520Package%2520Development%2520Guide%2Fpower_management_tx2_32.html%23wwpID0E05H0HA
      */
     void logVoltage();
+
+    /**
+     * logs the system current
+     * for details see https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%2520Linux%2520Driver%2520Package%2520Development%2520Guide%2Fpower_management_tx2_32.html%23wwpID0E05H0HA
+     */
+    void logCurrent();
+
+    /**
+     * logs the system power
+     * for details see https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%2520Linux%2520Driver%2520Package%2520Development%2520Guide%2Fpower_management_tx2_32.html%23wwpID0E05H0HA
+     */
+    void logPower();
 
   private:
 

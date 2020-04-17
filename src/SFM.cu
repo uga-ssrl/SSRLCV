@@ -37,9 +37,13 @@ int main(int argc, char *argv[]){
     ssrlcv::Logger logger = ssrlcv::Logger("out"); // log in the out directory
     // run some examples
     logger.log("this is a test");
+    logger.logState("test");
     logger.logCPUnames();
     logger.logVoltage();
-    
+    logger.logCurrent();
+    logger.logPower();
+    logger.logState("start");
+
 
     //ARG PARSING
 
