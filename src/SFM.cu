@@ -388,6 +388,7 @@ int main(int argc, char *argv[]){
       // set the mesh points
       finalMesh.setPoints(points);
 
+      /* TODO add back without octree
       // you can filter these points and view their distributions in multiple ways
       ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6); // calculate average distance to 6 neighbors
       ssrlcv::writeCSV(neighborDists, "neighborDistances");
@@ -397,7 +398,7 @@ int main(int argc, char *argv[]){
       // to only keep points within a certain sigma of neighbor distance use the following filter
       finalMesh.filterByNeighborDistance(2.0); // <--- filter bois past 2.0 sigma (about 95% of points)
       finalMesh.savePoints("octreeFiltering");
-
+      */
 
 
     }

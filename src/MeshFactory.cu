@@ -508,6 +508,16 @@ void ssrlcv::MeshFactory::filterByOctreeNeighborDistance(float sigma){
   if (local_debug || local_verbose) std::cout << "Removed " << bad_points << " bad points, " <<  this->points->size() << " good points remain ..." << std::endl;
 }
 
+/**
+ * caclualtes the average distance to N neightbors for each points
+ * @param n the number of neignbors to calculate an average distance to
+ * @return float a unity of floats representing the average distance to N neighbors
+ */
+ssrlcv::Unity<float>* ssrlcv::MeshFactory::calcualteAverageDistanceToNeighbors(int n){
+
+  return nullptr;
+}
+
 // =============================================================================================================
 //
 // Other MeshFactory Methods
