@@ -60,6 +60,18 @@ namespace ssrlcv{
      */
     void log(std::string input);
 
+    /**
+     * logs the CPU names
+     * for details, see https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%2520Linux%2520Driver%2520Package%2520Development%2520Guide%2Fpower_management_tx2_32.html%23wwpID0E0ZS0HA
+     */
+    void logCPUnames();
+
+    /**
+     * logs the system voltage
+     * for details, see https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%2520Linux%2520Driver%2520Package%2520Development%2520Guide%2Fpower_management_tx2_32.html%23wwpID0E05H0HA
+     */
+    void logVoltage();
+
   private:
 
     // TODO make this a global path
@@ -71,9 +83,6 @@ namespace ssrlcv{
 
     // the path and filename
     std::string logFileLocation;
-
-    // the out stream
-    std::fstream* stream;
 
   }; // end Logger class
 }
