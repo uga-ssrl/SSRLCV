@@ -22,19 +22,35 @@
 #include "MeshFactory.cuh"
 #include "Logger.hpp"
 
-//TODO fix gaussian operators - currently creating very low values
+/**
+ * The global logger
+ */
+ssrlcv::Logger logger;
 
+/**
+ * the safe shutdown methods is initiated when a SIGINT is captured, handleing of
+ * memory and safely shutting down CPU threads should occur here.
+ */
+void safeShutodwn(int sig){
+  std::cout << "Safely Ending SSRLCV ..." << std::endl;
+  exit(sig); // exit with the same signal
+}
 
 int main(int argc, char *argv[]){
   try{
+
+    // register the SIGINT safe shutdown
+    std::signal(SIGINT, safeShutdown);
 
     //CUDA INITIALIZATION
     cuInit(0);
     clock_t totalTimer = clock();
     clock_t partialTimer = clock();
 
-    // initialize the logger
-    ssrlcv::Logger logger = ssrlcv::Logger("out"); // log in the out directory
+    // initialize the logger, this should ONLY HAPPEN ONCE
+    // the logger requires that a "safes shutdown" signal handler is created
+    // so that the logger.shutdown() method can be called.
+    logger = ssrlcv::Logger("out"); // log in the out directory
     // run some examples
     logger.log("this is a test");
     logger.logState("test");

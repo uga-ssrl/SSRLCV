@@ -19,12 +19,14 @@ namespace ssrlcv{
 
   public:
 
-    // public variables here
+    // public variables
 
+    // the mutex lock for safe logging, publicly availible
+    mutable std::mutex mtx;
 
     // =============================================================================================================
     //
-    // Constructors and Destructors
+    // Constructors, Destructors, and Operators
     //
     // =============================================================================================================
 
@@ -37,6 +39,16 @@ namespace ssrlcv{
      * Constructor with path to desired log directory
      */
     Logger(const char* logPath);
+
+    /**
+     * Overloaded Copy Constructor, needed to keep unified mutex locking
+     */
+    Logger(Logger const &loggerCopy);
+
+    /**
+     * Overloaded Assignment Operator, needed to keep unitied mutex locking
+     */
+    Logger &operator=(Logger const &loggerCopy);
 
     /**
      * Default destructor
@@ -65,13 +77,13 @@ namespace ssrlcv{
      * logs a state with a state tag, it is expected that the programmer has a set of pre-defined states
      * @param state a string to be tagged as a state
      */
-    void log(const char* state);
+    void logState(const char* state);
 
     /**
      * logs a state with a state tag, it is expected that the programmer has a set of pre-defined states
      * @param state a string to be tagged as a state
      */
-    void log(std::string state);
+    void logState(std::string state);
 
     /**
      * logs the CPU names
@@ -99,6 +111,8 @@ namespace ssrlcv{
 
   private:
 
+    // private variables
+
     // TODO make this a global path
     // The path to the log directory
     std::string logPath;
@@ -108,6 +122,15 @@ namespace ssrlcv{
 
     // the path and filename
     std::string logFileLocation;
+
+    // this is enabled when a new logging thread starts
+    bool isLogging;
+
+    // this is enabled when the user wants to kill a background log
+    bool killLogging;
+
+    // logging thread
+    std::thread background_thread;
 
   }; // end Logger class
 }

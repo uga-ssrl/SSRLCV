@@ -19,12 +19,15 @@ ssrlcv::Logger::Logger(){
     std::ofstream temp;
     temp.open(this->logFileLocation);
     // ALWAYS LOG THE TIME!
-    std::time_t t = std::time(nullptr);
-    outstream << t << ",";
+    std::time_t t = std::time(0);
+    temp << t << ",";
     // now print the real junk
     temp << "Log Generated," << this->logFileLocation << std::endl;
     temp.close();
   }
+  // default backgound states
+  isLogging = false;
+  killLogging = false;
 }
 
 /**
@@ -44,12 +47,40 @@ ssrlcv::Logger::Logger(const char* logPath){
     std::ofstream temp;
     temp.open(this->logFileLocation);
     // ALWAYS LOG THE TIME!
-    std::time_t t = std::time(nullptr);
-    outstream << t << ",";
+    std::time_t t = std::time(0);
+    temp << t << ",";
     // now print the real junk
     temp << "Log Generated," << this->logFileLocation << std::endl;
     temp.close();
   }
+  // default backgound states
+  isLogging = false;
+  killLogging = false;
+}
+
+/**
+ * Overloaded Copy Constructor, needed to keep unified mutex locking
+ */
+ssrlcv::Logger::Logger(ssrlcv::Logger const &loggerCopy){
+  //empty
+  std::cerr << "ERROR: logger copy constructor was used, only one global instance of the logger is needed" << std::endl;
+}
+
+/**
+ * Overloaded Assignment Operator, needed to keep unitied mutex locking
+ */
+ssrlcv::Logger &ssrlcv::Logger::operator=(ssrlcv::Logger const &loggerCopy){
+  if (&localCopy != this) {
+    // lock both objects
+    std::unique_lock<std::mutex> lock_this(mtx, std::defer_lock);
+    std::unique_lock<std::mutex> lock_copy(swarmNetCopy.mtx, std::defer_lock);
+    // ensure no deadlock
+    std::lock(lock_this, lock_copy);
+    // default backgound states
+    isLogging = false;
+    killLogging = false;
+  }
+  return *this;
 }
 
 /**
@@ -73,7 +104,7 @@ void ssrlcv::Logger::log(const char* input){
   std::ofstream outstream;
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  std::time_t t = std::time(nullptr);
+  std::time_t t = std::time(0);
   outstream << t << ",comment,";
   // now print the real junk
   outstream << input << std::endl;
@@ -88,10 +119,10 @@ void ssrlcv::Logger::log(std::string input){
   std::ofstream outstream;
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  std::time_t t = std::time(nullptr);
+  std::time_t t = std::time(0);
   outstream << t << ",comment,";
   // now print the real junk
-  outstream << input << std::endl;
+  outstream << state << std::endl;
   outstream.close();
 }
 
@@ -99,14 +130,14 @@ void ssrlcv::Logger::log(std::string input){
  * logs a state with a state tag, it is expected that the programmer has a set of pre-defined states
  * @param state a string to be tagged as a state
  */
-void log(const char* state){
+void ssrlcv::Logger::logState(const char* state){
   std::ofstream outstream;
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  std::time_t t = std::time(nullptr);
+  std::time_t t = std::time(0);
   outstream << t << ",state,";
   // now print the real junk
-  outstream << input << std::endl;
+  outstream << state << std::endl;
   outstream.close();
 }
 
@@ -114,11 +145,11 @@ void log(const char* state){
  * logs a state with a state tag, it is expected that the programmer has a set of pre-defined states
  * @param state a string to be tagged as a state
  */
-void log(std::string state){
+void ssrlcv::Logger::logState(std::string state){
   std::ofstream outstream;
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  std::time_t t = std::time(nullptr);
+  std::time_t t = std::time(0);
   outstream << t << ",state,";
   // now print the real junk
   outstream << input << std::endl;
@@ -180,7 +211,7 @@ void ssrlcv::Logger::logCPUnames(){
   std::ofstream outstream;
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  std::time_t t = std::time(nullptr);
+  std::time_t t = std::time(0);
   outstream << t << ",";
   // now print the real junk
   outstream << logline << std::endl;
@@ -255,7 +286,7 @@ void ssrlcv::Logger::logVoltage(){
   std::ofstream outstream;
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  std::time_t t = std::time(nullptr);
+  std::time_t t = std::time(0);
   outstream << t << ",";
   // now print the real junk
   outstream << logline << std::endl;
@@ -330,7 +361,7 @@ void ssrlcv::Logger::logCurrent(){
   std::ofstream outstream;
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  std::time_t t = std::time(nullptr);
+  std::time_t t = std::time(0);
   outstream << t << ",";
   // now print the real junk
   outstream << logline << std::endl;
@@ -405,7 +436,7 @@ void ssrlcv::Logger::logPower(){
     std::ofstream outstream;
     outstream.open(this->logFileLocation, std::ofstream::app);
     // ALWAYS LOG THE TIME!
-    std::time_t t = std::time(nullptr);
+    std::time_t t = std::time(0);
     outstream << t << ",";
     // now print the real junk
     outstream << logline << std::endl;

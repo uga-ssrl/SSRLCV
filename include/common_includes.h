@@ -32,10 +32,13 @@
 #include <iomanip>
 #include <random>
 #include <locale>
+#include <csignal>
+#include <thread>
+#include <mutex>
 
 
 //data structures
-#include  <map>
+#include <map>
 #include <string>
 #include <cstring>
 #include <ctype.h>
