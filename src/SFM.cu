@@ -286,12 +286,13 @@ int main(int argc, char *argv[]){
       ssrlcv::writeCSV(neighborDists, "neighborDistances");
       float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6); // the average distance from any even node to another
       std::cout << "Average Distance to 6 neighbors is: " << avgDist << std::endl;
+      ssrlcv::writePLY("neighborDistancesColored",points,neighborDists,(2.0f * avgDist)); // a point cloud with colored neighbor dists
 
-      /*
+
       // to only keep points within a certain sigma of neighbor distance use the following filter
       finalMesh.filterByNeighborDistance(2.0); // <--- filter bois past 2.0 sigma (about 95% of points)
-      finalMesh.savePoints("octreeFiltering");
-      */
+      finalMesh.savePoints("densityFiltered");
+
 
       // //  try a VSFM compare
       // ssrlcv::MeshFactory vsfm = ssrlcv::MeshFactory();
@@ -388,23 +389,22 @@ int main(int argc, char *argv[]){
       // set the mesh points
       finalMesh.setPoints(points);
 
-      /* TODO add back without octree
+
       // you can filter these points and view their distributions in multiple ways
       ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6); // calculate average distance to 6 neighbors
       ssrlcv::writeCSV(neighborDists, "neighborDistances");
       float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6); // the average distance from any even node to another
       std::cout << "Average Distance to 6 neighbors is: " << avgDist << std::endl;
+      ssrlcv::writePLY("neighborDistancesColored",points,neighborDists,(2.0f * avgDist)); // a point cloud with colored neighbor dists
+
 
       // to only keep points within a certain sigma of neighbor distance use the following filter
       finalMesh.filterByNeighborDistance(2.0); // <--- filter bois past 2.0 sigma (about 95% of points)
-      finalMesh.savePoints("octreeFiltering");
-      */
+      finalMesh.savePoints("densityFiltered"); //
+
 
 
     }
-
-    std::cout << "writing final PLY ..." << std::endl;
-    ssrlcv::writePLY("final",points);
 
     // cleanup
     delete points;
@@ -418,6 +418,7 @@ int main(int argc, char *argv[]){
       delete allFeatures[i];
     }
 
+    logger.logState("end");
     return 0;
   }
   catch (const std::exception &e){

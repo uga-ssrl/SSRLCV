@@ -463,7 +463,7 @@ float ssrlcv::MeshFactory::calculateAverageDistanceToOctreeNeighbors(int n){
  */
 void ssrlcv::MeshFactory::filterByOctreeNeighborDistance(float sigma){
 
-  bool local_debug   = true;
+  bool local_debug   = false;
   bool local_verbose = true;
 
   // TODO verify that the at last the points and the octree have been made
@@ -513,7 +513,7 @@ void ssrlcv::MeshFactory::filterByOctreeNeighborDistance(float sigma){
  * @param n the number of neignbors to calculate an average distance to
  * @return float a unity of floats representing the average distance to N neighbors
  */
-ssrlcv::Unity<float>* ssrlcv::MeshFactory::calcualteAverageDistancesToNeighbors(int n){
+ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculateAverageDistancesToNeighbors(int n){
 
   bool local_verbose = true;
 
@@ -554,14 +554,75 @@ ssrlcv::Unity<float>* ssrlcv::MeshFactory::calcualteAverageDistancesToNeighbors(
  * @param n the number of neignbors to calculate an average distance to
  * @return float which is the average distance to n neighbors
  */
-float ssrlcv::MeshFactory::calcualteAverageDistanceToNeighbors(int n){
+float ssrlcv::MeshFactory::calculateAverageDistanceToNeighbors(int n){
     ssrlcv::Unity<float>* averages = calculateAverageDistancesToNeighbors(n);
-    sum = 0.0f;
+    float sum = 0.0f;
     for (int i = 0; i < averages->size(); i++) {
       sum += averages->host[i];
     }
-    return ( sum / ((float) averages_>size()));
+    float ret_val = ( sum / ((float) averages->size()));
+    delete averages;
+    return ret_val;
 }
+
+/**
+ * filters points from the mesh by caclulating their average distances to their neighbors
+ * and then calculating the variance of the data, and removing points past sigma
+ * @param sigma the statistical value to remove points after
+ */
+void ssrlcv::MeshFactory::filterByNeighborDistance(float sigma){
+
+  // desable both of these to remove local print statements
+  bool local_debug   = false;
+  bool local_verbose = true;
+
+  // TODO verify that the at last the points and the octree have been made
+  ssrlcv::Unity<float>* samples = calculateAverageDistancesToNeighbors(6);
+  float average = calculateAverageDistanceToNeighbors(6);
+  // now calculate the variance
+  float sum = 0.0f;
+  for (int i = 0; i < samples->size(); i++){
+    if (samples->host[i] < 10000.0f){ // don't count points this bad
+      sum += (samples->host[i] - average) * (samples->host[i] - average);
+    }
+  }
+  float variance = sum / samples->size();
+  float cutoff;
+  if (local_debug){
+    std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
+    std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
+    std::cout << "\tCutoff Set To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
+  }
+  cutoff = sigma * sqrtf(variance);
+
+  // loop and find bad points
+  int bad_points = 0;
+  for (int i = 0; i < samples->size(); i++) {
+    if (samples->host[i] > cutoff) bad_points++;
+  }
+
+  if (local_debug || local_verbose) std::cout << "Detected " << bad_points << " points in low density regions to remove ..." << std::endl;
+
+  // allocate new space and fill the points
+  ssrlcv::Unity<float3>* temp = new Unity<float3>(nullptr,(this->points->size() - bad_points),cpu);
+  int index = 0;
+  for (int i = 0; i < temp->size(); i++) {
+    if (samples->host[i] < cutoff) {
+      temp->host[index] = this->points->host[i];
+      index++;
+    }
+  }
+  delete this->points;
+  this->points = new Unity<float3>(nullptr,(this->points->size() - bad_points),cpu);
+  for (int i = 0; i < this->points->size(); i++){
+    this->points->host[i] = temp->host[i];
+  }
+
+  delete samples;
+  delete temp;
+  if (local_debug || local_verbose) std::cout << "Removed " << bad_points << " bad points, " <<  this->points->size() << " good points remain ..." << std::endl;
+}
+
 
 // =============================================================================================================
 //
@@ -1987,8 +2048,8 @@ __global__ void ssrlcv::averageDistToNeighbors(int * d_num, unsigned long pointn
 
   // this _should_ be replaced with a priority queue tbh
   // don't actually need to keep track of the IDs but it will make future things easier if I do
-  unsigned int* ids = (unsigned int *) malloc(sizeof(unsigned int) * d_num); // indexes of current best points
-  float*  distances = (float *) malloc(sizeof(float) * d_num); // distances at those points indexes
+  unsigned int* ids = (unsigned int *) malloc(sizeof(unsigned int) * (*d_num)); // indexes of current best points
+  float*  distances = (float *) malloc(sizeof(float) * (*d_num)); // distances at those points indexes
   int filled = 0; // number of elements "filled" for a min distance caclulation
 
   // the local point
