@@ -2084,6 +2084,11 @@ __global__ void ssrlcv::averageDistToNeighbors(int * d_num, unsigned long pointn
   for (int i = 0; i < *d_num; i++) {
     sum += distances[i];
   }
+
+  // free mem
+  free(ids);
+  free(distances);
+
   averages[globalID] = sum / *d_num;
 }
 

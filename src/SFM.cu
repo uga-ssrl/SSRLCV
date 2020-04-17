@@ -290,7 +290,7 @@ int main(int argc, char *argv[]){
 
 
       // to only keep points within a certain sigma of neighbor distance use the following filter
-      finalMesh.filterByNeighborDistance(2.0); // <--- filter bois past 2.0 sigma (about 95% of points)
+      finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
       finalMesh.savePoints("densityFiltered");
 
 
@@ -337,8 +337,8 @@ int main(int argc, char *argv[]){
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
       // Planar filtering is very good at removing noise that is not close to the estimated model.
-      demPoints.planarCutoffFilter(&matchSet, images, 10.0f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
-      bundleSet = demPoints.generateBundles(&matchSet,images);
+      //demPoints.planarCutoffFilter(&matchSet, images, 10.0f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
+      //bundleSet = demPoints.generateBundles(&matchSet,images);
 
       // multiple filters are needed, because outlier points are discovered in stages
       // decreasing sigma over time is best because the real "mean" error becomes more
@@ -399,9 +399,9 @@ int main(int argc, char *argv[]){
 
 
       // to only keep points within a certain sigma of neighbor distance use the following filter
-      finalMesh.filterByNeighborDistance(2.0); // <--- filter bois past 2.0 sigma (about 95% of points)
+      // with the nview case the noise goes up the number of views you add, unless you
+      finalMesh.filterByNeighborDistance(1.0); // <--- filter bois past 1.5 sigma (about 95% of points)
       finalMesh.savePoints("densityFiltered"); //
-
 
 
     }
