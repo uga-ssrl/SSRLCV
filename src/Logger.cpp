@@ -26,8 +26,8 @@ ssrlcv::Logger::Logger(){
     temp.close();
   }
   // default backgound states
-  isLogging = false;
-  killLogging = false;
+  this->isLogging = false;
+  this->killLogging = false;
 }
 
 /**
@@ -54,8 +54,8 @@ ssrlcv::Logger::Logger(const char* logPath){
     temp.close();
   }
   // default backgound states
-  isLogging = false;
-  killLogging = false;
+  this->isLogging = false;
+  this->killLogging = false;
 }
 
 /**
@@ -77,8 +77,10 @@ ssrlcv::Logger &ssrlcv::Logger::operator=(ssrlcv::Logger const &loggerCopy){
     // ensure no deadlock
     std::lock(lock_this, lock_copy);
     // default backgound states
-    isLogging = false;
-    killLogging = false;
+    this->isLogging   = false;
+    this->killLogging = false;
+    this->logPath         = loggerCopy.logPath;
+    this->logFileLocation = loggerCopy.logFileLocation;  
   }
   return *this;
 }
@@ -168,7 +170,7 @@ void ssrlcv::Logger::logState(std::string state){
  * logs a message with an error tag
  * @param input a string to write to the log
  */
-void srlcv::Logger::logError(const char* input){
+void ssrlcv::Logger::logError(const char* input){
   std::ofstream outstream;
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
@@ -185,7 +187,7 @@ void srlcv::Logger::logError(const char* input){
  * logs a message with an error tag
  * @param input a string to write to the log
  */
-void srlcv::Logger::logError(std::string input){
+void ssrlcv::Logger::logError(std::string input){
   std::ofstream outstream;
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
@@ -528,7 +530,7 @@ void ssrlcv::Logger::logPower(){
  */
 void ssrlcv::Logger::startBackgoundLogging(int rate){
   mtx.lock();
-  logDelay = rate;
+  this->logDelay = rate;
   mtx.unlock();
   mtx.lock();
   if (isLogging) {
@@ -537,10 +539,10 @@ void ssrlcv::Logger::startBackgoundLogging(int rate){
   } else {
     // spawn the new thread
     mtx.unlock()
-    std::thread log_thread(&Logger::looper, this, rate);
-    log_thread.detach();
+    std::thread this->background_thread(&Logger::looper, this, rate);
+    this->background_thread.detach();
     mtx.lock();
-    isLogging = true;
+    this->isLogging = true;
     mtx.unlock();
   }
 }
@@ -551,10 +553,10 @@ void ssrlcv::Logger::startBackgoundLogging(int rate){
 void ssrlcv::Logger::stopBackgroundLogging(){
   // forces variables into this configeration
   mtx.lock();
-  killLogging = true;
+  this->killLogging = true;
   mtx.unlock();
   mtx.lock();
-  isLogging = false;
+  this->isLogging = false;
   mtx.unlock();
 }
 
@@ -572,9 +574,9 @@ void ssrlcv::Logger::looper(int delay){
   // loop and log!
   while(true){
     mtx.lock();
-    bool b = killLogging;
+    bool b = this->killLogging;
     mtx.unlock();
-    if (killLogging){
+    if (b){
       log("stoping logging thread safely");
       return;
     }

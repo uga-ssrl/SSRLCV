@@ -35,7 +35,7 @@
 #include <csignal>
 #include <thread>
 #include <mutex>
-
+#include <unistd.h>
 
 //data structures
 #include <map>

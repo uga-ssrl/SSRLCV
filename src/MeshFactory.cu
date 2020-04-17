@@ -443,7 +443,7 @@ ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculatePerPointDifference(Unity<flo
  * @param n the number of neignbors to calculate an average distance to
  * @return float a unity of floats representing the average distance to N neighbors
  */
-ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculateAverageDistancesToNeighbors(int n){
+ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculateAverageDistancesToOctreeNeighbors(int n){
   return this->octree->averageNeighboorDistances(n); // basically a pass through to octree
 }
 
@@ -452,7 +452,7 @@ ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculateAverageDistancesToNeighbors(
  * @param n the number of neignbors to calculate an average distance to
  * @return float which is the average distance to n neighbors
  */
-float ssrlcv::MeshFactory::calculateAverageDistanceToNeighbors(int n){
+float ssrlcv::MeshFactory::calculateAverageDistanceToOctreeNeighbors(int n){
   return this->octree->averageNeighboorDistance(n); // basically a pass through to octree
 }
 
@@ -461,12 +461,14 @@ float ssrlcv::MeshFactory::calculateAverageDistanceToNeighbors(int n){
  * and then calculating the variance of the data, and removing points past sigma
  * @param sigma the statistical value to remove points after
  */
-void ssrlcv::MeshFactory::filterByNeighborDistance(float sigma){
+void ssrlcv::MeshFactory::filterByOctreeNeighborDistance(float sigma){
+
   bool local_debug   = true;
   bool local_verbose = true;
+
   // TODO verify that the at last the points and the octree have been made
-  ssrlcv::Unity<float>* samples = calculateAverageDistancesToNeighbors(6);
-  float average = calculateAverageDistanceToNeighbors(6);
+  ssrlcv::Unity<float>* samples = calculateAverageDistancesToOctreeNeighbors(6);
+  float average = calculateAverageDistanceToOctreeNeighbors(6);
   // now calculate the variance
   float sum = 0.0f;
   for (int i = 0; i < samples->size(); i++){

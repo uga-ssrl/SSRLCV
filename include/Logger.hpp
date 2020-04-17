@@ -24,6 +24,13 @@ namespace ssrlcv{
     // the mutex lock for safe logging, publicly availible
     mutable std::mutex mtx;
 
+    // TODO make this a global path
+    // The path to the log directory
+    std::string logPath;
+
+    // the path and filename
+    std::string logFileLocation;
+
     // =============================================================================================================
     //
     // Constructors, Destructors, and Operators
@@ -137,15 +144,8 @@ namespace ssrlcv{
 
     // private variables
 
-    // TODO make this a global path
-    // The path to the log directory
-    std::string logPath;
-
     // the default log filename
     const char* logName = "ssrlcv.log";
-
-    // the path and filename
-    std::string logFileLocation;
 
     // this is enabled when a new logging thread starts
     bool isLogging;

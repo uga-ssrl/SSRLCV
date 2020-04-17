@@ -161,21 +161,21 @@ namespace ssrlcv{
      * @param n the number of neignbors to calculate an average distance to
      * @return float a unity of floats representing the average distance to N neighbors
      */
-    ssrlcv::Unity<float>* calculateAverageDistancesToNeighbors(int n);
+    ssrlcv::Unity<float>* calculateAverageDistancesToOctreeNeighbors(int n);
 
     /**
      * caclualtes the average distance to N neightbors for each point on average
      * @param n the number of neignbors to calculate an average distance to
      * @return float which is the average distance to n neighbors
      */
-    float calculateAverageDistanceToNeighbors(int n);
+    float calculateAverageDistanceToOctreeNeighbors(int n);
 
     /**
      * filters points from the mesh by caclulating their average distances to their neighbors
      * and then calculating the variance of the data, and removing points past sigma
      * @param sigma the statistical value to remove points after
      */
-    void filterByNeighborDistance(float sigma);
+    void filterByCotreeNeighborDistance(float sigma);
 
     // =============================================================================================================
     //
