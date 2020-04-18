@@ -42,6 +42,13 @@ namespace ssrlcv{
   __device__ __host__ float magnitude(const float (&v)[3]);
   __device__ __host__ float magnitude(const float3 &v);
 
+  /**
+   * \brief calcualtes x y and z rotations from an input rotation matrix
+   * @param R a 3x3 rotation matrix
+   * @return rotations a float3 of the x,y,z axis rotations
+   */
+  __device__ __host__ float3 getAxisRotations(const float(&R)[3][3]);
+
   __device__ float3 matrixMulVector(float3 x, float A[3][3]);
   __device__ float3 getVectorAngles(float3 v);
 

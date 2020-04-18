@@ -58,6 +58,17 @@ ssrlcv::Image::Image(std::string filePath, int id) {
   this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
 
+  // this check is just in case Middleburry data is input
+  std::string file_no_digits = filename;
+  int s = 0;
+  while (s < file_no_digits.length()){
+    if (isdigit(file_no_digits[s])) {
+      file_no_digits.erase(s);
+    } else {
+      s++;
+    }
+  }
+
   // read additional params, and if the param requirement is removed then don't do any of this
   // checks that the image is not a seed image. extra params are not needed for seed images
   if (id != -1){
@@ -139,18 +150,88 @@ ssrlcv::Image::Image(std::string filePath, int id) {
               // camera.side.y was already set
               file.close();
               break;
-            }
-
-          }
-      }
+            } // end parsing pinhole and pushbroom
+          } // end reading file
+      } // end while
       file.close();
     } else if (fileExists(params_path + "/params.bcp")) {
       std::cout << "Reading BCP encoded camera parameters ..." << std::endl;
       std::cerr << "WARN: BCP camera reading is not yet supported" << std::endl;
       // TODO read in binary incoded guys here
+    } else if (fileExists(params_path + "/" + file_no_digits + "_par.txt") {
+      std::cout << "Middleburry ACSII camera params found for " << filename << std::endl;
+      this->isPushbroom = false;
+      std::ifstream file(params_path + "/" + file_no_digits + "_par.txt"); // declare file stream: http://www.cplusplus.com/reference/iostream/ifstream/
+      std::string value;
+
+      while (file.good()){
+        // check if we have found the files
+        getline(file,value,' ');
+        if (filename == value){
+          // now parse the Middleburry file, see http://vision.middlebury.edu/mview/data/
+          getline(file,value,' ');
+          this->camera.foc = std::atof(value.c_str()); // k11
+          this->camera.fov.x = 2.0 * atan( 1.0 / this->camera.foc) * (180.0/PI); // pls
+          this->camera.dpix.x = (this->camera.foc * tanf(this->camera.fov.x / 2.0f)) / (this->camera.size.x / 2.0f );
+          this->camera.dpix.y = this->camera.dpix.x;
+          this->camera.fov.y = tan( (this->camera.dpix.x * this->camera.size.y * 0.5f) / this->camera.foc);
+
+          getline(file,value,' '); //k12
+          getline(file,value,' '); //k13
+          getline(file,value,' '); //k21
+          getline(file,value,' '); //k22
+          getline(file,value,' '); //k23
+          getline(file,value,' '); //k31
+          getline(file,value,' '); //k32
+          getline(file,value,' '); //k33
+
+          float R[3][3];
+          getline(file,value,' '); // R11
+          R[0][0] = std::atof(value.c_str());
+          getline(file,value,' '); // R12
+          R[0][1] = std::atof(value.c_str());
+          getline(file,value,' '); // R13
+          R[0][2] = std::atof(value.c_str());
+          getline(file,value,' '); // R21
+          R[1][0] = std::atof(value.c_str());
+          getline(file,value,' '); // R22
+          R[1][1] = std::atof(value.c_str());
+          getline(file,value,' '); // R23
+          R[1][2] = std::atof(value.c_str());
+          getline(file,value,' '); // R31
+          R[2][0] = std::atof(value.c_str());
+          getline(file,value,' '); // R32
+          R[2][1] = std::atof(value.c_str());
+          getline(file,value,' '); // R33
+          R[2][2] = std::atof(value.c_str());
+
+          // fill the rotations
+          // helpful link 1: https://stackoverflow.com/questions/15022630/how-to-calculate-the-angle-from-rotation-matrix
+          // helpful link 2: https://gamedev.stackexchange.com/questions/50963/how-to-extract-euler-angles-from-transformation-matrix
+          this->camera.cam_rot.x = atan2f(R[2][1], R[2][2]);
+          this->camera.cam_rot.y = atan2f(-1.0f * R[2][0], sqrtf((R[2][1] * R[2][1]) + (R[2][2] * R[2][2])));
+          this->camera.cam_rot.z = atan2f(R[1][0], R[0][0]);
+
+          getline(file,value,' '); // t1
+          this->camera.cam_pos.x = std::atof(value.c_str());
+          getline(file,value,' '); // t2
+          this->camera.cam_pos.y = std::atof(value.c_str());
+          getline(file,value,' '); // t3
+          this->camera.cam_pos.z = std::atof(value.c_str());
+
+          file.close();
+          break;
+        } // end file check
+      } // end while
+
+      file.close();
     } else { // if no config file was found!
       std::cerr << "WARN: NO CAMERA PARAM FILE FOUND, at least an empty params.csv or params.bcp is required. To disable this requirement use the flag -np or -noparams"  << std::endl;
       // std::throw -1; // TODO make this throw an exception
+      std::cerr << "\t given   filePath: " << filePath << std::endl;
+      std::cerr << "\t given   filename: " << filename << std::endl;
+      std::cerr << "\t given param_path: " << params_path << std::endl;
+      std::cerr << "\t cleaned filename: " << file_no_digits << std::endl;
     }
   }
   std::cout << "filePath: " << filePath << std::endl;

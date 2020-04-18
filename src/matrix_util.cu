@@ -204,6 +204,16 @@ __device__ __host__ float ssrlcv::magnitude(const float3 &v){
   return sqrtf(dotProduct(v, v));
 }
 
+/**
+ * \brief calcualtes x y and z rotations from an input rotation matrix
+ * @param R a 3x3 rotation matrix
+ * @return rotations a float3 of the x,y,z axis rotations
+ */
+__device__ __host__ float3 getAxisRotations(const float(&R)[3][3]){
+  
+  return {0.0f, 0.0f, 0.0f};
+}
+
 __device__ float3 ssrlcv::matrixMulVector(float3 x, float A[3][3]){
   float temp[3] = {x.x, x.y, x.z};
   float b[3];

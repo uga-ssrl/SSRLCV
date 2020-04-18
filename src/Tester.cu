@@ -169,7 +169,7 @@ int main(int argc, char *argv[]){
     float* linearError = (float*)malloc(sizeof(float));
     std::cout << "\t getting points ..." << std::endl;
     points = demPoints.twoViewTriangulate(bundleSet, linearError);
-    ssrlcv::writePLY("out/marsTest.ply",points);
+    ssrlcv::writePLY("out/marsTest",points);
 
 
 
