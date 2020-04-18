@@ -3884,8 +3884,8 @@ __global__ void ssrlcv::generatePushbroomBundle(unsigned int numBundles, Bundle*
     float2 center = {(pushbrooms[currentKP.parentId].size.x / 2.0f), (pushbrooms[currentKP.parentId].size.y / 2.0f)}; // the image center
     // place the keypoint in the x y plane, scale it by dpix, and translate so that the center of the "image plane" is at the origin
     kp[k] = {
-      pushbrooms[currentKP.parentId].dpix * ((currentKP.loc.x) - center.x),
-      pushbrooms[currentKP.parentId].dpix * ((currentKP.loc.y) - center.y),
+      pushbrooms[currentKP.parentId].dpix.x * ((currentKP.loc.x) - center.x),
+      pushbrooms[currentKP.parentId].dpix.y * ((currentKP.loc.y) - center.y),
       pushbrooms[currentKP.parentId].foc // this is the focal length
     };
     // rotate the point as the craft "rolled"
@@ -3904,7 +3904,7 @@ __global__ void ssrlcv::generatePushbroomBundle(unsigned int numBundles, Bundle*
     float solution2 = (-1.0f * b - sqrtf((b * b) - (4.0f * a * c))) / (2.0f * a);
     // fnd the position of the craft
     float3 position;
-    if (solution1 > 0){
+    if (solution1 > 0) {
       position.x = tanf(roll) * solution1;
       position.y = 0.0f;
       position.z = solution1;

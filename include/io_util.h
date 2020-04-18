@@ -8,7 +8,7 @@
 #include "common_includes.h"
 #include "Unity.cuh"
 #include "Octree.cuh"
-#include "PointCloudFactory.cuh"
+// #include "PointCloudFactory.cuh"
 #include <stdio.h>
 
 namespace ssrlcv{
@@ -337,13 +337,6 @@ struct arg
    * @param normals are the normal vectors (assumed to have been normalized) for each of the point cloud's points
    */
   void writePLY(const char* filename, Unity<float3>* points, Unity<float3>* normals);
-
-  /**
-   * @brief saves a bundles set as a PLY where each point has an associated vector (normal)
-   * @param filename is the desired name of the output PLY file
-   * @param bundleSet a group point points and lines to attempt to visualize
-   */
-  void writePLY(const char* filename, BundleSet bundleSet);
 
   // =============================================================================================================
   //

@@ -155,7 +155,14 @@ int main(int argc, char *argv[]){
     std::cout << "\tAttempting a bundle generation ..." << std::endl;
     bundleSet = demPoints.generateBundles(&matchSet,images);
 
-    ssrlcv::writePLY("pushbroomBundles",bundleSet);
+    // just to print stuff and see it
+    ssrlcv::Unity<float3>* pnts = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,bundleSet.lines->size(),ssrlcv::cpu);
+    ssrlcv::Unity<float3>* vcts = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,bundleSet.lines->size(),ssrlcv::cpu);
+    for (int i = 0; i < bundleSet.lines->size(); i++) {
+      pnts->host[i] = bundleSet.lines->host[i].pnt;
+      vcts->host[i] = bundleSet.lines->host[i].vec;
+    }
+    writePLY("bundleTest",pnts,vcts);
 
     /*
     float* linearError = (float*)malloc(sizeof(float));

@@ -188,6 +188,7 @@ namespace ssrlcv{
     */
     Unity<float>* getExtrinsicDifference(Camera other);
 
+    /*
     // Binary camera params [Gitlab #58]
     void bcp_in(bcpFormat data) {
       this->camera.cam_pos.x  = data.pos[0];
@@ -204,7 +205,7 @@ namespace ssrlcv{
 
       this->camera.dpix.x     = data.dpix[0];
       this->camera.dpix.y     = data.dpix[1];
-    }
+    }*/
 
   };
 
