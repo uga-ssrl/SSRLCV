@@ -57,6 +57,7 @@ ssrlcv::Image::Image(std::string filePath, int id) {
   this->camera.size = this->size;
   this->size = size;
   this->pixels = new Unity<unsigned char>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
+
   // read additional params, and if the param requirement is removed then don't do any of this
   // checks that the image is not a seed image. extra params are not needed for seed images
   if (id != -1){
@@ -75,47 +76,79 @@ ssrlcv::Image::Image(std::string filePath, int id) {
           value.erase(std::remove(value.begin(), value.end(), '\n'), value.end());
           if (filename == value){ // if we have a match, read in the parameters one by one
             getline(file,value,',');
-            this->camera.cam_pos.x = std::atof(value.c_str());
-            getline(file,value,',');
-            this->camera.cam_pos.y = std::atof(value.c_str());
-            getline(file,value,',');
-            this->camera.cam_pos.z = std::atof(value.c_str());
-            getline(file,value,',');
-            this->camera.cam_rot.x = std::atof(value.c_str());
-            getline(file,value,',');
-            this->camera.cam_rot.y = std::atof(value.c_str());
-            getline(file,value,',');
-            this->camera.cam_rot.z = std::atof(value.c_str());
-            getline(file,value,',');
-            this->camera.fov.x     = std::atof(value.c_str());
-            getline(file,value,',');
-            this->camera.fov.y     = std::atof(value.c_str());
-            getline(file,value,',');
-            this->camera.foc       = std::atof(value.c_str());
-            getline(file,value,',');
-            // this->camera.dpix.x    = std::atof(value.c_str());
-            // uses pinhole camera assumption
-            this->camera.dpix.x = (this->camera.foc * tanf(this->camera.fov.x / 2.0f)) / (this->camera.size.x / 2.0f );
-            getline(file,value,',');
-            // this->camera.dpix.y    = std::atof(value.c_str());
-            // uses pinhole camera assumption
-            this->camera.dpix.y = this->camera.dpix.x;
-            getline(file,value,',');
-            this->camera.timeStamp = std::strtoll(value.c_str(), NULL, 0);
-            getline(file,value,',');
-            // camera.size.x was already set
-            getline(file,value,',');
-            // camera.side.y was already set
-            file.close();
-            break;
+            if ("pushbroom" == value) {
+              this->isPushbroom = true;
+              // see https://hirise-pds.lpl.arizona.edu/PDS/DOCUMENT/HIRISE_RDR_SIS.PDF
+              // example file: https://hirise-pds.lpl.arizona.edu/PDS/RDR/ESP/ORB_063400_063499/ESP_063462_1985/ESP_063462_1985_RED.LBL
+              std::cout << "Detected a pushbroom camera system" << std::endl;
+              this->pushbroom.size = this->camera.size;
+              getline(file,value,',');
+              this->pushbroom.projection_center.x = std::atof(value.c_str()); // latitude
+              getline(file,value,',');
+              this->pushbroom.projection_center.y = std::atof(value.c_str()); // longitude
+              getline(file,value,',');
+              this->pushbroom.axis_radius = std::atof(value.c_str()); // radius of the body at the projection center
+              getline(file,value,',');
+              this->pushbroom.roll = std::atof(value.c_str()); // roll of the pushbroom
+              getline(file,value,',');
+              this->pushbroom.altitude = std::atof(value.c_str()); // the altitude of the pushbroom
+              getline(file,value,',');
+              this->pushbroom.foc = std::atof(value.c_str()); // the foc of the sensor
+              // calcualte the fov
+              float gsd = std::atof(value.c_str());
+              this->pushbroom.fov = tanf(gsd / this->pushbroom.altitude);
+              // calculate dpix
+              this->pushbroom.dpix.x = (this->pushbroom.foc * tanf(this->pushbroom.fov.x / 2.0f)) / (this->pushbroom.size.x / 2.0f );
+              this->pushbroom.dpix.y = this->pushbroom.dpix.y;
+              // done!
+              file.close();
+              break;
+            } else {
+              this->isPushbroom = false;
+              this->camera.cam_pos.x = std::atof(value.c_str());
+              getline(file,value,',');
+              this->camera.cam_pos.y = std::atof(value.c_str());
+              getline(file,value,',');
+              this->camera.cam_pos.z = std::atof(value.c_str());
+              getline(file,value,',');
+              this->camera.cam_rot.x = std::atof(value.c_str());
+              getline(file,value,',');
+              this->camera.cam_rot.y = std::atof(value.c_str());
+              getline(file,value,',');
+              this->camera.cam_rot.z = std::atof(value.c_str());
+              getline(file,value,',');
+              this->camera.fov.x     = std::atof(value.c_str());
+              getline(file,value,',');
+              this->camera.fov.y     = std::atof(value.c_str());
+              getline(file,value,',');
+              this->camera.foc       = std::atof(value.c_str());
+              getline(file,value,',');
+              // this->camera.dpix.x    = std::atof(value.c_str());
+              // uses pinhole camera assumption
+              this->camera.dpix.x = (this->camera.foc * tanf(this->camera.fov.x / 2.0f)) / (this->camera.size.x / 2.0f );
+              getline(file,value,',');
+              // this->camera.dpix.y    = std::atof(value.c_str());
+              // uses pinhole camera assumption
+              this->camera.dpix.y = this->camera.dpix.x;
+              getline(file,value,',');
+              this->camera.timeStamp = std::strtoll(value.c_str(), NULL, 0);
+              getline(file,value,',');
+              // camera.size.x was already set
+              getline(file,value,',');
+              // camera.side.y was already set
+              file.close();
+              break;
+            }
+
           }
       }
       file.close();
     } else if (fileExists(params_path + "/params.bcp")) {
       std::cout << "Reading BCP encoded camera parameters ..." << std::endl;
+      std::cerr << "WARN: BCP camera reading is not yet supported" << std::endl;
       // TODO read in binary incoded guys here
     } else { // if no config file was found!
-      std::cerr << "NO CAMERA PARAM FILE FOUND, at least an empty params.csv or params.bcp is required. To disable this requirement use the flag -np or -noparams"  << std::endl;
+      std::cerr << "WARN: NO CAMERA PARAM FILE FOUND, at least an empty params.csv or params.bcp is required. To disable this requirement use the flag -np or -noparams"  << std::endl;
       // std::throw -1; // TODO make this throw an exception
     }
   }

@@ -782,6 +782,8 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   matchSet->matches->transferMemoryTo(gpu);
   matchSet->keyPoints->transferMemoryTo(gpu);
 
+
+
   // the cameras
   size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
   // fill the cam boi
@@ -804,6 +806,8 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   // std::cout << "Calling bundle generation kernel ..." << std::endl;
   generateBundle<<<grid, block>>>(bundles->size(),bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
   // std::cout << "Returned from bundle generation kernel ... \n" << std::endl;
+
+  CudaSafeCall(cudaFree(d_cameras));
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -914,6 +918,8 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   // std::cout << "Calling bundle generation kernel ..." << std::endl;
   generateBundle<<<grid, block>>>(bundles->size(),bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
   // std::cout << "Returned from bundle generation kernel ... \n" << std::endl;
+
+  CudaSafeCall(cudaFree(d_cameras));
 
   cudaDeviceSynchronize();
   CudaCheckError();

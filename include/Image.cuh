@@ -51,11 +51,32 @@ namespace ssrlcv{
       __device__ __host__ Camera(uint2 size, float3 cam_pos, float3 cam_rot);
     };
 
+    /**
+     * \brief this struct is meant to house pushbrum camera paramters
+     */
+    struct PushbroomCamera{
+      float3 start_pos; ///<\brief the starting coordinate of a pushbroom scan
+      float3 end_pos;  ///<\brief the ending coordinate or a pushbroom scan
+      float2 projection_center; ///<\brief lattitude and longitude coords representing
+      float axis_radis; // <\brief the radius from the center of the body being orbited to the projection center
+      float roll; //<\brief the craft roll in the plane purpendicular to the flight vector
+      float altitude;  ///<\brief Assumes circular orbit, the altitude
+      float foc; ///<\brief focal length of camera
+      float fov; ///<\brief feild of fiew of camera
+      float2 dpix; ///<\brief real world size of each pixel
+      /**
+       * \brief identical to the image size param, but used in GPU camera modification method
+       */
+      uint2 size;
+    };
+
     std::string filePath;///< \brief path to image file
     int id;///<\brief parent image id
     uint2 size;///<\brief size of image
     unsigned int colorDepth;///<\brief colorDepth of image
-    Camera camera;///<\brief Camera struct holding all camera parameters
+    Camera camera; ///<\brief Camera struct holding all camera parameters
+    PushbroomCamera pushbroom; ///<\brief Camera struct holding all camera parameters
+    bool isPushbroom; ///<\brief variable is true if the image was generated with a pushbroom camera 
     Unity<unsigned char>* pixels;///<\brief pixels of image flattened row-wise
 
     // =============================================================================================================
@@ -76,6 +97,7 @@ namespace ssrlcv{
     * \param pixels - pixel values flattened row-wise within a Unity structure
     * \see Unity
     */
+
     Image(uint2 size, unsigned int colorDepth, Unity<unsigned char>* pixels);
     /**
     * \brief Primary constructor utilizing ssrlcv image io.
@@ -85,6 +107,7 @@ namespace ssrlcv{
     * \param id - id of image for referencing with multiple images (optional, defaults to -1)
     */
     Image(std::string filePath, int id = -1);
+
     /**
     * \brief Constructor utilizing ssrlcv image io and allowing immediate color conversion.
     * \details This constructor uses a file path to a jpg/jpeg, png or tif/tiff
@@ -97,7 +120,8 @@ namespace ssrlcv{
     * \warning it is only recommened to convert color down (rgb -> grayscale) and not the other way
     */
     Image(std::string filePath, unsigned int convertColorDepthTo, int id = -1);
-    ~Image();///< destructor
+
+    ~Image(); ///< destructor
 
     // =============================================================================================================
     //
