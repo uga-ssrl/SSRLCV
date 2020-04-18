@@ -95,10 +95,11 @@ ssrlcv::Image::Image(std::string filePath, int id) {
               getline(file,value,',');
               this->pushbroom.foc = std::atof(value.c_str()); // the foc of the sensor
               // calcualte the fov
-              float gsd = std::atof(value.c_str());
-              this->pushbroom.fov = tanf(gsd / this->pushbroom.altitude);
+              getline(file,value,',');
+              this->pushbroom.gsd = std::atof(value.c_str()); // in meter   // convert below to meters
+              this->pushbroom.fov = 2.0f * tanf(this->pushbroom.gsd / (this->pushbroom.altitude * 1000 ));
               // calculate dpix
-              this->pushbroom.dpix.x = (this->pushbroom.foc * tanf(this->pushbroom.fov.x / 2.0f)) / (this->pushbroom.size.x / 2.0f );
+              this->pushbroom.dpix.x = (this->pushbroom.foc * tanf(this->pushbroom.fov / 2.0f)) / (this->pushbroom.size.x / 2.0f );
               this->pushbroom.dpix.y = this->pushbroom.dpix.y;
               // done!
               file.close();

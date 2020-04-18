@@ -308,7 +308,7 @@ namespace ssrlcv{
     * this methods saves a plane which can be visualized as a mesh
     * @param pointCloud the point cloud to visualize plane estimation from
     * @param filename a string representing the filename that should be saved
-    * @param range a float representing 1/2 of a side in km, so +/- range is how but the plane will be 
+    * @param range a float representing 1/2 of a side in km, so +/- range is how but the plane will be
     */
     void visualizePlaneEstimation(Unity<float3>* pointCloud, std::vector<ssrlcv::Image*> images, const char* filename, float range);
 
@@ -427,6 +427,8 @@ namespace ssrlcv{
   // =============================================================================================================
 
   __global__ void generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras);
+
+  __global__ void generatePushbroomBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::PushbroomCamera* pushbrooms);
 
   // =============================================================================================================
   //

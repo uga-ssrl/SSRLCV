@@ -126,8 +126,42 @@ int main(int argc, char *argv[]){
     std::cout << "Generating MatchSet ..." << std::endl;
     ssrlcv::MatchSet matchSet;
 
-    
+    //
+    // 2 View Case
+    //
+    matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->size()*2,ssrlcv::cpu);
+    matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->size(),ssrlcv::cpu);
+    matches->setMemoryState(ssrlcv::cpu);
+    matchSet.matches->setMemoryState(ssrlcv::cpu);
+    matchSet.keyPoints->setMemoryState(ssrlcv::cpu);
+    for(int i = 0; i < matchSet.matches->size(); i++){
+      matchSet.keyPoints->host[i*2] = matches->host[i].keyPoints[0];
+      matchSet.keyPoints->host[i*2 + 1] = matches->host[i].keyPoints[1];
+      matchSet.matches->host[i] = {2,i*2};
+    }
+    std::cout << "Generated MatchSet ..." << std::endl << "Total Matches: " << matches->size() << std::endl << std::endl;
 
+    // the bois
+    ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
+    ssrlcv::Unity<float3>* points;
+    ssrlcv::BundleSet bundleSet;
+
+
+    //
+    // 2 View Case
+    //
+    std::cout << "Attempting 2-view Triangulation" << std::endl;
+
+    std::cout << "\tAttempting a bundle generation ..." << std::endl;
+    bundleSet = demPoints.generateBundles(&matchSet,images);
+
+    ssrlcv::writePLY("pushbroomBundles",bundleSet);
+
+    /*
+    float* linearError = (float*)malloc(sizeof(float));
+    points = demPoints.twoViewTriangulate(bundleSet, linearError);
+    ssrlcv::writePLY("out/marsTest.ply",points);
+    */
 
 
     // cleanup

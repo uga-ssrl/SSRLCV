@@ -782,32 +782,63 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   matchSet->matches->transferMemoryTo(gpu);
   matchSet->keyPoints->transferMemoryTo(gpu);
 
+  // currently complete separates pushbroom and standard projection
 
+  if (images.at(0)->isPushbroom) {
 
-  // the cameras
-  size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
-  // fill the cam boi
-  ssrlcv::Image::Camera* h_cameras;
-  h_cameras = (ssrlcv::Image::Camera*) malloc(cam_bytes);
-  for(int i = 0; i < images.size(); i++){
-    h_cameras[i] = images.at(i)->camera;
+    //
+    // standard projection case
+    //
+
+    // the cameras
+    size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
+    // fill the cam boi
+    ssrlcv::Image::Camera* h_cameras;
+    h_cameras = (ssrlcv::Image::Camera*) malloc(cam_bytes);
+    for(int i = 0; i < images.size(); i++){
+      h_cameras[i] = images.at(i)->camera;
+    }
+    ssrlcv::Image::Camera* d_cameras;
+    // std::cout << "set the cameras ... " << std::endl;
+    CudaSafeCall(cudaMalloc(&d_cameras, cam_bytes));
+    // copy the othe guy
+    CudaSafeCall(cudaMemcpy(d_cameras, h_cameras, cam_bytes, cudaMemcpyHostToDevice));
+
+    dim3 grid = {1,1,1};
+    dim3 block = {1,1,1};
+    getFlatGridBlock(bundles->size(),grid,block,generateBundle);
+
+    generateBundle<<<grid, block>>>(bundles->size(),bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
+
+    CudaSafeCall(cudaFree(d_cameras));
+  } else {
+
+    //
+    // pushbroom projection case
+    //
+
+    // the cameras
+    size_t push_bytes = images.size()*sizeof(ssrlcv::Image::PushbroomCamera);
+    // fill the cam boi
+    ssrlcv::Image::PushbroomCamera* h_pushbrooms;
+    h_pushbrooms = (ssrlcv::Image::PushbroomCamera*) malloc(push_bytes);
+    for(int i = 0; i < images.size(); i++){
+      h_pushbrooms[i] = images.at(i)->pushbroom;
+    }
+    ssrlcv::Image::PushbroomCamera* d_pushbrooms;
+    // std::cout << "set the cameras ... " << std::endl;
+    CudaSafeCall(cudaMalloc(&d_pushbrooms, push_bytes));
+    // copy the othe guy
+    CudaSafeCall(cudaMemcpy(d_pushbrooms, h_pushbrooms, push_bytes, cudaMemcpyHostToDevice));
+
+    dim3 grid = {1,1,1};
+    dim3 block = {1,1,1};
+    getFlatGridBlock(bundles->size(),grid,block,generateBundle);
+
+    generatePushbroomBundle<<<grid, block>>>(bundles->size(),bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_pushbrooms);
+
+    CudaSafeCall(cudaFree(d_pushbrooms));
   }
-  ssrlcv::Image::Camera* d_cameras;
-  // std::cout << "set the cameras ... " << std::endl;
-  CudaSafeCall(cudaMalloc(&d_cameras, cam_bytes));
-  // copy the othe guy
-  CudaSafeCall(cudaMemcpy(d_cameras, h_cameras, cam_bytes, cudaMemcpyHostToDevice));
-
-  dim3 grid = {1,1,1};
-  dim3 block = {1,1,1};
-  getFlatGridBlock(bundles->size(),grid,block,generateBundle);
-
-  //in this kernel fill lines and bundles from keyPoints and matches
-  // std::cout << "Calling bundle generation kernel ..." << std::endl;
-  generateBundle<<<grid, block>>>(bundles->size(),bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_cameras);
-  // std::cout << "Returned from bundle generation kernel ... \n" << std::endl;
-
-  CudaSafeCall(cudaFree(d_cameras));
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -3791,12 +3822,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::getAveragePoint(Unity<float3>*
 __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if (globalID > numBundles - 1) return;
+
   MultiMatch match = matches[globalID];
   float3* kp = new float3[match.numKeyPoints]();
   int end =  (int) match.numKeyPoints + match.index;
   KeyPoint currentKP = {-1,{0.0f,0.0f}};
   bundles[globalID] = {match.numKeyPoints,match.index,false};
-  for (int i = match.index, k= 0; i < end; i++,k++){
+
+  for (int i = match.index, k = 0; i < end; i++,k++){
     // the current keypoint to transform
     currentKP = keyPoints[i];
     // set the dpix
@@ -3825,6 +3858,84 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
     normalize(lines[i].vec);
     lines[i].pnt = cameras[currentKP.parentId].cam_pos;
     //printf("[%lu / %u] [i: %d] < %f , %f, %f > at ( %.12f, %.12f, %.12f ) \n", globalID,numBundles,i,lines[i].vec.x,lines[i].vec.y,lines[i].vec.z,lines[i].pnt.x,lines[i].pnt.y,lines[i].pnt.z);
+  }
+  delete[] kp;
+}
+
+__global__ void ssrlcv::generatePushbroomBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::PushbroomCamera* pushbrooms){
+  unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+  if (globalID > numBundles - 1) return;
+
+  MultiMatch match = matches[globalID];
+  float3* kp = new float3[match.numKeyPoints]();
+  int end =  (int) match.numKeyPoints + match.index;
+  KeyPoint currentKP = {-1,{0.0f,0.0f}};
+  bundles[globalID] = {match.numKeyPoints,match.index,false};
+
+  // for now I am going to complete ignore the possibility that
+  // the pushbroom image plane may be distorted in due to jitter
+  // for HiRISE image info, see: https://hirise-pds.lpl.arizona.edu/PDS/DOCUMENT/HIRISE_RDR_SIS.PDF
+  // an example file that I parsed is here: https://hirise-pds.lpl.arizona.edu/PDS/RDR/ESP/ORB_063700_063799/ESP_063752_1985/ESP_063752_1985_RED.LBL
+
+  for (int i = match.index, k = 0; i < end; i++,k++){
+    // the current keypoint to transform
+    currentKP = keyPoints[i];
+    // TODO check this is the real center point on the image
+    float2 center = {(pushbrooms[currentKP.parentId].size.x / 2.0f), (pushbrooms[currentKP.parentId].size.y / 2.0f)}; // the image center
+    // place the keypoint in the x y plane, scale it by dpix, and translate so that the center of the "image plane" is at the origin
+    kp[k] = {
+      pushbrooms[currentKP.parentId].dpix * ((currentKP.loc.x) - center.x),
+      pushbrooms[currentKP.parentId].dpix * ((currentKP.loc.y) - center.y),
+      pushbrooms[currentKP.parentId].foc // this is the focal length
+    };
+    // rotate the point as the craft "rolled"
+    // rolls around flight direction Y+
+    float roll      = pushbrooms[currentKP.parentId].roll * (PI * 180.0f); // save roll in radians, like a real professional
+    float radius    = pushbrooms[currentKP.parentId].axis_radius; // in km
+    float altitude  = pushbrooms[currentKP.parentId].altitude; // in km
+    kp[k] = rotatePoint(kp[k],{0.0f,roll,0.0f}); // do the rol
+    // find coordinate at point during scan, assumes no jitter
+    // this is solvable as a quadratic, see Caleb's thesis for details
+    float a = 1.0f + (tanf(roll - (PI/2.0f)) * tanf(roll - (PI/2.0f)));
+    float b = -2.0f * radius * tanf(roll - (PI/2.0f));
+    float c = radius*radius - ((altitude + radius) * (altitude + radius));
+    // now solve!
+    float solution1 = (-1.0f * b + sqrtf((b * b) - (4.0f * a * c))) / (2.0f * a);
+    float solution2 = (-1.0f * b - sqrtf((b * b) - (4.0f * a * c))) / (2.0f * a);
+    // fnd the position of the craft
+    float3 position;
+    if (solution1 > 0){
+      position.x = tanf(roll) * solution1;
+      position.y = 0.0f;
+      position.z = solution1;
+    } else {
+      position.x = tanf(roll) * solution2;
+      position.y = 0.0f;
+      position.z = solution2;
+    }
+    // position curretly only exists in X-Z plane, translate it based on gsd & pixels moved to get an arc length
+    float gsd = pushbrooms[currentKP.parentId].gsd * 1000; // convert from meters to km
+    float arc_length = gsd * (currentKP.loc.y - center.y);
+    float angle_out  = arc_length / radius;
+    // translate around origin
+    position.y += radius;
+    position = rotatePoint(position,{angle_out, 0.0f, 0.0f}); // rotate around the x+ axis to move forward in the "orbit"
+    position.y -= radius;
+    // set the final position!
+    lines[i].pnt = position;
+    // translate keypoint to position
+    // move to correct world coordinate
+    kp[k].x = position.x - (kp[k].x);
+    kp[k].y = position.y - (kp[k].y);
+    kp[k].z = position.z - (kp[k].z);
+    // calculate the vector component of the line
+    lines[i].vec = {
+      position.x - kp[k].x,
+      position.y - kp[k].y,
+      position.z - kp[k].z
+    };
+    // fill in the line values
+    normalize(lines[i].vec);
   }
   delete[] kp;
 }

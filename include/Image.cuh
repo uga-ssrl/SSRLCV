@@ -58,11 +58,12 @@ namespace ssrlcv{
       float3 start_pos; ///<\brief the starting coordinate of a pushbroom scan
       float3 end_pos;  ///<\brief the ending coordinate or a pushbroom scan
       float2 projection_center; ///<\brief lattitude and longitude coords representing
-      float axis_radis; // <\brief the radius from the center of the body being orbited to the projection center
+      float axis_radius; // <\brief the radius from the center of the body being orbited to the projection center
       float roll; //<\brief the craft roll in the plane purpendicular to the flight vector
       float altitude;  ///<\brief Assumes circular orbit, the altitude
       float foc; ///<\brief focal length of camera
       float fov; ///<\brief feild of fiew of camera
+      float gsd; ///<\brief the ideal GSD
       float2 dpix; ///<\brief real world size of each pixel
       /**
        * \brief identical to the image size param, but used in GPU camera modification method
@@ -76,7 +77,7 @@ namespace ssrlcv{
     unsigned int colorDepth;///<\brief colorDepth of image
     Camera camera; ///<\brief Camera struct holding all camera parameters
     PushbroomCamera pushbroom; ///<\brief Camera struct holding all camera parameters
-    bool isPushbroom; ///<\brief variable is true if the image was generated with a pushbroom camera 
+    bool isPushbroom; ///<\brief variable is true if the image was generated with a pushbroom camera
     Unity<unsigned char>* pixels;///<\brief pixels of image flattened row-wise
 
     // =============================================================================================================

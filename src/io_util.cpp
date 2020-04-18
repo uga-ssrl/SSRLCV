@@ -982,6 +982,28 @@ void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float3>
   of.close(); // done with the file building
 }
 
+/**
+ * @brief saves a bundles set as a PLY where each point has an associated vector (normal)
+ * @param filename is the desired name of the output PLY file
+ * @param bundleSet a group point points and lines to attempt to visualize
+ */
+void ssrlcv::writePLY(const char* filename, ssrlcv::BundleSet bundleSet){
+  std::ofstream of;
+  std::string fname = filename;
+  of.open ("out/" + fname + ".ply");
+  of << "ply\nformat ascii 1.0\n";
+  of << "comment author: Caleb Adams & Jackson Parker\n";
+  of << "comment SSRL CV points with normals PLY writer\n";
+  of << "element vertex " << points->size() << "\n";
+  of << "property float x\nproperty float y\nproperty float z\nproperty float nx\nproperty float ny\nproperty float nz\n"; // the elements in the guy
+  of << "end_header\n";
+  // start writing the values
+  for (int i = 0; i < bundleSet.lines->size(); i++){
+    of << bundleSet.lines->host[i].pnt.x << " " << bundleSet.lines->host[i].pnt.y << " " << bundleSet.lines->host[i].pnt.z << " " << bundleSet.lines->host[i].vec.x << " " << bundleSet.lines->host[i].vec.y << " " << bundleSet.lines->host[i].vec.z << "\n";
+  }
+  of.close(); // done with the file building
+}
+
 // =============================================================================================================
 //
 // CSV and Misc IO
