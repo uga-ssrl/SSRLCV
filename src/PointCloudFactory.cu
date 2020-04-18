@@ -782,9 +782,9 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   matchSet->matches->transferMemoryTo(gpu);
   matchSet->keyPoints->transferMemoryTo(gpu);
 
-  // currently complete separates pushbroom and standard projection
+  // currently completely separates pushbroom and standard projection
 
-  if (images.at(0)->isPushbroom) {
+  if (!images.at(0)->isPushbroom) {
 
     //
     // standard projection case
@@ -833,7 +833,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
 
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
-    getFlatGridBlock(bundles->size(),grid,block,generateBundle);
+    getFlatGridBlock(bundles->size(),grid,block,generatePushbroomBundle);
 
     generatePushbroomBundle<<<grid, block>>>(bundles->size(),bundles->device, lines->device, matchSet->matches->device, matchSet->keyPoints->device, d_pushbrooms);
 
@@ -3886,14 +3886,20 @@ __global__ void ssrlcv::generatePushbroomBundle(unsigned int numBundles, Bundle*
     kp[k] = {
       pushbrooms[currentKP.parentId].dpix.x * ((currentKP.loc.x) - center.x),
       pushbrooms[currentKP.parentId].dpix.y * ((currentKP.loc.y) - center.y),
-      pushbrooms[currentKP.parentId].foc // this is the focal length
+      pushbrooms[currentKP.parentId].foc
+    };
+    float3 focal = {
+      0.0f,
+      pushbrooms[currentKP.parentId].dpix.y * ((currentKP.loc.y) - center.y),
+      2.0f * pushbrooms[currentKP.parentId].foc
     };
     // rotate the point as the craft "rolled"
     // rolls around flight direction Y+
-    float roll      = pushbrooms[currentKP.parentId].roll * (PI * 180.0f); // save roll in radians, like a real professional
+    float roll      = pushbrooms[currentKP.parentId].roll * (PI / 180.0f); // save roll in radians, like a real professional
     float radius    = pushbrooms[currentKP.parentId].axis_radius; // in km
     float altitude  = pushbrooms[currentKP.parentId].altitude; // in km
-    kp[k] = rotatePoint(kp[k],{0.0f,roll,0.0f}); // do the rol
+    kp[k] = rotatePoint(kp[k],{0.0f,roll,0.0f}); // do the roll
+    focal = rotatePoint(focal,{0.0f,roll,0.0f});
     // find coordinate at point during scan, assumes no jitter
     // this is solvable as a quadratic, see Caleb's thesis for details
     float a = 1.0f + (tanf(roll - (PI/2.0f)) * tanf(roll - (PI/2.0f)));
@@ -3905,37 +3911,40 @@ __global__ void ssrlcv::generatePushbroomBundle(unsigned int numBundles, Bundle*
     // fnd the position of the craft
     float3 position;
     if (solution1 > 0) {
-      position.x = tanf(roll) * solution1;
+      position.x = solution1;
       position.y = 0.0f;
-      position.z = solution1;
+      position.z = tanf(roll) * solution1;
     } else {
-      position.x = tanf(roll) * solution2;
+      position.x = solution2;
       position.y = 0.0f;
-      position.z = solution2;
+      position.z = tanf(roll) * solution2;
     }
     // position curretly only exists in X-Z plane, translate it based on gsd & pixels moved to get an arc length
-    float gsd = pushbrooms[currentKP.parentId].gsd * 1000; // convert from meters to km
-    float arc_length = gsd * (currentKP.loc.y - center.y);
+    float gsd = pushbrooms[currentKP.parentId].gsd / 1000.0f; // convert from meters to km
+    float arc_length = gsd * (currentKP.loc.y - center.y); // get "pixel distance" as real world scale in km
     float angle_out  = arc_length / radius;
-    // translate around origin
+    // rotate around origin
     position.y += radius;
     position = rotatePoint(position,{angle_out, 0.0f, 0.0f}); // rotate around the x+ axis to move forward in the "orbit"
     position.y -= radius;
-    // set the final position!
-    lines[i].pnt = position;
     // translate keypoint to position
     // move to correct world coordinate
     kp[k].x = position.x - (kp[k].x);
     kp[k].y = position.y - (kp[k].y);
     kp[k].z = position.z - (kp[k].z);
+    focal.x = position.x - focal.x;
+    focal.y = position.y - focal.y;
+    focal.z = position.z - focal.z;
     // calculate the vector component of the line
     lines[i].vec = {
-      position.x - kp[k].x,
-      position.y - kp[k].y,
-      position.z - kp[k].z
+      focal.x - kp[k].x,
+      focal.y - kp[k].y,
+      focal.z - kp[k].z
     };
     // fill in the line values
     normalize(lines[i].vec);
+    // set the final position!
+    lines[i].pnt = position;
   }
   delete[] kp;
 }

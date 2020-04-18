@@ -156,23 +156,25 @@ int main(int argc, char *argv[]){
     bundleSet = demPoints.generateBundles(&matchSet,images);
 
     // just to print stuff and see it
-    ssrlcv::Unity<float3>* pnts = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,bundleSet.lines->size(),ssrlcv::cpu);
-    ssrlcv::Unity<float3>* vcts = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,bundleSet.lines->size(),ssrlcv::cpu);
+    ssrlcv::Unity<float3>* pnts = new ssrlcv::Unity<float3>(nullptr,bundleSet.lines->size(),ssrlcv::cpu);
+    ssrlcv::Unity<float3>* vcts = new ssrlcv::Unity<float3>(nullptr,bundleSet.lines->size(),ssrlcv::cpu);
     for (int i = 0; i < bundleSet.lines->size(); i++) {
       pnts->host[i] = bundleSet.lines->host[i].pnt;
       vcts->host[i] = bundleSet.lines->host[i].vec;
     }
-    writePLY("bundleTest",pnts,vcts);
+    ssrlcv::writePLY("bundleTest",pnts,vcts);
 
-    /*
+    std::cout << "\t doing 2-view Triangulation ..." << std::endl;
+
     float* linearError = (float*)malloc(sizeof(float));
+    std::cout << "\t getting points ..." << std::endl;
     points = demPoints.twoViewTriangulate(bundleSet, linearError);
     ssrlcv::writePLY("out/marsTest.ply",points);
-    */
+
 
 
     // cleanup
-    // delete points;
+    delete points;
     delete matches;
     delete matchSet.matches;
     delete matchSet.keyPoints;
