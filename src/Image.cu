@@ -158,7 +158,7 @@ ssrlcv::Image::Image(std::string filePath, int id) {
       std::cout << "Reading BCP encoded camera parameters ..." << std::endl;
       std::cerr << "WARN: BCP camera reading is not yet supported" << std::endl;
       // TODO read in binary incoded guys here
-    } else if (fileExists(params_path + "/" + file_no_digits + "_par.txt") {
+    } else if (fileExists(params_path + "/" + file_no_digits + "_par.txt")) {
       std::cout << "Middleburry ACSII camera params found for " << filename << std::endl;
       this->isPushbroom = false;
       std::ifstream file(params_path + "/" + file_no_digits + "_par.txt"); // declare file stream: http://www.cplusplus.com/reference/iostream/ifstream/
@@ -170,7 +170,7 @@ ssrlcv::Image::Image(std::string filePath, int id) {
         if (filename == value){
           // now parse the Middleburry file, see http://vision.middlebury.edu/mview/data/
           getline(file,value,' ');
-          this->camera.foc = std::atof(value.c_str()); // k11
+          this->camera.foc = std::atof(value.c_str()) / 1000.0f; // k11
           this->camera.fov.x = 2.0 * atan( 1.0 / this->camera.foc) * (180.0/PI); // pls
           this->camera.dpix.x = (this->camera.foc * tanf(this->camera.fov.x / 2.0f)) / (this->camera.size.x / 2.0f );
           this->camera.dpix.y = this->camera.dpix.x;

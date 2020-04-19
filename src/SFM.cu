@@ -64,9 +64,9 @@ int main(int argc, char *argv[]){
     logger.logState("start"); // these can be used to time parts of the pipeline afterwards and correlate it with ofther stuff
     logger.startBackgoundLogging(5); // write a voltage, current, power log every 5 seconds
 
-
     //ARG PARSING
 
+    logger.logState("reading images");
     std::map<std::string,ssrlcv::arg*> args = ssrlcv::parseArgs(argc,argv);
     if(args.find("dir") == args.end()){
       std::cerr<<"ERROR: SFM executable requires a directory of images"<<std::endl;
@@ -87,15 +87,18 @@ int main(int argc, char *argv[]){
     std::vector<std::string> imagePaths = ((ssrlcv::img_dir_arg*)args["dir"])->paths;
     int numImages = (int) imagePaths.size();
     std::cout<<"found "<<numImages<<" in directory given"<<std::endl;
+    logger.logState("done reading images");
 
     std::vector<ssrlcv::Image*> images;
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
     for(int i = 0; i < numImages; ++i){
+      logger.logState("generating features");
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
       ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
       features->transferMemoryTo(ssrlcv::cpu);
       images.push_back(image);
       allFeatures.push_back(features);
+      logger.logState("done generating features");
     }
 
     //
@@ -104,9 +107,11 @@ int main(int argc, char *argv[]){
 
     std::cout << "Starting matching..." << std::endl;
 
+    logger.logState("generating seed matches");
     ssrlcv::Unity<float>* seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
     ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
     if(seedDistances != nullptr) delete seedDistances;
+    logger.logState("done generating seed matches");
 
     distanceMatches->transferMemoryTo(ssrlcv::cpu);
     float maxDist = 0.0f;
@@ -120,7 +125,7 @@ int main(int argc, char *argv[]){
 
     std::string delimiter = "/";
     std::string matchFile = imagePaths[0].substr(0,imagePaths[0].rfind(delimiter)) + "/matches.txt";
-    // ssrlcv::writeMatchFile(matches, matchFile);
+    ssrlcv::writeMatchFile(matches, matchFile);
 
     // Need to fill into to MatchSet boi
     std::cout << "Generating MatchSet ..." << std::endl;
@@ -130,11 +135,13 @@ int main(int argc, char *argv[]){
       //
       // 2 View Case
       //
+      log.logState("matching images");
       matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->size()*2,ssrlcv::cpu);
       matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->size(),ssrlcv::cpu);
       matches->setMemoryState(ssrlcv::cpu);
       matchSet.matches->setMemoryState(ssrlcv::cpu);
       matchSet.keyPoints->setMemoryState(ssrlcv::cpu);
+      log.logState("done matching images");
       for(int i = 0; i < matchSet.matches->size(); i++){
         matchSet.keyPoints->host[i*2] = matches->host[i].keyPoints[0];
         matchSet.keyPoints->host[i*2 + 1] = matches->host[i].keyPoints[1];
@@ -145,10 +152,12 @@ int main(int argc, char *argv[]){
       //
       // N View Case
       //
+      log.logState("matching images");
       matchSet = matchFactory.generateMatchesExaustive(images,allFeatures);
       matches->setMemoryState(ssrlcv::cpu);
       matchSet.matches->setMemoryState(ssrlcv::cpu);
       matchSet.keyPoints->setMemoryState(ssrlcv::cpu);
+      log.logState("done matching images");
 
       // optional to save output
       // matchSet.keyPoints->checkpoint(0,"out/kp");
@@ -169,9 +178,11 @@ int main(int argc, char *argv[]){
       //
       std::cout << "Attempting 2-view Triangulation" << std::endl;
 
+      log.logState("initial two view triangulation");
       float* linearError = (float*)malloc(sizeof(float));
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
+      log.logState("done with initial two view triangulation");
       ssrlcv::writePLY("out/unfiltered.ply",points);
       demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
       // it's good to do a cutoff filter first how this is chosen is mostly based on ur gut
@@ -294,22 +305,22 @@ int main(int argc, char *argv[]){
       finalMesh.savePoints("densityFiltered");
 
 
-      // //  try a VSFM compare
-      // ssrlcv::MeshFactory vsfm = ssrlcv::MeshFactory();
-      // vsfm.loadPoints("../vsfm-test.ply");
-      // demPoints.scalePointCloud(1000.0,vsfm.points); //
-      // float3 rotation2 = {0.0f, PI, 0.0f};
-      // demPoints.rotatePointCloud(rotation2,vsfm.points);
-      // // now try to translate it back where it should go
-      // ssrlcv::Unity<float3>* point1 = demPoints.getAveragePoint(meshBoi.points);
-      // ssrlcv::Unity<float3>* point2 = demPoints.getAveragePoint(vsfm.points);
-      // point1->host[0] -= point2->host[0];
-      // demPoints.translatePointCloud(point2->host[0], vsfm.points);
-      // // save the new VSFM scaled points
-      // ssrlcv::writePLY("vsfm", vsfm.points);
-      // // compare to ground truth
-      // float error2 = meshBoi.calculateAverageDifference(vsfm.points, {0.0f , 0.0f, 1.0f}); // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
-      // std::cout << "VSFM average error to ground truth is: " << error2 << " meters" << std::endl;
+      //  try a VSFM compare
+      ssrlcv::MeshFactory vsfm = ssrlcv::MeshFactory();
+      vsfm.loadPoints("../vsfm-test.ply");
+      demPoints.scalePointCloud(1000.0,vsfm.points); //
+      float3 rotation2 = {0.0f, PI, 0.0f};
+      demPoints.rotatePointCloud(rotation2,vsfm.points);
+      // now try to translate it back where it should go
+      ssrlcv::Unity<float3>* point1 = demPoints.getAveragePoint(meshBoi.points);
+      ssrlcv::Unity<float3>* point2 = demPoints.getAveragePoint(vsfm.points);
+      point1->host[0] -= point2->host[0];
+      demPoints.translatePointCloud(point2->host[0], vsfm.points);
+      // save the new VSFM scaled points
+      ssrlcv::writePLY("vsfm", vsfm.points);
+      // compare to ground truth
+      float error2 = meshBoi.calculateAverageDifference(vsfm.points, {0.0f , 0.0f, 1.0f}); // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
+      std::cout << "VSFM average error to ground truth is: " << error2 << " meters" << std::endl;
 
 
 
@@ -318,6 +329,12 @@ int main(int argc, char *argv[]){
       // N View Case
       //
       std::cout << "Attempting N-view Triangulation" << std::endl;
+
+      for (int k = 0; k < images.size(); k++){
+        std::cout << k << std::endl;
+        std::cout << "(" << images[k]->camera.cam_pos.x << "," << images[k]->camera.cam_pos.y << "," << images[k]->camera.cam_pos.z << ")" << std::endl;
+        std::cout << "<" << images[k]->camera.cam_rot.x << "," << images[k]->camera.cam_rot.y << "," << images[k]->camera.cam_rot.z << ">" << std::endl;
+      }
 
       // if we are checkout errors
       errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);

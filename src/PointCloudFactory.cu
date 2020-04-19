@@ -3928,7 +3928,7 @@ __global__ void ssrlcv::generatePushbroomBundle(unsigned int numBundles, Bundle*
     kp[k]    = rotatePoint(kp[k],{0.0f,roll,0.0f}); // do the roll
     kp[k]    = rotatePoint(kp[k],{angle_out, 0.0f, 0.0f});
     position = rotatePoint(position,{angle_out, 0.0f, 0.0f}); // rotate around the x+ axis to move forward in the "orbit"
-    printf("kp: %f %f %f , pos: %f %f %f \t",kp[k].x,kp[k].y,kp[k].z,position.x,position.y,position.z);
+    //printf("kp: %f %f %f , pos: %f %f %f \t",kp[k].x,kp[k].y,kp[k].z,position.x,position.y,position.z);
     lines[i].vec = position - kp[k];
     // translate keypoint to position
     // move to correct world coordinate
