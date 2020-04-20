@@ -179,6 +179,7 @@ int main(int argc, char *argv[]){
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
       logger.logState("done triangulation");
       ssrlcv::writePLY("out/unfiltered.ply",points);
+      std::cout << "\tUnfiltered Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
       demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
       // it's good to do a cutoff filter first how this is chosen is mostly based on ur gut
       // if a poor estimate is chosen then you will have to statistical filter multiple times
@@ -193,7 +194,9 @@ int main(int argc, char *argv[]){
       ssrlcv::writePLY("out/linearCutoff.ply",points);
       logger.logState("start filter");
       // here you can filter points in a number of ways before bundle adjustment or triangulation
-      demPoints.deterministicStatisticalFilter(&matchSet,images, 1.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+      float sigma_filter = 1.0;
+      demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+      std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
       bundleSet = demPoints.generateBundles(&matchSet,images);
       logger.logState("end filter");
 
@@ -206,13 +209,11 @@ int main(int argc, char *argv[]){
       bundleSet = demPoints.generateBundles(&matchSet,images);
       */
 
+      /*
       // Planar filtering is very good at removing noise that is not close to the estimated model.
       demPoints.planarCutoffFilter(&matchSet, images, 10.0f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
       bundleSet = demPoints.generateBundles(&matchSet,images);
-
-      // the version that will be used normally
-      points = demPoints.twoViewTriangulate(bundleSet, linearError);
-      std::cout << "Total Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
+      */
 
       /*
       // OPTIONAL
@@ -228,6 +229,7 @@ int main(int argc, char *argv[]){
       ssrlcv::writeCSV(points, "pointcloud01");
       */
 
+      /*
       // OPTIONAL
       // to compare a points cloud with a ground truth model the first need to be scaled
       // the distance values here are in km but most truth models are in meters
@@ -252,6 +254,7 @@ int main(int argc, char *argv[]){
       ssrlcv::writeCSV(truthErrors, "resolutionErrors");
       // you can also save them as color coded
       ssrlcv::writePLY("resolutionErrors",points, truthErrors, 300); // NOTE it has already been scaled to meters, set error the cutoff to 300 meters
+      */
 
       /*
       // OPTIONAL
@@ -274,6 +277,7 @@ int main(int argc, char *argv[]){
 
       // begin mesh-level tasks, there are no more cameras or matches after this stage
 
+      /*
       // set the mesh points
       finalMesh.setPoints(points);
 
@@ -307,6 +311,7 @@ int main(int argc, char *argv[]){
       // compare to ground truth
       float error2 = meshBoi.calculateAverageDifference(vsfm.points, {0.0f , 0.0f, 1.0f}); // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
       std::cout << "VSFM average error to ground truth is: " << error2 << " meters" << std::endl;
+      */
 
 
 
@@ -315,12 +320,6 @@ int main(int argc, char *argv[]){
       // N View Case
       //
       std::cout << "Attempting N-view Triangulation" << std::endl;
-
-      for (int k = 0; k < images.size(); k++){
-        std::cout << k << std::endl;
-        std::cout << "(" << images[k]->camera.cam_pos.x << "," << images[k]->camera.cam_pos.y << "," << images[k]->camera.cam_pos.z << ")" << std::endl;
-        std::cout << "<" << images[k]->camera.cam_rot.x << "," << images[k]->camera.cam_rot.y << "," << images[k]->camera.cam_rot.z << ">" << std::endl;
-      }
 
       // if we are checkout errors
       errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
@@ -335,7 +334,8 @@ int main(int argc, char *argv[]){
       demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
       demPoints.saveViewNumberCloud(&matchSet,images, "ViewNumbers");
 
-      std::cout << "Initial Angular Error: " << *angularError << std::endl;
+
+      std::cout << "\tUnfiltered Linear Error: " << *angularError << std::endl;
       //ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors1");
       logger.logState("start filter");
       demPoints.linearCutoffFilter(&matchSet, images, 100.0); // unless scaled, the point cloud is in km. This is the maximum "missmatch" distance between lines to allow in km
@@ -348,19 +348,25 @@ int main(int argc, char *argv[]){
       // multiple filters are needed, because outlier points are discovered in stages
       // decreasing sigma over time is best because the real "mean" error becomes more
       // accurate as truely noisey points are removed
-      for (int i = 0; i < 3; i++){
-        demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
-        bundleSet = demPoints.generateBundles(&matchSet,images);
-      }
-      for (int i = 0; i < 6; i++){
-        demPoints.deterministicStatisticalFilter(&matchSet,images, 1.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
-        bundleSet = demPoints.generateBundles(&matchSet,images);
-      }
-      // then, if the cloud is large enough still, one last filter
-      demPoints.deterministicStatisticalFilter(&matchSet,images, 0.2, 0.1); // <---- samples 10% of points and removes anything past 0.2 sigma
+      float sigma_filter = 1.0;
+      demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
+      std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
+
+      // for (int i = 0; i < 3; i++){
+      //   demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+      //   bundleSet = demPoints.generateBundles(&matchSet,images);
+      // }
+      // for (int i = 0; i < 6; i++){
+      //   demPoints.deterministicStatisticalFilter(&matchSet,images, 1.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
+      //   bundleSet = demPoints.generateBundles(&matchSet,images);
+      // }
+      // // then, if the cloud is large enough still, one last filter
+      // demPoints.deterministicStatisticalFilter(&matchSet,images, 0.2, 0.1); // <---- samples 10% of points and removes anything past 0.2 sigma
+      // bundleSet = demPoints.generateBundles(&matchSet,images);
       logger.logState("end filter");
 
+      /*
       // now redo triangulation with the newlyfiltered boi
       points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
 
@@ -408,7 +414,7 @@ int main(int argc, char *argv[]){
       // with the nview case the noise goes up the number of views you add, unless you
       finalMesh.filterByNeighborDistance(1.0); // <--- filter bois past 1.5 sigma (about 95% of points)
       finalMesh.savePoints("densityFiltered"); //
-
+      */
 
     }
 

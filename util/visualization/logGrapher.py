@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 #
 
 # get the user inputs
-if (len(sys.argv) < 5):
+if (len(sys.argv) < 6):
     print("NOT ENOUGH ARGUMENTS")
     print("USAGE:")
     print("\npython3 logGrapher.py file/path/to/log.csv enableStates enableVoltage enableCurrent enablePower \n")
@@ -161,7 +161,22 @@ for p in powers:
 
 # draw the state lines:
 for s in states:
-    plt.axvline(x=x[0] linewidth=4, color='y')
+    label_name = ''
+    if (s[1] == io):
+        label_name = "file io"
+    elif (s[1] == seed):
+        label_name = "seed image"
+    elif (s[1] == features):
+        label_name = "feature generation"
+    elif (s[1] == matching):
+        label_name = "feature matching"
+    elif (s[1] == triangulate):
+        label_name = "triangulation"
+    elif (s[1] == filter):
+        label_name = "filtering"
+    elif (s[1] == bundleboi):
+        label_name = "bundle adjustment"
+    plt.axvline(x=s[0], linewidth=4, color='y', label=label_name)
 
 
 plt.plot(t, gpu, 'r', label="GPU power usage")
@@ -171,6 +186,7 @@ plt.plot(t, cpu, 'b', label="CPU power usage")
 plt.legend(loc="upper right")
 
 plt.show()
+
 
 
 
