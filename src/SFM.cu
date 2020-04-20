@@ -343,7 +343,7 @@ int main(int argc, char *argv[]){
       float* angularError = (float*)malloc(sizeof(float));
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
-      ssrlcv::writePLY("out/unfiltered.ply",points);
+      ssrlcv::writePLY("unfiltered.ply",points);
       logger.logState("done triangulation");
 
       demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
@@ -381,6 +381,7 @@ int main(int argc, char *argv[]){
       avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
       std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
       ssrlcv::writeCSV(errors, "nViewFilteredErrors");
+      ssrlcv::writePLY("filtered.ply",points);
 
       // for (int i = 0; i < 3; i++){
       //   demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma

@@ -673,7 +673,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  void (*fp)(float*, unsigned long, Bundle::Line*, Bundle*, float3*) = &computeNViewTriangulate;
+  void (*fp)(float*, float*, unsigned long, Bundle::Line*, Bundle*, float3*) = &computeNViewTriangulate;
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
 
@@ -4669,18 +4669,21 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, unsigned lo
 
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+    // see: https://onlinemschool.com/math/library/analytic_geometry/p_line/
     float3 a = lines[i].vec;
-    float3 b = lines[i].pnt - point;
+    // float3 b = lines[i].pnt - point;
+    float3 b = point - lines[i].pnt;
     float3 c = crossProduct(b,a);
     // normalize(b);
     // normalize(c);
-    float numer = magnitude(c);
-    float denom = magnitude(b);
-    a_error += numer / denom;
+    float numer = (c.x * c.x) + (c.y * c.y) + (c.z * c.z);  //magnitude(c);
+    float denom = (a.x * a.x) + (a.y * a.y) + (a.z * a.z);//magnitude(b);
+    float localboi = numer / denom;
+    a_error += localboi;
   }
 
   a_error /= (float) bundles[globalID].numLines;
-  a_error *= a_error; // squared error
+  // a_error *= a_error; // squared error
 
   // after calculating local error add it all up
   atomicAdd(&localSum,a_error);
@@ -4758,18 +4761,20 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* erro
 
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+    // see: https://onlinemschool.com/math/library/analytic_geometry/p_line/
     float3 a = lines[i].vec;
-    float3 b = lines[i].pnt - point;
+    // float3 b = lines[i].pnt - point;
+    float3 b = point - lines[i].pnt;
     float3 c = crossProduct(b,a);
     // normalize(b);
     // normalize(c);
-    float numer = magnitude(c);
-    float denom = magnitude(b);
-    a_error += numer / denom;
+    float numer = (c.x * c.x) + (c.y * c.y) + (c.z * c.z);  //magnitude(c);
+    float denom = (a.x * a.x) + (a.y * a.y) + (a.z * a.z);//magnitude(b);
+    float localboi = numer / denom;
+    a_error += localboi;
   }
 
   a_error /= (float) bundles[globalID].numLines;
-  a_error *= a_error; // squared error
 
   errors[globalID] = a_error;
 
@@ -4848,19 +4853,21 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* angu
 
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+    // see https://onlinemschool.com/math/library/analytic_geometry/p_line/
     float3 a = lines[i].vec;
-    float3 b = lines[i].pnt - point;
+    // float3 b = lines[i].pnt - point;
+    float3 b = point - lines[i].pnt;
     float3 c = crossProduct(b,a);
     // normalize(b);
     // normalize(c);
-    float numer = magnitude(c);
-    float denom = magnitude(b);
-    a_error += numer / denom;
+    float numer = (c.x * c.x) + (c.y * c.y) + (c.z * c.z);  //magnitude(c);
+    float denom = (a.x * a.x) + (a.y * a.y) + (a.z * a.z);//magnitude(b);
+    float localboi = numer / denom;
+    a_error += localboi;
   }
 
 
   a_error /= (float) bundles[globalID].numLines;
-  a_error *= a_error; // squared error 
 
   errors[globalID] = a_error;
 
