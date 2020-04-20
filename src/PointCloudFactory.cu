@@ -4674,15 +4674,16 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, unsigned lo
     // float denom = sqrtf((a.x * a.x) + (a.y * a.y) + (a.z * a.z));
     // float localboi = numer / denom;
     // a_error += localboi;
-    float3 l = normalize(lines[i].vec);
+    float3 l = lines[i].vec;
+    normalize(l);
     float3 v = point - lines[i].pnt;
     float  d = dotProduct(v,l);
     float3 close = (lines[i].pnt + l) * d;
-    float dist = (point.x - close.x)*(point.x - close.x) + (point.y - close.y)*(point.y - close.y) + (point.z - close.z)*(point.z - close.z)
+    float dist = sqrtf((point.x - close.x)*(point.x - close.x) + (point.y - close.y)*(point.y - close.y) + (point.z - close.z)*(point.z - close.z));
     a_error += dist;
   }
 
-  a_error /= (float) bundles[globalID].numLines;
+  (a_error * a_error) /= (float) bundles[globalID].numLines;
   // a_error *= a_error; // squared error
 
   // after calculating local error add it all up
@@ -4770,15 +4771,16 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* erro
     // float denom = sqrtf((a.x * a.x) + (a.y * a.y) + (a.z * a.z));
     // float localboi = numer / denom;
     // a_error += localboi;
-    float3 l = normalize(lines[i].vec);
+    float3 l = lines[i].vec;
+    normalize(l);
     float3 v = point - lines[i].pnt;
     float  d = dotProduct(v,l);
     float3 close = (lines[i].pnt + l) * d;
-    float dist = (point.x - close.x)*(point.x - close.x) + (point.y - close.y)*(point.y - close.y) + (point.z - close.z)*(point.z - close.z)
+    float dist = sqrtf((point.x - close.x)*(point.x - close.x) + (point.y - close.y)*(point.y - close.y) + (point.z - close.z)*(point.z - close.z));
     a_error += dist;
   }
 
-  a_error /= (float) bundles[globalID].numLines;
+  (a_error * a_error) /= (float) bundles[globalID].numLines;
 
   errors[globalID] = a_error;
 
@@ -4854,16 +4856,17 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* angu
     // float denom = sqrtf((a.x * a.x) + (a.y * a.y) + (a.z * a.z));
     // float localboi = numer / denom;
     // a_error += localboi;
-    float3 l = normalize(lines[i].vec);
+    float3 l = lines[i].vec;
+    normalize(l);
     float3 v = point - lines[i].pnt;
     float  d = dotProduct(v,l);
     float3 close = (lines[i].pnt + l) * d;
-    float dist = (point.x - close.x)*(point.x - close.x) + (point.y - close.y)*(point.y - close.y) + (point.z - close.z)*(point.z - close.z)
+    float dist = sqrtf((point.x - close.x)*(point.x - close.x) + (point.y - close.y)*(point.y - close.y) + (point.z - close.z)*(point.z - close.z));
     a_error += dist;
   }
 
 
-  a_error /= (float) bundles[globalID].numLines;
+  (a_error * a_error) /= (float) bundles[globalID].numLines;
 
   errors[globalID] = a_error;
 
