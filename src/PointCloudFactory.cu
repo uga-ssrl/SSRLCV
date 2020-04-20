@@ -762,6 +762,74 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
   return pointcloud;
 }
 
+/**
+ * The CPU method that sets up the GPU enabled n view triangulation.
+ * @param bundleSet a set of lines and bundles to be triangulated
+ * @param errors the individual angular errors per point
+ * @param angularError the total diff between vectors
+ * @param lowCut generated points that have an error under this cutoff are marked invalid
+ * @param highCut generated points that have an error over this cutoff are marked invalid
+ */
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bundleSet, Unity<float>* errors, float* angularError, float* lowCut, float* highCut){
+  // make the error guys
+  *angularError = 0;
+  float* d_angularError;
+  size_t eSize = sizeof(float);
+  CudaSafeCall(cudaMalloc((void**) &d_angularError,eSize));
+  CudaSafeCall(cudaMemcpy(d_angularError,angularError,eSize,cudaMemcpyHostToDevice));
+
+  float* d_lowCut;
+  size_t cutSize = sizeof(float);
+  CudaSafeCall(cudaMalloc((void**) &d_lowCut,cutSize));
+  CudaSafeCall(cudaMemcpy(d_lowCut, lowCut,cutSize,cudaMemcpyHostToDevice));
+
+  float* d_highCut;
+  CudaSafeCall(cudaMalloc((void**) &d_highCut,cutSize));
+  CudaSafeCall(cudaMemcpy(d_highCut, highCut,cutSize,cudaMemcpyHostToDevice));
+
+  bundleSet.lines->transferMemoryTo(gpu);
+  bundleSet.bundles->transferMemoryTo(gpu);
+  errors->transferMemoryTo(gpu);
+
+  Unity<float3>* pointcloud = new Unity<float3>(nullptr,bundleSet.bundles->size(),gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  // float* angularError, float* lowCut, float* highCut, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud)
+  void (*fp)(float*, float*, float*, float*, unsigned long, Bundle::Line*, Bundle*, float3*) = &computeNViewTriangulate;
+  getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
+
+
+  std::cout << "Starting n-view triangulation ..." << std::endl;
+  computeNViewTriangulate<<<grid,block>>>(d_angularError,d_lowCut,d_highCut,errors->device,bundleSet.bundles->size(),bundleSet.lines->device,bundleSet.bundles->device,pointcloud->device);
+  std::cout << "n-view Triangulation done ... \n" << std::endl;
+
+  bundleSet.lines->setFore(gpu);
+  bundleSet.bundles->setFore(gpu);
+  bundleSet.lines->transferMemoryTo(cpu);
+  bundleSet.bundles->transferMemoryTo(cpu);
+  bundleSet.lines->clear(gpu);
+  bundleSet.bundles->clear(gpu);
+  // transfer the individual linear errors back to the CPU
+  errors->setFore(gpu);
+  errors->transferMemoryTo(cpu);
+  errors->clear(gpu);
+  //
+  pointcloud->setFore(gpu);
+  pointcloud->transferMemoryTo(cpu);
+  pointcloud->clear(gpu);
+
+  // copy back the total error that occured
+  CudaSafeCall(cudaMemcpy(angularError,d_angularError,eSize,cudaMemcpyDeviceToHost));
+  cudaFree(d_angularError);
+  CudaSafeCall(cudaMemcpy(lowCut,d_lowCut,eSize,cudaMemcpyDeviceToHost));
+  cudaFree(d_lowCut);
+  CudaSafeCall(cudaMemcpy(highCut,d_highCut,eSize,cudaMemcpyDeviceToHost));
+  cudaFree(d_highCut);
+
+  return pointcloud;
+}
+
 // =============================================================================================================
 //
 // Bundle Adjustment Methods
@@ -2921,6 +2989,12 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
   float* linearErrorCutoff = (float*) malloc(sizeof(float));
   *linearErrorCutoff = 0.0; // just somethihng to start
 
+  // for the N view case:
+  float* lowCut = (float*) malloc(sizeof(float));
+  *lowCut = 0.0;
+  float* highCut = (float*) malloc(sizeof(float));
+  *highCut = 0.0;
+
   // the boiz
   ssrlcv::BundleSet bundleSet;
   ssrlcv::MatchSet tempMatchSet;
@@ -2984,8 +3058,10 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     //
     std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
     std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
-    std::cout << "\tLinear Error Cutoff Adjusted To: " << std::setprecision(32) << sample_mean + (sigma * sqrtf(variance)) << std::endl;
-    *linearErrorCutoff = sample_mean + (sigma * sqrtf(variance));
+    std::cout << "\tLinear Error High Cutoff Adjusted To: " << std::setprecision(32) << sample_mean + (sigma * sqrtf(variance)) << std::endl;
+    std::cout << "\tLinear Error Low  Cutoff Adjusted To: " << std::setprecision(32) << sample_mean - (sigma * sqrtf(variance)) << std::endl;
+    *highCut = sample_mean + (sigma * sqrtf(variance));
+    *lowCut = sample_mean - (sigma * sqrtf(variance));
   }
 
   // do the two view version of this (easier for now)
@@ -3048,7 +3124,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     //
 
     // recalculate with new cutoff
-    points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+    points = nViewTriangulate(bundleSet, errors, linearError, lowCut, highCut);
 
     // CLEAR OUT THE DATA STRUCTURES
     // count the number of bad bundles to be removed
@@ -3097,7 +3173,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     int k_bundle = 0;
     for (int k = 0; k < bundleSet.bundles->size(); k++){
       k_lines = bundleSet.bundles->host[k].numLines;
-      std::cout << "k_lines: " << k_lines << "\t";
+      // std::cout << "k_lines: " << k_lines << "\t";
       if (!bundleSet.bundles->host[k].invalid){
         matchSet->matches->host[k_bundle] = {k_lines,k_adjust};
         for (int j = 0; j < k_lines; j++){
@@ -4892,6 +4968,89 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* angu
   atomicAdd(&localSum,a_error);
   __syncthreads();
   if (!threadIdx.x) atomicAdd(angularError,localSum);
+}
+
+/**
+* the CUDA kernel for Nview triangulation with angular error
+*/
+__global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* lowCut, float* highCut, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud){
+
+    // get ready to do the stuff local memory space
+    // this will later be added back to a global memory space
+    __shared__ float localSum;
+    if (threadIdx.x == 0) localSum = 0;
+    __syncthreads();
+
+    unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+    if (globalID > (pointnum-1)) return;
+
+    //Initializing Variables
+    float3 S [3];
+    float3 C;
+    S[0] = {0,0,0};
+    S[1] = {0,0,0};
+    S[2] = {0,0,0};
+    C = {0,0,0};
+
+    //Iterating through the Lines in a Bundle
+    for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+      ssrlcv::Bundle::Line L1 = lines[i];
+      float3 tmp [3];
+      normalize(L1.vec);
+      matrixProduct(L1.vec, tmp);
+      //Subtracting the 3x3 Identity Matrix from tmp
+      tmp[0].x -= 1;
+      tmp[1].y -= 1;
+      tmp[2].z -= 1;
+      //Adding tmp to S
+      S[0] = S[0] + tmp[0];
+      S[1] = S[1] + tmp[1];
+      S[2] = S[2] + tmp[2];
+      //Adding tmp * pnt to C
+      float3 vectmp;
+      multiply(tmp, L1.pnt, vectmp);
+      C = C + vectmp;
+    }
+
+    /**
+     * If all of the directional vectors are skew and not parallel, then I think S is nonsingular.
+     * However, I will look into this some more. This may have to use a pseudo-inverse matrix if that
+     * is not the case.
+     */
+    float3 Inverse [3];
+    float3 point;
+    if(inverse(S, Inverse)){
+      multiply(Inverse, C, point);
+      pointcloud[globalID] = point;
+    }
+
+
+    float a_error = 0;
+    for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
+      float3 l = lines[i].vec;
+      normalize(l);
+      float3 v = point - lines[i].pnt;
+      float  d = dotProduct(v,l);
+      float3 close = (lines[i].pnt + l) * d;
+      float dist = sqrtf((point.x - close.x)*(point.x - close.x) + (point.y - close.y)*(point.y - close.y) + (point.z - close.z)*(point.z - close.z));
+      a_error += dist;
+    }
+
+    a_error /= (float) bundles[globalID].numLines;
+
+    errors[globalID] = a_error;
+
+    // filtering
+    if (a_error > *highCut || a_error < *lowCut) {
+      bundles[globalID].invalid = true;
+    } else {
+      bundles[globalID].invalid = false;
+    }
+
+    // after calculating local error add it all up
+    atomicAdd(&localSum,a_error);
+    __syncthreads();
+    if (!threadIdx.x) atomicAdd(angularError,localSum);
 }
 
 // =============================================================================================================

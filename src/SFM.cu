@@ -351,13 +351,20 @@ int main(int argc, char *argv[]){
       demPoints.saveViewNumberCloud(&matchSet,images, "ViewNumbers");
       ssrlcv::writeCSV(errors, "nViewInitialErrors");
 
-      std::cout << "\tUnfiltered Linear Error: " << *angularError << std::endl;
+      std::cout << "\tUnfiltered Linear Error: " << std::fixed << std::setprecision(12) << *angularError << std::endl;
       //ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors1");
 
       finalMesh.setPoints(points);
       // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
       float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
       std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
+
+      float testin_boi_average = *angularError / points->size();
+      for (int i = 0; i < errors->size(); i++) {
+        errors->host[i] = abs(errors->host[i] - testin_boi_average);
+      }
+      ssrlcv::writePLY("attemptAtSomeStuff",points, errors, (testin_boi_average / 4.0f));
+
 
       /*
       logger.logState("start filter");
