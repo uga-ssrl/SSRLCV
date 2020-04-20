@@ -173,6 +173,9 @@ int main(int argc, char *argv[]){
       //
       std::cout << "Attempting 2-view Triangulation" << std::endl;
 
+      // if we are checkout errors
+      errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
+
       logger.logState("triangulation");
       float* linearError = (float*)malloc(sizeof(float));
       bundleSet = demPoints.generateBundles(&matchSet,images);
@@ -207,7 +210,7 @@ int main(int argc, char *argv[]){
       finalMesh.setPoints(points);
       ssrlcv::writeCSV(errors, "initial2ViewErrors");
       // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
-      float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
+      avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
       std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
       bundleSet = demPoints.generateBundles(&matchSet,images);
       logger.logState("end filter");
@@ -355,9 +358,11 @@ int main(int argc, char *argv[]){
       float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
       std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
 
+      /*
       logger.logState("start filter");
       demPoints.linearCutoffFilter(&matchSet, images, 100.0); // unless scaled, the point cloud is in km. This is the maximum "missmatch" distance between lines to allow in km
       bundleSet = demPoints.generateBundles(&matchSet,images);
+      */
 
       // Planar filtering is very good at removing noise that is not close to the estimated model.
       //demPoints.planarCutoffFilter(&matchSet, images, 10.0f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
@@ -373,7 +378,7 @@ int main(int argc, char *argv[]){
       std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *angularError << std::endl;
       finalMesh.setPoints(points);
       // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
-      float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
+      avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
       std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
       ssrlcv::writeCSV(errors, "nViewFilteredErrors");
 

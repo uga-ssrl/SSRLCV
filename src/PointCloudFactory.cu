@@ -729,7 +729,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  void (*fp)(float*, unsigned long, Bundle::Line*, Bundle*, float3*) = &computeNViewTriangulate;
+  // float* angularError, float* angularErrorCutoff, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud
+  void (*fp)(float*, float*, float*, unsigned long, Bundle::Line*, Bundle*, float3*) = &computeNViewTriangulate;
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
 
@@ -4679,6 +4680,7 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, unsigned lo
   }
 
   a_error /= (float) bundles[globalID].numLines;
+  a_error *= a_error; // squared error
 
   // after calculating local error add it all up
   atomicAdd(&localSum,a_error);
@@ -4767,6 +4769,7 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* erro
   }
 
   a_error /= (float) bundles[globalID].numLines;
+  a_error *= a_error; // squared error
 
   errors[globalID] = a_error;
 
@@ -4857,6 +4860,7 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* angu
 
 
   a_error /= (float) bundles[globalID].numLines;
+  a_error *= a_error; // squared error 
 
   errors[globalID] = a_error;
 
