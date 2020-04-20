@@ -2970,10 +2970,23 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     squared_sum += (errors_sample->host[k] - sample_mean)*(errors_sample->host[k] - sample_mean);
   }
   float variance = squared_sum / errors_sample->size();
-  std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
-  std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
-  std::cout << "\tLinear Error Cutoff Adjusted To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
-  *linearErrorCutoff = sigma * sqrtf(variance);
+  if (images.size() == 2) {
+    //
+    // 2-view has an optimum of 0, assumes 0 is the average
+    //
+    std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
+    std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
+    std::cout << "\tLinear Error Cutoff Adjusted To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
+    *linearErrorCutoff = sigma * sqrtf(variance);
+  } else {
+    //
+    // N-view has an optimum at the average, so cutoff needs to take this into account
+    //
+    std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
+    std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
+    std::cout << "\tLinear Error Cutoff Adjusted To: " << std::setprecision(32) << sample_mean + (sigma * sqrtf(variance)) << std::endl;
+    *linearErrorCutoff = sample_mean + (sigma * sqrtf(variance));
+  }
 
   // do the two view version of this (easier for now)
   if (images.size() == 2){
@@ -4683,8 +4696,7 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, unsigned lo
     a_error += dist;
   }
 
-  (a_error * a_error) /= (float) bundles[globalID].numLines;
-  // a_error *= a_error; // squared error
+  a_error /= (float) bundles[globalID].numLines;
 
   // after calculating local error add it all up
   atomicAdd(&localSum,a_error);
@@ -4780,7 +4792,7 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* erro
     a_error += dist;
   }
 
-  (a_error * a_error) /= (float) bundles[globalID].numLines;
+  a_error /= (float) bundles[globalID].numLines;
 
   errors[globalID] = a_error;
 
@@ -4865,8 +4877,7 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* angu
     a_error += dist;
   }
 
-
-  (a_error * a_error) /= (float) bundles[globalID].numLines;
+  a_error /= (float) bundles[globalID].numLines;
 
   errors[globalID] = a_error;
 
