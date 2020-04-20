@@ -36,6 +36,7 @@
 #include <thread>
 #include <mutex>
 #include <unistd.h>
+#include <chrono>
 
 //data structures
 #include <map>

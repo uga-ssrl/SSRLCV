@@ -135,13 +135,13 @@ int main(int argc, char *argv[]){
       //
       // 2 View Case
       //
-      log.logState("matching images");
+      logger.logState("matching images");
       matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->size()*2,ssrlcv::cpu);
       matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->size(),ssrlcv::cpu);
       matches->setMemoryState(ssrlcv::cpu);
       matchSet.matches->setMemoryState(ssrlcv::cpu);
       matchSet.keyPoints->setMemoryState(ssrlcv::cpu);
-      log.logState("done matching images");
+      logger.logState("done matching images");
       for(int i = 0; i < matchSet.matches->size(); i++){
         matchSet.keyPoints->host[i*2] = matches->host[i].keyPoints[0];
         matchSet.keyPoints->host[i*2 + 1] = matches->host[i].keyPoints[1];
@@ -152,12 +152,12 @@ int main(int argc, char *argv[]){
       //
       // N View Case
       //
-      log.logState("matching images");
+      logger.logState("matching images");
       matchSet = matchFactory.generateMatchesExaustive(images,allFeatures);
       matches->setMemoryState(ssrlcv::cpu);
       matchSet.matches->setMemoryState(ssrlcv::cpu);
       matchSet.keyPoints->setMemoryState(ssrlcv::cpu);
-      log.logState("done matching images");
+      logger.logState("done matching images");
 
       // optional to save output
       // matchSet.keyPoints->checkpoint(0,"out/kp");
@@ -178,11 +178,11 @@ int main(int argc, char *argv[]){
       //
       std::cout << "Attempting 2-view Triangulation" << std::endl;
 
-      log.logState("initial two view triangulation");
+      logger.logState("initial two view triangulation");
       float* linearError = (float*)malloc(sizeof(float));
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
-      log.logState("done with initial two view triangulation");
+      logger.logState("done with initial two view triangulation");
       ssrlcv::writePLY("out/unfiltered.ply",points);
       demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
       // it's good to do a cutoff filter first how this is chosen is mostly based on ur gut
@@ -223,17 +223,6 @@ int main(int argc, char *argv[]){
       // this should not be used in produciton and is really only useful for debugging optimizers used in bundle adjustment
       std::string temp_filename = "sensitivity";
       demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename);
-      */
-
-      /*
-      // OPTIONAL
-      // Varoius scaling examples:
-        demPoints.scalePointCloud(10.0,points);
-        ssrlcv::writePLY("out/scaledx10.ply",points);
-        demPoints.scalePointCloud(10.0,points);
-        ssrlcv::writePLY("out/scaledx100.ply",points);
-        demPoints.scalePointCloud(10.0,points);
-        ssrlcv::writePLY("out/scaledx1000.ply",points);
       */
 
       /*

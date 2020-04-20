@@ -171,6 +171,13 @@ namespace ssrlcv{
      */
     void looper(int delay);
 
+    /**
+     * Used to return a high resolution timestamp for dense resolution timing of algorithms
+     * this is not nessesary needed for a final logger and coult be substituted for a less
+     * precise time measurement 
+     */
+    double getTime();
+
   }; // end Logger class
 }
 
