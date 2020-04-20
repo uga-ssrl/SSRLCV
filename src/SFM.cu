@@ -343,6 +343,7 @@ int main(int argc, char *argv[]){
       float* angularError = (float*)malloc(sizeof(float));
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
+      std::cout << "\t >>>>>>>> TOTOAL POINTS: " << points->size() << std::endl;
       ssrlcv::writePLY("unfiltered.ply",points);
       logger.logState("done triangulation");
 
@@ -375,7 +376,9 @@ int main(int argc, char *argv[]){
       demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
+      std::cout << "\t >>>>>>>> TOTOAL POINTS: " << points->size() << std::endl;
       std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *angularError << std::endl;
+      demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored2");
       finalMesh.setPoints(points);
       // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
       avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);

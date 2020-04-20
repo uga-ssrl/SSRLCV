@@ -3020,7 +3020,6 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     // this is much easier because of the 2 view assumption
     // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
     int k_adjust = 0;
-    // if (bad_bundles){
     for (int k = 0; k < bundleSet.bundles->size(); k++){
     	if (!bundleSet.bundles->host[k].invalid){
     	  matchSet->keyPoints->host[2*k_adjust]     = tempMatchSet.keyPoints->host[2*k];
@@ -3079,13 +3078,13 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     delete matchSet->matches;
     matchSet->keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,new_kp_size,ssrlcv::cpu);
     matchSet->matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,new_mt_size,ssrlcv::cpu);
-    // this is much easier because of the 2 view assumption
-    // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
+    // this is harder to do with the N-view case
     int k_adjust = 0;
     int k_lines  = 0;
     int k_bundle = 0;
     for (int k = 0; k < bundleSet.bundles->size(); k++){
       k_lines = bundleSet.bundles->host[k].numLines;
+      std::cout << "k_lines: " << k_lines << "\t";
       if (!bundleSet.bundles->host[k].invalid){
         matchSet->matches->host[k_bundle] = {k_lines,k_adjust};
         for (int j = 0; j < k_lines; j++){
@@ -3095,6 +3094,16 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
         k_bundle++;
       }
     }
+
+    // 2 view refrence
+    // for (int k = 0; k < bundleSet.bundles->size(); k++){
+    //   if (!bundleSet.bundles->host[k].invalid){
+    //     matchSet->keyPoints->host[2*k_adjust]     = tempMatchSet.keyPoints->host[2*k];
+    //     matchSet->keyPoints->host[2*k_adjust + 1] = tempMatchSet.keyPoints->host[2*k + 1];
+    //     matchSet->matches->host[k_adjust]         = {2,2*k_adjust};
+    //     k_adjust++;
+    //   }
+    // }
 
     if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
 
@@ -4654,32 +4663,23 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, unsigned lo
     pointcloud[globalID] = point;
   }
 
-  // float a_error = 0;
-  // for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
-  //   float3 v = lines[i].vec;
-  //   normalize(v);
-  //   // the refrence vector
-  //   // we take the generated point and create a vector from it to the camera center
-  //   float3 r = lines[i].pnt - point;
-  //   normalize(r);
-  //
-  //   float3 er = v - r;
-  //   a_error += sqrtf(er.x*er.x + er.y*er.y + er.z*er.z);
-  // }
-
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
-    // see: https://onlinemschool.com/math/library/analytic_geometry/p_line/
-    float3 a = lines[i].vec;
-    // float3 b = lines[i].pnt - point;
-    float3 b = point - lines[i].pnt;
-    float3 c = crossProduct(b,a);
-    // normalize(b);
-    // normalize(c);
-    float numer = (c.x * c.x) + (c.y * c.y) + (c.z * c.z);  //magnitude(c);
-    float denom = (a.x * a.x) + (a.y * a.y) + (a.z * a.z);//magnitude(b);
-    float localboi = numer / denom;
-    a_error += localboi;
+    // // see: https://onlinemschool.com/math/library/analytic_geometry/p_line/
+    // float3 a = lines[i].vec;
+    // float3 b = point - lines[i].pnt;
+    // float3 c = crossProduct(b,a);
+    // // note we are optimizing for squared error!
+    // float numer = sqrtf((c.x * c.x) + (c.y * c.y) + (c.z * c.z));
+    // float denom = sqrtf((a.x * a.x) + (a.y * a.y) + (a.z * a.z));
+    // float localboi = numer / denom;
+    // a_error += localboi;
+    float3 l = normalize(lines[i].vec);
+    float3 v = point - lines[i].pnt;
+    float  d = dotProduct(v,l);
+    float3 close = (lines[i].pnt + l) * d;
+    float dist = (point.x - close.x)*(point.x - close.x) + (point.y - close.y)*(point.y - close.y) + (point.z - close.z)*(point.z - close.z)
+    a_error += dist;
   }
 
   a_error /= (float) bundles[globalID].numLines;
@@ -4762,16 +4762,20 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* erro
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
     // see: https://onlinemschool.com/math/library/analytic_geometry/p_line/
-    float3 a = lines[i].vec;
-    // float3 b = lines[i].pnt - point;
-    float3 b = point - lines[i].pnt;
-    float3 c = crossProduct(b,a);
-    // normalize(b);
-    // normalize(c);
-    float numer = (c.x * c.x) + (c.y * c.y) + (c.z * c.z);  //magnitude(c);
-    float denom = (a.x * a.x) + (a.y * a.y) + (a.z * a.z);//magnitude(b);
-    float localboi = numer / denom;
-    a_error += localboi;
+    // float3 a = lines[i].vec;
+    // float3 b = point - lines[i].pnt;
+    // float3 c = crossProduct(b,a);
+    // // note we are optimizing for squared error!
+    // float numer = sqrtf((c.x * c.x) + (c.y * c.y) + (c.z * c.z));
+    // float denom = sqrtf((a.x * a.x) + (a.y * a.y) + (a.z * a.z));
+    // float localboi = numer / denom;
+    // a_error += localboi;
+    float3 l = normalize(lines[i].vec);
+    float3 v = point - lines[i].pnt;
+    float  d = dotProduct(v,l);
+    float3 close = (lines[i].pnt + l) * d;
+    float dist = (point.x - close.x)*(point.x - close.x) + (point.y - close.y)*(point.y - close.y) + (point.z - close.z)*(point.z - close.z)
+    a_error += dist;
   }
 
   a_error /= (float) bundles[globalID].numLines;
@@ -4838,32 +4842,24 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* angu
     pointcloud[globalID] = point;
   }
 
-  // float a_error = 0;
-  // for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
-  //   float3 v = lines[i].vec;
-  //   normalize(v);
-  //   // the refrence vector
-  //   // we take the generated point and create a vector from it to the camera center
-  //   float3 r = lines[i].pnt - point;
-  //   normalize(r);
-  //
-  //   float3 er = v - r;
-  //   a_error += sqrtf(er.x*er.x + er.y*er.y + er.z*er.z);
-  // }
 
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
-    // see https://onlinemschool.com/math/library/analytic_geometry/p_line/
-    float3 a = lines[i].vec;
-    // float3 b = lines[i].pnt - point;
-    float3 b = point - lines[i].pnt;
-    float3 c = crossProduct(b,a);
-    // normalize(b);
-    // normalize(c);
-    float numer = (c.x * c.x) + (c.y * c.y) + (c.z * c.z);  //magnitude(c);
-    float denom = (a.x * a.x) + (a.y * a.y) + (a.z * a.z);//magnitude(b);
-    float localboi = numer / denom;
-    a_error += localboi;
+    // // see https://onlinemschool.com/math/library/analytic_geometry/p_line/
+    // float3 a = lines[i].vec;
+    // float3 b = point - lines[i].pnt;
+    // float3 c = crossProduct(b,a);
+    // // note we are optimizing for squared error!
+    // float numer = sqrtf((c.x * c.x) + (c.y * c.y) + (c.z * c.z));
+    // float denom = sqrtf((a.x * a.x) + (a.y * a.y) + (a.z * a.z));
+    // float localboi = numer / denom;
+    // a_error += localboi;
+    float3 l = normalize(lines[i].vec);
+    float3 v = point - lines[i].pnt;
+    float  d = dotProduct(v,l);
+    float3 close = (lines[i].pnt + l) * d;
+    float dist = (point.x - close.x)*(point.x - close.x) + (point.y - close.y)*(point.y - close.y) + (point.z - close.z)*(point.z - close.z)
+    a_error += dist;
   }
 
 
