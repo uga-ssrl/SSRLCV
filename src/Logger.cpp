@@ -584,13 +584,11 @@ void ssrlcv::Logger::looper(int delay){
  * Used to return a high resolution timestamp for dense resolution timing of algorithms
  * this is not nessesary needed for a final logger and coult be substituted for a less
  * precise time measurement
+ * @return timestamp the number of milliseconds sense January 1st 1970
  */
-double ssrlcv::Logger::getTime(){
-
-  chrono::high_resolution_clock::time_point t = high_resolution_clock::now();
-  duration<double> time_span = t - 0.0;
-
-  return (double) time_span;
+unsigned long ssrlcv::Logger::getTime(){
+  std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
+  return ms.count();
 }
 
 

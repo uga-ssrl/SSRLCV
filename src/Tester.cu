@@ -62,11 +62,12 @@ int main(int argc, char *argv[]){
     logger.logCurrent();
     logger.logPower();
     logger.logState("start"); // these can be used to time parts of the pipeline afterwards and correlate it with ofther stuff
-    logger.startBackgoundLogging(5); // write a voltage, current, power log every 5 seconds
+    logger.startBackgoundLogging(1); // write a voltage, current, power log every <input> seconds
 
 
     //ARG PARSING
 
+    logger.logState("arg parse");
     std::map<std::string,ssrlcv::arg*> args = ssrlcv::parseArgs(argc,argv);
     if(args.find("dir") == args.end()){
       std::cerr<<"ERROR: SFM executable requires a directory of images"<<std::endl;
@@ -97,6 +98,7 @@ int main(int argc, char *argv[]){
       images.push_back(image);
       allFeatures.push_back(features);
     }
+    logger.logState("end arg parse");
 
     //
     // MATCHING

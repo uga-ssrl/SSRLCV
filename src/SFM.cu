@@ -54,15 +54,8 @@ int main(int argc, char *argv[]){
     // the logger requires that a "safes shutdown" signal handler is created
     // so that the logger.shutdown() method can be called.
     logger = ssrlcv::Logger("out"); // log in the out directory
-    // run some examples
-    logger.log("this is a log comment");
-    logger.logState("test");
-    logger.logCPUnames();
-    logger.logVoltage();
-    logger.logCurrent();
-    logger.logPower();
     logger.logState("start"); // these can be used to time parts of the pipeline afterwards and correlate it with ofther stuff
-    logger.startBackgoundLogging(5); // write a voltage, current, power log every 5 seconds
+    logger.startBackgoundLogging(1); // write a voltage, current, power log every 5 seconds
 
     //ARG PARSING
 
@@ -123,9 +116,11 @@ int main(int argc, char *argv[]){
     ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
     delete distanceMatches;
 
+    /*
     std::string delimiter = "/";
     std::string matchFile = imagePaths[0].substr(0,imagePaths[0].rfind(delimiter)) + "/matches.txt";
     ssrlcv::writeMatchFile(matches, matchFile);
+    */
 
     // Need to fill into to MatchSet boi
     std::cout << "Generating MatchSet ..." << std::endl;
@@ -196,9 +191,11 @@ int main(int argc, char *argv[]){
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
       ssrlcv::writePLY("out/linearCutoff.ply",points);
+      logger.logState("start filter");
       // here you can filter points in a number of ways before bundle adjustment or triangulation
       demPoints.deterministicStatisticalFilter(&matchSet,images, 1.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
+      logger.logState("end filter");
 
       /*
       // OPTIONAL
@@ -328,17 +325,19 @@ int main(int argc, char *argv[]){
       // if we are checkout errors
       errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
 
+      logger.logState("nview triangulation");
       float* angularError = (float*)malloc(sizeof(float));
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
       ssrlcv::writePLY("out/unfiltered.ply",points);
+      logger.logState("end nview triangulation");
 
       demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
       demPoints.saveViewNumberCloud(&matchSet,images, "ViewNumbers");
 
       std::cout << "Initial Angular Error: " << *angularError << std::endl;
       //ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors1");
-
+      logger.logState("start filter");
       demPoints.linearCutoffFilter(&matchSet, images, 100.0); // unless scaled, the point cloud is in km. This is the maximum "missmatch" distance between lines to allow in km
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
@@ -360,6 +359,7 @@ int main(int argc, char *argv[]){
       // then, if the cloud is large enough still, one last filter
       demPoints.deterministicStatisticalFilter(&matchSet,images, 0.2, 0.1); // <---- samples 10% of points and removes anything past 0.2 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
+      logger.logState("end filter");
 
       // now redo triangulation with the newlyfiltered boi
       points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
