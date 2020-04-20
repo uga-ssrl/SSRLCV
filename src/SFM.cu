@@ -173,11 +173,11 @@ int main(int argc, char *argv[]){
       //
       std::cout << "Attempting 2-view Triangulation" << std::endl;
 
-      logger.logState("initial two view triangulation");
+      logger.logState("triangulation");
       float* linearError = (float*)malloc(sizeof(float));
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
-      logger.logState("done with initial two view triangulation");
+      logger.logState("done triangulation");
       ssrlcv::writePLY("out/unfiltered.ply",points);
       demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
       // it's good to do a cutoff filter first how this is chosen is mostly based on ur gut
@@ -325,12 +325,12 @@ int main(int argc, char *argv[]){
       // if we are checkout errors
       errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
 
-      logger.logState("nview triangulation");
+      logger.logState("triangulation");
       float* angularError = (float*)malloc(sizeof(float));
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
       ssrlcv::writePLY("out/unfiltered.ply",points);
-      logger.logState("end nview triangulation");
+      logger.logState("done triangulation");
 
       demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
       demPoints.saveViewNumberCloud(&matchSet,images, "ViewNumbers");

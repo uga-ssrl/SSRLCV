@@ -105,7 +105,7 @@ void ssrlcv::Logger::log(const char* input){
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  outstream << std::fixed << std::setprecision(32) << getTime() << ",";
+  outstream << std::fixed << std::setprecision(32) << getTime() << ",comment,";
   // now print the real junk
   outstream << input << std::endl;
   outstream.close();
@@ -121,7 +121,7 @@ void ssrlcv::Logger::log(std::string input){
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  outstream << std::fixed << std::setprecision(32) << getTime() << ",";
+  outstream << std::fixed << std::setprecision(32) << getTime() << ",comment,";
   // now print the real junk
   outstream << input << std::endl;
   outstream.close();
@@ -137,7 +137,8 @@ void ssrlcv::Logger::logState(const char* state){
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  outstream << std::fixed << std::setprecision(32) << getTime() << ",";
+  outstream << std::fixed << std::setprecision(32) << getTime() << ",state," ;
+
   // now print the real junk
   outstream << state << std::endl;
   outstream.close();
@@ -153,7 +154,7 @@ void ssrlcv::Logger::logState(std::string state){
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  outstream << std::fixed << std::setprecision(32) << getTime() << ",";
+  outstream << std::fixed << std::setprecision(32) << getTime() << ",state,";
   // now print the real junk
   outstream << state << std::endl;
   outstream.close();
@@ -169,7 +170,7 @@ void ssrlcv::Logger::logError(const char* input){
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  outstream << std::fixed << std::setprecision(32) << getTime() << ",";
+  outstream << std::fixed << std::setprecision(32) << getTime() << ",error,";
   // now print the real junk
   outstream << input << std::endl;
   outstream.close();
@@ -185,7 +186,7 @@ void ssrlcv::Logger::logError(std::string input){
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  outstream << std::fixed << std::setprecision(32) << getTime() << ",";
+  outstream << std::fixed << std::setprecision(32) << getTime() << ",error,";
   // now print the real junk
   outstream << input << std::endl;
   outstream.close();
