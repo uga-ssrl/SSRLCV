@@ -176,10 +176,15 @@ int main(int argc, char *argv[]){
       logger.logState("triangulation");
       float* linearError = (float*)malloc(sizeof(float));
       bundleSet = demPoints.generateBundles(&matchSet,images);
-      points = demPoints.twoViewTriangulate(bundleSet, linearError);
+      points = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
       logger.logState("done triangulation");
       ssrlcv::writePLY("out/unfiltered.ply",points);
       std::cout << "\tUnfiltered Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
+      ssrlcv::writeCSV(errors, "initial2ViewErrors");
+      finalMesh.setPoints(points);
+      // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
+      float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
+      std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
       demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
       // it's good to do a cutoff filter first how this is chosen is mostly based on ur gut
       // if a poor estimate is chosen then you will have to statistical filter multiple times
@@ -190,13 +195,20 @@ int main(int argc, char *argv[]){
         // demPoints.linearCutoffFilter(&matchSet,images,*linearError / (bundleSet.bundles->size() * 3));
       // option 3: don't use the linear cutoff at all and just use multiple statistical filters (it is safer)
       bundleSet = demPoints.generateBundles(&matchSet,images);
-      points = demPoints.twoViewTriangulate(bundleSet, linearError);
+      points = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
       ssrlcv::writePLY("out/linearCutoff.ply",points);
       logger.logState("start filter");
       // here you can filter points in a number of ways before bundle adjustment or triangulation
       float sigma_filter = 1.0;
       demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+      bundleSet = demPoints.generateBundles(&matchSet,images);
+      points = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
       std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
+      finalMesh.setPoints(points);
+      ssrlcv::writeCSV(errors, "initial2ViewErrors");
+      // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
+      float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
+      std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
       bundleSet = demPoints.generateBundles(&matchSet,images);
       logger.logState("end filter");
 
@@ -333,10 +345,16 @@ int main(int argc, char *argv[]){
 
       demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
       demPoints.saveViewNumberCloud(&matchSet,images, "ViewNumbers");
-
+      ssrlcv::writeCSV(errors, "nViewInitialErrors");
 
       std::cout << "\tUnfiltered Linear Error: " << *angularError << std::endl;
       //ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors1");
+
+      finalMesh.setPoints(points);
+      // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
+      float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
+      std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
+
       logger.logState("start filter");
       demPoints.linearCutoffFilter(&matchSet, images, 100.0); // unless scaled, the point cloud is in km. This is the maximum "missmatch" distance between lines to allow in km
       bundleSet = demPoints.generateBundles(&matchSet,images);
@@ -351,7 +369,13 @@ int main(int argc, char *argv[]){
       float sigma_filter = 1.0;
       demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
-      std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
+      points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
+      std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *angularError << std::endl;
+      finalMesh.setPoints(points);
+      // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
+      float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
+      std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
+      ssrlcv::writeCSV(errors, "nViewFilteredErrors");
 
       // for (int i = 0; i < 3; i++){
       //   demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
