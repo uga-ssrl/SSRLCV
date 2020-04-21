@@ -2153,7 +2153,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // NOTE print off new error
     bundleTemp = generateBundles(matchSet,images);
     voidTwoViewTriangulate(bundleTemp, localError);
-    std::cout << "[" << std::fixed << std::setprecision(12) << i << "] \terror: " << *localError << std::endl;
+    if (local_debug || local_verbose) std::cout << "[" << std::fixed << std::setprecision(12) << i << "] \terror: " << *localError << std::endl;
 
     // to adjust alpha or step
     if (!i){
@@ -2240,7 +2240,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // TODO only do if debugging
   // TODO add a flag that allows the user to test this
   // write linearError chagnes to a CSV
-  writeCSV(errorTracker, "totalErrorOverIterations");
+  if (local_debug || local_verbose) writeCSV(errorTracker, "totalErrorOverIterations");
 
   bundleTemp = generateBundles(matchSet,images);
   points = twoViewTriangulate(bundleTemp, localError);
@@ -3177,19 +3177,6 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
       }
       k_keypnt += k_lines;
     }
-    std::cout << "k_adjust: " << k_adjust << ", \t " << new_kp_size << std::endl;
-    std::cout << "k_bundle: " << k_bundle << ", \t " << new_mt_size << std::endl;
-
-
-    // 2 view refrence
-    // for (int k = 0; k < bundleSet.bundles->size(); k++){
-    //   if (!bundleSet.bundles->host[k].invalid){
-    //     matchSet->keyPoints->host[2*k_adjust]     = tempMatchSet.keyPoints->host[2*k];
-    //     matchSet->keyPoints->host[2*k_adjust + 1] = tempMatchSet.keyPoints->host[2*k + 1];
-    //     matchSet->matches->host[k_adjust]         = {2,2*k_adjust};
-    //     k_adjust++;
-    //   }
-    // }
 
     if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
 
@@ -3363,6 +3350,7 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
       std::cout << "No points removed! all are less than " << linearErrorCutoff << std::endl;
       return;
     }
+
     // Need to generated and adjustment match set
     // make a temporary match set
     delete tempMatchSet.keyPoints;
@@ -3387,21 +3375,22 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
     delete matchSet->matches;
     matchSet->keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,new_kp_size,ssrlcv::cpu);
     matchSet->matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,new_mt_size,ssrlcv::cpu);
-    // this is much easier because of the 2 view assumption
-    // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
+    // this is harder to do with the N-view case
     int k_adjust = 0;
     int k_lines  = 0;
     int k_bundle = 0;
+    int k_keypnt = 0;
     for (int k = 0; k < bundleSet.bundles->size(); k++){
       k_lines = bundleSet.bundles->host[k].numLines;
       if (!bundleSet.bundles->host[k].invalid){
         matchSet->matches->host[k_bundle] = {k_lines,k_adjust};
         for (int j = 0; j < k_lines; j++){
-          matchSet->keyPoints->host[k_adjust + j] = tempMatchSet.keyPoints->host[k_adjust + j];
+          matchSet->keyPoints->host[k_adjust + j] = tempMatchSet.keyPoints->host[k_keypnt + j];
         }
         k_adjust += k_lines;
         k_bundle++;
       }
+      k_keypnt += k_lines;
     }
 
     if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
@@ -3524,6 +3513,7 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
       std::cout << "No points removed! all are less than " << cutoff << std::endl;
       return;
     }
+
     // Need to generated and adjustment match set
     // make a temporary match set
     delete tempMatchSet.keyPoints;
@@ -3548,21 +3538,22 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     delete matchSet->matches;
     matchSet->keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,new_kp_size,ssrlcv::cpu);
     matchSet->matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,new_mt_size,ssrlcv::cpu);
-    // this is much easier because of the 2 view assumption
-    // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
+    // this is harder to do with the N-view case
     int k_adjust = 0;
     int k_lines  = 0;
     int k_bundle = 0;
+    int k_keypnt = 0;
     for (int k = 0; k < bundleSet.bundles->size(); k++){
       k_lines = bundleSet.bundles->host[k].numLines;
-    	if (!bundleSet.bundles->host[k].invalid){
+      if (!bundleSet.bundles->host[k].invalid){
         matchSet->matches->host[k_bundle] = {k_lines,k_adjust};
         for (int j = 0; j < k_lines; j++){
-          matchSet->keyPoints->host[k_adjust + j] = tempMatchSet.keyPoints->host[k_adjust + j];
+          matchSet->keyPoints->host[k_adjust + j] = tempMatchSet.keyPoints->host[k_keypnt + j];
         }
-    	  k_adjust += k_lines;
+        k_adjust += k_lines;
         k_bundle++;
-    	}
+      }
+      k_keypnt += k_lines;
     }
 
     if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
@@ -3699,7 +3690,8 @@ void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, s
     std::cout << "No bundles or liens to removed! all points are less than " << cutoff  << " km from estimated plane" << std::endl;
     return;
   }
-  // Need to generated an adjustment match set
+
+  // Need to generated and adjustment match set
   // make a temporary match set
   delete tempMatchSet.keyPoints;
   delete tempMatchSet.matches;
@@ -3723,21 +3715,22 @@ void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, s
   delete matchSet->matches;
   matchSet->keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,new_kp_size,ssrlcv::cpu);
   matchSet->matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,new_mt_size,ssrlcv::cpu);
-  // this is much easier because of the 2 view assumption
-  // there are the same number of lines as there are are keypoints and the same number of bundles as there are matches
+  // this is harder to do with the N-view case
   int k_adjust = 0;
   int k_lines  = 0;
   int k_bundle = 0;
+  int k_keypnt = 0;
   for (int k = 0; k < bundleSet.bundles->size(); k++){
     k_lines = bundleSet.bundles->host[k].numLines;
     if (!bundleSet.bundles->host[k].invalid){
       matchSet->matches->host[k_bundle] = {k_lines,k_adjust};
       for (int j = 0; j < k_lines; j++){
-        matchSet->keyPoints->host[k_adjust + j] = tempMatchSet.keyPoints->host[k_adjust + j];
+        matchSet->keyPoints->host[k_adjust + j] = tempMatchSet.keyPoints->host[k_keypnt + j];
       }
       k_adjust += k_lines;
       k_bundle++;
     }
+    k_keypnt += k_lines;
   }
 
   if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
@@ -4160,18 +4153,11 @@ __global__ void ssrlcv::generatePushbroomBundle(unsigned int numBundles, Bundle*
       0.0f, //pushbrooms[currentKP.parentId].dpix.y * ((currentKP.loc.y) - center.y), // << try
       (-1.0f * pushbrooms[currentKP.parentId].foc)// 0.0f // pushbrooms[currentKP.parentId].foc
     };
-    float3 focal = {
-      0.0f,
-      pushbrooms[currentKP.parentId].dpix.y * ((currentKP.loc.y) - center.y),
-      pushbrooms[currentKP.parentId].foc
-    };
     // rotate the point as the craft "rolled"
     // rolls around flight direction Y+
     float roll      = pushbrooms[currentKP.parentId].roll * (PI / 180.0f); // save roll in radians, like a real professional
     float radius    = pushbrooms[currentKP.parentId].axis_radius; // in km
     float altitude  = pushbrooms[currentKP.parentId].altitude; // in km
-    //kp[k] = rotatePoint(kp[k],{0.0f,roll,0.0f}); // do the roll
-    focal = rotatePoint(focal,{0.0f,roll,0.0f});
     // find coordinate at point during scan, assumes no jitter
     // this is solvable as a quadratic, see Caleb's thesis for details
     float a = 1.0f + (tanf(roll - (PI/2.0f)) * tanf(roll - (PI/2.0f)));
@@ -4180,7 +4166,8 @@ __global__ void ssrlcv::generatePushbroomBundle(unsigned int numBundles, Bundle*
     // find the solution
     float solution1 = (-1.0f * b + sqrtf((b * b) - (4.0f * a * c))) / (2.0f * a);
     float solution2 = (-1.0f * b - sqrtf((b * b) - (4.0f * a * c))) / (2.0f * a);
-    // fnd the position of the craft
+    // find the position of the craft, the two solutions above produce opposite orbit locations
+    // the correct solution will be positive
     float3 position;
     if (solution1 > 0) {
       position.x = solution1;
@@ -4195,30 +4182,16 @@ __global__ void ssrlcv::generatePushbroomBundle(unsigned int numBundles, Bundle*
     float gsd = pushbrooms[currentKP.parentId].gsd; // convert from meters to km
     float arc_length = (gsd * (currentKP.loc.y - center.y)); // get "pixel distance" as real world scale in km
     float angle_out  = arc_length / radius;
-    // rotate at the angle
-    kp[k]   += position;
-    kp[k]    = rotatePoint(kp[k],{0.0f,roll,0.0f}); // do the roll
-    kp[k]    = rotatePoint(kp[k],{angle_out, 0.0f, 0.0f});
+    // rotate the keypoint to the correct orientation
+    kp[k]    = rotatePoint(kp[k],{0.0f,roll,0.0f}); // do the roll, which is the off angle of the pushbroom scan
+    kp[k]    = rotatePoint(kp[k],{angle_out, 0.0f, 0.0f}); // // rotate around the x+ axis to move forward in the "orbit"
+    // rotate the position to the correct orientation
     position = rotatePoint(position,{angle_out, 0.0f, 0.0f}); // rotate around the x+ axis to move forward in the "orbit"
-    //printf("kp: %f %f %f , pos: %f %f %f \t",kp[k].x,kp[k].y,kp[k].z,position.x,position.y,position.z);
-    lines[i].vec = position - kp[k];
-    // translate keypoint to position
-    // move to correct world coordinate
-    // kp[k].x = position.x - (kp[k].x);
-    // kp[k].y = position.y - (kp[k].y);
-    // kp[k].z = position.z - (kp[k].z);
-    // focal.x = position.x - focal.x;
-    // focal.y = position.y - focal.y;
-    // focal.z = position.z - focal.z;
-    // calculate the vector component of the line
-    // lines[i].vec = { // << change this back
-    //   position.x - kp[k].x,
-    //   position.y - kp[k].y,
-    //   position.z - kp[k].z
-    // };
-    // fill in the line values
+    // move the keypoint to the position
+    kp[k]   += position;
+    // get the vector of pointing
+    lines[i].vec = kp[k] - position;
     normalize(lines[i].vec);
-    // set the final position!
     lines[i].pnt = position;
   }
   delete[] kp;

@@ -111,7 +111,7 @@ ssrlcv::Image::Image(std::string filePath, int id) {
               // calcualte the fov
               getline(file,value,',');
               this->pushbroom.gsd = std::atof(value.c_str()); // in meter   // convert below to meters
-              this->pushbroom.fov = 2.0f * tanf(this->pushbroom.gsd / (this->pushbroom.altitude * 1000 ));
+              this->pushbroom.fov = 2.0f * tanf(this->pushbroom.gsd / (this->pushbroom.altitude));
               // calculate dpix
               this->pushbroom.dpix.x = (this->pushbroom.foc * tanf(this->pushbroom.fov / 2.0f)) / (this->pushbroom.size.x / 2.0f );
               this->pushbroom.dpix.y = this->pushbroom.dpix.y;
