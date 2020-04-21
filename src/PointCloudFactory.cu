@@ -4749,21 +4749,17 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, unsigned lo
     // see: https://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
 
     float3 linepoint1 = lines[i].pnt;
-    float3 linepoint2 = lines[i].pnt + (lines[i].vec * 100.0);
-    float3 v1 = linepoint1 - point;
-    float3 v2 = linepoint2 - linepoint1;
-    float numer = dotProduct(v1,v2);
-    float denom = magnitude();
-    float t = numer / denom ;
+    float3 linepoint2 = lines[i].pnt + (lines[i].vec * 1000.0); // to avoid loss of significance
 
-    float x_terms = (linepoint1.x - point.x) + ((linepoint2.x - linepoint1.x) * t);
-    x_terms *= x_terms; // squared
-    float y_terms = (linepoint1.y - point.y) + ((linepoint2.y - linepoint1.y) * t);
-    y_terms *= y_terms; // squared
-    float z_terms = (linepoint1.z - point.z) + ((linepoint2.z - linepoint1.z) * t);
-    z_terms *= z_terms;
+    float3 a = point - linepoint1;
+    float3 b = point - linepoint2;
+    float3 c = linepoint2 - linepoint1;
 
-    a_errors += x_terms + y_terms + z_terms;
+    float3 numer = crossProduct(a,b);
+    numer = magnitude(numer);
+    float denom = magnitude(c);
+
+    a_error = numer / denom;
   }
 
   a_error /= (float) bundles[globalID].numLines;
@@ -4845,23 +4841,19 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* erro
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
     // see: https://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
-    
+
     float3 linepoint1 = lines[i].pnt;
-    float3 linepoint2 = lines[i].pnt + (lines[i].vec * 100.0);
-    float3 v1 = linepoint1 - point;
-    float3 v2 = linepoint2 - linepoint1;
-    float numer = dotProduct(v1,v2);
-    float denom = magnitude();
-    float t = numer / denom ;
+    float3 linepoint2 = lines[i].pnt + (lines[i].vec * 1000.0); // to avoid loss of significance
 
-    float x_terms = (linepoint1.x - point.x) + ((linepoint2.x - linepoint1.x) * t);
-    x_terms *= x_terms; // squared
-    float y_terms = (linepoint1.y - point.y) + ((linepoint2.y - linepoint1.y) * t);
-    y_terms *= y_terms; // squared
-    float z_terms = (linepoint1.z - point.z) + ((linepoint2.z - linepoint1.z) * t);
-    z_terms *= z_terms;
+    float3 a = point - linepoint1;
+    float3 b = point - linepoint2;
+    float3 c = linepoint2 - linepoint1;
 
-    a_errors += x_terms + y_terms + z_terms;
+    float3 numer = crossProduct(a,b);
+    numer = magnitude(numer);
+    float denom = magnitude(c);
+
+    a_error = numer / denom;
   }
 
   a_error /= (float) bundles[globalID].numLines;
@@ -4934,21 +4926,17 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* angu
     // see: https://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
 
     float3 linepoint1 = lines[i].pnt;
-    float3 linepoint2 = lines[i].pnt + (lines[i].vec * 100.0);
-    float3 v1 = linepoint1 - point;
-    float3 v2 = linepoint2 - linepoint1;
-    float numer = dotProduct(v1,v2);
-    float denom = magnitude();
-    float t = numer / denom ;
+    float3 linepoint2 = lines[i].pnt + (lines[i].vec * 1000.0); // to avoid loss of significance
 
-    float x_terms = (linepoint1.x - point.x) + ((linepoint2.x - linepoint1.x) * t);
-    x_terms *= x_terms; // squared
-    float y_terms = (linepoint1.y - point.y) + ((linepoint2.y - linepoint1.y) * t);
-    y_terms *= y_terms; // squared
-    float z_terms = (linepoint1.z - point.z) + ((linepoint2.z - linepoint1.z) * t);
-    z_terms *= z_terms;
+    float3 a = point - linepoint1;
+    float3 b = point - linepoint2;
+    float3 c = linepoint2 - linepoint1;
 
-    a_errors += x_terms + y_terms + z_terms;
+    float3 numer = crossProduct(a,b);
+    numer = magnitude(numer);
+    float denom = magnitude(c);
+
+    a_error = numer / denom;
   }
 
   a_error /= (float) bundles[globalID].numLines;

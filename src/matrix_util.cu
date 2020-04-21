@@ -205,10 +205,17 @@ __device__ __host__ float ssrlcv::magnitude(const float3 &v){
 }
 
 /**
+ * computes the L2 norm of vector A
+ */
+__device__ __host__ float ssrlcv::L2norm(const float3 A){
+  return sqrtf(A.x*A.x + A.y*A.y + A.z*A.z);
+}
+
+/**
  * \brief returns the euclidean distance of two points
  */
 __device__ __host__ float ssrlcv::euclideanDistance(const float3 A, const float3 B){
-  return sqtrf((A.x - B.x)*(A.x - B.x) + (A.y - B.y)*(A.y - B.y) + (A.z - B.z)*(A.z - B.z));
+  return sqrtf((A.x - B.x)*(A.x - B.x) + (A.y - B.y)*(A.y - B.y) + (A.z - B.z)*(A.z - B.z));
 }
 
 /**

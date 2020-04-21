@@ -43,6 +43,11 @@ namespace ssrlcv{
   __device__ __host__ float magnitude(const float3 &v);
 
   /**
+   * computes the L2 norm of vector A
+   */
+  __device__ __host__ float L2norm(const float3 A);
+
+  /**
    * \brief returns the euclidean distance of two points
    */
   __device__ __host__ float euclideanDistance(const float3 A, const float3 B);
