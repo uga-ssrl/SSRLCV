@@ -212,13 +212,6 @@ namespace ssrlcv{
     BundleSet generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* params);
 
     /**
-     * removes bundles from the bundleSet that have been flagged as invalid and returns the reduced bundle set
-     * @param bundleSet the bundleSet to reduce
-     * @return bundleSet the new reduced bundleSet
-     */
-    BundleSet reduceBundleSet(BundleSet bundleSet);
-
-    /**
      * Caclulates the gradients for a given set of images and returns those gradients as a float array
      * @param matchSet a group of matches
      * @param a group of images, used only for their stored camera parameters
@@ -383,6 +376,21 @@ namespace ssrlcv{
      * @param cutoff is a cutoff of +/- km distance from the plane, if the point cloud has been scaled then this should also be scaled
      */
     void planarCutoffFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float cutoff);
+
+    /**
+     * removes bundles from the bundleSet that have been flagged as invalid and returns the reduced bundle set
+     * @param bundleSet the bundleSet to reduce
+     * @return bundleSet the new reduced bundleSet
+     */
+    BundleSet reduceBundleSet(BundleSet bundleSet);
+
+    /**
+     * reduces the input bundleset my the given statistical sigma value
+     * @param bundleSet the bundleSet to reduce
+     * @param sigma the statistical cutoff to reduce the bundleSet by
+     * @return bundleSet the new reduced bundleSet
+     */
+    BundleSet reduceBundleSet(BundleSet bundleSet, float sigma);
 
     // =============================================================================================================
     //

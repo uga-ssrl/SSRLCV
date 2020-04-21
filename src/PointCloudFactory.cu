@@ -1053,63 +1053,6 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
 }
 
 /**
- * removes bundles from the bundleSet that have been flagged as invalid and returns the reduced bundle set
- * @param bundleSet the bundleSet to reduce
- * @return bundleSet the new reduced bundleSet
- */
-BundleSet reduceBundleSet(BundleSet bundleSet){
-
-  int bad_bundles = 0;
-  int bad_lines   = 0;
-  for (int k = 0; k < bundleSet.bundles->size(); k++){
-    if (bundleSet.bundles->host[k].invalid){
-       bad_bundles++;
-       bad_lines += bundleSet.bundles->host[k].numLines;
-    }
-  }
-
-  if (bad_bundles) std::cout << "\tDetected " << bad_bundles << " bad bundles to remove and " << bad_lines << " lines ..." << std::endl;
-
-  // make a temp bundleset
-  Unity<Bundle>* temp_bundles     = new Unity<Bundle>(nullptr,bundleSet.bundles->size(),gpu);
-  Unity<Bundle::Line>* temp_lines = new Unity<Bundle::Line>(nullptr,bundleSet.lines->size(),gpu);
-
-  // copy all over
-  for (int i = 0; i < bundleSet.lines->size(); i++) {
-    temp_lines->host[i] = BundleSet.lines->host[i];
-  }
-  for (int i = 0; i < bundleSet.bundles->size(); i++) {
-    temp_bundles->host[i] = BundleSet.bundles->host[i];
-  }
-
-  // resize the standard matchSet
-  size_t new_ln_size = bundleSet.lines->size() - bad_lines;
-  size_t new_bd_size = bunldeSet.bundles->size() - bad_bundles;
-  delete bundleSet.lines;
-  delete bunldeSet.bundles;
-  bundleSet.lines   = new ssrlcv::Unity<Bundle::Line>(nullptr,new_ln_size,ssrlcv::cpu);
-  bundleSet.bundles = new ssrlcv::Unity<Bundle>(nullptr,new_bd_size,ssrlcv::cpu);
-
-  // fill the new bundle
-  int k_adjust = 0;
-  int k_bundle = 0;
-  for (int k = 0; k < temp_bundles.bundles->size(); k++){
-    if (!temp_bundles.bundles->host[k].invalid){
-      bundleSet.bundles->host[k_bundle] = temp_bundles.bundles->host[k_bundle];
-      for (int i = temp_bundles.bundles->host[k].index; i < temp_bundles.bundles->host[k].index + temp_bundles.bundles->host[k].numLines; i++ ) {
-        bundleSet.lines->host[k_adjust] = temp_bundles.lines->host[i];
-        k_adjust++;
-      }
-      k_bundle++;
-    }
-  }
-  std::cout << "k_bundle: " << k_bundle << ", " << new_bd_size << std::endl;
-  std::cout << "k_adjust: " << k_adjust << ", " << new_ln_size << std::endl;
-
-  return bundleSet;
-}
-
-/**
  * Caclulates the gradients for a given set of images and returns those gradients as a float array
  * @param matchSet a group of matches
  * @param a group of images, used only for their stored camera parameters
@@ -3192,6 +3135,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
       std::cout << "No points removed! all are less than " << linearErrorCutoff << std::endl;
       return;
     }
+    /*
     // Need to generated and adjustment match set
     // make a temporary match set
     delete tempMatchSet.keyPoints;
@@ -3246,7 +3190,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     // }
 
     if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
-
+    */
   }
 }
 
@@ -3805,6 +3749,166 @@ void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, s
   delete locations;
   cudaFree(d_cutoff);
 
+}
+
+/**
+ * removes bundles from the bundleSet that have been flagged as invalid and returns the reduced bundle set
+ * @param bundleSet the bundleSet to reduce
+ * @return bundleSet the new reduced bundleSet
+ */
+ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet){
+
+  int bad_bundles = 0;
+  int bad_lines   = 0;
+  for (int k = 0; k < bundleSet.bundles->size(); k++){
+    if (bundleSet.bundles->host[k].invalid){
+       bad_bundles++;
+       bad_lines += bundleSet.bundles->host[k].numLines;
+    }
+  }
+
+  if (bad_bundles) std::cout << "\tDetected " << bad_bundles << " bad bundles to remove and " << bad_lines << " lines ..." << std::endl;
+
+  // make a temp bundleset
+  Unity<Bundle>* temp_bundles     = new Unity<Bundle>(nullptr,bundleSet.bundles->size(),gpu);
+  Unity<Bundle::Line>* temp_lines = new Unity<Bundle::Line>(nullptr,bundleSet.lines->size(),gpu);
+
+  // copy all over
+  for (int i = 0; i < bundleSet.lines->size(); i++) {
+    temp_lines->host[i] = bundleSet.lines->host[i];
+  }
+  for (int i = 0; i < bundleSet.bundles->size(); i++) {
+    temp_bundles->host[i] = bundleSet.bundles->host[i];
+  }
+
+  // resize the standard matchSet
+  size_t new_ln_size = bundleSet.lines->size() - bad_lines;
+  size_t new_bd_size = bundleSet.bundles->size() - bad_bundles;
+  delete bundleSet.lines;
+  delete bundleSet.bundles;
+  bundleSet.lines   = new ssrlcv::Unity<Bundle::Line>(nullptr,new_ln_size,ssrlcv::cpu);
+  bundleSet.bundles = new ssrlcv::Unity<Bundle>(nullptr,new_bd_size,ssrlcv::cpu);
+
+  // fill the new bundle
+  int k_adjust = 0;
+  int k_bundle = 0;
+  for (int k = 0; k < temp_bundles->size(); k++){
+    if (!temp_bundles->host[k].invalid){
+      bundleSet.bundles->host[k_bundle] = temp_bundles->host[k_bundle];
+      for (int i = temp_bundles->host[k].index; i < temp_bundles->host[k].index + temp_bundles->host[k].numLines; i++ ) {
+        bundleSet.lines->host[k_adjust] = temp_lines->host[i];
+        k_adjust++;
+      }
+      k_bundle++;
+    }
+  }
+  std::cout << "k_bundle: " << k_bundle << ", " << new_bd_size << std::endl;
+  std::cout << "k_adjust: " << k_adjust << ", " << new_ln_size << std::endl;
+
+  return bundleSet;
+}
+
+/**
+ * reduces the input bundleset my the given statistical sigma value
+ * @param bundleSet the bundleSet to reduce
+ * @param sigma the statistical cutoff to reduce the bundleSet by
+ * @return bundleSet the new reduced bundleSet
+ */
+ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet, float sigma){
+
+  // TODO have an input for this
+  int sampleJump = (int) (1/(0.1)); // need a constant jump
+
+  // the cutoff
+  float* linearErrorCutoff = (float*) malloc(sizeof(float));
+  *linearErrorCutoff = 0.0;
+
+  // need bundles
+  bundleSet = generateBundles(matchSet,images);
+  // do an initial triangulation
+  errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+
+  std::cout << "Starting reduced bundles Statistical Filter ..." << std::endl;
+
+  points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+
+  // the assumption is that choosing every ""stableJump"" indexes is random enough
+  // https://en.wikipedia.org/wiki/Variance#Sample_variance
+  size_t sample_size = (int) (errors->size() - (errors->size()%sampleJump))/sampleJump; // make sure divisible by the stableJump int always
+  errors_sample      = new ssrlcv::Unity<float>(nullptr,sample_size,ssrlcv::cpu);
+  float sample_sum   = 0;
+  for (int k = 0; k < sample_size; k++){
+    errors_sample->host[k] = errors->host[k*sampleJump];
+    sample_sum += errors->host[k*sampleJump];
+  }
+  float sample_mean = sample_sum / errors_sample->size();
+  std::cout << "\tSample Sum: " << std::setprecision(32) << sample_sum << std::endl;
+  std::cout << "\tSample Mean: " << std::setprecision(32) << sample_mean << std::endl;
+  float squared_sum = 0;
+  for (int k = 0; k < sample_size; k++){
+    squared_sum += (errors_sample->host[k] - sample_mean)*(errors_sample->host[k] - sample_mean);
+  }
+  float variance = squared_sum / errors_sample->size();
+
+  //
+  // 2-view has an optimum of 0, assumes 0 is the average
+  //
+  std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
+  std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
+  std::cout << "\tLinear Error Cutoff Adjusted To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
+  *linearErrorCutoff = sigma * sqrtf(variance);
+
+  // set the points to invalid
+  points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
+
+  int bad_bundles = 0;
+  int bad_lines   = 0;
+  for (int k = 0; k < bundleSet.bundles->size(); k++){
+    if (bundleSet.bundles->host[k].invalid){
+       bad_bundles++;
+       bad_lines += bundleSet.bundles->host[k].numLines;
+    }
+  }
+
+  if (bad_bundles) std::cout << "\tDetected " << bad_bundles << " bad bundles to remove and " << bad_lines << " lines ..." << std::endl;
+
+  // make a temp bundleset
+  Unity<Bundle>* temp_bundles     = new Unity<Bundle>(nullptr,bundleSet.bundles->size(),gpu);
+  Unity<Bundle::Line>* temp_lines = new Unity<Bundle::Line>(nullptr,bundleSet.lines->size(),gpu);
+
+  // copy all over
+  for (int i = 0; i < bundleSet.lines->size(); i++) {
+    temp_lines->host[i] = bundleSet.lines->host[i];
+  }
+  for (int i = 0; i < bundleSet.bundles->size(); i++) {
+    temp_bundles->host[i] = bundleSet.bundles->host[i];
+  }
+
+  // resize the standard matchSet
+  size_t new_ln_size = bundleSet.lines->size() - bad_lines;
+  size_t new_bd_size = bundleSet.bundles->size() - bad_bundles;
+  delete bundleSet.lines;
+  delete bundleSet.bundles;
+  bundleSet.lines   = new ssrlcv::Unity<Bundle::Line>(nullptr,new_ln_size,ssrlcv::cpu);
+  bundleSet.bundles = new ssrlcv::Unity<Bundle>(nullptr,new_bd_size,ssrlcv::cpu);
+
+  // fill the new bundle
+  int k_adjust = 0;
+  int k_bundle = 0;
+  for (int k = 0; k < temp_bundles->size(); k++){
+    if (!temp_bundles->host[k].invalid){
+      bundleSet.bundles->host[k_bundle] = temp_bundles->host[k_bundle];
+      for (int i = temp_bundles->host[k].index; i < temp_bundles->host[k].index + temp_bundles->host[k].numLines; i++ ) {
+        bundleSet.lines->host[k_adjust] = temp_lines->host[i];
+        k_adjust++;
+      }
+      k_bundle++;
+    }
+  }
+  std::cout << "k_bundle: " << k_bundle << ", " << new_bd_size << std::endl;
+  std::cout << "k_adjust: " << k_adjust << ", " << new_ln_size << std::endl;
+
+  return bundleSet;
 }
 
 // =============================================================================================================
