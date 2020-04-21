@@ -3767,11 +3767,16 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet
     }
   }
 
-  if (bad_bundles) std::cout << "\tDetected " << bad_bundles << " bad bundles to remove and " << bad_lines << " lines ..." << std::endl;
+  if (bad_bundles) {
+    std::cout << "\tDetected " << bad_bundles << " bad bundles to remove and " << bad_lines << " lines ..." << std::endl;
+  } else {
+    std::cerr << "ERROR: no bad bundles detected, cannot reduce bundle set" << std::endl;
+    return bundleSet;
+  }
 
   // make a temp bundleset
-  Unity<Bundle>* temp_bundles     = new Unity<Bundle>(nullptr,bundleSet.bundles->size(),gpu);
-  Unity<Bundle::Line>* temp_lines = new Unity<Bundle::Line>(nullptr,bundleSet.lines->size(),gpu);
+  Unity<Bundle>* temp_bundles     = new Unity<Bundle>(nullptr,bundleSet.bundles->size(),cpu);
+  Unity<Bundle::Line>* temp_lines = new Unity<Bundle::Line>(nullptr,bundleSet.lines->size(),cpu);
 
   // copy all over
   for (int i = 0; i < bundleSet.lines->size(); i++) {
@@ -3819,16 +3824,23 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet
   // TODO have an input for this
   int sampleJump = (int) (1/(0.1)); // need a constant jump
 
+  // the initial linear error
+  float* linearError = (float*) malloc(sizeof(float));
+  *linearError = 0.0;
   // the cutoff
   float* linearErrorCutoff = (float*) malloc(sizeof(float));
   *linearErrorCutoff = 0.0;
 
-  // need bundles
-  bundleSet = generateBundles(matchSet,images);
-  // do an initial triangulation
-  errors = new ssrlcv::Unity<float>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
+  ssrlcv::Unity<float>*  errors;
+  ssrlcv::Unity<float>*  errors_sample;
+  ssrlcv::Unity<float3>* points;
 
-  std::cout << "Starting reduced bundles Statistical Filter ..." << std::endl;
+  // need bundles
+  // bundleSet = generateBundles(matchSet,images);
+  // do an initial triangulation
+  errors = new ssrlcv::Unity<float>(nullptr,bundleSet.bundles->size(),ssrlcv::cpu);
+
+  std::cout << "Starting Bundle Reduciton Statistical Filter ..." << std::endl;
 
   points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
 
@@ -3873,8 +3885,8 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet
   if (bad_bundles) std::cout << "\tDetected " << bad_bundles << " bad bundles to remove and " << bad_lines << " lines ..." << std::endl;
 
   // make a temp bundleset
-  Unity<Bundle>* temp_bundles     = new Unity<Bundle>(nullptr,bundleSet.bundles->size(),gpu);
-  Unity<Bundle::Line>* temp_lines = new Unity<Bundle::Line>(nullptr,bundleSet.lines->size(),gpu);
+  Unity<Bundle>* temp_bundles     = new Unity<Bundle>(nullptr,bundleSet.bundles->size(),cpu);
+  Unity<Bundle::Line>* temp_lines = new Unity<Bundle::Line>(nullptr,bundleSet.lines->size(),cpu);
 
   // copy all over
   for (int i = 0; i < bundleSet.lines->size(); i++) {
@@ -3897,7 +3909,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet
   int k_bundle = 0;
   for (int k = 0; k < temp_bundles->size(); k++){
     if (!temp_bundles->host[k].invalid){
-      bundleSet.bundles->host[k_bundle] = temp_bundles->host[k_bundle];
+      bundleSet.bundles->host[k_bundle] = temp_bundles->host[k];
       for (int i = temp_bundles->host[k].index; i < temp_bundles->host[k].index + temp_bundles->host[k].numLines; i++ ) {
         bundleSet.lines->host[k_adjust] = temp_lines->host[i];
         k_adjust++;
@@ -3908,6 +3920,8 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet
   std::cout << "k_bundle: " << k_bundle << ", " << new_bd_size << std::endl;
   std::cout << "k_adjust: " << k_adjust << ", " << new_ln_size << std::endl;
 
+  //BundleSet newSet = {bundleSet.lines,bundleSet.bundles};
+  // return newSet;
   return bundleSet;
 }
 

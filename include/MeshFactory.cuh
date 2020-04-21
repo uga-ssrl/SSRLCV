@@ -54,6 +54,9 @@ namespace ssrlcv{
     // RBG colors for the point cloud
     Unity<uchar3>* colors;
 
+    bool pointsSet = false;
+    bool octreeSet = false;
+
     // =============================================================================================================
     //
     // Constructors and Destructors

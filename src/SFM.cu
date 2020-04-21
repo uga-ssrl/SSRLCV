@@ -376,22 +376,22 @@ int main(int argc, char *argv[]){
       // decreasing sigma over time is best because the real "mean" error becomes more
       // accurate as truely noisey points are removed
       float sigma_filter = 1.0;
-      demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+      // demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       // delete bundleSet.lines;
       // delete bundleSet.bundles;
       // bundleSet = demPoints.generateBundles(&matchSet,images);
-      bundleSet = demPoints.reduceBundleSet(bundleSet);
-      delete errors;
-      errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
-      points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
+      bundleSet = demPoints.reduceBundleSet(bundleSet, sigma_filter);
+      //delete errors;
+      // errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
+      points = demPoints.nViewTriangulate(bundleSet, angularError);
       std::cout << "\t >>>>>>>> TOTOAL POINTS: " << points->size() << std::endl;
       std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *angularError << std::endl;
-      demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored2");
+      // demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored2");
       finalMesh.setPoints(points);
       // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
       avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
       std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
-      ssrlcv::writeCSV(errors, "nViewFilteredErrors");
+      // ssrlcv::writeCSV(errors, "nViewFilteredErrors");
       ssrlcv::writePLY("filtered.ply",points);
 
 
