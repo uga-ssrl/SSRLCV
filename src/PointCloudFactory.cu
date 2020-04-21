@@ -1880,7 +1880,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   bool do_normalization = false;
 
   // just to tell the user what is happening
-  if (second_order && ( local_debug || local_verbose ){
+  if (second_order && ( local_debug || local_verbose )){
     std::cout << "\t Bundle Adjustment is in Second Order Mode" << std::endl;
   } else {
     std::cout << "\t Bundle Adjustment is in First Order Mode" << std::endl;
@@ -1923,7 +1923,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   voidTwoViewTriangulate(bundleTemp, initialError);
   if (local_debug || local_verbose) std::cout << "[initial] \terror: " << *initialError << std::endl;
   errorTracker.push_back(*initialError); // saves the initial error
-  bestError = initialError; // we want our future best erros to be less than the initial error
+  bestError = *initialError; // we want our future best erros to be less than the initial error
   // clear the bundle memory for future resets
   delete bundleTemp.lines;
   delete bundleTemp.bundles;
@@ -2199,13 +2199,28 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
         bestParams[j]->camera = images[j]->camera;
       }
       if (local_debug || local_verbose) std::cout << "\t New lowest value found: " << bestError << std::endl;
+
+      // NOTE perhaps only scale down only after the frist step is taken?? maybe do it every time?
+      if (i){
+        float scale_down = errorTracker.back() / *localError;
+        alpha /= scale_down;
+        if (local_debug || local_verbose) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
+      }
+
       // add the newest error!
       errorTracker.push_back(*localError);
+
     } else {
 
       //
       // Previous camera param was the best
       //
+
+      if (local_debug || local_verbose) {
+        std::cout << "\t BUNDLE ADJUSTMENT HAS FOUND LOCAL MINIMUM " << std::endl;
+        std::cout << "\t\t Local minima found after: " << i << " iterations" << std::endl;
+        std::cout << ""
+      }
 
     }
 
@@ -2225,34 +2240,34 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     //   errorTracker.push_back(*localError);
     // }
 
-    if (i){
-      if (*localError > errorTracker.back()){
-
-        //
-        // A bad step was made, need to back track
-        //
-
-        // undo update by resetting cams
-        for (int j = 0; j < bestParams.size(); j++){
-          images[j]->camera = secondBestParams[j]->camera;
-        }
-        alpha /= 2.0;
-        if(local_debug || local_verbose) std::cout << "\t leaving local min ... updated Alpha to: " << std::fixed << std::setprecision(24) << alpha << std::endl;
-        // add the last error
-        errorTracker.push_back(errorTracker.back());
-      } else {
-
-        //
-        // A normal step, do the scale down
-        //
-
-        float scale_down = errorTracker.back() / *localError;
-        alpha /= scale_down;
-        if (local_debug || local_verbose) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
-        // add the newest error!
-        errorTracker.push_back(*localError);
-      }
-    }
+    // if (i){
+    //   if (*localError > errorTracker.back()){
+    //
+    //     //
+    //     // A bad step was made, need to back track
+    //     //
+    //
+    //     // undo update by resetting cams
+    //     for (int j = 0; j < bestParams.size(); j++){
+    //       images[j]->camera = secondBestParams[j]->camera;
+    //     }
+    //     alpha /= 2.0;
+    //     if(local_debug || local_verbose) std::cout << "\t leaving local min ... updated Alpha to: " << std::fixed << std::setprecision(24) << alpha << std::endl;
+    //     // add the last error
+    //     errorTracker.push_back(errorTracker.back());
+    //   } else {
+    //
+    //     //
+    //     // A normal step, do the scale down
+    //     //
+    //
+    //     float scale_down = errorTracker.back() / *localError;
+    //     alpha /= scale_down;
+    //     if (local_debug || local_verbose) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
+    //     // add the newest error!
+    //     errorTracker.push_back(*localError);
+    //   }
+    // }
 
     // clean up memory
     delete bundleTemp.bundles;
@@ -4190,19 +4205,20 @@ __global__ void ssrlcv::generatePushbroomBundle(unsigned int numBundles, Bundle*
     float solution1 = (-1.0f * b + sqrtf((b * b) - (4.0f * a * c))) / (2.0f * a);
     float solution2 = (-1.0f * b - sqrtf((b * b) - (4.0f * a * c))) / (2.0f * a);
     // find the position of the craft, the two solutions above produce opposite orbit locations
-    // the correct solution will be positive
+    // the correct solution will be positive in the z direction because the ground target is modeled
+    // as the origin and the craft is modeled as observing from "above" the origin in the z+ direction
     float3 position;
     if (solution1 > 0) {
       position.x = solution1;
       position.y = 0.0f;
-      position.z = tanf(roll - (PI/2.0f)) * solution1;
+      position.z = tanf(roll - (PI/2.0f)) * solution1 * -1.0f; // multiply by -1.0f to make value positive
     } else {
       position.x = solution2;
       position.y = 0.0f;
-      position.z = tanf(roll - (PI/2.0f)) * solution2;
+      position.z = tanf(roll - (PI/2.0f)) * solution2 * -1.0f; // multiply by -1.0f to make value positive
     }
     // position curretly only exists in X-Z plane, translate it based on gsd & pixels moved to get an arc length
-    float gsd = pushbrooms[currentKP.parentId].gsd; // convert from meters to km
+    float gsd = pushbrooms[currentKP.parentId].gsd; // ----> check if divide by 1000.0f was already done in image reading / 1000.0f; // convert from meters to km
     float arc_length = (gsd * (currentKP.loc.y - center.y)); // get "pixel distance" as real world scale in km
     float angle_out  = arc_length / radius;
     // rotate the keypoint to the correct orientation

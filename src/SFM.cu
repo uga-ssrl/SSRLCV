@@ -180,14 +180,16 @@ int main(int argc, char *argv[]){
       float* linearError = (float*)malloc(sizeof(float));
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
+      /*
       // the bundles can also be printed
-      Unity<float3>* testpositions = new Unity<float3>(nullptr,bundleSet.lines->size(),gpu);
-      Unity<float3>* testnormals   = new Unity<float3>(nullptr,bundleSet.lines->size(),gpu);
+      ssrlcv::Unity<float3>* testpositions = new ssrlcv::Unity<float3>(nullptr,bundleSet.lines->size(),ssrlcv::cpu);
+      ssrlcv::Unity<float3>* testnormals   = new ssrlcv::Unity<float3>(nullptr,bundleSet.lines->size(),ssrlcv::cpu);
       for (int b = 0; b < bundleSet.lines->size(); b++) {
         testpositions->host[b] = bundleSet.lines->host[b].pnt;
         testnormals->host[b]   = bundleSet.lines->host[b].vec;
       }
       ssrlcv::writePLY("pushbroomBundles",testpositions,testnormals);
+      */
 
       points = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
       logger.logState("done triangulation");
@@ -218,7 +220,8 @@ int main(int argc, char *argv[]){
       points = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
       std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
       finalMesh.setPoints(points);
-      ssrlcv::writeCSV(errors, "initial2ViewErrors");
+      ssrlcv::writeCSV(errors, "cutoff2ViewErrors");
+      demPoints.saveDebugLinearErrorCloud(&matchSet,images, "cutoffLinearErrorsColored");
       // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
       avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
       std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
