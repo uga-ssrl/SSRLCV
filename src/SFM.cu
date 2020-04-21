@@ -375,14 +375,10 @@ int main(int argc, char *argv[]){
       // multiple filters are needed, because outlier points are discovered in stages
       // decreasing sigma over time is best because the real "mean" error becomes more
       // accurate as truely noisey points are removed
-      float sigma_filter = 1.0;
-      // demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
-      // delete bundleSet.lines;
-      // delete bundleSet.bundles;
-      // bundleSet = demPoints.generateBundles(&matchSet,images);
-      bundleSet = demPoints.reduceBundleSet(bundleSet, sigma_filter);
-      //delete errors;
-      // errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
+      float sigma_filter = 3.0;
+      demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+      bundleSet = demPoints.generateBundles(&matchSet,images);
+      errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
       points = demPoints.nViewTriangulate(bundleSet, angularError);
       std::cout << "\t >>>>>>>> TOTOAL POINTS: " << points->size() << std::endl;
       std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *angularError << std::endl;

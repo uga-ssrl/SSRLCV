@@ -3135,7 +3135,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
       std::cout << "No points removed! all are less than " << linearErrorCutoff << std::endl;
       return;
     }
-    /*
+
     // Need to generated and adjustment match set
     // make a temporary match set
     delete tempMatchSet.keyPoints;
@@ -3164,16 +3164,18 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     int k_adjust = 0;
     int k_lines  = 0;
     int k_bundle = 0;
+    int k_keypnt = 0;
     for (int k = 0; k < bundleSet.bundles->size(); k++){
       k_lines = bundleSet.bundles->host[k].numLines;
       if (!bundleSet.bundles->host[k].invalid){
         matchSet->matches->host[k_bundle] = {k_lines,k_adjust};
         for (int j = 0; j < k_lines; j++){
-          matchSet->keyPoints->host[k_adjust + j] = tempMatchSet.keyPoints->host[k + j];
+          matchSet->keyPoints->host[k_adjust + j] = tempMatchSet.keyPoints->host[k_keypnt + j];
         }
         k_adjust += k_lines;
         k_bundle++;
       }
+      k_keypnt += k_lines;
     }
     std::cout << "k_adjust: " << k_adjust << ", \t " << new_kp_size << std::endl;
     std::cout << "k_bundle: " << k_bundle << ", \t " << new_mt_size << std::endl;
@@ -3190,7 +3192,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     // }
 
     if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
-    */
+
   }
 }
 
@@ -3910,6 +3912,8 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet
   for (int k = 0; k < temp_bundles->size(); k++){
     if (!temp_bundles->host[k].invalid){
       bundleSet.bundles->host[k_bundle] = temp_bundles->host[k];
+      // std::cout << "bundle set: " << bundleSet.bundles->host[k]numLines << std::endl;
+      // std::cout << "temp nundle: " << temp_bundles->host[k].numLines << std::endl;
       for (int i = temp_bundles->host[k].index; i < temp_bundles->host[k].index + temp_bundles->host[k].numLines; i++ ) {
         bundleSet.lines->host[k_adjust] = temp_lines->host[i];
         k_adjust++;
