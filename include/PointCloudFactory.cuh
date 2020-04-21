@@ -212,6 +212,13 @@ namespace ssrlcv{
     BundleSet generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, Unity<float>* params);
 
     /**
+     * removes bundles from the bundleSet that have been flagged as invalid and returns the reduced bundle set
+     * @param bundleSet the bundleSet to reduce
+     * @return bundleSet the new reduced bundleSet
+     */
+    BundleSet reduceBundleSet(BundleSet bundleSet);
+
+    /**
      * Caclulates the gradients for a given set of images and returns those gradients as a float array
      * @param matchSet a group of matches
      * @param a group of images, used only for their stored camera parameters

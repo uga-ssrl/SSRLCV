@@ -359,11 +359,7 @@ int main(int argc, char *argv[]){
       float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
       std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
 
-      float testin_boi_average = *angularError / points->size();
-      for (int i = 0; i < errors->size(); i++) {
-        errors->host[i] = abs(errors->host[i] - testin_boi_average);
-      }
-      ssrlcv::writePLY("attemptAtSomeStuff",points, errors, (testin_boi_average / 4.0f));
+      ssrlcv::writePLY("attemptAtSomeStuff",points, errors, 300);
 
 
       /*
@@ -381,7 +377,12 @@ int main(int argc, char *argv[]){
       // accurate as truely noisey points are removed
       float sigma_filter = 1.0;
       demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
-      bundleSet = demPoints.generateBundles(&matchSet,images);
+      // delete bundleSet.lines;
+      // delete bundleSet.bundles;
+      // bundleSet = demPoints.generateBundles(&matchSet,images);
+      bundleSet = demPoints.reduceBundleSet(bundleSet);
+      delete errors;
+      errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
       points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
       std::cout << "\t >>>>>>>> TOTOAL POINTS: " << points->size() << std::endl;
       std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *angularError << std::endl;
@@ -393,6 +394,18 @@ int main(int argc, char *argv[]){
       ssrlcv::writeCSV(errors, "nViewFilteredErrors");
       ssrlcv::writePLY("filtered.ply",points);
 
+
+      // float sigma_filter = 1.0;
+      // demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+      // bundleSet = demPoints.generateBundles(&matchSet,images);
+      // points = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
+      // std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
+      // finalMesh.setPoints(points);
+      // ssrlcv::writeCSV(errors, "initial2ViewErrors");
+      // // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
+      // avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
+      // std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
+      // bundleSet = demPoints.generateBundles(&matchSet,images);
 
 
       // for (int i = 0; i < 3; i++){
