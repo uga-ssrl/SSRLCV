@@ -179,9 +179,19 @@ int main(int argc, char *argv[]){
       logger.logState("triangulation");
       float* linearError = (float*)malloc(sizeof(float));
       bundleSet = demPoints.generateBundles(&matchSet,images);
+
+      // the bundles can also be printed
+      Unity<float3>* testpositions = new Unity<float3>(nullptr,bundleSet.lines->size(),gpu);
+      Unity<float3>* testnormals   = new Unity<float3>(nullptr,bundleSet.lines->size(),gpu);
+      for (int b = 0; b < bundleSet.lines->size(); b++) {
+        testpositions->host[b] = bundleSet.lines->host[b].pnt;
+        testnormals->host[b]   = bundleSet.lines->host[b].vec;
+      }
+      ssrlcv::writePLY("pushbroomBundles",testpositions,testnormals);
+
       points = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
       logger.logState("done triangulation");
-      ssrlcv::writePLY("out/unfiltered.ply",points);
+      ssrlcv::writePLY("unfiltered",points);
       std::cout << "\tUnfiltered Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
       ssrlcv::writeCSV(errors, "initial2ViewErrors");
       finalMesh.setPoints(points);
@@ -199,7 +209,7 @@ int main(int argc, char *argv[]){
       // option 3: don't use the linear cutoff at all and just use multiple statistical filters (it is safer)
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
-      ssrlcv::writePLY("out/linearCutoff.ply",points);
+      ssrlcv::writePLY("linearCutoff",points);
       logger.logState("start filter");
       // here you can filter points in a number of ways before bundle adjustment or triangulation
       float sigma_filter = 1.0;
@@ -344,7 +354,7 @@ int main(int argc, char *argv[]){
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
       std::cout << "\t >>>>>>>> TOTOAL POINTS: " << points->size() << std::endl;
-      ssrlcv::writePLY("unfiltered.ply",points);
+      ssrlcv::writePLY("unfiltered",points);
       logger.logState("done triangulation");
 
       demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
@@ -388,7 +398,7 @@ int main(int argc, char *argv[]){
       avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
       std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
       // ssrlcv::writeCSV(errors, "nViewFilteredErrors");
-      ssrlcv::writePLY("filtered.ply",points);
+      ssrlcv::writePLY("filtered",points);
 
 
       // float sigma_filter = 1.0;

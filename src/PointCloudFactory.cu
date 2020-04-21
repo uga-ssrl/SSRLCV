@@ -847,6 +847,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::nViewTriangulate(BundleSet bun
 */
 ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet, std::vector<ssrlcv::Image*> images){
 
+  bool local_debug   = false;
+  bool local_verbose = true;
 
   Unity<Bundle>* bundles = new Unity<Bundle>(nullptr,matchSet->matches->size(),gpu);
   Unity<Bundle::Line>* lines = new Unity<Bundle::Line>(nullptr,matchSet->keyPoints->size(),gpu);
@@ -888,6 +890,8 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
     //
     // pushbroom projection case
     //
+
+    if (local_debug || local_verbose) std::cout << "\t Generating special pushbroom bundles ... " << std::endl;
 
     // the cameras
     size_t push_bytes = images.size()*sizeof(ssrlcv::Image::PushbroomCamera);
@@ -1855,12 +1859,13 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   ssrlcv::Unity<float>* update;
   ssrlcv::Unity<float>* inverse;
   ssrlcv::BundleSet bundleTemp;
-  // This is for error tracking and printing later
+  // This is for error tracking and also used for debug and
   std::vector<float> errorTracker;
 
   // allocate memory
   int num_params = 6; // 3 is just (x,y,z) and 6 incldue rotations in (x,y,z)
-  float* localError  = (float*) malloc(sizeof(float)); // this stays constant per iteration
+  float* localError    = (float*) malloc(sizeof(float)); // this stays constant per iteration
+  float* initialError  = (float*) malloc(sizeof(float)); // this is just used once to see if we're going down a bad path or not
   gradient = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::cpu);
   hessian  = new ssrlcv::Unity<float>(nullptr,((num_params * images.size())*(num_params * images.size())),ssrlcv::cpu);
   update   = new ssrlcv::Unity<float>(nullptr,(num_params * images.size()),ssrlcv::gpu); // used in state update
@@ -1875,7 +1880,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   bool do_normalization = false;
 
   // just to tell the user what is happening
-  if (second_order){
+  if (second_order && ( local_debug || local_verbose ){
     std::cout << "\t Bundle Adjustment is in Second Order Mode" << std::endl;
   } else {
     std::cout << "\t Bundle Adjustment is in First Order Mode" << std::endl;
@@ -1912,6 +1917,18 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   float bestError;
   float secondBestError;
 
+  // does an initial computation of the starting error
+  // NOTE print off new error
+  bundleTemp = generateBundles(matchSet,images);
+  voidTwoViewTriangulate(bundleTemp, initialError);
+  if (local_debug || local_verbose) std::cout << "[initial] \terror: " << *initialError << std::endl;
+  errorTracker.push_back(*initialError); // saves the initial error
+  bestError = initialError; // we want our future best erros to be less than the initial error
+  // clear the bundle memory for future resets
+  delete bundleTemp.lines;
+  delete bundleTemp.bundles;
+
+  // the Hessian is always square, N is one side of the hessian
   const unsigned int N = (const unsigned int) sqrt(hessian->size());
 
   // cuBLAS housekeeping
@@ -2155,17 +2172,17 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     voidTwoViewTriangulate(bundleTemp, localError);
     if (local_debug || local_verbose) std::cout << "[" << std::fixed << std::setprecision(12) << i << "] \terror: " << *localError << std::endl;
 
-    // to adjust alpha or step
-    if (!i){
-      // assumes first step improves the model
-      bestError       = *localError;
-      secondBestError = *localError;
-      for (int j = 0; j < bestParams.size(); j++){
-        bestParams[j]->camera = images[j]->camera;
-      }
-      // add the first error!
-      errorTracker.push_back(*localError);
-    }
+    // // to adjust alpha or step
+    // if (!i){
+    //   // assumes first step improves the model
+    //   bestError       = *localError;
+    //   secondBestError = *localError;
+    //   for (int j = 0; j < bestParams.size(); j++){
+    //     bestParams[j]->camera = images[j]->camera;
+    //   }
+    //   // add the first error!
+    //   errorTracker.push_back(*localError);
+    // }
 
     // is this step better than the best?
     if (*localError < bestError) {
@@ -2184,23 +2201,29 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       if (local_debug || local_verbose) std::cout << "\t New lowest value found: " << bestError << std::endl;
       // add the newest error!
       errorTracker.push_back(*localError);
-    }
-
-    // is this step better than the second best?
-    if (*localError < secondBestError && *localError > bestError){
+    } else {
 
       //
-      // New second best params found
+      // Previous camera param was the best
       //
 
-      secondBestError = *localError;
-      // the step improved the measured error
-      for (int j = 0; j < bestParams.size(); j++){
-        secondBestParams[j]->camera = images[j]->camera;
-      }
-      // add the newest error!
-      errorTracker.push_back(*localError);
     }
+
+    // // is this step better than the second best?
+    // if (*localError < secondBestError && *localError > bestError){
+    //
+    //   //
+    //   // New second best params found
+    //   //
+    //
+    //   secondBestError = *localError;
+    //   // the step improved the measured error
+    //   for (int j = 0; j < bestParams.size(); j++){
+    //     secondBestParams[j]->camera = images[j]->camera;
+    //   }
+    //   // add the newest error!
+    //   errorTracker.push_back(*localError);
+    // }
 
     if (i){
       if (*localError > errorTracker.back()){
