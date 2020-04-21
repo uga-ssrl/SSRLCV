@@ -4755,11 +4755,12 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, unsigned lo
     float3 b = point - linepoint2;
     float3 c = linepoint2 - linepoint1;
 
-    float3 numer = crossProduct(a,b);
-    numer = magnitude(numer);
+    float3 d = crossProduct(a,b);
+    float numer = magnitude(d);
     float denom = magnitude(c);
 
     a_error = numer / denom;
+    a_error *= a_error;
   }
 
   a_error /= (float) bundles[globalID].numLines;
@@ -4849,11 +4850,12 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* erro
     float3 b = point - linepoint2;
     float3 c = linepoint2 - linepoint1;
 
-    float3 numer = crossProduct(a,b);
-    numer = magnitude(numer);
+    float3 d = crossProduct(a,b);
+    float numer = magnitude(d);
     float denom = magnitude(c);
 
     a_error = numer / denom;
+    a_error *= a_error;
   }
 
   a_error /= (float) bundles[globalID].numLines;
@@ -4932,11 +4934,12 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* angu
     float3 b = point - linepoint2;
     float3 c = linepoint2 - linepoint1;
 
-    float3 numer = crossProduct(a,b);
-    numer = magnitude(numer);
+    float3 d = crossProduct(a,b);
+    float numer = magnitude(d);
     float denom = magnitude(c);
 
     a_error = numer / denom;
+    a_error *= a_error;
   }
 
   a_error /= (float) bundles[globalID].numLines;
@@ -4969,6 +4972,8 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* lowC
 
     unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
     if (globalID > (pointnum-1)) return;
+
+    printf("ERROR DEPRICATED FUNCTION computeNViewTriangulate() with upper and lower cut \t");
 
     //Initializing Variables
     float3 S [3];
