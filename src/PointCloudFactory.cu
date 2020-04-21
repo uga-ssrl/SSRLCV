@@ -342,6 +342,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   pointcloud->transferMemoryTo(cpu);
   pointcloud->clear(gpu);
   // transfer the individual linear errors back to the CPU
+  errors->setFore(gpu);
   errors->transferMemoryTo(cpu);
   errors->clear(gpu);
   // clear the other boiz
@@ -410,6 +411,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::twoViewTriangulate(BundleSet b
   pointcloud->transferMemoryTo(cpu);
   pointcloud->clear(gpu);
   // transfer the individual linear errors back to the CPU
+  errors->setFore(gpu);
   errors->transferMemoryTo(cpu);
   errors->clear(gpu);
 
@@ -469,6 +471,7 @@ ssrlcv::Unity<float3_b>* ssrlcv::PointCloudFactory::twoViewTriangulate_b(BundleS
     pointcloud_b->transferMemoryTo(cpu);
     pointcloud_b->clear(gpu);
     // transfer the individual linear errors back to the CPU
+    errors->setFore(gpu);
     errors->transferMemoryTo(cpu);
     errors->clear(gpu);
     // temp
@@ -3044,25 +3047,14 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     squared_sum += (errors_sample->host[k] - sample_mean)*(errors_sample->host[k] - sample_mean);
   }
   float variance = squared_sum / errors_sample->size();
-  if (images.size() == 2) {
-    //
-    // 2-view has an optimum of 0, assumes 0 is the average
-    //
-    std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
-    std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
-    std::cout << "\tLinear Error Cutoff Adjusted To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
-    *linearErrorCutoff = sigma * sqrtf(variance);
-  } else {
-    //
-    // N-view has an optimum at the average, so cutoff needs to take this into account
-    //
-    std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
-    std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
-    std::cout << "\tLinear Error High Cutoff Adjusted To: " << std::setprecision(32) << sample_mean + (sigma * sqrtf(variance)) << std::endl;
-    std::cout << "\tLinear Error Low  Cutoff Adjusted To: " << std::setprecision(32) << sample_mean - (sigma * sqrtf(variance)) << std::endl;
-    *highCut = sample_mean + (sigma * sqrtf(variance));
-    *lowCut = sample_mean - (sigma * sqrtf(variance));
-  }
+
+  //
+  // 2-view has an optimum of 0, assumes 0 is the average
+  //
+  std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
+  std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
+  std::cout << "\tLinear Error Cutoff Adjusted To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
+  *linearErrorCutoff = sigma * sqrtf(variance);
 
   // do the two view version of this (easier for now)
   if (images.size() == 2){
@@ -3124,7 +3116,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     //
 
     // recalculate with new cutoff
-    points = nViewTriangulate(bundleSet, errors, linearError, lowCut, highCut);
+    points = nViewTriangulate(bundleSet, errors, linearError, linearErrorCutoff);
 
     // CLEAR OUT THE DATA STRUCTURES
     // count the number of bad bundles to be removed
@@ -4754,22 +4746,24 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, unsigned lo
 
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
-    // // see: https://onlinemschool.com/math/library/analytic_geometry/p_line/
-    // float3 a = lines[i].vec;
-    // float3 b = point - lines[i].pnt;
-    // float3 c = crossProduct(b,a);
-    // // note we are optimizing for squared error!
-    // float numer = sqrtf((c.x * c.x) + (c.y * c.y) + (c.z * c.z));
-    // float denom = sqrtf((a.x * a.x) + (a.y * a.y) + (a.z * a.z));
-    // float localboi = numer / denom;
-    // a_error += localboi;
-    float3 l = lines[i].vec;
-    normalize(l);
-    float3 v = point - lines[i].pnt;
-    float  d = dotProduct(v,l);
-    float3 close = (lines[i].pnt + l) * d;
-    float dist = sqrtf((point.x - close.x)*(point.x - close.x) + (point.y - close.y)*(point.y - close.y) + (point.z - close.z)*(point.z - close.z));
-    a_error += dist;
+    // see: https://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
+
+    float3 linepoint1 = lines[i].pnt;
+    float3 linepoint2 = lines[i].pnt + (lines[i].vec * 100.0);
+    float3 v1 = linepoint1 - point;
+    float3 v2 = linepoint2 - linepoint1;
+    float numer = dotProduct(v1,v2);
+    float denom = magnitude();
+    float t = numer / denom ;
+
+    float x_terms = (linepoint1.x - point.x) + ((linepoint2.x - linepoint1.x) * t);
+    x_terms *= x_terms; // squared
+    float y_terms = (linepoint1.y - point.y) + ((linepoint2.y - linepoint1.y) * t);
+    y_terms *= y_terms; // squared
+    float z_terms = (linepoint1.z - point.z) + ((linepoint2.z - linepoint1.z) * t);
+    z_terms *= z_terms;
+
+    a_errors += x_terms + y_terms + z_terms;
   }
 
   a_error /= (float) bundles[globalID].numLines;
@@ -4850,22 +4844,24 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* erro
 
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
-    // see: https://onlinemschool.com/math/library/analytic_geometry/p_line/
-    // float3 a = lines[i].vec;
-    // float3 b = point - lines[i].pnt;
-    // float3 c = crossProduct(b,a);
-    // // note we are optimizing for squared error!
-    // float numer = sqrtf((c.x * c.x) + (c.y * c.y) + (c.z * c.z));
-    // float denom = sqrtf((a.x * a.x) + (a.y * a.y) + (a.z * a.z));
-    // float localboi = numer / denom;
-    // a_error += localboi;
-    float3 l = lines[i].vec;
-    normalize(l);
-    float3 v = point - lines[i].pnt;
-    float  d = dotProduct(v,l);
-    float3 close = (lines[i].pnt + l) * d;
-    float dist = sqrtf((point.x - close.x)*(point.x - close.x) + (point.y - close.y)*(point.y - close.y) + (point.z - close.z)*(point.z - close.z));
-    a_error += dist;
+    // see: https://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
+    
+    float3 linepoint1 = lines[i].pnt;
+    float3 linepoint2 = lines[i].pnt + (lines[i].vec * 100.0);
+    float3 v1 = linepoint1 - point;
+    float3 v2 = linepoint2 - linepoint1;
+    float numer = dotProduct(v1,v2);
+    float denom = magnitude();
+    float t = numer / denom ;
+
+    float x_terms = (linepoint1.x - point.x) + ((linepoint2.x - linepoint1.x) * t);
+    x_terms *= x_terms; // squared
+    float y_terms = (linepoint1.y - point.y) + ((linepoint2.y - linepoint1.y) * t);
+    y_terms *= y_terms; // squared
+    float z_terms = (linepoint1.z - point.z) + ((linepoint2.z - linepoint1.z) * t);
+    z_terms *= z_terms;
+
+    a_errors += x_terms + y_terms + z_terms;
   }
 
   a_error /= (float) bundles[globalID].numLines;
@@ -4935,22 +4931,24 @@ __global__ void ssrlcv::computeNViewTriangulate(float* angularError, float* angu
 
   float a_error = 0;
   for(int i = bundles[globalID].index; i < bundles[globalID].index + bundles[globalID].numLines; i++){
-    // // see https://onlinemschool.com/math/library/analytic_geometry/p_line/
-    // float3 a = lines[i].vec;
-    // float3 b = point - lines[i].pnt;
-    // float3 c = crossProduct(b,a);
-    // // note we are optimizing for squared error!
-    // float numer = sqrtf((c.x * c.x) + (c.y * c.y) + (c.z * c.z));
-    // float denom = sqrtf((a.x * a.x) + (a.y * a.y) + (a.z * a.z));
-    // float localboi = numer / denom;
-    // a_error += localboi;
-    float3 l = lines[i].vec;
-    normalize(l);
-    float3 v = point - lines[i].pnt;
-    float  d = dotProduct(v,l);
-    float3 close = (lines[i].pnt + l) * d;
-    float dist = sqrtf((point.x - close.x)*(point.x - close.x) + (point.y - close.y)*(point.y - close.y) + (point.z - close.z)*(point.z - close.z));
-    a_error += dist;
+    // see: https://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
+
+    float3 linepoint1 = lines[i].pnt;
+    float3 linepoint2 = lines[i].pnt + (lines[i].vec * 100.0);
+    float3 v1 = linepoint1 - point;
+    float3 v2 = linepoint2 - linepoint1;
+    float numer = dotProduct(v1,v2);
+    float denom = magnitude();
+    float t = numer / denom ;
+
+    float x_terms = (linepoint1.x - point.x) + ((linepoint2.x - linepoint1.x) * t);
+    x_terms *= x_terms; // squared
+    float y_terms = (linepoint1.y - point.y) + ((linepoint2.y - linepoint1.y) * t);
+    y_terms *= y_terms; // squared
+    float z_terms = (linepoint1.z - point.z) + ((linepoint2.z - linepoint1.z) * t);
+    z_terms *= z_terms;
+
+    a_errors += x_terms + y_terms + z_terms;
   }
 
   a_error /= (float) bundles[globalID].numLines;

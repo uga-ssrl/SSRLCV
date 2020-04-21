@@ -393,6 +393,33 @@ int main(int argc, char *argv[]){
       ssrlcv::writeCSV(errors, "nViewFilteredErrors");
       ssrlcv::writePLY("filtered.ply",points);
 
+      int lenttt = 50;
+      ssrlcv::Unity<float>* tempttt = new ssrlcv::Unity<float>(nullptr,lenttt,ssrlcv::cpu);
+      // a successive filtering example
+      for (int f = 0; f < lenttt; f++){
+        if (points->size() < 100){
+          break;
+        }
+        demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+        bundleSet = demPoints.generateBundles(&matchSet,images);
+        points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
+        finalMesh.setPoints(points);
+        avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
+        tempttt->host[f] = avgDist;
+      }
+      ssrlcv::writeCSV(tempttt, "successiveFiltering");
+
+      avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
+      std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
+
+      testin_boi_average = *angularError / points->size();
+      for (int i = 0; i < errors->size(); i++) {
+        errors->host[i] = abs(errors->host[i] - testin_boi_average);
+      }
+      ssrlcv::writePLY("attemptAtSomeStuff",points, errors, (testin_boi_average / 4.0f));
+
+
+
       // for (int i = 0; i < 3; i++){
       //   demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       //   bundleSet = demPoints.generateBundles(&matchSet,images);

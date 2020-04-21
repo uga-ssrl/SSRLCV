@@ -44,13 +44,15 @@ plt.xlabel(str(sys.argv[3]))
 plt.ylabel(str(sys.argv[4]))
 
 axes = plt.gca()
-if (int(sys.argv[5]) == 0):
+if (float(sys.argv[5]) <= 0):
     #ange_num = 1000000000
     #plt.hist(hmag, 30, range=[6.5, 12.5], facecolor='gray', align='mid')
     n, bins, patches = plt.hist(x, num_bins, facecolor='blue', alpha=0.5)
 else:
-    axes.set_xlim([0,int(sys.argv[5])])
-    n, bins, patches = plt.hist(x, num_bins, range=[0,int(sys.argv[5])], facecolor='blue', alpha=0.5)
+    axes.set_xlim([0,float(sys.argv[5])])
+    n, bins, patches = plt.hist(x, num_bins, range=[0,float(sys.argv[5])], facecolor='blue', alpha=0.5)
     #axes.set_ylim([ymin,ymax])
+
+axes.set_yscale('log') # set to true if log scale desired
 
 plt.show()

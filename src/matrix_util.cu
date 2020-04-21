@@ -205,12 +205,19 @@ __device__ __host__ float ssrlcv::magnitude(const float3 &v){
 }
 
 /**
+ * \brief returns the euclidean distance of two points
+ */
+__device__ __host__ float ssrlcv::euclideanDistance(const float3 A, const float3 B){
+  return sqtrf((A.x - B.x)*(A.x - B.x) + (A.y - B.y)*(A.y - B.y) + (A.z - B.z)*(A.z - B.z));
+}
+
+/**
  * \brief calcualtes x y and z rotations from an input rotation matrix
  * @param R a 3x3 rotation matrix
  * @return rotations a float3 of the x,y,z axis rotations
  */
-__device__ __host__ float3 getAxisRotations(const float(&R)[3][3]){
-  
+__device__ __host__ float3 ssrlcv::getAxisRotations(const float(&R)[3][3]){
+
   return {0.0f, 0.0f, 0.0f};
 }
 

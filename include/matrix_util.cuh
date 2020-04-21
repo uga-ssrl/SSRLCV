@@ -43,6 +43,11 @@ namespace ssrlcv{
   __device__ __host__ float magnitude(const float3 &v);
 
   /**
+   * \brief returns the euclidean distance of two points
+   */
+  __device__ __host__ float euclideanDistance(const float3 A, const float3 B);
+
+  /**
    * \brief calcualtes x y and z rotations from an input rotation matrix
    * @param R a 3x3 rotation matrix
    * @return rotations a float3 of the x,y,z axis rotations
