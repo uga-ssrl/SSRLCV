@@ -88,6 +88,9 @@ ssrlcv::Image::Image(std::string filePath, int id) {
           if (filename == value){ // if we have a match, read in the parameters one by one
             getline(file,value,',');
             if ("pushbroom" == value) {
+              //
+              // The pushbroom camera params case
+              //
               this->isPushbroom = true;
               // see https://hirise-pds.lpl.arizona.edu/PDS/DOCUMENT/HIRISE_RDR_SIS.PDF
               // example file: https://hirise-pds.lpl.arizona.edu/PDS/RDR/ESP/ORB_063400_063499/ESP_063462_1985/ESP_063462_1985_RED.LBL
@@ -116,6 +119,9 @@ ssrlcv::Image::Image(std::string filePath, int id) {
               file.close();
               break;
             } else {
+              //
+              // The projective camera params case
+              //
               this->isPushbroom = false;
               this->camera.cam_pos.x = std::atof(value.c_str());
               getline(file,value,',');

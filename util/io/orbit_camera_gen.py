@@ -20,19 +20,36 @@ if (len(sys.argv) < 3):
 earth = 6537
 alt   = float(sys.argv[1])
 theta = radians(float(sys.argv[2]) - 90.0)
+b_theta = float(sys.argv[2])
 steps = int(sys.argv[3])
+
+params = []
+blender_values = []
+
+twoview = False
 
 if (theta > pi/2):
     print("theta is too big, use a smaller angle")
     exit(-1)
 
-for step in range(0,steps):
+# set theta for the slew
+if ((not (steps%2)) and (steps != 2) ):
+    print("please only enter an odd number of steps when doing more than 2 views")
+    exit(-1)
+
+if (steps == 2):
+    steps += 1
+    twoview = True
+
+img_num = 1
+for step in range(0,int((steps+1)/2)):
     if (step):
+
         # x^2 term
-        A = (1 + tan(step * theta)**2)
+        A = (1 + tan(theta)**2)
 
         # x term
-        B = (2 * -earth * tan(step * theta))
+        B = (2 * -earth * tan(theta))
 
         # constant
         C = (earth**2 - (alt + earth)**2)
@@ -44,12 +61,52 @@ for step in range(0,steps):
             x = p.roots()[0]
         else:
             x = p.roots()[1]
-        y = tan(step * theta) * x
+        y = tan(theta) * x
         ## now, because of how blender renders things after this I have to do some coordinate adjustments
+        param_str  = str(img_num) + '.png,' + str(x) + ',0.0,' + str(-1.0 * y) + ',0.0,' + str((theta + pi/2)) + ',0.0,'
+        params.append(param_str)
+        param_str  = str(img_num+1) + '.png,' + str(-1.0 * x) + ',0.0,' + str(-1.0 * y) + ',0.0,' + str(-1.0 * (theta + pi/2)) + ',0.0,'
+        params.append(param_str)
         y *= -1000
         x *= -1000
-        print(str(step+1) + '.png,' + str(x) + ',0.0,' + str(y) + ',0.0,' + str(-step * (theta + pi/2)) + ',0.0,')
+        blender_str = str(-1.0 * x) + ',0.0,' + str(y) + ', y rotate: ' + str( b_theta) + ' deg'
+        blender_values.append(blender_str)
+        blender_str = str(x) + ',0.0,' + str(y) + ', y rotate: ' + str(-1.0 * b_theta) + ' deg'
+        blender_values.append(blender_str)
+        # print(str(step+1) + '.png,' + str(x) + ',0.0,' + str(y) + ',0.0,' + str(-step * (theta + pi/2)) + ',0.0,')
+        # print('theta: ' + str(theta) + '\t step: ' + str(step) + '\t step * theta: ' + str(step * theta))
+        b_theta += float(sys.argv[2])
+        theta = radians(b_theta - 90.0)
+        img_num += 2
     else:
-        print('1.png,0.0,0.0,' + str(alt*1000) + ',0.0,0.0,0.0,')
+        param_str = str(img_num) + '.png,0.0,0.0,' + str(alt*1000) + ',0.0,0.0,0.0,'
+        params.append(param_str)
+        # print('1.png,0.0,0.0,' + str(alt*1000) + ',0.0,0.0,0.0,')
+        blender_values.append('0.0,0.0,0.0, y rotate: 0.0')
+        img_num += 1
 
-#
+print('\t ---- Copy to params.csv ----')
+if (not twoview):
+    for value in params:
+        print(value)
+else:
+    print(params[0])
+    print(params[1])
+
+
+print('\t ----   Copy to Blender  ----')
+if (not twoview):
+    for value in blender_values:
+        print(value)
+else:
+    print(blender_values[0])
+    print(blender_values[1])
+
+
+
+
+
+
+
+
+# done
