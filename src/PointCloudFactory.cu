@@ -1861,6 +1861,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   ssrlcv::BundleSet bundleTemp;
   // This is for error tracking and also used for debug and
   std::vector<float> errorTracker;
+  std::vector<float> alphaTracker;
 
   // allocate memory
   int num_params = 6; // 3 is just (x,y,z) and 6 incldue rotations in (x,y,z)
@@ -1878,6 +1879,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   bool second_order   = true;
   // enable or disable normalization
   bool do_normalization = false;
+  // fixed_camera is used when
+  bool fixed_camera = true; // <--- make all updates relative to the first camera and keeps that stationary
 
   // just to tell the user what is happening
   if (second_order && ( local_debug || local_verbose )){
@@ -2156,12 +2159,14 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // update
       int g_j = 0;
       for (int j = 0; j < images.size(); j++){
-        images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - dist_step * (update->host[g_j    ] / mag[j]);
-        images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - dist_step * (update->host[g_j + 1] / mag[j]);
-        images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - dist_step * (update->host[g_j + 2] / mag[j]);
-        images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - angle_mag * (update->host[g_j + 3] / ang[j]);
-        images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y - angle_mag * (update->host[g_j + 4] / ang[j]);
-        images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z - angle_mag * (update->host[g_j + 5] / ang[j]);
+        if (!fixed_camera && j){ // <----- only modifiy the non 0 index cameras. All changes relative to camera 0
+          images[j]->camera.cam_pos.x = images[j]->camera.cam_pos.x - dist_step * (update->host[g_j    ] / mag[j]);
+          images[j]->camera.cam_pos.y = images[j]->camera.cam_pos.y - dist_step * (update->host[g_j + 1] / mag[j]);
+          images[j]->camera.cam_pos.z = images[j]->camera.cam_pos.z - dist_step * (update->host[g_j + 2] / mag[j]);
+          images[j]->camera.cam_rot.x = images[j]->camera.cam_rot.x - angle_mag * (update->host[g_j + 3] / ang[j]);
+          images[j]->camera.cam_rot.y = images[j]->camera.cam_rot.y - angle_mag * (update->host[g_j + 4] / ang[j]);
+          images[j]->camera.cam_rot.z = images[j]->camera.cam_rot.z - angle_mag * (update->host[g_j + 5] / ang[j]);
+        }
         g_j += 6;
       }
 
@@ -2170,19 +2175,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     // NOTE print off new error
     bundleTemp = generateBundles(matchSet,images);
     voidTwoViewTriangulate(bundleTemp, localError);
-    if (local_debug || local_verbose) std::cout << "[" << std::fixed << std::setprecision(12) << i << "] \terror: " << *localError << std::endl;
-
-    // // to adjust alpha or step
-    // if (!i){
-    //   // assumes first step improves the model
-    //   bestError       = *localError;
-    //   secondBestError = *localError;
-    //   for (int j = 0; j < bestParams.size(); j++){
-    //     bestParams[j]->camera = images[j]->camera;
-    //   }
-    //   // add the first error!
-    //   errorTracker.push_back(*localError);
-    // }
+    if (local_debug || local_verbose) std::cout << "[" << std::fixed << std::setprecision(12) << (i + 1) << "] \terror: " << *localError << std::endl;
 
     // is this step better than the best?
     if (*localError < bestError) {
@@ -2203,8 +2196,12 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // NOTE perhaps only scale down only after the frist step is taken?? maybe do it every time?
       if (i){
         float scale_down = errorTracker.back() / *localError;
+        // scale_down *= scale_down // squared ratio
+        // or
+        scale_down = pow(2.0f, scale_down);
         alpha /= scale_down;
         if (local_debug || local_verbose) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
+        alphaTracker.push_back(alpha);
       }
 
       // add the newest error!
@@ -2213,7 +2210,8 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
     } else {
 
       //
-      // Previous camera param was the best
+      // Previous camera param was the best!!! oh noooo!
+      // (╯°□°）╯︵ ┻━┻
       //
 
       if (local_debug || local_verbose) {
@@ -2223,63 +2221,22 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       }
 
       // reset the camera params to the best one's found
-      for (int i = 0; i < images.size(); i++){
-        delete images[i]->camera;
-        images[i]->camera = bestParams[j]->camera;
+      for (int j = 0; i < images.size(); j++){
+        images[j]->camera = bestParams[j]->camera;
       }
 
       // clean up memory
       delete bundleTemp.bundles;
       delete bundleTemp.lines;
 
-      // exit loop
-      break;
-    }
-
-    // // is this step better than the second best?
-    // if (*localError < secondBestError && *localError > bestError){
-    //
-    //   //
-    //   // New second best params found
-    //   //
-    //
-    //   secondBestError = *localError;
-    //   // the step improved the measured error
-    //   for (int j = 0; j < bestParams.size(); j++){
-    //     secondBestParams[j]->camera = images[j]->camera;
-    //   }
-    //   // add the newest error!
-    //   errorTracker.push_back(*localError);
-    // }
-
-    // if (i){
-    //   if (*localError > errorTracker.back()){
-    //
-    //     //
-    //     // A bad step was made, need to back track
-    //     //
-    //
-    //     // undo update by resetting cams
-    //     for (int j = 0; j < bestParams.size(); j++){
-    //       images[j]->camera = secondBestParams[j]->camera;
-    //     }
-    //     alpha /= 2.0;
-    //     if(local_debug || local_verbose) std::cout << "\t leaving local min ... updated Alpha to: " << std::fixed << std::setprecision(24) << alpha << std::endl;
-    //     // add the last error
-    //     errorTracker.push_back(errorTracker.back());
-    //   } else {
-    //
-    //     //
-    //     // A normal step, do the scale down
-    //     //
-    //
-    //     float scale_down = errorTracker.back() / *localError;
-    //     alpha /= scale_down;
-    //     if (local_debug || local_verbose) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
-    //     // add the newest error!
-    //     errorTracker.push_back(*localError);
-    //   }
-    // }
+      if (!i){
+        // this was the first time, so let's just cut alpha and try one more time
+        alpha /= 10.0f;
+      } else {
+        // exit the optimization
+        break;
+      }
+    } // end good / bad error check
 
     // clean up memory
     delete bundleTemp.bundles;
@@ -2290,7 +2247,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // TODO only do if debugging
   // TODO add a flag that allows the user to test this
   // write linearError chagnes to a CSV
-  if (local_debug || local_verbose) writeCSV(errorTracker, "totalErrorOverIterations");
+  if (local_debug || local_verbose) {
+    writeCSV(errorTracker, "totalErrorOverIterations");
+    writeCSV(alphaTracker, "alphaOverIterations");
+  }
 
   bundleTemp = generateBundles(matchSet,images);
   points = twoViewTriangulate(bundleTemp, localError);
@@ -4232,6 +4192,7 @@ __global__ void ssrlcv::generatePushbroomBundle(unsigned int numBundles, Bundle*
     // position curretly only exists in X-Z plane, translate it based on gsd & pixels moved to get an arc length
     float gsd = pushbrooms[currentKP.parentId].gsd; // ----> check if divide by 1000.0f was already done in image reading / 1000.0f; // convert from meters to km
     float arc_length = (gsd * (currentKP.loc.y - center.y)); // get "pixel distance" as real world scale in km
+    // float arc_length = (pushbrooms[currentKP.parentId].dpix.y * (currentKP.loc.y - center.y)); // get "pixel distance" as real world scale in km
     float angle_out  = arc_length / radius;
     // rotate the keypoint to the correct orientation
     kp[k]    = rotatePoint(kp[k],{0.0f,roll,0.0f}); // do the roll, which is the off angle of the pushbroom scan

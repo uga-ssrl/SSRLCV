@@ -284,19 +284,31 @@ int main(int argc, char *argv[]){
       ssrlcv::writePLY("resolutionErrors",points, truthErrors, 300); // NOTE it has already been scaled to meters, set error the cutoff to 300 meters
       */
 
-      /*
-      // OPTIONAL
-      // Tests can be done with bundle adjustment to check bounds on how
-      // well it performs
-      ssrlcv::Unity<float>* noise = new ssrlcv::Unity<float>(nullptr,6,ssrlcv::cpu);
-      noise->host[0] = 0.0; // X
-      noise->host[1] = 0.2; // Y
-      noise->host[2] = 0.0; // Z
-      noise->host[3] = 0.0; // X^
-      noise->host[4] = 0.0; // Y^
-      noise->host[5] = 0.0; // Z^
-      demPoints.testBundleAdjustmentTwoView(&matchSet,images, 10, noise);
-      */
+
+      // and estensive test of bundle adjustment
+      std::cout << " =====> bundle adjust test loop!! for " << std::endl;
+      floatt errorboiz[4] = {0.2, 0.02, 0.002, 0.0002}; // 200 m, 20 m, 2m , 20 cm,
+      for (int i = 0; i < 3) { // test the position errors
+        for (int j = 0; j < 4; j++) { // loop through the 4 position errors
+          // OPTIONAL
+          // Tests can be done with bundle adjustment to check bounds on how
+          // well it performs
+          ssrlcv::Unity<float>* noise = new ssrlcv::Unity<float>(nullptr,6,ssrlcv::cpu);
+          noise->host[0] = 0.0; // X
+          noise->host[1] = 0.0; // Y
+          noise->host[2] = 0.0; // Z
+          noise->host[3] = 0.0; // X^
+          noise->host[4] = 0.0; // Y^
+          noise->host[5] = 0.0; // Z^
+          noise->hose[i] += errorboiz[j]; // add the noise at the desired location!
+          std::cout << "===================>>" << std::endl;
+          std::cout << "Adding noise of +" <<  errorboiz[j] << " at index: " << i << std::endl;
+          std::cout << "===================>>" << std::endl;
+          demPoints.testBundleAdjustmentTwoView(&matchSet,images, 25, noise); // allow max iteration of 25
+          delete noise; // clean the noise boi for next time!
+        }
+      }
+
 
       // starting bundle adjustment here
       // std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
