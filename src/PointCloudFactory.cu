@@ -3004,8 +3004,8 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, 
   // set the random boiz!
   std::default_random_engine generator;
   std::normal_distribution<float> pos_distribution_x(0.0,noise->host[0]);
-  std::normal_distribution<float> rot_distribution_y(0.0,noise->host[1]);
-  std::normal_distribution<float> rot_distribution_z(0.0,noise->host[2]);
+  std::normal_distribution<float> pos_distribution_y(0.0,noise->host[1]);
+  std::normal_distribution<float> pos_distribution_z(0.0,noise->host[2]);
   std::normal_distribution<float> rot_distribution_rx(0.0,noise->host[3]);
   std::normal_distribution<float> rot_distribution_ry(0.0,noise->host[4]);
   std::normal_distribution<float> rot_distribution_rz(0.0,noise->host[5]);

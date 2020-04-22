@@ -364,18 +364,9 @@ int main(int argc, char *argv[]){
       }
       */
 
+      /*
       // and estensive test of bundle adjustment
       std::cout << " =====> simple bundle adjust test " << std::endl;
-
-      demPoints.scalePointCloud(1000.0,points);
-      //float3 rotation = {0.0f, PI, 0.0f};
-      demPoints.rotatePointCloud(rotation, points);
-      error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f});
-      std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-      std::cout << "\tAverage error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
-      std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-      demPoints.scalePointCloud(1000.0,points);
-
       // set the noise for N sigma
       ssrlcv::Unity<float>* noise = new ssrlcv::Unity<float>(nullptr,6,ssrlcv::cpu);
       float sigma_boi = 1.0f;
@@ -394,6 +385,7 @@ int main(int argc, char *argv[]){
       noise->host[5] = 0.00053; // Z^
       demPoints.testBundleAdjustmentTwoView(&matchSet,images, 50, noise, 20);
       // delete noise; // clean the noise boi for next time!
+      */
 
       // demPoints.scalePointCloud(1000.0,points);
       // //float3 rotation = {0.0f, PI, 0.0f};
@@ -495,7 +487,7 @@ int main(int argc, char *argv[]){
       // multiple filters are needed, because outlier points are discovered in stages
       // decreasing sigma over time is best because the real "mean" error becomes more
       // accurate as truely noisey points are removed
-      float sigma_filter = 3.0;
+      float sigma_filter = 1.0;
       demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
       errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
