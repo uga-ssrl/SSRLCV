@@ -325,16 +325,18 @@ int main(int argc, char *argv[]){
           // get the noisey comparison to the ground truth model
           // used to store the best params found in the optimization
           std::vector<ssrlcv::Image*> noisey_temp;
-          for (int i = 0; i < images.size(); i++){
+          for (int k = 0; k < images.size(); k++){
             ssrlcv::Image* t = new ssrlcv::Image();
-            t->camera = images[i]->camera;
+            t->camera = images[k]->camera;
             noisey_temp.push_back(t); // fill in the initial images
           }
-          noisey_temp->host[i] += errorboiz[j];
-          points = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
+          if (i == 0) noisey_temp[1]->camera.cam_pos.x += errorboiz[j];
+          if (i == 1) noisey_temp[1]->camera.cam_pos.y += errorboiz[j];
+          if (i == 2) noisey_temp[1]->camera.cam_pos.z += errorboiz[j];
+          points = demPoints.twoViewTriangulate(bundleSet);
           demPoints.scalePointCloud(1000.0,points);
           // rotate pi around the y axis
-          float3 rotation = {0.0f, PI, 0.0f};
+          //float3 rotation = {0.0f, PI, 0.0f};
           demPoints.rotatePointCloud(rotation, points);
           meshBoi.loadMesh("data/truth/Everest_ground_truth.ply");
           // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
@@ -349,9 +351,9 @@ int main(int argc, char *argv[]){
           delete noise; // clean the noise boi for next time!
 
           demPoints.scalePointCloud(1000.0,points);
-          float3 rotation = {0.0f, PI, 0.0f};
+          //float3 rotation = {0.0f, PI, 0.0f};
           demPoints.rotatePointCloud(rotation, points);
-          float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f});
+          error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f});
           std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
           std::cout << "\tAverage error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
           std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;

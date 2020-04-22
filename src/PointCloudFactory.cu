@@ -2236,11 +2236,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       }
     } // end good / bad error check
 
-    // clean up memory
-    delete bundleTemp.bundles;
-    delete bundleTemp.lines;
-
   } // end bundle adjustment loop
+
+  // clean up memory
+  delete bundleTemp.bundles;
+  delete bundleTemp.lines;
 
   // TODO only do if debugging
   // TODO add a flag that allows the user to test this
