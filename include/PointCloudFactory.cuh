@@ -240,7 +240,7 @@ namespace ssrlcv{
      * @param a group of images, used only for their stored camera parameters
      * @return a bundle adjusted point cloud
      */
-    ssrlcv::Unity<float3>* BundleAdjustTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations);
+    ssrlcv::Unity<float3>* BundleAdjustTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations, const char * debugFilename);
 
     /**
      * A bundle adjustment based on a N-view triangulation that includes a second order Hessian calculation and first order gradient caclulation
@@ -331,6 +331,18 @@ namespace ssrlcv{
     * @param noise a list of float values representing noise to be added to orientaions and rotations
     */
     Unity<float3>* testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, Unity<float>* noise);
+
+    /**
+    * This function is used to test bundle adjustment by adding a bit of noise to the input data
+    * it saves an initial point cloud, final point cloud, and a CSV of errors over the iterations
+    * @param matchSet a group of matches
+    * @param a group of images, used only for their stored camera parameters
+    * @param iterations the max number of iterations bundle adjustment should do
+    * @param noise a list of sigma values to +/- from ranomly
+    * @param testNum the number of tests to perform
+    * @param sigma is the sigma to ranomize from the given noise params
+    */
+    void testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, Unity<float>* noise, int testNum, float sigma);
 
     // =============================================================================================================
     //

@@ -1850,7 +1850,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
  * @param a group of images, used only for their stored camera parameters
  * @return a bundle adjusted point cloud
  */
-ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations){
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, const char * debugFilename){
 
   // local variabels for function
   ssrlcv::Unity<float3>* points;
@@ -2223,7 +2223,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       }
 
       // reset the camera params to the best one's found
-      for (int j = 0; i < images.size(); j++){
+      for (int j = 0; j < images.size(); j++){
         images[j]->camera = bestParams[j]->camera;
       }
 
@@ -2236,7 +2236,9 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       }
     } // end good / bad error check
 
-  } // end bundle adjustment loop
+    // try setting the iteration count??
+    // &interations = &i;
+  } // end bundle adjustment loop, i++
 
   // clean up memory
   delete bundleTemp.bundles;
@@ -2246,8 +2248,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // TODO add a flag that allows the user to test this
   // write linearError chagnes to a CSV
   if (local_debug || local_verbose) {
-    writeCSV(errorTracker, "totalErrorOverIterations");
-    writeCSV(alphaTracker, "alphaOverIterations");
+    std::string name1 = debugFilename + "Errors";
+    std::string name2 = debugFilename + "Alphas";
+    writeCSV(errorTracker, name1.c_str());
+    writeCSV(alphaTracker, name2.c_str());
   }
 
   bundleTemp = generateBundles(matchSet,images);
@@ -2969,6 +2973,94 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ss
   }
 
   return points;
+}
+
+/**
+* This function is used to test bundle adjustment by adding a bit of noise to the input data
+* it saves an initial point cloud, final point cloud, and a CSV of errors over the iterations
+* @param matchSet a group of matches
+* @param a group of images, used only for their stored camera parameters
+* @param iterations the max number of iterations bundle adjustment should do
+* @param noise a list of sigma values to +/- from ranomly
+* @param testNum the number of tests to perform
+* @param sigma is the sigma to ranomize from the given noise params
+*/
+void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, Unity<float>* noise, int testNum, float sigma){
+  std::cout << "\t Running a 2 view bundle adjustment nosie test " << std::endl;
+
+  bool local_debug = true;
+  float* linearError = (float*)malloc(sizeof(float));
+
+  // used to store the best params found in the optimization
+  std::vector<ssrlcv::Image*> noisey;
+  for (int i = 0; i < images.size(); i++){
+    ssrlcv::Image* t = new ssrlcv::Image();
+    t->camera = images[i]->camera;
+    noisey.push_back(t); // fill in the initial images
+  }
+
+  // set the random boiz!
+  std::default_random_engine generator;
+  std::normal_distribution<float> pos_distribution(noise->host[0],sigma);
+  std::normal_distribution<float> rot_distribution(noise->host[3],sigma);
+
+  // loop this boi
+  for (int i = 0; i < testNum; i++) {
+    std::cout << "====================================================================================" << std::endl;
+    std::cout << "      Test: " << i << "/" << testNum < std::endl;
+    std::cout << "====================================================================================" << std::endl;
+    // now add the noise to the
+    if (noise->size() < 6) {
+      std::cerr << "ERROR: noise array needs to have 6 elements!" << std::endl;
+      return nullptr;
+    } else {
+      if (local_debug) std::cout << "Adding noise to image 1" << std::endl;
+      noisey[1]->camera.cam_pos.x += pos_distribution(generator) - noise->host[0]; // we do 1.o sigma around 3 meters or something so then we subtract it so we get the real error
+      noisey[1]->camera.cam_pos.y += pos_distribution(generator) - noise->host[0];
+      noisey[1]->camera.cam_pos.z += pos_distribution(generator) - noise->host[0];
+      noisey[1]->camera.cam_rot.x += rot_distribution(generator) - noise->host[3]; // we do 1.0 sigma around a few degrees so then we subtract that to get the real error
+      noisey[1]->camera.cam_rot.y += rot_distribution(generator) - noise->host[3];
+      noisey[1]->camera.cam_rot.z += rot_distribution(generator) - noise->host[3];
+    }
+
+    Unity<float3>* points;
+    BundleSet bundleSet;
+
+    // save the noisey point cloud
+    bundleSet = generateBundles(matchSet,noisey);
+    points = twoViewTriangulate(bundleSet, linearError);
+
+    if (local_debug) std::cout << "Initial Error with noise: " << *linearError << std::endl;
+
+    // pre=BA noisey boi
+    saveDebugCloud(points, bundleSet, noisey, "preBA");
+
+    // attempt to coorect with BA!
+    points = BundleAdjustTwoView(matchSet, noisey, iterations, std::to_string());
+    saveDebugCloud(points, bundleSet, noisey, "postBA");
+
+    ssrlcv::Unity<float>* diff1 = images[0]->getExtrinsicDifference(images[1]->camera);
+    ssrlcv::Unity<float>* diff2 = noisey[0]->getExtrinsicDifference(noisey[1]->camera);
+
+    std::cout << std::endl << "Goal:" << std::endl;
+    for (int i = 0; i < diff1->size(); i++){
+      std::cout << diff1->host[i] << "  ";
+    }
+    std::cout << std::endl << "Result:" << std::endl;
+    for (int i = 0; i < diff2->size(); i++){
+      std::cout << diff2->host[i] << "  ";
+    }
+    std::cout << std::endl << "Difference:" << std::endl;
+    for (int i = 0; i < diff2->size(); i++){
+      std::cout << abs( diff1->host[i] - diff2->host[i] ) << "  ";
+    }
+
+
+
+  }
+
+  return points;
+
 }
 
 // =============================================================================================================
@@ -4195,9 +4287,13 @@ __global__ void ssrlcv::generatePushbroomBundle(unsigned int numBundles, Bundle*
     float angle_out  = arc_length / radius;
     // rotate the keypoint to the correct orientation
     kp[k]    = rotatePoint(kp[k],{0.0f,roll,0.0f}); // do the roll, which is the off angle of the pushbroom scan
-    kp[k]    = rotatePoint(kp[k],{angle_out, 0.0f, 0.0f}); // // rotate around the x+ axis to move forward in the "orbit"
+    // kp[k].z += radius;
+    // kp[k]    = rotatePoint(kp[k],{angle_out, 0.0f, 0.0f}); // // rotate around the x+ axis to move forward in the "orbit"
+    // kp[k].z -= radius;
     // rotate the position to the correct orientation
-    position = rotatePoint(position,{angle_out, 0.0f, 0.0f}); // rotate around the x+ axis to move forward in the "orbit"
+    // position.z += radius;
+    position    = rotatePoint(position,{angle_out, 0.0f, 0.0f}); // rotate around the x+ axis to move forward in the "orbit"
+    // position.z -= radius;
     // move the keypoint to the position
     // kp[k]   += position;
     kp[k].x = position.x - (kp[k].x);

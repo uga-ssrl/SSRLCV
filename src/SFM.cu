@@ -289,6 +289,7 @@ int main(int argc, char *argv[]){
       // Tests can be done with bundle adjustment to check bounds on how
       // well it performs
 
+      /*
       // and estensive test of bundle adjustment
       std::cout << " =====> bundle adjust test loop!! for " << std::endl;
 
@@ -333,12 +334,13 @@ int main(int argc, char *argv[]){
           if (i == 0) noisey_temp[1]->camera.cam_pos.x += errorboiz[j];
           if (i == 1) noisey_temp[1]->camera.cam_pos.y += errorboiz[j];
           if (i == 2) noisey_temp[1]->camera.cam_pos.z += errorboiz[j];
+          bundleSet = demPoints.generateBundles(&matchSet,noisey_temp);
+          noisey_temp.clear();
           points = demPoints.twoViewTriangulate(bundleSet);
           demPoints.scalePointCloud(1000.0,points);
           // rotate pi around the y axis
           //float3 rotation = {0.0f, PI, 0.0f};
           demPoints.rotatePointCloud(rotation, points);
-          meshBoi.loadMesh("data/truth/Everest_ground_truth.ply");
           // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
           float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f});
           std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
@@ -360,6 +362,33 @@ int main(int argc, char *argv[]){
           demPoints.scalePointCloud(1000.0,points);
         }
       }
+      */
+
+      // and estensive test of bundle adjustment
+      std::cout << " =====> simple bundle adjust test " << std::endl;
+
+      // set the noise for N sigma
+      ssrlcv::Unity<float>* noise = new ssrlcv::Unity<float>(nullptr,6,ssrlcv::cpu);
+      float sigma_boi = 3.0f;
+      // the accuracy within N sigma
+      // moci pointing
+      noise->host[0] = 0.5; // X // we are using SGP4, which has an error ~1km per day. We will likely need to command this reset. Let's assume we do this twice a day, so error is 0.5
+      noise->host[1] = 0.0; // Y
+      noise->host[2] = 0.0; // Z
+      noise->host[3] = 0.00106; // X^ // choose worst case 0.061 degress, ~ 0.00106
+      noise->host[4] = 0.0; // Y^
+      noise->host[5] = 0.0; // Z^
+      points = demPoints.testBundleAdjustmentTwoView(&matchSet,images, 50, noise, 40, sigma_boi);
+      // delete noise; // clean the noise boi for next time!
+
+      // demPoints.scalePointCloud(1000.0,points);
+      // //float3 rotation = {0.0f, PI, 0.0f};
+      // demPoints.rotatePointCloud(rotation, points);
+      // error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f});
+      // std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+      // std::cout << "\tAverage error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
+      // std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+      // demPoints.scalePointCloud(1000.0,points);
 
 
       // starting bundle adjustment here
