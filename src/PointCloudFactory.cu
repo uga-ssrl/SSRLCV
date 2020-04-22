@@ -2219,9 +2219,21 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       if (local_debug || local_verbose) {
         std::cout << "\t BUNDLE ADJUSTMENT HAS FOUND LOCAL MINIMUM " << std::endl;
         std::cout << "\t\t Local minima found after: " << i << " iterations" << std::endl;
-        std::cout << ""
+        std::cout << "\t\t Reduced error from: " << errorTracker[0] << " ---> " << errorTracker.back() << std::endl;
       }
 
+      // reset the camera params to the best one's found
+      for (int i = 0; i < images.size(); i++){
+        delete images[i]->camera;
+        images[i]->camera = bestParams[j]->camera;
+      }
+
+      // clean up memory
+      delete bundleTemp.bundles;
+      delete bundleTemp.lines;
+
+      // exit loop
+      break;
     }
 
     // // is this step better than the second best?
@@ -4193,9 +4205,9 @@ __global__ void ssrlcv::generatePushbroomBundle(unsigned int numBundles, Bundle*
     };
     // rotate the point as the craft "rolled"
     // rolls around flight direction Y+
-    float roll      = pushbrooms[currentKP.parentId].roll * (PI / 180.0f); // save roll in radians, like a real professional
-    float radius    = pushbrooms[currentKP.parentId].axis_radius; // in km
-    float altitude  = pushbrooms[currentKP.parentId].altitude; // in km
+    float roll     = pushbrooms[currentKP.parentId].roll * (PI / 180.0f); // save roll in radians, like a real professional
+    float radius   = pushbrooms[currentKP.parentId].axis_radius; // in km
+    float altitude = pushbrooms[currentKP.parentId].altitude; // in km
     // find coordinate at point during scan, assumes no jitter
     // this is solvable as a quadratic, see Caleb's thesis for details
     float a = 1.0f + (tanf(roll - (PI/2.0f)) * tanf(roll - (PI/2.0f)));
@@ -4227,9 +4239,17 @@ __global__ void ssrlcv::generatePushbroomBundle(unsigned int numBundles, Bundle*
     // rotate the position to the correct orientation
     position = rotatePoint(position,{angle_out, 0.0f, 0.0f}); // rotate around the x+ axis to move forward in the "orbit"
     // move the keypoint to the position
-    kp[k]   += position;
+    // kp[k]   += position;
+    kp[k].x = position.x - (kp[k].x);
+    kp[k].y = position.y - (kp[k].y);
+    kp[k].z = position.z - (kp[k].z);
     // get the vector of pointing
-    lines[i].vec = kp[k] - position;
+    // lines[i].vec = kp[k] - position;
+    lines[i].vec = {
+      position.x - kp[k].x,
+      position.y - kp[k].y,
+      position.z - kp[k].z
+    };
     normalize(lines[i].vec);
     lines[i].pnt = position;
   }
