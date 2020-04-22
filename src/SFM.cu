@@ -367,6 +367,15 @@ int main(int argc, char *argv[]){
       // and estensive test of bundle adjustment
       std::cout << " =====> simple bundle adjust test " << std::endl;
 
+      demPoints.scalePointCloud(1000.0,points);
+      //float3 rotation = {0.0f, PI, 0.0f};
+      demPoints.rotatePointCloud(rotation, points);
+      error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f});
+      std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+      std::cout << "\tAverage error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
+      std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+      demPoints.scalePointCloud(1000.0,points);
+
       // set the noise for N sigma
       ssrlcv::Unity<float>* noise = new ssrlcv::Unity<float>(nullptr,6,ssrlcv::cpu);
       float sigma_boi = 1.0f;
@@ -383,7 +392,7 @@ int main(int argc, char *argv[]){
       noise->host[3] = 0.00053; // X^
       noise->host[4] = 0.00053; // Y^
       noise->host[5] = 0.00053; // Z^
-      demPoints.testBundleAdjustmentTwoView(&matchSet,images, 50, noise, 20, sigma_boi);
+      demPoints.testBundleAdjustmentTwoView(&matchSet,images, 50, noise, 20);
       // delete noise; // clean the noise boi for next time!
 
       // demPoints.scalePointCloud(1000.0,points);

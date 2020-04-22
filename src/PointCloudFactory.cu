@@ -2987,7 +2987,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ss
 * @param testNum the number of tests to perform
 * @param sigma is the sigma to ranomize from the given noise params
 */
-void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, Unity<float>* noise, int testNum, float sigma){
+void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, Unity<float>* noise, int testNum){
   std::cout << "\t Running a 2 view bundle adjustment nosie test " << std::endl;
 
   bool local_debug = true;
@@ -3003,8 +3003,12 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, 
 
   // set the random boiz!
   std::default_random_engine generator;
-  std::normal_distribution<float> pos_distribution_x(0.0,sigma);
-  std::normal_distribution<float> rot_distribution(0.0,sigma);
+  std::normal_distribution<float> pos_distribution_x(0.0,noise->host[0]);
+  std::normal_distribution<float> rot_distribution_y(0.0,noise->host[1]);
+  std::normal_distribution<float> rot_distribution_z(0.0,noise->host[2]);
+  std::normal_distribution<float> rot_distribution_rx(0.0,noise->host[3]);
+  std::normal_distribution<float> rot_distribution_ry(0.0,noise->host[4]);
+  std::normal_distribution<float> rot_distribution_rz(0.0,noise->host[5]);
 
   // loop this boi
   for (int i = 0; i < testNum; i++) {
@@ -3018,12 +3022,12 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, 
       return;
     } else {
       if (local_debug) std::cout << "Adding noise to image 1" << std::endl;
-      noisey[1]->camera.cam_pos.x += pos_distribution(generator);
-      noisey[1]->camera.cam_pos.y += pos_distribution(generator);
-      noisey[1]->camera.cam_pos.z += pos_distribution(generator);
-      noisey[1]->camera.cam_rot.x += rot_distribution(generator);
-      noisey[1]->camera.cam_rot.y += rot_distribution(generator);
-      noisey[1]->camera.cam_rot.z += rot_distribution(generator);
+      noisey[1]->camera.cam_pos.x += pos_distribution_x(generator);
+      noisey[1]->camera.cam_pos.y += pos_distribution_y(generator);
+      noisey[1]->camera.cam_pos.z += pos_distribution_z(generator);
+      noisey[1]->camera.cam_rot.x += rot_distribution_rx(generator);
+      noisey[1]->camera.cam_rot.y += rot_distribution_ry(generator);
+      noisey[1]->camera.cam_rot.z += rot_distribution_rz(generator);
     }
 
     Unity<float3>* points;
