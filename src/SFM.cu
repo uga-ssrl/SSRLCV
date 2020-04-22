@@ -274,7 +274,7 @@ int main(int argc, char *argv[]){
         // to save a mesh as a PLY simply:
         // meshBoi.saveMesh("testMesh");
       // to calculate the "missmatch" between the point cloud and the ground truth you can use this method:
-      float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 10.0f}); // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
+      float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f}); // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
       std::cout << "Average error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
       // this methods saves the error on each point
       ssrlcv::Unity<float>* truthErrors = meshBoi.calculatePerPointDifference(points, {0.0f , 0.0f, 1.0f});
@@ -285,14 +285,31 @@ int main(int argc, char *argv[]){
       */
 
 
+      // OPTIONAL
+      // Tests can be done with bundle adjustment to check bounds on how
+      // well it performs
+
       // and estensive test of bundle adjustment
       std::cout << " =====> bundle adjust test loop!! for " << std::endl;
+
+      // get the initial ground truth compare
+      // scales from km into meters
+      demPoints.scalePointCloud(1000.0,points);
+      // rotate pi around the y axis
+      float3 rotation = {0.0f, PI, 0.0f};
+      demPoints.rotatePointCloud(rotation, points);
+      meshBoi.loadMesh("data/truth/Everest_ground_truth.ply");
+      // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
+      float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f});
+      std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+      std::cout << "\tAverage error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
+      std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+
       floatt errorboiz[4] = {0.2, 0.02, 0.002, 0.0002}; // 200 m, 20 m, 2m , 20 cm,
       for (int i = 0; i < 3) { // test the position errors
         for (int j = 0; j < 4; j++) { // loop through the 4 position errors
-          // OPTIONAL
-          // Tests can be done with bundle adjustment to check bounds on how
-          // well it performs
+
+          // do the nosie
           ssrlcv::Unity<float>* noise = new ssrlcv::Unity<float>(nullptr,6,ssrlcv::cpu);
           noise->host[0] = 0.0; // X
           noise->host[1] = 0.0; // Y
@@ -304,8 +321,17 @@ int main(int argc, char *argv[]){
           std::cout << "===================>>" << std::endl;
           std::cout << "Adding noise of +" <<  errorboiz[j] << " at index: " << i << std::endl;
           std::cout << "===================>>" << std::endl;
-          demPoints.testBundleAdjustmentTwoView(&matchSet,images, 25, noise); // allow max iteration of 25
+          points = demPoints.testBundleAdjustmentTwoView(&matchSet,images, 25, noise); // allow max iteration of 25
           delete noise; // clean the noise boi for next time!
+
+          demPoints.scalePointCloud(1000.0,points);
+          float3 rotation = {0.0f, PI, 0.0f};
+          demPoints.rotatePointCloud(rotation, points);
+          float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f});
+          std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+          std::cout << "\tAverage error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
+          std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+          demPoints.scalePointCloud(1000.0,points);
         }
       }
 

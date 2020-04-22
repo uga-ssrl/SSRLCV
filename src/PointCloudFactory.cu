@@ -2196,9 +2196,11 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // NOTE perhaps only scale down only after the frist step is taken?? maybe do it every time?
       if (i){
         float scale_down = errorTracker.back() / *localError;
-        // scale_down *= scale_down // squared ratio
+        scale_down *= scale_down // squared ratio
         // or
-        scale_down = pow(2.0f, scale_down);
+        // scale_down = pow(2.0f, scale_down);
+        // or
+        // scale_down = pow(scale_down, scale_down);
         alpha /= scale_down;
         if (local_debug || local_verbose) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
         alphaTracker.push_back(alpha);
@@ -2231,7 +2233,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
 
       if (!i){
         // this was the first time, so let's just cut alpha and try one more time
-        alpha /= 10.0f;
+        alpha /= 100.0f;
       } else {
         // exit the optimization
         break;
