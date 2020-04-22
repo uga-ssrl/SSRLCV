@@ -338,11 +338,10 @@ namespace ssrlcv{
     * @param matchSet a group of matches
     * @param a group of images, used only for their stored camera parameters
     * @param iterations the max number of iterations bundle adjustment should do
-    * @param noise a list of sigma values to +/- from ranomly
+    * @param noise a list of 1 sigma values to +/- from ranomly
     * @param testNum the number of tests to perform
-    * @param sigma is the sigma to ranomize from the given noise params
     */
-    void testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, Unity<float>* noise, int testNum, float sigma);
+    void testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, Unity<float>* noise, int testNum);
 
     // =============================================================================================================
     //

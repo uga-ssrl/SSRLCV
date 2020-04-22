@@ -2248,8 +2248,10 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // TODO add a flag that allows the user to test this
   // write linearError chagnes to a CSV
   if (local_debug || local_verbose) {
-    std::string name1 = debugFilename + "Errors";
-    std::string name2 = debugFilename + "Alphas";
+    std::string name1 = debugFilename;
+    name1 += "Errors";
+    std::string name2 = debugFilename;
+    name2 += "Alphas";
     writeCSV(errorTracker, name1.c_str());
     writeCSV(alphaTracker, name2.c_str());
   }
@@ -2957,7 +2959,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ss
   saveDebugCloud(points, bundleSet, noisey, "preBA");
 
   // attempt to coorect with BA!
-  points = BundleAdjustTwoView(matchSet, noisey, iterations);
+  points = BundleAdjustTwoView(matchSet, noisey, iterations, "testingBA");
   saveDebugCloud(points, bundleSet, noisey, "postBA");
 
   ssrlcv::Unity<float>* diff1 = images[0]->getExtrinsicDifference(images[1]->camera);
@@ -3001,26 +3003,27 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, 
 
   // set the random boiz!
   std::default_random_engine generator;
-  std::normal_distribution<float> pos_distribution(noise->host[0],sigma);
-  std::normal_distribution<float> rot_distribution(noise->host[3],sigma);
+  std::normal_distribution<float> pos_distribution_x(0.0,sigma);
+  std::normal_distribution<float> rot_distribution(0.0,sigma);
 
   // loop this boi
   for (int i = 0; i < testNum; i++) {
+    std::cout << std::endl;
     std::cout << "====================================================================================" << std::endl;
-    std::cout << "      Test: " << i << "/" << testNum < std::endl;
+    std::cout << "      Test: " << i << "/" << testNum << std::endl;
     std::cout << "====================================================================================" << std::endl;
     // now add the noise to the
     if (noise->size() < 6) {
       std::cerr << "ERROR: noise array needs to have 6 elements!" << std::endl;
-      return nullptr;
+      return;
     } else {
       if (local_debug) std::cout << "Adding noise to image 1" << std::endl;
-      noisey[1]->camera.cam_pos.x += pos_distribution(generator) - noise->host[0]; // we do 1.o sigma around 3 meters or something so then we subtract it so we get the real error
-      noisey[1]->camera.cam_pos.y += pos_distribution(generator) - noise->host[0];
-      noisey[1]->camera.cam_pos.z += pos_distribution(generator) - noise->host[0];
-      noisey[1]->camera.cam_rot.x += rot_distribution(generator) - noise->host[3]; // we do 1.0 sigma around a few degrees so then we subtract that to get the real error
-      noisey[1]->camera.cam_rot.y += rot_distribution(generator) - noise->host[3];
-      noisey[1]->camera.cam_rot.z += rot_distribution(generator) - noise->host[3];
+      noisey[1]->camera.cam_pos.x += pos_distribution(generator);
+      noisey[1]->camera.cam_pos.y += pos_distribution(generator);
+      noisey[1]->camera.cam_pos.z += pos_distribution(generator);
+      noisey[1]->camera.cam_rot.x += rot_distribution(generator);
+      noisey[1]->camera.cam_rot.y += rot_distribution(generator);
+      noisey[1]->camera.cam_rot.z += rot_distribution(generator);
     }
 
     Unity<float3>* points;
@@ -3036,7 +3039,7 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, 
     saveDebugCloud(points, bundleSet, noisey, "preBA");
 
     // attempt to coorect with BA!
-    points = BundleAdjustTwoView(matchSet, noisey, iterations, std::to_string());
+    BundleAdjustTwoView(matchSet, noisey, iterations, std::to_string(i).c_str());
     saveDebugCloud(points, bundleSet, noisey, "postBA");
 
     ssrlcv::Unity<float>* diff1 = images[0]->getExtrinsicDifference(images[1]->camera);
@@ -3058,9 +3061,6 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, 
 
 
   }
-
-  return points;
-
 }
 
 // =============================================================================================================

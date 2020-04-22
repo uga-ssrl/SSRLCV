@@ -369,16 +369,21 @@ int main(int argc, char *argv[]){
 
       // set the noise for N sigma
       ssrlcv::Unity<float>* noise = new ssrlcv::Unity<float>(nullptr,6,ssrlcv::cpu);
-      float sigma_boi = 3.0f;
+      float sigma_boi = 1.0f;
       // the accuracy within N sigma
       // moci pointing
-      noise->host[0] = 0.5; // X // we are using SGP4, which has an error ~1km per day. We will likely need to command this reset. Let's assume we do this twice a day, so error is 0.5
-      noise->host[1] = 0.0; // Y
-      noise->host[2] = 0.0; // Z
-      noise->host[3] = 0.00106; // X^ // choose worst case 0.061 degress, ~ 0.00106
-      noise->host[4] = 0.0; // Y^
-      noise->host[5] = 0.0; // Z^
-      points = demPoints.testBundleAdjustmentTwoView(&matchSet,images, 50, noise, 40, sigma_boi);
+      // ------- would set to 0.5, but us being shared. so 0.5 / 3 = 0.166666, lets approx to ~ 0.2 for worst case
+      // sigma values for postition taken from: https://celestrak.com/publications/AIAA/2006-6753/AIAA-2006-6753-Rev2.pdf
+      // we are using SGP4, which has an error ~1km per day. We will likely need to command this reset. Let's assume we do this twice a day, so error is 0.5
+      // centered at 0 so:
+      noise->host[0] = 0.25; // X
+      noise->host[1] = 0.25; // Y
+      noise->host[2] = 0.25; // Z
+      // choose  0.061 degress, ~ 0.00106. because centered at 0, do 0.00053
+      noise->host[3] = 0.00053; // X^
+      noise->host[4] = 0.00053; // Y^
+      noise->host[5] = 0.00053; // Z^
+      demPoints.testBundleAdjustmentTwoView(&matchSet,images, 50, noise, 20, sigma_boi);
       // delete noise; // clean the noise boi for next time!
 
       // demPoints.scalePointCloud(1000.0,points);
