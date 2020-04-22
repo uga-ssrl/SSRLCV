@@ -305,8 +305,8 @@ int main(int argc, char *argv[]){
       std::cout << "\tAverage error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
       std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
 
-      floatt errorboiz[4] = {0.2, 0.02, 0.002, 0.0002}; // 200 m, 20 m, 2m , 20 cm,
-      for (int i = 0; i < 3) { // test the position errors
+      float errorboiz[4] = {0.2, 0.02, 0.002, 0.0002}; // 200 m, 20 m, 2m , 20 cm,
+      for (int i = 0; i < 3; i++) { // test the position errors
         for (int j = 0; j < 4; j++) { // loop through the 4 position errors
 
           // do the nosie
@@ -317,10 +317,34 @@ int main(int argc, char *argv[]){
           noise->host[3] = 0.0; // X^
           noise->host[4] = 0.0; // Y^
           noise->host[5] = 0.0; // Z^
-          noise->hose[i] += errorboiz[j]; // add the noise at the desired location!
+          noise->host[i] += errorboiz[j]; // add the noise at the desired location!
           std::cout << "===================>>" << std::endl;
           std::cout << "Adding noise of +" <<  errorboiz[j] << " at index: " << i << std::endl;
           std::cout << "===================>>" << std::endl;
+
+          // get the noisey comparison to the ground truth model
+          // used to store the best params found in the optimization
+          std::vector<ssrlcv::Image*> noisey_temp;
+          for (int i = 0; i < images.size(); i++){
+            ssrlcv::Image* t = new ssrlcv::Image();
+            t->camera = images[i]->camera;
+            noisey_temp.push_back(t); // fill in the initial images
+          }
+          noisey_temp->host[i] += errorboiz[j];
+          points = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
+          demPoints.scalePointCloud(1000.0,points);
+          // rotate pi around the y axis
+          float3 rotation = {0.0f, PI, 0.0f};
+          demPoints.rotatePointCloud(rotation, points);
+          meshBoi.loadMesh("data/truth/Everest_ground_truth.ply");
+          // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
+          float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f});
+          std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+          std::cout << "\tAverage error to ground truth is (with noise): " << error << " km, " << (error * 1000) << " meters" << std::endl;
+          std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+
+          // start he bundle adjustmetn with the noise
+
           points = demPoints.testBundleAdjustmentTwoView(&matchSet,images, 25, noise); // allow max iteration of 25
           delete noise; // clean the noise boi for next time!
 

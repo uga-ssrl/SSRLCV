@@ -2196,7 +2196,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       // NOTE perhaps only scale down only after the frist step is taken?? maybe do it every time?
       if (i){
         float scale_down = errorTracker.back() / *localError;
-        scale_down *= scale_down // squared ratio
+        // scale_down *= scale_down; // squared ratio
         // or
         // scale_down = pow(2.0f, scale_down);
         // or
@@ -2226,10 +2226,6 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
       for (int j = 0; i < images.size(); j++){
         images[j]->camera = bestParams[j]->camera;
       }
-
-      // clean up memory
-      delete bundleTemp.bundles;
-      delete bundleTemp.lines;
 
       if (!i){
         // this was the first time, so let's just cut alpha and try one more time
@@ -2916,7 +2912,7 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointClo
 * @param iterations the max number of iterations bundle adjustment should do
 * @param sigmas a list of float values representing noise to be added to orientaions and rotations
 */
-void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, Unity<float>* noise){
+ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, Unity<float>* noise){
   std::cout << "\t Running a 2 view bundle adjustment nosie test " << std::endl;
 
   bool local_debug = true;
@@ -2933,7 +2929,7 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ssrlcv::MatchSet* ma
   // now add the noise to the
   if (noise->size() < 6) {
     std::cerr << "ERROR: noise array needs to have 6 elements!" << std::endl;
-    return;
+    return nullptr;
   } else {
     if (local_debug) std::cout << "Adding noise to image 1" << std::endl;
     noisey[1]->camera.cam_pos.x += noise->host[0];
@@ -2972,6 +2968,7 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ssrlcv::MatchSet* ma
     std::cout << diff2->host[i] << "  ";
   }
 
+  return points;
 }
 
 // =============================================================================================================

@@ -330,7 +330,7 @@ namespace ssrlcv{
     * @param iterations the max number of iterations bundle adjustment should do
     * @param noise a list of float values representing noise to be added to orientaions and rotations
     */
-    void testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, Unity<float>* noise);
+    Unity<float3>* testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, Unity<float>* noise);
 
     // =============================================================================================================
     //
