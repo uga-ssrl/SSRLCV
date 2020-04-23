@@ -238,7 +238,7 @@ int main(int argc, char *argv[]){
       logger.logState("FILTER");
 
       logger.logState("BA");
-      points = demPoints.dundleAdjustmentTwoView(&matchSet,images, 25);
+      points = demPoints.BundleAdjustTwoView(&matchSet,images, 25, "");
       logger.logState("BA");
 
       /*
