@@ -809,13 +809,14 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
     }
     delete currentMatches;
   }
-  MemoryState* origin = new MemoryState[images.size() - 2];
+  MemoryState* origin = new MemoryState[images.size()];
   std::vector<std::vector<uint2>> multiMatch_vec;
   bool badMatch = false;
-  for(i = 0; i < images.size() - 2; ++i){
+  std::cout<<"deriving matches from adjacency"<<std::endl;
+  for(i = 0; i < images.size() - 1; ++i){
     origin[i] = features[i]->getMemoryState();
     if(origin[i] != cpu) features[i]->setMemoryState(cpu);
-    for(int f = 0; f < features[i]->size(); ++f){
+    for(int f = 0; i < images.size() - 2 && f < features[i]->size(); ++f){
       std::vector<uint2>* adj = &adjacencyList[i][f];
       if(!adj->size()) continue;
       badMatch = false;
@@ -851,12 +852,8 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
     }
     delete[] adjacencyList[i];
   }
-
-  origin[images.size() - 1] = features[images.size() - 1]->getMemoryState();
-  if(origin[images.size() - 1] != cpu) features[images.size() - 1]->setMemoryState(cpu);
-  origin[images.size() - 2] = features[images.size() - 2]->getMemoryState();
-  if(origin[images.size() - 2] != cpu) features[images.size() - 2]->setMemoryState(cpu);
-  std::cout<<multiMatch_vec.size()<<std::endl;
+  delete[] adjacencyList;
+  std::cout<<"total matches found in set = "<<multiMatch_vec.size()<<std::endl;
   matchSet.matches = new Unity<MultiMatch>(nullptr,multiMatch_vec.size(),cpu);
   std::vector<KeyPoint> kp_vec;
   i = 0;
@@ -870,7 +867,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
   }
   matchSet.keyPoints = new Unity<KeyPoint>(nullptr,kp_vec.size(),gpu);
   CudaSafeCall(cudaMemcpy(matchSet.keyPoints->device,&kp_vec[0],kp_vec.size()*sizeof(KeyPoint),cudaMemcpyHostToDevice));
-  for(int i = 0; i < images.size() - 2; ++i){
+  for(int i = 0; i < images.size() - 1; ++i){
     if(origin[i] != cpu) features[i]->setMemoryState(origin[i]);
   }
   delete[] origin;
