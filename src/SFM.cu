@@ -383,7 +383,7 @@ int main(int argc, char *argv[]){
       noise->host[3] = 0.00053; // X^
       noise->host[4] = 0.00053; // Y^
       noise->host[5] = 0.00053; // Z^
-      demPoints.testBundleAdjustmentTwoView(&matchSet,images, 50, noise, 20);
+      demPoints.testBundleAdjustmentTwoView(&matchSet,images, 200, noise, 5);
       // delete noise; // clean the noise boi for next time!
       */
 
