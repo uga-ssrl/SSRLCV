@@ -39,6 +39,7 @@ void safeShutdown(int sig){
   exit(sig); // exit with the same signal
 }
 
+
 int main(int argc, char *argv[]){
   try{
 
@@ -97,7 +98,7 @@ int main(int argc, char *argv[]){
       images.push_back(image);
       allFeatures.push_back(features);
     }
-
+    
     //
     // MATCHING
     //
