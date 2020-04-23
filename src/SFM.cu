@@ -59,7 +59,7 @@ int main(int argc, char *argv[]){
 
     //ARG PARSING
 
-    logger.logState("reading images");
+    logger.logState("SEED");
     std::map<std::string,ssrlcv::arg*> args = ssrlcv::parseArgs(argc,argv);
     if(args.find("dir") == args.end()){
       std::cerr<<"ERROR: SFM executable requires a directory of images"<<std::endl;
@@ -80,19 +80,21 @@ int main(int argc, char *argv[]){
     std::vector<std::string> imagePaths = ((ssrlcv::img_dir_arg*)args["dir"])->paths;
     int numImages = (int) imagePaths.size();
     std::cout<<"found "<<numImages<<" in directory given"<<std::endl;
-    logger.logState("done reading images");
+    logger.logState("SEED");
 
+    logger.logState("FEATURES");
     std::vector<ssrlcv::Image*> images;
     std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
     for(int i = 0; i < numImages; ++i){
-      logger.logState("generating features");
+      // logger.logState("generating features");
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
       ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
       features->transferMemoryTo(ssrlcv::cpu);
       images.push_back(image);
       allFeatures.push_back(features);
-      logger.logState("done generating features");
+      // logger.logState("done generating features");
     }
+    logger.logState("FEATURES");
 
     //
     // MATCHING
@@ -100,11 +102,12 @@ int main(int argc, char *argv[]){
 
     std::cout << "Starting matching..." << std::endl;
 
-    logger.logState("generating seed matches");
+    logger.logState("MATCHING");
+    // logger.logState("generating seed matches");
     ssrlcv::Unity<float>* seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
     ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
     if(seedDistances != nullptr) delete seedDistances;
-    logger.logState("done generating seed matches");
+    // logger.logState("done generating seed matches");
 
     distanceMatches->transferMemoryTo(ssrlcv::cpu);
     float maxDist = 0.0f;
@@ -158,6 +161,7 @@ int main(int argc, char *argv[]){
       // matchSet.keyPoints->checkpoint(0,"out/kp");
       // matchSet.matches->checkpoint(0,"out/m");
     }
+    logger.logState("MATCHING");
 
     // the bois
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
@@ -173,10 +177,12 @@ int main(int argc, char *argv[]){
       //
       std::cout << "Attempting 2-view Triangulation" << std::endl;
 
+      logger.logState("TRIANGULATE");
+
       // if we are checkout errors
       errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
 
-      logger.logState("triangulation");
+      // logger.logState("triangulation");
       float* linearError = (float*)malloc(sizeof(float));
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
@@ -196,6 +202,8 @@ int main(int argc, char *argv[]){
       ssrlcv::writePLY("unfiltered",points);
       std::cout << "\tUnfiltered Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
       ssrlcv::writeCSV(errors, "initial2ViewErrors");
+      logger.logState("TRIANGULATE");
+      logger.logState("FILTER");
       finalMesh.setPoints(points);
       // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
       float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
@@ -227,6 +235,11 @@ int main(int argc, char *argv[]){
       std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
       bundleSet = demPoints.generateBundles(&matchSet,images);
       logger.logState("end filter");
+      logger.logState("FILTER");
+
+      logger.logState("BA");
+      points = demPoints.dundleAdjustmentTwoView(&matchSet,images, 25);
+      logger.logState("BA");
 
       /*
       // OPTIONAL
@@ -447,6 +460,7 @@ int main(int argc, char *argv[]){
       // N View Case
       //
       std::cout << "Attempting N-view Triangulation" << std::endl;
+      logger.logState("TRIANGULATE");
 
       // if we are checkout errors
       errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
@@ -458,7 +472,9 @@ int main(int argc, char *argv[]){
       std::cout << "\t >>>>>>>> TOTOAL POINTS: " << points->size() << std::endl;
       ssrlcv::writePLY("unfiltered",points);
       logger.logState("done triangulation");
+      logger.logState("TRIANGULATE");
 
+      logger.logState("FILTER");
       demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
       demPoints.saveViewNumberCloud(&matchSet,images, "ViewNumbers");
       ssrlcv::writeCSV(errors, "nViewInitialErrors");
@@ -501,7 +517,7 @@ int main(int argc, char *argv[]){
       std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
       // ssrlcv::writeCSV(errors, "nViewFilteredErrors");
       ssrlcv::writePLY("filtered",points);
-
+      logger.logState("FILTER");
 
       // float sigma_filter = 1.0;
       // demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
@@ -528,7 +544,8 @@ int main(int argc, char *argv[]){
       // demPoints.deterministicStatisticalFilter(&matchSet,images, 0.2, 0.1); // <---- samples 10% of points and removes anything past 0.2 sigma
       // bundleSet = demPoints.generateBundles(&matchSet,images);
       logger.logState("end filter");
-
+      logger.logState("BA");
+      logger.logState("BA");
       /*
       // now redo triangulation with the newlyfiltered boi
       points = demPoints.nViewTriangulate(bundleSet, errors, angularError);

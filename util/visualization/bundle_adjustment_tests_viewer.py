@@ -54,13 +54,49 @@ for b in BA_bois:
     t = []
     for i in range(0,len(b)):
         t.append(i)
-    if (b[-1] < badRunCut):
-        plt.plot(t, b, '#0165fc')
+    if (b[-1] > badRunCut or len(b) < 5):
+        plt.plot(t, b, color='#929591')
+        plt.plot(0,b[0], marker='o', color='#929591')
     else:
-        plt.plot(t, b, '#929591')
+        plt.plot(t, b, color='#0165fc')
+        plt.plot(0,b[0], marker='o', color='#0165fc')
+
+
+print('================================================')
+average_start = 0
+average_good_start = 0
+avg_denom = 0
+for b in BA_bois:
+    average_start += b[0]
+    if (b[-1] < badRunCut):
+        average_good_start += b[0]
+        avg_denom += 1
+print('\tAverage Start: ' + str(average_start / len(BA_bois)))
+print('\tAverage Good Start: ' + str(average_good_start / avg_denom))
+
+average_start = 0
+average_good_start = 0
+avg_denom = 0
+for b in BA_bois:
+    average_start += b[-1]
+    if (b[-1] < badRunCut):
+        average_good_start += b[-1]
+        avg_denom += 1
+print('\tAverage Endind Error: ' + str(average_start / len(BA_bois)))
+print('\tAverage Good Ending Error: ' + str(average_good_start / avg_denom))
+
+average_start = 0
+average_good_start = 0
+avg_denom = 0
+for b in BA_bois:
+    average_start += len(b)
+    if (b[-1] < badRunCut):
+        average_good_start += len(b)
+        avg_denom += 1
+print('\tIterations: ' + str(average_start / len(BA_bois)))
+print('\tAverage Good Iterations: ' + str(average_good_start / avg_denom))
 
 axes.set_yscale('log') # set to true if log scale desired
-
 
 plt.axhline(y=(2 * OptimalVal), linewidth=4, color='#ffb07c', label='Optima')
 
