@@ -546,7 +546,7 @@ int main(int argc, char *argv[]){
       logger.logState("end filter");
       logger.logState("BA");
       logger.logState("BA");
-      /*
+
       // now redo triangulation with the newlyfiltered boi
       points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
 
@@ -572,7 +572,7 @@ int main(int argc, char *argv[]){
       // you can also save them as color coded
       ssrlcv::writePLY("resolutionErrors",points, truthErrors, 300); // NOTE it has already been scaled to meters, set error the cutoff to 300 meters
 
-
+      /*
       //ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors2");
       demPoints.saveDebugCloud(points, bundleSet, images);
 
