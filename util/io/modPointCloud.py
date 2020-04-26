@@ -12,7 +12,7 @@ from plyfile import PlyData, PlyElement
 def main(inputfile):
 
     # get the user inputs
-    if (len(sys.argv) < 8):
+    if (len(sys.argv) < 9):
         print("NOT ENOUGH ARGUMENTS")
         print("USAGE:")
         print("\npython3 file.ply modPointCloud.py scale rotate_x rotate_y rotate_z translate_x translate_y translate_z\n")

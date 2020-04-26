@@ -119,12 +119,6 @@ int main(int argc, char *argv[]){
     ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
     delete distanceMatches;
 
-    /*
-    std::string delimiter = "/";
-    std::string matchFile = imagePaths[0].substr(0,imagePaths[0].rfind(delimiter)) + "/matches.txt";
-    ssrlcv::writeMatchFile(matches, matchFile);
-    */
-
     // Need to fill into to MatchSet boi
     std::cout << "Generating MatchSet ..." << std::endl;
     ssrlcv::MatchSet matchSet;
@@ -175,426 +169,92 @@ int main(int argc, char *argv[]){
       //
       // 2 View Case
       //
+
+      // ============= Initial Triangulation
+
       std::cout << "Attempting 2-view Triangulation" << std::endl;
 
       logger.logState("TRIANGULATE");
 
-      // if we are checkout errors
-      errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
-
-      // logger.logState("triangulation");
       float* linearError = (float*)malloc(sizeof(float));
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
-      /*
-      // the bundles can also be printed
-      ssrlcv::Unity<float3>* testpositions = new ssrlcv::Unity<float3>(nullptr,bundleSet.lines->size(),ssrlcv::cpu);
-      ssrlcv::Unity<float3>* testnormals   = new ssrlcv::Unity<float3>(nullptr,bundleSet.lines->size(),ssrlcv::cpu);
-      for (int b = 0; b < bundleSet.lines->size(); b++) {
-        testpositions->host[b] = bundleSet.lines->host[b].pnt;
-        testnormals->host[b]   = bundleSet.lines->host[b].vec;
-      }
-      ssrlcv::writePLY("pushbroomBundles",testpositions,testnormals);
-      */
-
-      points = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
-      logger.logState("done triangulation");
-      ssrlcv::writePLY("unfiltered",points);
+      points = demPoints.twoViewTriangulate(bundleSet, linearError);
       std::cout << "\tUnfiltered Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
-      ssrlcv::writeCSV(errors, "initial2ViewErrors");
       logger.logState("TRIANGULATE");
+
+      // ============= Filtering
+
       logger.logState("FILTER");
-      finalMesh.setPoints(points);
-      // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
-      float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
-      std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
-      demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
-      // it's good to do a cutoff filter first how this is chosen is mostly based on ur gut
-      // if a poor estimate is chosen then you will have to statistical filter multiple times
-      // option 1: pick a fixed value
-        // unless scaled, the point cloud is in km. This is the maximum "missmatch" distance between lines to allow in km
-        demPoints.linearCutoffFilter(&matchSet,images, 100.0); // <--- removes linear errors over 100 km
-      // option 2: tie the initial cutoff to some fraction of the initial linear error
-        // demPoints.linearCutoffFilter(&matchSet,images,*linearError / (bundleSet.bundles->size() * 3));
-      // option 3: don't use the linear cutoff at all and just use multiple statistical filters (it is safer)
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-      points = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
-      ssrlcv::writePLY("linearCutoff",points);
-      logger.logState("start filter");
-      // here you can filter points in a number of ways before bundle adjustment or triangulation
+
+      demPoints.linearCutoffFilter(&matchSet,images, 100.0); // <--- removes linear errors over 100 km
+
+      // first time
       float sigma_filter = 1.0;
       demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
-      points = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
+      points = demPoints.twoViewTriangulate(bundleSet, linearError);
       std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
-      finalMesh.setPoints(points);
-      ssrlcv::writeCSV(errors, "cutoff2ViewErrors");
-      demPoints.saveDebugLinearErrorCloud(&matchSet,images, "cutoffLinearErrorsColored");
-      // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
-      avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
-      std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
+
+      // second time
+      sigma_filter = 3.0;
+      demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
-      logger.logState("end filter");
+      points = demPoints.twoViewTriangulate(bundleSet, linearError);
+      std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
+
+      // neighbor filter
+      demPoints.scalePointCloud(1000.0,points); // scales from km into meters
+      float3 rotation = {0.0f, PI, 0.0f};
+      demPoints.rotatePointCloud(rotation, points);
+      // set the mesh points
+      finalMesh.setPoints(points);
+      finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
+      finalMesh.savePoints("ssrlcv-final");
+
       logger.logState("FILTER");
+
+      // ============= Bundle Adjustment
 
       logger.logState("BA");
       points = demPoints.BundleAdjustTwoView(&matchSet,images, 25, "");
       logger.logState("BA");
 
-      /*
-      // OPTIONAL
-      // a second filter can re-filter the new error histogram
-      // this is usually a good idea, as there will be new relative extrema to remove
-      // doing this too many times will simply over filter the point cloud
-      demPoints.deterministicStatisticalFilter(&matchSet,images, 2.0, 0.1); // <---- samples 10% of points and removes anything past 2.0 sigma
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-      */
-
-      /*
-      // Planar filtering is very good at removing noise that is not close to the estimated model.
-      demPoints.planarCutoffFilter(&matchSet, images, 10.0f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-      */
-
-      /*
-      // OPTIONAL
-      // a sensitivity analysis allows one to view the functions and camera parameter derivates pre bundles adjustment
-      // this should not be used in produciton and is really only useful for debugging optimizers used in bundle adjustment
-      std::string temp_filename = "sensitivity";
-      demPoints.generateSensitivityFunctions(&matchSet,images,temp_filename);
-      */
-
-      /*
-      // could output pre mesh related stuff:
-      ssrlcv::writePLY("pointcloud01", points);
-      ssrlcv::writeCSV(points, "pointcloud01");
-      */
-
-      /*
-      // OPTIONAL
-      // to compare a points cloud with a ground truth model the first need to be scaled
-      // the distance values here are in km but most truth models are in meters
-      demPoints.scalePointCloud(1000.0,points); // scales from km into meters
-      // rotate pi around the y axis
-      float3 rotation = {0.0f, PI, 0.0f};
-      demPoints.rotatePointCloud(rotation, points);
-      // OPTIONAL
-      // to visualize the estimated plane which the structure lies within you can use
-      // the demPoints.visualizePlaneEstimation() method like so:
-      demPoints.visualizePlaneEstimation(points, images, "planeEstimation", 10000); // usually in km, this is now only 10 km bc of scaling
-      // load the example mesh to do the comparison, here I assume we are using the everst PLY
-      meshBoi.loadMesh("data/truth/Everest_ground_truth.ply");
-        // to save a mesh as a PLY simply:
-        // meshBoi.saveMesh("testMesh");
-      // to calculate the "missmatch" between the point cloud and the ground truth you can use this method:
-      float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f}); // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
-      std::cout << "Average error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
-      // this methods saves the error on each point
-      ssrlcv::Unity<float>* truthErrors = meshBoi.calculatePerPointDifference(points, {0.0f , 0.0f, 1.0f});
-      // then you can save these errors in a CSV
-      ssrlcv::writeCSV(truthErrors, "resolutionErrors");
-      // you can also save them as color coded
-      ssrlcv::writePLY("resolutionErrors",points, truthErrors, 300); // NOTE it has already been scaled to meters, set error the cutoff to 300 meters
-      */
-
-
-      // OPTIONAL
-      // Tests can be done with bundle adjustment to check bounds on how
-      // well it performs
-
-      /*
-      // and estensive test of bundle adjustment
-      std::cout << " =====> bundle adjust test loop!! for " << std::endl;
-
-      // get the initial ground truth compare
-      // scales from km into meters
-      demPoints.scalePointCloud(1000.0,points);
-      // rotate pi around the y axis
-      float3 rotation = {0.0f, PI, 0.0f};
-      demPoints.rotatePointCloud(rotation, points);
-      meshBoi.loadMesh("data/truth/Everest_ground_truth.ply");
-      // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
-      float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f});
-      std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-      std::cout << "\tAverage error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
-      std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-
-      float errorboiz[4] = {0.2, 0.02, 0.002, 0.0002}; // 200 m, 20 m, 2m , 20 cm,
-      for (int i = 0; i < 3; i++) { // test the position errors
-        for (int j = 0; j < 4; j++) { // loop through the 4 position errors
-
-          // do the nosie
-          ssrlcv::Unity<float>* noise = new ssrlcv::Unity<float>(nullptr,6,ssrlcv::cpu);
-          noise->host[0] = 0.0; // X
-          noise->host[1] = 0.0; // Y
-          noise->host[2] = 0.0; // Z
-          noise->host[3] = 0.0; // X^
-          noise->host[4] = 0.0; // Y^
-          noise->host[5] = 0.0; // Z^
-          noise->host[i] += errorboiz[j]; // add the noise at the desired location!
-          std::cout << "===================>>" << std::endl;
-          std::cout << "Adding noise of +" <<  errorboiz[j] << " at index: " << i << std::endl;
-          std::cout << "===================>>" << std::endl;
-
-          // get the noisey comparison to the ground truth model
-          // used to store the best params found in the optimization
-          std::vector<ssrlcv::Image*> noisey_temp;
-          for (int k = 0; k < images.size(); k++){
-            ssrlcv::Image* t = new ssrlcv::Image();
-            t->camera = images[k]->camera;
-            noisey_temp.push_back(t); // fill in the initial images
-          }
-          if (i == 0) noisey_temp[1]->camera.cam_pos.x += errorboiz[j];
-          if (i == 1) noisey_temp[1]->camera.cam_pos.y += errorboiz[j];
-          if (i == 2) noisey_temp[1]->camera.cam_pos.z += errorboiz[j];
-          bundleSet = demPoints.generateBundles(&matchSet,noisey_temp);
-          noisey_temp.clear();
-          points = demPoints.twoViewTriangulate(bundleSet);
-          demPoints.scalePointCloud(1000.0,points);
-          // rotate pi around the y axis
-          //float3 rotation = {0.0f, PI, 0.0f};
-          demPoints.rotatePointCloud(rotation, points);
-          // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
-          float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f});
-          std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-          std::cout << "\tAverage error to ground truth is (with noise): " << error << " km, " << (error * 1000) << " meters" << std::endl;
-          std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-
-          // start he bundle adjustmetn with the noise
-
-          points = demPoints.testBundleAdjustmentTwoView(&matchSet,images, 25, noise); // allow max iteration of 25
-          delete noise; // clean the noise boi for next time!
-
-          demPoints.scalePointCloud(1000.0,points);
-          //float3 rotation = {0.0f, PI, 0.0f};
-          demPoints.rotatePointCloud(rotation, points);
-          error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f});
-          std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-          std::cout << "\tAverage error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
-          std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-          demPoints.scalePointCloud(1000.0,points);
-        }
-      }
-      */
-
-      /*
-      // and estensive test of bundle adjustment
-      std::cout << " =====> simple bundle adjust test " << std::endl;
-      // set the noise for N sigma
-      ssrlcv::Unity<float>* noise = new ssrlcv::Unity<float>(nullptr,6,ssrlcv::cpu);
-      float sigma_boi = 1.0f;
-      // the accuracy within N sigma
-      // moci pointing
-      // ------- would set to 0.5, but us being shared. so 0.5 / 3 = 0.166666, lets approx to ~ 0.2 for worst case
-      // sigma values for postition taken from: https://celestrak.com/publications/AIAA/2006-6753/AIAA-2006-6753-Rev2.pdf
-      // we are using SGP4, which has an error ~1km per day. We will likely need to command this reset. Let's assume we do this twice a day, so error is 0.5
-      // centered at 0 so:
-      noise->host[0] = 0.25; // X
-      noise->host[1] = 0.25; // Y
-      noise->host[2] = 0.25; // Z
-      // choose  0.061 degress, ~ 0.00106. because centered at 0, do 0.00053
-      noise->host[3] = 0.00053; // X^
-      noise->host[4] = 0.00053; // Y^
-      noise->host[5] = 0.00053; // Z^
-      demPoints.testBundleAdjustmentTwoView(&matchSet,images, 200, noise, 5);
-      // delete noise; // clean the noise boi for next time!
-      */
-
-      // demPoints.scalePointCloud(1000.0,points);
-      // //float3 rotation = {0.0f, PI, 0.0f};
-      // demPoints.rotatePointCloud(rotation, points);
-      // error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f});
-      // std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-      // std::cout << "\tAverage error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
-      // std::cout << "\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-      // demPoints.scalePointCloud(1000.0,points);
-
-
-      // starting bundle adjustment here
-      // std::cout << "Starting Bundle Adjustment Loop ..." << std::endl;
-      // points = demPoints.BundleAdjustTwoView(&matchSet,images, 10);
-
-
-      // begin mesh-level tasks, there are no more cameras or matches after this stage
-
-      /*
-      // set the mesh points
-      finalMesh.setPoints(points);
-
-
-      // you can filter these points and view their distributions in multiple ways
-      ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6); // calculate average distance to 6 neighbors
-      ssrlcv::writeCSV(neighborDists, "neighborDistances");
-      float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6); // the average distance from any even node to another
-      std::cout << "Average Distance to 6 neighbors is: " << avgDist << std::endl;
-      ssrlcv::writePLY("neighborDistancesColored",points,neighborDists,(2.0f * avgDist)); // a point cloud with colored neighbor dists
-
-
-      // to only keep points within a certain sigma of neighbor distance use the following filter
-      finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
-      finalMesh.savePoints("densityFiltered");
-
-
-      //  try a VSFM compare
-      ssrlcv::MeshFactory vsfm = ssrlcv::MeshFactory();
-      vsfm.loadPoints("../vsfm-test.ply");
-      demPoints.scalePointCloud(1000.0,vsfm.points); //
-      float3 rotation2 = {0.0f, PI, 0.0f};
-      demPoints.rotatePointCloud(rotation2,vsfm.points);
-      // now try to translate it back where it should go
-      ssrlcv::Unity<float3>* point1 = demPoints.getAveragePoint(meshBoi.points);
-      ssrlcv::Unity<float3>* point2 = demPoints.getAveragePoint(vsfm.points);
-      point1->host[0] -= point2->host[0];
-      demPoints.translatePointCloud(point2->host[0], vsfm.points);
-      // save the new VSFM scaled points
-      ssrlcv::writePLY("vsfm", vsfm.points);
-      // compare to ground truth
-      float error2 = meshBoi.calculateAverageDifference(vsfm.points, {0.0f , 0.0f, 1.0f}); // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
-      std::cout << "VSFM average error to ground truth is: " << error2 << " meters" << std::endl;
-      */
-
-
-
     } else {
       //
       // N View Case
       //
+
+      // ============= Initial Triangulation
+
       std::cout << "Attempting N-view Triangulation" << std::endl;
+
       logger.logState("TRIANGULATE");
 
-      // if we are checkout errors
-      errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
-
-      logger.logState("triangulation");
       float* angularError = (float*)malloc(sizeof(float));
       bundleSet = demPoints.generateBundles(&matchSet,images);
-      points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
-      std::cout << "\t >>>>>>>> TOTOAL POINTS: " << points->size() << std::endl;
-      ssrlcv::writePLY("unfiltered",points);
-      logger.logState("done triangulation");
+      points = demPoints.nViewTriangulate(bundleSet, angularError);
+
       logger.logState("TRIANGULATE");
 
-      logger.logState("FILTER");
-      demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored");
-      demPoints.saveViewNumberCloud(&matchSet,images, "ViewNumbers");
-      ssrlcv::writeCSV(errors, "nViewInitialErrors");
+      // ============= Filtering
 
-      std::cout << "\tUnfiltered Linear Error: " << std::fixed << std::setprecision(12) << *angularError << std::endl;
-      //ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors1");
-
-      finalMesh.setPoints(points);
-      // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
-      float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
-      std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
-
-      ssrlcv::writePLY("attemptAtSomeStuff",points, errors, 300);
-
-
-      /*
-      logger.logState("start filter");
-      demPoints.linearCutoffFilter(&matchSet, images, 100.0); // unless scaled, the point cloud is in km. This is the maximum "missmatch" distance between lines to allow in km
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-      */
-
-      // Planar filtering is very good at removing noise that is not close to the estimated model.
-      //demPoints.planarCutoffFilter(&matchSet, images, 10.0f); // <---- this will remove any points more than +/- 10 km from the  estimated plane
-      //bundleSet = demPoints.generateBundles(&matchSet,images);
-
-      // multiple filters are needed, because outlier points are discovered in stages
-      // decreasing sigma over time is best because the real "mean" error becomes more
-      // accurate as truely noisey points are removed
-      float sigma_filter = 1.0;
-      demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-      errors = new ssrlcv::Unity<float>(nullptr,matchSet.matches->size(),ssrlcv::cpu);
-      points = demPoints.nViewTriangulate(bundleSet, angularError);
-      std::cout << "\t >>>>>>>> TOTOAL POINTS: " << points->size() << std::endl;
-      std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *angularError << std::endl;
-      // demPoints.saveDebugLinearErrorCloud(&matchSet,images, "linearErrorsColored2");
-      finalMesh.setPoints(points);
-      // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
-      avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
-      std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
-      // ssrlcv::writeCSV(errors, "nViewFilteredErrors");
-      ssrlcv::writePLY("filtered",points);
       logger.logState("FILTER");
 
-      // float sigma_filter = 1.0;
-      // demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
-      // bundleSet = demPoints.generateBundles(&matchSet,images);
-      // points = demPoints.twoViewTriangulate(bundleSet, errors, linearError);
-      // std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
-      // finalMesh.setPoints(points);
-      // ssrlcv::writeCSV(errors, "initial2ViewErrors");
-      // // ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6);
-      // avgDist = finalMesh.calculateAverageDistanceToNeighbors(6);
-      // std::cout << "\tAverage Distance to 6 neighbors: " << avgDist << std::endl;
-      // bundleSet = demPoints.generateBundles(&matchSet,images);
-
-
-      // for (int i = 0; i < 3; i++){
-      //   demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
-      //   bundleSet = demPoints.generateBundles(&matchSet,images);
-      // }
-      // for (int i = 0; i < 6; i++){
-      //   demPoints.deterministicStatisticalFilter(&matchSet,images, 1.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
-      //   bundleSet = demPoints.generateBundles(&matchSet,images);
-      // }
-      // // then, if the cloud is large enough still, one last filter
-      // demPoints.deterministicStatisticalFilter(&matchSet,images, 0.2, 0.1); // <---- samples 10% of points and removes anything past 0.2 sigma
-      // bundleSet = demPoints.generateBundles(&matchSet,images);
-      logger.logState("end filter");
-      logger.logState("BA");
-      logger.logState("BA");
-
-      // now redo triangulation with the newlyfiltered boi
-      points = demPoints.nViewTriangulate(bundleSet, errors, angularError);
-
-      // OPTIONAL
-      // to compare a points cloud with a ground truth model the first need to be scaled
-      // the distance values here are in km but most truth models are in meters
-      demPoints.scalePointCloud(1000.0,points); // scales from km into meters
-      // rotate pi around the y axis
-      float3 rotation = {0.0f, PI, 0.0f};
-      demPoints.rotatePointCloud(rotation, points);
-      // OPTIONAL
-      // to visualize the estimated plane which the structure lies within you can use
-      // the demPoints.visualizePlaneEstimation() method like so:
-      demPoints.visualizePlaneEstimation(points, images, "planeEstimation", 10000); // usually in km, this is now only 10 km bc of scaling
-      // you can compare to a "ground truth" mesh
-      // load the example mesh to do the comparison, here I assume we are using the everst PLY
-      meshBoi.loadMesh("data/truth/Everest_ground_truth.ply");
-      float error = meshBoi.calculateAverageDifference(points, {0.0f , 0.0f, 1.0f}); // (0,0,1) is the Normal to the X-Y plane, which the point cloud and mesh are on
-      std::cout << "Average error to ground truth is: " << error << " km, " << (error * 1000) << " meters" << std::endl;
-      ssrlcv::Unity<float>* truthErrors = meshBoi.calculatePerPointDifference(points, {0.0f , 0.0f, 1.0f});
-      // then you can save these errors in a CSV
-      ssrlcv::writeCSV(truthErrors, "resolutionErrors");
-      // you can also save them as color coded
-      ssrlcv::writePLY("resolutionErrors",points, truthErrors, 300); // NOTE it has already been scaled to meters, set error the cutoff to 300 meters
-
-      /*
-      //ssrlcv::writeCSV(errors->host, (int) errors->size(), "individualAngularErrors2");
-      demPoints.saveDebugCloud(points, bundleSet, images);
-
-      // begin mesh-level tasks, there are no more cameras or matches after this stage
-
-      // set the mesh points
+      for (int i = 0; i < 10; i++) {
+        demPoints.deterministicStatisticalFilter(&matchSet,images, 1.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
+        bundleSet = demPoints.generateBundles(&matchSet,images);
+        points = demPoints.nViewTriangulate(bundleSet, angularError);
+        std::cout << "Filted " << 0.1  << " Linear Error: " << std::fixed << std::setprecision(12) << *angularError << std::endl;
+      }
       finalMesh.setPoints(points);
+      finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
+      finalMesh.savePoints("ssrlcv-final");
 
+      logger.logState("FILTER");
 
-      // you can filter these points and view their distributions in multiple ways
-      ssrlcv::Unity<float>* neighborDists = finalMesh.calculateAverageDistancesToNeighbors(6); // calculate average distance to 6 neighbors
-      ssrlcv::writeCSV(neighborDists, "neighborDistances");
-      float avgDist = finalMesh.calculateAverageDistanceToNeighbors(6); // the average distance from any even node to another
-      std::cout << "Average Distance to 6 neighbors is: " << avgDist << std::endl;
-      ssrlcv::writePLY("neighborDistancesColored",points,neighborDists,(2.0f * avgDist)); // a point cloud with colored neighbor dists
-
-
-      // to only keep points within a certain sigma of neighbor distance use the following filter
-      // with the nview case the noise goes up the number of views you add, unless you
-      finalMesh.filterByNeighborDistance(1.0); // <--- filter bois past 1.5 sigma (about 95% of points)
-      finalMesh.savePoints("densityFiltered"); //
-      */
+      logger.logState("BA");
+      logger.logState("BA");
 
     }
 
