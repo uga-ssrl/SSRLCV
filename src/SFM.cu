@@ -39,6 +39,7 @@ void safeShutdown(int sig){
   exit(sig); // exit with the same signal
 }
 
+
 int main(int argc, char *argv[]){
   try{
 

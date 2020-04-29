@@ -103,8 +103,7 @@ namespace ssrlcv{
     cpu = 1,///< host != nullptr, device = nullptr
     gpu = 2,///< device != nullptr, host = nullptr
     both = 3,///< device != nullptr, host != nullptr
-    pinned = 4,///< not supported yet
-    unified = 5,///< not supported yet
+    unified = 4,///< device == host
     nc = 10///< utilized for default parameters and stands for no change (fore preservation)
   } MemoryState;
 
@@ -121,8 +120,6 @@ namespace ssrlcv{
         return "gpu";
       case both:
         return "both";
-      case pinned:
-        return "pinned";
       case unified:
         return "unified";
       case nc:
@@ -201,7 +198,7 @@ namespace ssrlcv{
   * \todo implement pinned and unified memory methods for this class
   * \todo make sure to flesh out docs for new methods
   * \todo add identifier variable of some sort
-  * \todo change getMemoryState to state() and getFore to fore()
+  * \todo change getMemoryState to state() and getFore to fore() (have more verbose names for variables)
   */
   template<class T>
   class Unity{
@@ -223,6 +220,9 @@ namespace ssrlcv{
     * \note Users do not need to pay attention to this when state != both
     */
     MemoryState fore;
+
+
+    bool pinned;
 
     unsigned long numElements;///< \brief number of elements in *device or *host
 
@@ -246,7 +246,7 @@ namespace ssrlcv{
     * \param numElements number of elements inside data pointer
     * \param state MemoryState of data
     */
-    Unity(T* data, unsigned long numElements, MemoryState state);
+    Unity(T* data, unsigned long numElements, MemoryState state, bool pinned = false);
 
     /**
     * \brief Copy constructor (this becomes an exact copy of the argument)
@@ -265,7 +265,7 @@ namespace ssrlcv{
     * \brief Checkpoint constructor
     * \param path path to .uty file 
     */
-    Unity(std::string path);
+    Unity(std::string path, bool pinned = false);
 
     /**
     * \brief Destructor
@@ -289,7 +289,7 @@ namespace ssrlcv{
     /**
     * \brief Clear memory in a specified location.
     * \details This method deletes memory in a specific location. Default argument is 
-    * both, which would effectively delete the contents of Unity and set this->numElments to 0.
+    * both, which would effectively delete the contents of Unity and set this->numElements to 0.
     * \param state - location to clear (default = clearing both this->device and this->host)
     */
     void clear(MemoryState state = both);
@@ -320,6 +320,12 @@ namespace ssrlcv{
     * setting fore properly when this->state = both. 
     */
     void setMemoryState(MemoryState state);
+    
+    //TODO Comment
+    bool isPinned();
+    void pin();
+    void unpin();
+
     /**
     * \brief Get MemoryState of recently updated data when state = both.
     * \details This method should be used by user functions to check where data was 
@@ -354,7 +360,7 @@ namespace ssrlcv{
     * \param numElements - size of new data
     * \param state - location of new data (must be cpu or gpu)
     */
-    void setData(T* data, unsigned long numElements, MemoryState state);
+    void setData(T* data, unsigned long numElements, MemoryState state, bool pinned = false);
     
     /**
     * \brief remove elements of a unity
@@ -410,15 +416,17 @@ namespace ssrlcv{
     this->device = nullptr;
     this->state = null;
     this->fore = null;
+    this->pinned = false;
     this->numElements = 0;
   }
   template<typename T>
-  Unity<T>::Unity(T* data, unsigned long numElements, MemoryState state){
+  Unity<T>::Unity(T* data, unsigned long numElements, MemoryState state, bool pinned){
     this->host = nullptr;
     this->device = nullptr;
     this->state = null;
     this->fore = null;
-    this->setData(data, numElements, state);
+    this->pinned = false;
+    this->setData(data, numElements, state, pinned);
   }
   template<typename T>
   Unity<T>::Unity(Unity<T>* copy){
@@ -426,6 +434,7 @@ namespace ssrlcv{
     this->device = nullptr;
     this->state = null;
     this->fore = null;
+    this->pinned = false;
     this->numElements = 0;
     if(copy->getMemoryState() == null || copy->size() == 0){
       throw NullUnityException("cannot copy a null Unity<T>");
@@ -446,6 +455,7 @@ namespace ssrlcv{
     this->device = nullptr;
     this->state = null;
     this->fore = null;
+    this->pinned = false;
     this->numElements = 0;
     if(copy->getMemoryState() == null || copy->size() == 0){
       throw NullUnityException("cannot copy_if a null Unity<T>");
@@ -470,11 +480,12 @@ namespace ssrlcv{
     if(this->state != copy->getMemoryState()) this->setMemoryState(copy->getMemoryState());
   }
   template<typename T>
-  Unity<T>::Unity(std::string path){
+  Unity<T>::Unity(std::string path, bool pinned){
     this->host = nullptr;
     this->device = nullptr;
     this->state = null;
     this->fore = null;
+    this->pinned = false;
     this->numElements = 0;
 
     std::ifstream cp(path.c_str(), std::ifstream::binary);
@@ -505,8 +516,9 @@ namespace ssrlcv{
       if(origin == null){
         throw CheckpointException("read origin in Unity checkpoint header shows null");
       }
-
-      this->host = new T[this->numElements]();
+      this->pinned = pinned;
+      if(!pinned) this->host = new T[this->numElements]();
+      else CudaSafeCall(cudaMallocHost((void**)&this->host,this->numElements*sizeof(T)));
       this->state = cpu;
       this->fore = cpu;
       for(unsigned long i = 0; i < this->numElements; ++i){
@@ -547,11 +559,20 @@ namespace ssrlcv{
     else if(this->state <= 3){
       unsigned long toCopy = ((resizeLength > this->numElements) ? this->numElements: resizeLength);
       if(this->state == cpu || this->state == both){
-        T* replacement = new T[resizeLength]();
-        std::memcpy(replacement,this->host,toCopy*sizeof(T));
-        delete[] this->host;
-        this->host = replacement;
+        T* replacement = nullptr;
+        if(!this->pinned){
+          replacement = new T[resizeLength]();
+          std::memcpy(replacement,this->host,toCopy*sizeof(T));
+          delete[] this->host;
+        }
+        else{
+          CudaSafeCall(cudaMallocHost((void**)replacement,resizeLength*sizeof(T)));
+          std::memcpy(replacement,this->host,toCopy*sizeof(T));
+          CudaSafeCall(cudaFreeHost(this->host));
+        }
+         this->host = replacement;
       }
+      //TODO look at this for optimization
       if(this->state == gpu || this->state == both){
         T* replacement  = nullptr;
         CudaSafeCall(cudaMalloc((void**)&replacement,resizeLength*sizeof(T)));
@@ -589,7 +610,8 @@ namespace ssrlcv{
     }
     else if(this->state <= 3){//currently supported types
       if(state == cpu || (state == both && this->host != nullptr)){
-        delete[] this->host;
+        if(!this->pinned) delete[] this->host;
+        else CudaSafeCall(cudaFreeHost(this->host));
         this->host = nullptr;
       }
       if(state == gpu || (state == both && this->device != nullptr)){
@@ -616,8 +638,17 @@ namespace ssrlcv{
       }
       else{
         if(state == cpu || (state == both && this->host != nullptr)){
-          delete[] this->host;
-          this->host = new T[this->numElements]();
+          T* zerod = new T[this->numElements]();
+          if(!this->pinned){
+            delete[] this->host;
+            this->host = zerod;
+          } 
+          else{
+            CudaSafeCall(cudaFreeHost(this->host));
+            CudaSafeCall(cudaMallocHost((void**)&this->host,this->numElements*sizeof(T)));
+            std::memcpy(this->host,zerod,this->numElements*sizeof(T));
+            delete[] zerod;
+          } 
         }
         if(state == gpu || (state == both && this->device != nullptr)){
           T* zerod = (state == both && this->host != nullptr) ? this->host : new T[this->numElements]();
@@ -656,7 +687,52 @@ namespace ssrlcv{
     }
   }
   template<typename T>
-  void Unity<T>::setData(T* data, unsigned long numElements, MemoryState state){
+  bool Unity<T>::isPinned(){
+    return this->pinned;
+  }
+
+
+
+
+  //TODO test and add checks for 0 and null
+  template<typename T>
+  void Unity<T>::pin(){
+    if(this->pinned){
+      std::clog<<"WARNING: attempt to pin already pinned Unity<T> does nothing"<<std::endl;
+      return;
+    }
+    //determine what to do if it is unified
+    this->pinned = true;
+    if(this->state != gpu){
+      T* pinned_host = nullptr;
+      CudaSafeCall(cudaMallocHost((void**)&pinned_host,this->numElements*sizeof(T)));
+      std::memcpy(pinned_host,this->host,this->numElements*sizeof(T));
+      delete[] this->host;
+      this->host = pinned_host;
+    }
+  }
+  template<typename T>
+  void Unity<T>::unpin(){
+    if(!this->pinned){
+      std::clog<<"WARNING: attempt to unpin nonpinned Unity<T> does nothing"<<std::endl;
+      return;
+    }
+    //determine what to do if it is unified
+    this->pinned = false;
+    if(this->state != gpu){
+      T* pageable_host = new T[this->numElements]();
+      memcpy(pageable_host,this->host,this->numElements*sizeof(T));
+      CudaSafeCall(cudaFreeHost(this->host));
+      this->host = pageable_host;
+    }
+  }
+
+
+
+
+
+  template<typename T>
+  void Unity<T>::setData(T* data, unsigned long numElements, MemoryState state, bool pinned){
     if(state == null){
       throw NullUnityException("cannot use null as state of T* data in Unity<T>::setData");
     }
@@ -670,12 +746,17 @@ namespace ssrlcv{
     this->numElements = numElements;
     this->state = state;
     this->fore = state;
+    this->pinned = pinned;
     if(data == nullptr){
       if(state == null || state > 3){//greater than three means pinned or unified
         throw IllegalUnityTransition("attempt to instantiate unkown MemoryState fron nullptr (supported states = both, cpu & gpu)");
       }
       if(state == cpu || state == both){
-        this->host = new T[numElements]();
+        if(!this->pinned) this->host = new T[numElements]();
+        else{
+          CudaSafeCall(cudaMallocHost((void**)&this->host,this->numElements*sizeof(T)));
+          this->zeroOut(cpu);
+        } 
       }
       if(state == gpu || state == both){
         CudaSafeCall(cudaMalloc((void**)&this->device,this->numElements*sizeof(T)));
@@ -683,7 +764,7 @@ namespace ssrlcv{
       }
     }
     else if(state <= 2){
-      if(state == cpu) this->host = data;
+      if(state == cpu) this->host = data;//TODO warn about using pinned here
       else if(state == gpu) this->device = data;
     }
     else{
@@ -743,7 +824,8 @@ namespace ssrlcv{
             CudaSafeCall(cudaMalloc((void**)&this->device,this->numElements*sizeof(T)));
           }
           else if(this->state == gpu && this->host == nullptr){
-            this->host = new T[this->numElements]();
+            if(!this->pinned) this->host = new T[this->numElements]();
+            else CudaSafeCall(cudaMallocHost((void**)&this->host,this->numElements*sizeof(T)));
           }
           this->state = both;
         }
@@ -881,6 +963,7 @@ namespace ssrlcv{
   void Unity<T>::printInfo(){
     std::cout<<"numElements = "<<this->numElements;
     std::cout<<" state = "<<memoryStateToString(this->state);
+    if(this->pinned && (this->state == cpu || this->state == both)) std::cout<<" (pinned)";
     std::cout<<" fore = "<<memoryStateToString(this->fore);
     std::cout<<" type = "<<typeid(T).name()<<std::endl;
   }
