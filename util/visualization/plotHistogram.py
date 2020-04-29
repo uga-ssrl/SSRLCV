@@ -53,6 +53,6 @@ else:
     n, bins, patches = plt.hist(x, num_bins, range=[0,float(sys.argv[5])], facecolor='blue', alpha=0.5)
     #axes.set_ylim([ymin,ymax])
 
-axes.set_yscale('log') # set to true if log scale desired
+#axes.set_yscale('log') # set to true if log scale desired
 
 plt.show()

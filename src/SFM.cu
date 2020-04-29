@@ -209,15 +209,18 @@ int main(int argc, char *argv[]){
       demPoints.rotatePointCloud(rotation, points);
       // set the mesh points
       finalMesh.setPoints(points);
-      finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
-      finalMesh.savePoints("ssrlcv-final");
+      //finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
+      finalMesh.savePoints("ssrlcv-filtered");
 
       logger.logState("FILTER");
 
       // ============= Bundle Adjustment
 
       logger.logState("BA");
-      points = demPoints.BundleAdjustTwoView(&matchSet,images, 25, "");
+      points = demPoints.BundleAdjustTwoView(&matchSet,images, 10, "");
+      finalMesh.setPoints(points);
+      //finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
+      finalMesh.savePoints("ssrlcv-BA-final");
       logger.logState("BA");
 
     } else {
@@ -242,14 +245,14 @@ int main(int argc, char *argv[]){
       logger.logState("FILTER");
 
       for (int i = 0; i < 10; i++) {
-        demPoints.deterministicStatisticalFilter(&matchSet,images, 1.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
+        demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
         bundleSet = demPoints.generateBundles(&matchSet,images);
         points = demPoints.nViewTriangulate(bundleSet, angularError);
         std::cout << "Filted " << 0.1  << " Linear Error: " << std::fixed << std::setprecision(12) << *angularError << std::endl;
       }
       finalMesh.setPoints(points);
-      finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
-      finalMesh.savePoints("ssrlcv-final");
+      //finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
+      finalMesh.savePoints("ssrlcv-filtered");
 
       logger.logState("FILTER");
 

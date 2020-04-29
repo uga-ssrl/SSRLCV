@@ -864,6 +864,8 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
     // standard projection case
     //
 
+    if (local_debug || local_verbose) std::cout << "\t Generating standard projective bundles ... " << std::endl;
+
     // the cameras
     size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
     // fill the cam boi

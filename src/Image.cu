@@ -125,6 +125,7 @@ ssrlcv::Image::Image(std::string filePath, int id) {
               //
               // The projective camera params case
               //
+              std::cout << "Detected a standard projective camera system" << std::endl;
               this->isPushbroom = false;
               this->camera.cam_pos.x = std::atof(value.c_str());
               getline(file,value,',');
