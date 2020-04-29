@@ -178,6 +178,16 @@ namespace ssrlcv{
      */
     ssrlcv::Unity<float3>* nViewTriangulate(BundleSet bundleSet, Unity<float>* errors, float* angularError, float* angularErrorCutoff);
 
+    /**
+     * The CPU method that sets up the GPU enabled n view triangulation.
+     * @param bundleSet a set of lines and bundles to be triangulated
+     * @param errors the individual angular errors per point
+     * @param angularError the total diff between vectors
+     * @param lowCut generated points that have an error under this cutoff are marked invalid
+     * @param highCut generated points that have an error over this cutoff are marked invalid
+     */
+    ssrlcv::Unity<float3>* nViewTriangulate(BundleSet bundleSet, Unity<float>* errors, float* angularError, float* lowCut, float* highCut);
+
     // =============================================================================================================
     //
     // Bundle Adjustment Methods
@@ -230,7 +240,7 @@ namespace ssrlcv{
      * @param a group of images, used only for their stored camera parameters
      * @return a bundle adjusted point cloud
      */
-    ssrlcv::Unity<float3>* BundleAdjustTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations);
+    ssrlcv::Unity<float3>* BundleAdjustTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int interations, const char * debugFilename);
 
     /**
      * A bundle adjustment based on a N-view triangulation that includes a second order Hessian calculation and first order gradient caclulation
@@ -308,7 +318,7 @@ namespace ssrlcv{
     * this methods saves a plane which can be visualized as a mesh
     * @param pointCloud the point cloud to visualize plane estimation from
     * @param filename a string representing the filename that should be saved
-    * @param range a float representing 1/2 of a side in km, so +/- range is how but the plane will be 
+    * @param range a float representing 1/2 of a side in km, so +/- range is how but the plane will be
     */
     void visualizePlaneEstimation(Unity<float3>* pointCloud, std::vector<ssrlcv::Image*> images, const char* filename, float range);
 
@@ -320,7 +330,18 @@ namespace ssrlcv{
     * @param iterations the max number of iterations bundle adjustment should do
     * @param noise a list of float values representing noise to be added to orientaions and rotations
     */
-    void testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, Unity<float>* noise);
+    Unity<float3>* testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, Unity<float>* noise);
+
+    /**
+    * This function is used to test bundle adjustment by adding a bit of noise to the input data
+    * it saves an initial point cloud, final point cloud, and a CSV of errors over the iterations
+    * @param matchSet a group of matches
+    * @param a group of images, used only for their stored camera parameters
+    * @param iterations the max number of iterations bundle adjustment should do
+    * @param noise a list of 1 sigma values to +/- from ranomly
+    * @param testNum the number of tests to perform
+    */
+    void testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::Image*> images, unsigned int iterations, Unity<float>* noise, int testNum);
 
     // =============================================================================================================
     //
@@ -366,6 +387,21 @@ namespace ssrlcv{
      * @param cutoff is a cutoff of +/- km distance from the plane, if the point cloud has been scaled then this should also be scaled
      */
     void planarCutoffFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::Image*> images, float cutoff);
+
+    /**
+     * removes bundles from the bundleSet that have been flagged as invalid and returns the reduced bundle set
+     * @param bundleSet the bundleSet to reduce
+     * @return bundleSet the new reduced bundleSet
+     */
+    BundleSet reduceBundleSet(BundleSet bundleSet);
+
+    /**
+     * reduces the input bundleset my the given statistical sigma value
+     * @param bundleSet the bundleSet to reduce
+     * @param sigma the statistical cutoff to reduce the bundleSet by
+     * @return bundleSet the new reduced bundleSet
+     */
+    BundleSet reduceBundleSet(BundleSet bundleSet, float sigma);
 
     // =============================================================================================================
     //
@@ -427,6 +463,8 @@ namespace ssrlcv{
   // =============================================================================================================
 
   __global__ void generateBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::Camera* cameras);
+
+  __global__ void generatePushbroomBundle(unsigned int numBundles, Bundle* bundles, Bundle::Line* lines, MultiMatch* matches, KeyPoint* keyPoints, Image::PushbroomCamera* pushbrooms);
 
   // =============================================================================================================
   //
@@ -498,6 +536,11 @@ namespace ssrlcv{
   * the CUDA kernel for Nview triangulation with angular error
   */
   __global__ void computeNViewTriangulate(float* angularError, float* angularErrorCutoff, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
+
+  /**
+  * the CUDA kernel for Nview triangulation with angular error
+  */
+  __global__ void computeNViewTriangulate(float* angularError, float* lowCut, float* highCut, float* errors, unsigned long pointnum, Bundle::Line* lines, Bundle* bundles, float3* pointcloud);
 
   // =============================================================================================================
   //

@@ -11,6 +11,8 @@ ssrlcv::MeshFactory::MeshFactory(){
   this->octree = nullptr;
   this->points = nullptr;
   this->faces  = nullptr;
+  this->pointsSet = false;
+  this->octreeSet = false;
 }
 
 // constructor given existing points and faces
@@ -27,6 +29,8 @@ ssrlcv::MeshFactory::MeshFactory(Unity<float3>* in_points, Unity<int>* in_faces,
   if (this->octree == nullptr) delete this->octree;
   // Octree oct = Octree(this->points, 8, false);
   this->octree = new Octree(this->points, 8, false);
+  this->pointsSet = true;
+  this->octreeSet = true;
 }
 
 ssrlcv::MeshFactory::~MeshFactory(){
@@ -34,6 +38,8 @@ ssrlcv::MeshFactory::~MeshFactory(){
 }
 
 ssrlcv::MeshFactory::MeshFactory(Octree* octree){
+  this->pointsSet = false;
+  this->octreeSet = true;
   this->faceEncoding = 0;
   this->octree = octree;
   if(this->octree->normals == nullptr || this->octree->normals->getMemoryState() == null){
@@ -54,14 +60,19 @@ ssrlcv::MeshFactory::MeshFactory(Octree* octree){
  * @param pointcloud a unity of float3 that represents a point cloud to be set to internal points
  */
 void ssrlcv::MeshFactory::setPoints(Unity<float3>* pointcloud){
-  if (!(this->points == nullptr)) delete this->points; // reset
+  if (!(this->points == nullptr) || pointsSet) {
+    delete this->points; // reset
+  }
+  this->pointsSet =  true;
   this->points = new Unity<float3>(nullptr,pointcloud->size(),cpu);
   // set
   for (int i = 0; i < this->points->size(); i++) {
     this->points->host[i] = pointcloud->host[i];
   }
-  if (this->octree == nullptr) delete this->octree;
-  // Octree oct = Octree(this->points, 8, false);
+  if (this->octree == nullptr || octreeSet) {
+    delete this->octree;
+  }
+  this->octreeSet = true;
   this->octree = new Octree(this->points, 8, false);
 }
 

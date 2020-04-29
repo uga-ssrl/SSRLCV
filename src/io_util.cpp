@@ -977,7 +977,7 @@ void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float3>
   of << "end_header\n";
   // start writing the values
   for (int i = 0; i < points->size(); i++){
-    of << points->host[i].x << " " << points->host[i].y << " " << points->host[i].z << " " << normals->host[i].x << " " << normals->host[i].y << " " << normals->host[i].z << "\n";
+    of << std::fixed << std::setprecision(32) << points->host[i].x << " " << points->host[i].y << " " << points->host[i].z << " " << normals->host[i].x << " " << normals->host[i].y << " " << normals->host[i].z << "\n";
   }
   of.close(); // done with the file building
 }

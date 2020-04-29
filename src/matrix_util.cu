@@ -204,6 +204,30 @@ __device__ __host__ float ssrlcv::magnitude(const float3 &v){
   return sqrtf(dotProduct(v, v));
 }
 
+/**
+ * computes the L2 norm of vector A
+ */
+__device__ __host__ float ssrlcv::L2norm(const float3 A){
+  return sqrtf(A.x*A.x + A.y*A.y + A.z*A.z);
+}
+
+/**
+ * \brief returns the euclidean distance of two points
+ */
+__device__ __host__ float ssrlcv::euclideanDistance(const float3 A, const float3 B){
+  return sqrtf((A.x - B.x)*(A.x - B.x) + (A.y - B.y)*(A.y - B.y) + (A.z - B.z)*(A.z - B.z));
+}
+
+/**
+ * \brief calcualtes x y and z rotations from an input rotation matrix
+ * @param R a 3x3 rotation matrix
+ * @return rotations a float3 of the x,y,z axis rotations
+ */
+__device__ __host__ float3 ssrlcv::getAxisRotations(const float(&R)[3][3]){
+
+  return {0.0f, 0.0f, 0.0f};
+}
+
 __device__ float3 ssrlcv::matrixMulVector(float3 x, float A[3][3]){
   float temp[3] = {x.x, x.y, x.z};
   float b[3];

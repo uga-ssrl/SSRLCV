@@ -42,6 +42,23 @@ namespace ssrlcv{
   __device__ __host__ float magnitude(const float (&v)[3]);
   __device__ __host__ float magnitude(const float3 &v);
 
+  /**
+   * computes the L2 norm of vector A
+   */
+  __device__ __host__ float L2norm(const float3 A);
+
+  /**
+   * \brief returns the euclidean distance of two points
+   */
+  __device__ __host__ float euclideanDistance(const float3 A, const float3 B);
+
+  /**
+   * \brief calcualtes x y and z rotations from an input rotation matrix
+   * @param R a 3x3 rotation matrix
+   * @return rotations a float3 of the x,y,z axis rotations
+   */
+  __device__ __host__ float3 getAxisRotations(const float(&R)[3][3]);
+
   __device__ float3 matrixMulVector(float3 x, float A[3][3]);
   __device__ float3 getVectorAngles(float3 v);
 

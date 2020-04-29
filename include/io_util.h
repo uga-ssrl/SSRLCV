@@ -8,6 +8,7 @@
 #include "common_includes.h"
 #include "Unity.cuh"
 #include "Octree.cuh"
+// #include "PointCloudFactory.cuh"
 #include <stdio.h>
 
 namespace ssrlcv{
@@ -212,7 +213,7 @@ struct arg
 
   // =============================================================================================================
   //
-  // CSV and Misc IO
+  // PLY IO
   //
   // =============================================================================================================
 

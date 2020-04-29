@@ -19,8 +19,7 @@ ssrlcv::Logger::Logger(){
     std::ofstream temp;
     temp.open(this->logFileLocation);
     // ALWAYS LOG THE TIME!
-    std::time_t t = std::time(0);
-    temp << t << ",";
+    temp << std::fixed << std::setprecision(32) << getTime() << ",";
     // now print the real junk
     temp << "Log Generated," << this->logFileLocation << std::endl;
     temp.close();
@@ -47,8 +46,7 @@ ssrlcv::Logger::Logger(const char* logPath){
     std::ofstream temp;
     temp.open(this->logFileLocation);
     // ALWAYS LOG THE TIME!
-    std::time_t t = std::time(0);
-    temp << t << ",";
+    temp << std::fixed << std::setprecision(32) << getTime() << ",";
     // now print the real junk
     temp << "Log Generated," << this->logFileLocation << std::endl;
     temp.close();
@@ -107,8 +105,7 @@ void ssrlcv::Logger::log(const char* input){
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  std::time_t t = std::time(0);
-  outstream << t << ",comment,";
+  outstream << std::fixed << std::setprecision(32) << getTime() << ",comment,";
   // now print the real junk
   outstream << input << std::endl;
   outstream.close();
@@ -124,8 +121,7 @@ void ssrlcv::Logger::log(std::string input){
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  std::time_t t = std::time(0);
-  outstream << t << ",comment,";
+  outstream << std::fixed << std::setprecision(32) << getTime() << ",comment,";
   // now print the real junk
   outstream << input << std::endl;
   outstream.close();
@@ -141,8 +137,8 @@ void ssrlcv::Logger::logState(const char* state){
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  std::time_t t = std::time(0);
-  outstream << t << ",state,";
+  outstream << std::fixed << std::setprecision(32) << getTime() << ",state," ;
+
   // now print the real junk
   outstream << state << std::endl;
   outstream.close();
@@ -158,8 +154,7 @@ void ssrlcv::Logger::logState(std::string state){
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  std::time_t t = std::time(0);
-  outstream << t << ",state,";
+  outstream << std::fixed << std::setprecision(32) << getTime() << ",state,";
   // now print the real junk
   outstream << state << std::endl;
   outstream.close();
@@ -175,8 +170,7 @@ void ssrlcv::Logger::logError(const char* input){
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  std::time_t t = std::time(0);
-  outstream << t << ",comment,";
+  outstream << std::fixed << std::setprecision(32) << getTime() << ",error,";
   // now print the real junk
   outstream << input << std::endl;
   outstream.close();
@@ -192,8 +186,7 @@ void ssrlcv::Logger::logError(std::string input){
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  std::time_t t = std::time(0);
-  outstream << t << ",comment,";
+  outstream << std::fixed << std::setprecision(32) << getTime() << ",error,";
   // now print the real junk
   outstream << input << std::endl;
   outstream.close();
@@ -260,8 +253,7 @@ void ssrlcv::Logger::logCPUnames(){
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  std::time_t t = std::time(0);
-  outstream << t << ",";
+  outstream << std::fixed << std::setprecision(32) << getTime() << ",";
   // now print the real junk
   outstream << logline << std::endl;
   outstream.close();
@@ -345,8 +337,7 @@ void ssrlcv::Logger::logVoltage(){
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  std::time_t t = std::time(0);
-  outstream << t << ",";
+  outstream << std::fixed << std::setprecision(32) << getTime() << ",";
   // now print the real junk
   outstream << logline << std::endl;
   outstream.close();
@@ -430,8 +421,7 @@ void ssrlcv::Logger::logCurrent(){
   mtx.lock();
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
-  std::time_t t = std::time(0);
-  outstream << t << ",";
+  outstream << std::fixed << std::setprecision(32) << getTime() << ",";
   // now print the real junk
   outstream << logline << std::endl;
   outstream.close();
@@ -515,8 +505,7 @@ void ssrlcv::Logger::logPower(){
     mtx.lock();
     outstream.open(this->logFileLocation, std::ofstream::app);
     // ALWAYS LOG THE TIME!
-    std::time_t t = std::time(0);
-    outstream << t << ",";
+    outstream << std::fixed << std::setprecision(32) << getTime() << ",";
     // now print the real junk
     outstream << logline << std::endl;
     outstream.close();
@@ -592,7 +581,16 @@ void ssrlcv::Logger::looper(int delay){
   }
 }
 
-
+/**
+ * Used to return a high resolution timestamp for dense resolution timing of algorithms
+ * this is not nessesary needed for a final logger and coult be substituted for a less
+ * precise time measurement
+ * @return timestamp the number of milliseconds sense January 1st 1970
+ */
+unsigned long ssrlcv::Logger::getTime(){
+  std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
+  return ms.count();
+}
 
 
 
