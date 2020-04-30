@@ -42,6 +42,8 @@ doc/paper/*.xml
 doc/paper/*.bcf
 doc/paper/*.~
 
+*.log
+
 project.*
 .vscode/
 data/*/*/matches.txt
