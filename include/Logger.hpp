@@ -1,5 +1,6 @@
 /** \file logger.hpp
 * \brief this contains helpful ways to log data
+* \note The global logger is declared externally at the bottom  of this file
 */
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
@@ -16,8 +17,31 @@ namespace ssrlcv{
 
 
   class Logger{
+  
 
   public:
+
+    struct Error{
+      Logger* logger;
+      Error();
+      Error(Logger* logger);
+      /**
+       * Overloaded Bit Shift Left Operator, needed to keep united mutex locking
+       */
+      Error& operator<<(const char* input);
+    };
+    struct Warning{
+      Logger* logger;
+      Warning();
+      Warning(Logger* logger);
+      /**
+       * Overloaded Bit Shift Left Operator, needed to keep united mutex locking
+       */
+      Warning& operator<<(const char *input);
+    };
+
+    Error err;
+    Warning warn;
 
     // public variables
 
@@ -58,6 +82,11 @@ namespace ssrlcv{
     Logger &operator=(Logger const &loggerCopy);
 
     /**
+     * Overloaded Bit Shift Left Operator, needed to keep united mutex locking
+     */
+    void operator<<(const char* input);
+
+    /**
      * Default destructor
      */
     ~Logger();
@@ -91,6 +120,18 @@ namespace ssrlcv{
      * @param state a string to be tagged as a state
      */
     void logState(std::string state);
+
+    /**
+     * logs a message with an error tag
+     * @param input a string to write to the log
+     */
+    void logWarning(const char *input);
+
+    /**
+     * logs a message with an error tag
+     * @param input a string to write to the log
+     */
+    void logWarning(std::string input);
 
     /**
      * logs a message with an error tag
@@ -180,6 +221,11 @@ namespace ssrlcv{
     unsigned long getTime();
 
   }; // end Logger class
+
+  /**
+   * The global logger
+   */
+  extern Logger logger;
 }
 
 

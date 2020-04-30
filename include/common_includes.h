@@ -94,4 +94,6 @@ namespace ssrlcv{
  * \defgroup trees
  */
 
+#include "Logger.hpp"
+
 #endif /* COMMON_INCLUDES_H */

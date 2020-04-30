@@ -11,8 +11,6 @@
 //          ___\///////////_______\///////////_____\///________\///__\///////////////________\/////////________\///________
 //           _______________________________________________________________________________________________________________
 
-
-
 #include "common_includes.h"
 #include "Image.cuh"
 #include "io_util.h"
@@ -20,12 +18,8 @@
 #include "MatchFactory.cuh"
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
-#include "Logger.hpp"
 
-/**
- * The global logger
- */
-ssrlcv::Logger logger;
+ssrlcv::Logger logger; 
 
 /**
  * the safe shutdown methods is initiated when a SIGINT is captured, but can be extended
@@ -38,7 +32,6 @@ void safeShutdown(int sig){
   logger.stopBackgroundLogging();
   exit(sig); // exit with the same signal
 }
-
 
 int main(int argc, char *argv[]){
   try{
