@@ -18,6 +18,8 @@
 #include "cuda_vec_util.cuh"
 #include "matrix_util.cuh"
 #include "Unity.cuh"
+#include "CVExceptions.hpp"
+#include "Logger.hpp"
 
 //cpp includes
 #include <iostream>
@@ -33,8 +35,6 @@
 #include <random>
 #include <locale>
 #include <csignal>
-#include <thread>
-#include <mutex>
 #include <unistd.h>
 #include <chrono>
 
@@ -56,10 +56,6 @@
 #include "tiffio.h"
 #include <jpeglib.h>
 #include <jerror.h>
-
-
-
-#include "CVExceptions.hpp"
 
 #define PI 3.1415926535897932384626433832795028841971693993
 
@@ -93,7 +89,5 @@ namespace ssrlcv{
  * \defgroup cuda_util
  * \defgroup trees
  */
-
-#include "Logger.hpp"
 
 #endif /* COMMON_INCLUDES_H */

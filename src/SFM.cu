@@ -18,6 +18,7 @@
 #include "MatchFactory.cuh"
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
+#include "Logger.hpp"
 
 ssrlcv::Logger logger; 
 

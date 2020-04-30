@@ -28,6 +28,7 @@
 #include <fstream>
 #include <csignal>
 #include <typeinfo>
+#include "Logger.hpp"
 
 #define CUDA_ERROR_CHECK
 #define CudaSafeCall( err ) __cudaSafeCall( err, __FILE__, __LINE__ )

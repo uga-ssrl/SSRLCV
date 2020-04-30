@@ -5,12 +5,19 @@
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
 
-#include "common_includes.h"
-#include "Image.cuh"
-#include "MatchFactory.cuh"
-#include "Unity.cuh"
-#include "Octree.cuh"
-#include "io_util.h"
+
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <cstring>
+#include <ctype.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <csignal>
+#include <iomanip>
+#include <thread>
+#include <mutex>
 
 
 namespace ssrlcv{
