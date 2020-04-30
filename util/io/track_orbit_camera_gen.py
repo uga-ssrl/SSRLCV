@@ -1,5 +1,5 @@
 import sys
-from math import sin, cos, tan, pi, radians, atan, sqrt
+from math import sin, cos, tan, pi, radians, atan, asin, sqrt
 from numpy.polynomial import Polynomial as P
 
 #
@@ -16,12 +16,12 @@ if (len(sys.argv) < 4):
     print("\t <> numSteps  -- the numbers of angle steps to take ")
     exit(-1)
 
-earth = 6537
+earth = 6378
 # gravitational constant
 G     = 6.67430 * (10**(-11))
 # mass of earth in kg
 M     = 5.97237 * (10**(24))
-mu    = 3.986004 * (10**(14))
+mu    = 3.986005 * (10**(14))
 alt   = float(sys.argv[1])
 theta = radians(float(sys.argv[2]) - 90.0)
 b_theta = float(sys.argv[2])
@@ -66,15 +66,19 @@ for step in range(0,int((steps+1)/2)):
         else:
             x = p.roots()[1]
         y = tan(theta) * x
-        orbit_angle = (pi / 2.0) - atan( (y + earth) / (x))
-        print('      angle (rad): ' + str( orbit_angle ))
+        print('-----------------------------------------------------------')
+        orbit_angle = asin( (x) / (earth + alt) ) # <----- positive angles
+        print('orbit angle (rad): ' + str( orbit_angle ))
+        print('input angle (rad): ' + str((float(sys.argv[2]) * (pi/180) )))
         orbit_arc   = (earth + alt) * orbit_angle
-        print('      arclen (km): ' + str( orbit_arc ))
+        ground_arc   = (earth) * orbit_angle
+        print('orbit arclen (km): ' + str( orbit_arc ))
+        print(' grnd arclen (km): ' + str( ground_arc ))
         orbit_speed = sqrt( (mu) / ((earth + alt) * 1000 ) )
         print('  velocity (km/s): ' + str(orbit_speed / 1000))
-        slew_time   = orbit_arc / orbit_speed
+        slew_time   = orbit_arc / (orbit_speed / 1000)
         print('    slew time (s): ' + str(slew_time))
-        slew_rate   = (float(sys.argv[2]) * (pi/180) )/ slew_time
+        slew_rate   = (float(sys.argv[2]) * (pi/180) ) / slew_time
         print('Tracking Slews:')
         print('\tslew rate (rad/s): ' + str(slew_rate))
         print('\tslew rate (deg/s): ' + str(slew_rate * (180/pi)))
