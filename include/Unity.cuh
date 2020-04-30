@@ -28,6 +28,7 @@
 #include <fstream>
 #include <csignal>
 #include <typeinfo>
+
 #include "Logger.hpp"
 
 #define CUDA_ERROR_CHECK
@@ -126,7 +127,7 @@ namespace ssrlcv{
       case nc:
         return "no change (this should only be used to help with data manipulation methods)";
       default:
-        std::clog<<"ERROR: unknown MemoryState when calling memoryStateToString()"<<std::endl;
+        logger.err<<"ERROR: unknown MemoryState when calling memoryStateToString()\n";
         exit(-1);
     }
   }
@@ -529,7 +530,7 @@ namespace ssrlcv{
 
       cp.close();
       if(cp.good()){
-        std::cout<<"Unity created from checkpoint "<<path<<std::endl;
+        std::cout<<"Unity created from checkpoint "<<path<<"\n";
       }
       else{
         path = "could not successfully read checkpoint " + path;
@@ -597,16 +598,16 @@ namespace ssrlcv{
   template<typename T>
   void Unity<T>::clear(MemoryState state){
     if(state == null){
-      std::clog<<"WARNING: Unity<T>::clear(ssrlcv::null) does nothing"<<std::endl;
+      logger.warn<<"WARNING: Unity<T>::clear(ssrlcv::null) does nothing\n";
       return;
     }
     else if(state != both && this->state != both && this->state != state){
-      std::clog<<"WARNING: Attempt to clear null memory in location "
-      <<memoryStateToString(state)<<"...action prevented"<<std::endl;
+      logger.warn<<"WARNING: Attempt to clear null memory in location "
+      <<memoryStateToString(state)<<"...action prevented\n";
       return;
     }
     else if(this->state == null){
-      std::clog<<"WARNING: Attempt to clear null (empty) Unity...action prevented"<<std::endl;
+      logger.warn<<"WARNING: Attempt to clear null (empty) Unity...action prevented\n";
       return;
     }
     else if(this->state <= 3){//currently supported types
@@ -670,7 +671,7 @@ namespace ssrlcv{
   template<typename T>
   void Unity<T>::setMemoryState(MemoryState state){
     if(state == this->state){
-      std::clog<<"WARNING: hard setting of memory state to same memory state does nothing: "<<memoryStateToString(this->state)<<std::endl;
+      logger.warn<<"WARNING: hard setting of memory state to same memory state does nothing: "<<memoryStateToString(this->state)<<"\n";
       return;
     }
     else if(this->state == null){
@@ -699,7 +700,7 @@ namespace ssrlcv{
   template<typename T>
   void Unity<T>::pin(){
     if(this->pinned){
-      std::clog<<"WARNING: attempt to pin already pinned Unity<T> does nothing"<<std::endl;
+      logger.warn<<"WARNING: attempt to pin already pinned Unity<T> does nothing\n";
       return;
     }
     //determine what to do if it is unified
@@ -715,7 +716,7 @@ namespace ssrlcv{
   template<typename T>
   void Unity<T>::unpin(){
     if(!this->pinned){
-      std::clog<<"WARNING: attempt to unpin nonpinned Unity<T> does nothing"<<std::endl;
+      logger.warn<<"WARNING: attempt to unpin nonpinned Unity<T> does nothing\n";
       return;
     }
     //determine what to do if it is unified
@@ -789,11 +790,11 @@ namespace ssrlcv{
       throw NullUnityException("attempt to Unity<T>::setFore(MemoryState state) when this->state == null");
     }
     else if(this->fore == state){
-      std::clog<<"WARNING: Unity<T>::setFore(MemoryState state) when state == this->fore does nothing"<<std::endl;
+      logger.warn<<"WARNING: Unity<T>::setFore(MemoryState state) when state == this->fore does nothing\n";
       return;
     }
     else if(state == both){
-      std::clog<<"ERROR: cannot set fore to both manually: \n\tuse setMemoryState(both) or transferMemoryTo((this->fore == gpu) ? cpu : gpu)"<<std::endl;
+      logger.warn<<"ERROR: cannot set fore to both manually: \n\tuse setMemoryState(both) or transferMemoryTo((this->fore == gpu) ? cpu : gpu)\n";
       exit(-1);
     }
     else if(this->state != both && this->state != state){
@@ -816,7 +817,7 @@ namespace ssrlcv{
     }
     if(state <= 3){
       if(this->fore == state){
-        std::clog<<"WARNING: transfering memory to location of fore does nothing: "<<memoryStateToString(state)<<std::endl;
+        logger.warn<<"WARNING: transfering memory to location of fore does nothing: "<<memoryStateToString(state)<<"\n";
         return;
       }
       else{
@@ -861,7 +862,7 @@ namespace ssrlcv{
     this->fore = gpu;
     unsigned long compressedSize = new_end - data_ptr;
     if(compressedSize == 0){
-      std::clog<<"Unity<T>::remove(bool(*validate)(const T&)) led to all elements being removed (data cleared)"<<std::endl;
+      logger.warn<<"Unity<T>::remove(bool(*validate)(const T&)) led to all elements being removed (data cleared)\n";
       this->clear();
       return;
     }
@@ -947,7 +948,7 @@ namespace ssrlcv{
       }
       cp.close();
       if(cp.good()){
-        std::cout<<"checkpoint "<<pathToFile<<" successfully written"<<std::endl;
+        std::cout<<"checkpoint "<<pathToFile<<" successfully written\n";
       }
       else{
         pathToFile = "could not write Unity<T> checkpoint: " + pathToFile;
@@ -966,7 +967,7 @@ namespace ssrlcv{
     std::cout<<" state = "<<memoryStateToString(this->state);
     if(this->pinned && (this->state == cpu || this->state == both)) std::cout<<" (pinned)";
     std::cout<<" fore = "<<memoryStateToString(this->fore);
-    std::cout<<" type = "<<typeid(T).name()<<std::endl;
+    std::cout<<" type = "<<typeid(T).name()<<"\n";
   }
 
   /**

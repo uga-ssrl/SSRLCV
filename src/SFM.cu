@@ -18,9 +18,6 @@
 #include "MatchFactory.cuh"
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
-#include "Logger.hpp"
-
-ssrlcv::Logger logger; 
 
 /**
  * the safe shutdown methods is initiated when a SIGINT is captured, but can be extended
@@ -48,7 +45,6 @@ int main(int argc, char *argv[]){
     // initialize the logger, this should ONLY HAPPEN ONCE
     // the logger requires that a "safes shutdown" signal handler is created
     // so that the logger.shutdown() method can be called.
-    logger = ssrlcv::Logger("out"); // log in the out directory
     logger.logState("start"); // these can be used to time parts of the pipeline afterwards and correlate it with ofther stuff
     logger.startBackgoundLogging(1); // write a voltage, current, power log every 5 seconds
 

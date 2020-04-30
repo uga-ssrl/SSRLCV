@@ -20,12 +20,7 @@
 #include "MatchFactory.cuh"
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
-#include "Logger.hpp"
 
-/**
- * The global logger
- */
-ssrlcv::Logger logger;
 
 /**
  * the safe shutdown methods is initiated when a SIGINT is captured, but can be extended

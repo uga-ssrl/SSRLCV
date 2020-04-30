@@ -28,6 +28,9 @@ namespace ssrlcv{
 
   public:
 
+    /**
+     * Structure to handle error messages
+     */
     struct Error{
       Logger* logger;
       Error();
@@ -35,8 +38,12 @@ namespace ssrlcv{
       /**
        * Overloaded Bit Shift Left Operator, needed to keep united mutex locking
        */
-      Error& operator<<(const char* input);
+      Error &operator<<(const char* input);
+      Error &operator<<(std::string input);
     };
+    /**
+     * Structure to handle warning messages
+     */
     struct Warning{
       Logger* logger;
       Warning();
@@ -44,7 +51,8 @@ namespace ssrlcv{
       /**
        * Overloaded Bit Shift Left Operator, needed to keep united mutex locking
        */
-      Warning& operator<<(const char *input);
+      Warning &operator<<(const char *input);
+      Warning &operator<<(std::string input);
     };
 
     Error err;
@@ -91,7 +99,7 @@ namespace ssrlcv{
     /**
      * Overloaded Bit Shift Left Operator, needed to keep united mutex locking
      */
-    void operator<<(const char* input);
+    Logger &operator<<(const char* input);
 
     /**
      * Default destructor
@@ -229,11 +237,11 @@ namespace ssrlcv{
 
   }; // end Logger class
 
-  /**
-   * The global logger
-   */
-  extern Logger logger;
 }
 
+/**
+ * The global logger
+ */
+extern ssrlcv::Logger logger;
 
 #endif /* LOGGER_HPP */

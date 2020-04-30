@@ -17,9 +17,9 @@
 #include "cuda_util.cuh"
 #include "cuda_vec_util.cuh"
 #include "matrix_util.cuh"
+#include "Logger.hpp"
 #include "Unity.cuh"
 #include "CVExceptions.hpp"
-#include "Logger.hpp"
 
 //cpp includes
 #include <iostream>

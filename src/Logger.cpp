@@ -1,5 +1,8 @@
 #include "Logger.hpp"
 
+// log in the out directory;
+ssrlcv::Logger logger = ssrlcv::Logger("out"); 
+
 // =============================================================================================================
 //
 // Constructors and Destructors
@@ -106,7 +109,10 @@ ssrlcv::Logger::~Logger(){
   this->stopBackgroundLogging();
 }
 
-void ssrlcv::Logger::operator<<(const char *input){
+
+
+
+ssrlcv::Logger &ssrlcv::Logger::operator<<(const char *input){
   this->log(input);
 }
 ssrlcv::Logger::Error::Error(){
@@ -115,7 +121,11 @@ ssrlcv::Logger::Error::Error(){
 ssrlcv::Logger::Error::Error(ssrlcv::Logger *logger){
   this->logger = logger;
 }
-ssrlcv::Logger::Error& ssrlcv::Logger::Error::operator<<(const char *input){
+ssrlcv::Logger::Error &ssrlcv::Logger::Error::operator<<(const char *input){
+  this->logger->logError(input);
+  return *this;
+}
+ssrlcv::Logger::Error &ssrlcv::Logger::Error::operator<<(std::string input){
   this->logger->logError(input);
   return *this;
 }
@@ -125,10 +135,17 @@ ssrlcv::Logger::Warning::Warning(){
 ssrlcv::Logger::Warning::Warning(ssrlcv::Logger *logger){
   this->logger = logger;
 }
-ssrlcv::Logger::Warning& ssrlcv::Logger::Warning::operator<<(const char *input){
+ssrlcv::Logger::Warning &ssrlcv::Logger::Warning::operator<<(const char *input){
   this->logger->logWarning(input);
   return *this;
 }
+ssrlcv::Logger::Warning &ssrlcv::Logger::Warning::operator<<(std::string input){
+  this->logger->logWarning(input);
+  return *this;
+}
+
+
+
 
 // =============================================================================================================
 //
