@@ -147,7 +147,7 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
           if(local_debug) std::cout << "detected " << num << " Faces" << "\n";
         } else if (!type.compare("edge")) {
           // TODO read in edges if desired
-          std::cout << "\tWARN: edge reading is not currently supported in MeshFactory" << "\n";
+          logger.warn << "\tWARN: edge reading is not currently supported in MeshFactory" << "\n";
           if(local_debug) std::cout << "detected " << num << " Edges" << "\n";
         }
 
@@ -529,7 +529,7 @@ ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculateAverageDistancesToNeighbors(
   bool local_verbose = true;
 
   if (n > 6){
-    std::cout << "WARN: values larger than N = 6 neighbors are not nesseary, chaning N from " << n << " to 6 ..." << "\n";
+    logger.warn << "WARNING: values larger than N = 6 neighbors are not nesseary, chaning N from " << std::to_string(n) << " to 6 ..." << "\n";
   }
 
   int* d_num;

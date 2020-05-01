@@ -166,7 +166,7 @@ ssrlcv::Image::Image(std::string filePath, int id) {
       file.close();
     } else if (fileExists(params_path + "/params.bcp")) {
       std::cout << "Reading BCP encoded camera parameters ..."<< "\n";
-      logger.err << "WARN: BCP camera reading is not yet supported"<< "\n";
+      logger.warn << "WARN: BCP camera reading is not yet supported"<< "\n";
       // TODO read in binary incoded guys here
     } else if (fileExists(params_path + "/" + file_no_digits + "_par.txt")) {
       std::cout << "Middleburry ACSII camera params found for " << filename<< "\n";
@@ -236,7 +236,7 @@ ssrlcv::Image::Image(std::string filePath, int id) {
 
       file.close();
     } else { // if no config file was found!
-      logger.err << "WARN: NO CAMERA PARAM FILE FOUND, at least an empty params.csv or params.bcp is required. To disable this requirement use the flag -np or -noparams" << "\n";
+      logger.warn << "WARN: NO CAMERA PARAM FILE FOUND, at least an empty params.csv or params.bcp is required. To disable this requirement use the flag -np or -noparams" << "\n";
       // std::throw -1; // TODO make this throw an exception
       logger.err << "\t given   filePath: " << filePath<< "\n";
       logger.err << "\t given   filename: " << filename<< "\n";

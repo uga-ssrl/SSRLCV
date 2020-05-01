@@ -2668,9 +2668,8 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // 2-View Case
     //
 
-    std::cout << "WARNING!!!" << std::endl;
-    std::cout << "WARNING: Starting an intesive debug feature, this should be disabled in production" << std::endl;
-    std::cout << "WARNING: DISABLE GENERATE SENSITIVITY FUNCTIONS IN PRODUCTION!!" << std::endl;
+    logger.warn << "WARNING: Starting an intesive debug feature, this should be disabled in production\n";
+    logger.warn << "WARNING: DISABLE GENERATE SENSITIVITY FUNCTIONS IN PRODUCTION!!\n";
 
     // TODO graph (deltas and value)
 

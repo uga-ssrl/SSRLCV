@@ -763,7 +763,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
   matchSet.keyPoints = nullptr;
   matchSet.matches = nullptr;
   if(estimatedOverlap == 0){
-    logger.err<<"WARNING: estimated overlap fraction of 0.0f requires unordered match interpolation"<<"\n";
+    logger.warn<<"WARNING: estimated overlap fraction of 0.0f requires unordered match interpolation"<<"\n";
   }
   std::vector<Image*>::iterator query = images.begin();
   std::vector<Image*>::iterator target = query + 1;

@@ -598,7 +598,7 @@ ssrlcv::Unity<float3>* ssrlcv::readPLY(const char* filePath){
           if(local_debug) std::cout << "detected " << num << " Faces" << "\n";
         } else if (!type.compare("edge")) {
           // TODO read in edges if desired
-          std::cout << "\tWARN: edge reading is not currently supported in MeshFactory" << "\n";
+          logger.warn << "\tWARNING: edge reading is not currently supported in MeshFactory" << "\n";
           if(local_debug) std::cout << "detected " << num << " Edges" << "\n";
         }
 
