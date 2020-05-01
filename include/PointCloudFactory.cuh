@@ -9,7 +9,7 @@
 #include "MatchFactory.cuh"
 #include "Unity.cuh"
 #include "Octree.cuh"
-#include "io_util.h"
+#include "io_util.hpp"
 
 
 namespace ssrlcv{

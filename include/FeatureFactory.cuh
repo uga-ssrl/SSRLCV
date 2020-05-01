@@ -15,7 +15,7 @@
 #include <thrust/scan.h>
 #include <thrust/sort.h>
 #include <thrust/remove.h>
-#include "io_util.h"
+#include "io_util.hpp"
 
 
 #define SIFTBORDER 12

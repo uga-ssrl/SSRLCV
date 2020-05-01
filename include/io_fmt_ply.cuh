@@ -4,7 +4,7 @@
 #include "common_includes.h"
 #include "Unity.cuh"
 #include "Octree.cuh"
-#include "io_util.h"
+#include "io_util.hpp"
 
 #include <fstream> 
 

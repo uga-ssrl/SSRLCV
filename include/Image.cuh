@@ -7,7 +7,7 @@
 #define IMAGE_CUH
 
 #include "common_includes.h"
-#include "io_util.h"
+#include "io_util.hpp"
 #include "Feature.cuh"
 #include <thrust/sort.h>
 #include <thrust/unique.h>

@@ -98,7 +98,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
       numKeyPoints += dog->octaves[o]->extrema->size();
     }
     if(numKeyPoints == 0){
-      std::cerr<<"ERROR: something went wrong and there are 0 keypoints"<<std::endl;
+      logger.err<<"ERROR: something went wrong and there are 0 keypoints\n";
       exit(0);
     }
     std::cout<<"total keypoints found = "<<numKeyPoints<<std::endl;

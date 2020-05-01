@@ -122,10 +122,12 @@ ssrlcv::Logger::Error::Error(ssrlcv::Logger *logger){
   this->logger = logger;
 }
 ssrlcv::Logger::Error &ssrlcv::Logger::Error::operator<<(const char *input){
+  std::cout<<input<<std::endl;
   this->logger->logError(input);
   return *this;
 }
 ssrlcv::Logger::Error &ssrlcv::Logger::Error::operator<<(std::string input){
+  std::cout<<input<<std::endl;
   this->logger->logError(input);
   return *this;
 }

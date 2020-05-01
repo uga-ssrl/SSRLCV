@@ -51,7 +51,7 @@ void checkDims(dim3 grid, dim3 block, int device){
     goodDims = false;
   }
   if(!goodDims){
-    std::cerr<<"ERROR: grid or block dims are invalid for given device"<<std::endl;
+    logger.err<<"ERROR: grid or block dims are invalid for given device\n";
     exit(-1);
     //TODO replace with exception and make more specific
     //maybe make macro like CudaSafeCall()
