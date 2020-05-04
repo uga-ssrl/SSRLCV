@@ -36,7 +36,7 @@ Required:
   * nvcc
   * CUDA 10.0
 
-You may need to create the following directories: `bin, data, obj, out, src, util` (util, data, and src should be in repository)
+You may need to create the following directories: `bin, obj, out`
 
 ## Intended Hardware
 
@@ -67,10 +67,29 @@ make clean
 ```
 
 ## Documentation
+
+### Online Documentation
+
+Documentation on the use of SSRLCV can be found at:
+
+* TODO put live link to wiki here
+* TODO put live link to doxy here
+
+### SSRLCV Utilities
+
+The SSRLCV has various utilities for testing, IO, and data visualization. These can be found at the [SSRLCV utilities gitlab](https://gitlab.smallsat.uga.edu/payload_software/ssrlcv-utilities) repository.
+
+These additional software packages are benefitional:
+* [MeshLab](http://www.meshlab.net/) - Critical for viewing the results of SSRLCV.
+* [CloudCompare](https://cloudcompare.org/) - Useful for comparing ground truth models, the ICP algorithm within CC is great for this.
+
+### Manual Generation
+
 * Generate Doxygen by executing `doxygen doc/doxygen/Doxyfile` from within the projects root directory
 * index.html will be available in doc/doxygen/documentation/html and will allow traversal of the documentation
 
 ## Running
+
 | Flag              | Command Line Argument          | Details                      |
 |:-----------------:|:------------------------------:|:----------------------------:|
 | -i or --image     | `<path/to/single/image>`       | absolute or relative         |
@@ -79,19 +98,9 @@ make clean
 | -np or --noparams |             N/A                | signify no use of params.csv |
 
 
-### Full Pipeline
+### Computer Vision Pipelines
 
-The main program is under bin saved as `SFM` and can be run with `./SFM`
-
-There are addtional separate pipelines (compiled only if specified at make time) in the `/bin` directory. To learn about the pipeline,
-you can find information on SIFT can be learned here: [Anatomy of SIFT](http://gitlab.smallsat.uga.edu/Caleb/anatomy-of-sift/blob/master/Anatomy%20of%20SIFT.pdf), this
-sn't Lowe's original thing but it explains it pretty well. You should also see the latex doc that has been made, [located here](https://gitlab.smallsat.uga.edu/payload_software/Tegra-SFM/blob/master/doc/paper/main.pdf) - this is
-known as the [Algorithm Theoretical Basis Document](https://gitlab.smallsat.uga.edu/payload_software/Tegra-SFM/blob/master/doc/paper/main.pdf).
-
-## Source
-
-Source files for the nominal program are located in the `src` folder. Some additional programs are located in the `util` folder.
-Dependences for the source file are list here, but dependencies for the util files may vary.
+TODO put current pipeline information here
 
 ## Camera Parameters
 
