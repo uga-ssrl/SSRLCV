@@ -7,7 +7,7 @@
 #ifndef FEATUREFACTORY_CUH
 #define FEATUREFACTORY_CUH
 
-#include "common_includes.h"
+#include "common_includes.hpp"
 #include "Image.cuh"
 #include "Feature.cuh"
 #include <thrust/device_ptr.h>

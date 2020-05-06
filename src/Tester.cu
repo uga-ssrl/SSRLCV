@@ -13,7 +13,7 @@
 
 
 
-#include "common_includes.h"
+#include "common_includes.hpp"
 #include "Image.cuh"
 #include "io_util.hpp"
 #include "SIFT_FeatureFactory.cuh"

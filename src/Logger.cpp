@@ -34,8 +34,7 @@ ssrlcv::Logger::Logger(){
   // setting up specific "stream" handlers
   this->err = Error(this);
   this->warn = Warning(this);
-
-  //std::freopen(this->logFileLocation.c_str(),"w",stderr);///
+  // this->verbosity = 0;
 }
 
 /**
@@ -66,8 +65,7 @@ ssrlcv::Logger::Logger(const char* logPath){
   // setting up specific "stream" handlers
   this->err = Error(this);
   this->warn = Warning(this);
-
-  //std::freopen(this->logFileLocation.c_str(), "w", stderr);///
+  // this->verbosity = 0;
 }
 
 /**

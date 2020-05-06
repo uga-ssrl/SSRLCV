@@ -11,24 +11,18 @@
 #ifndef UNITY_CUH
 #define UNITY_CUH
 
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
 #include <cuda.h>
-#include <cuda_occupancy.h>
 #include <thrust/device_ptr.h>
 #include <thrust/sort.h>
 #include <thrust/remove.h>
 #include <thrust/copy.h>
-#include <thrust/execution_policy.h>
 #include <stdio.h>
 #include <cstdio>
 #include <string>
 #include <cstring>
 #include <iostream> 
 #include <fstream>
-#include <csignal>
 #include <typeinfo>
-
 #include "Logger.hpp"
 
 #define CUDA_ERROR_CHECK

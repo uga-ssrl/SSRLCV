@@ -6,7 +6,7 @@
 #ifndef IMAGE_CUH
 #define IMAGE_CUH
 
-#include "common_includes.h"
+#include "common_includes.hpp"
 #include "io_util.hpp"
 #include "Feature.cuh"
 #include <thrust/sort.h>

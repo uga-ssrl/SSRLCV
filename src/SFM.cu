@@ -11,7 +11,7 @@
 //          ___\///////////_______\///////////_____\///________\///__\///////////////________\/////////________\///________
 //           _______________________________________________________________________________________________________________
 
-#include "common_includes.h"
+#include "common_includes.hpp"
 #include "Image.cuh"
 #include "io_util.hpp"
 #include "SIFT_FeatureFactory.cuh"
@@ -20,9 +20,12 @@
 #include "MeshFactory.cuh"
 
 /**
- * the safe shutdown methods is initiated when a SIGINT is captured, but can be extended
+ * \brief Example of safe shutdown method caused by a signal.
+ * \details the safe shutdown methods is initiated when a SIGINT is captured, but can be extended
  * to many other types of exeption handleing. Here we should makes sure that
  * memory is safely shutting down, CPU threads are killed, and whatever else is desired.
+ * \note ssrlcv::Unity<T>::checkpoint() is a great way to keep progress, but the Unity must be 
+ * global to call this in any signal capturing method
  */
 void safeShutdown(int sig){
   std::cout << "Safely Ending SSRLCV ..." << std::endl;

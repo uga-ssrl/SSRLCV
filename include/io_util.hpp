@@ -5,11 +5,12 @@
 #ifndef IO_UTIL_H
 #define IO_UTIL_H
 
-#include "common_includes.h"
+#include "common_includes.hpp"
+#include <png.h>
+#include <jpeglib.h>
+#include <jerror.h>
+#include "tinyply.h"
 #include "Unity.cuh"
-#include "Octree.cuh"
-// #include "PointCloudFactory.cuh"
-#include <stdio.h>
 
 namespace ssrlcv{
   /**

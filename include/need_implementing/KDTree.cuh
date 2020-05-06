@@ -1,7 +1,7 @@
 #ifndef KDTREE_CUH
 #define KDTREE_CUH
 
-#include "common_includes.h"
+#include "common_includes.hpp"
 #include "Unity.cuh"
 
 namespace ssrlcv{

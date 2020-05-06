@@ -1,7 +1,7 @@
 #ifndef __IO_FILE__
 #define __IO_FILE__
 
-#include "common_includes.h"
+#include "common_includes.hpp"
 #include "Unity.cuh"
 #include "Octree.cuh"
 #include "io_util.hpp"

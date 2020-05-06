@@ -10,11 +10,10 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <cstring>
-#include <ctype.h>
+// #include <cstring>
+// #include <ctype.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <csignal>
 #include <iomanip>
 #include <thread>
 #include <mutex>
@@ -55,8 +54,17 @@ namespace ssrlcv{
       Warning &operator<<(std::string input);
     };
 
+    enum Verbosity{
+      nothing = 0,
+      errors = 1,
+      warnings = 2,
+      comments = 3
+    };
+
     Error err;
     Warning warn;
+
+    int verbosity;//
 
     // public variables
 

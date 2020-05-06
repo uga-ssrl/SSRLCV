@@ -4,7 +4,6 @@
 #ifndef MATRIXUTIL_CUH
 #define MATRIXUTIL_CUH
 
-#include "common_includes.h"
 #include "cuda_util.cuh"
 
 namespace ssrlcv{

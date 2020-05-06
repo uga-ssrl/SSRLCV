@@ -7,8 +7,6 @@
 
 #include "cuda_util.cuh"
 
-
-
 __device__ void orderInt3(int3 &toOrder);
 
 //TODO do this for all vector types and related type operations

@@ -4,7 +4,7 @@
 #ifndef OCTREE_CUH
 #define OCTREE_CUH
 
-#include "common_includes.h"
+#include "common_includes.hpp"
 #include <thrust/sort.h>
 #include <thrust/pair.h>
 #include <thrust/unique.h>

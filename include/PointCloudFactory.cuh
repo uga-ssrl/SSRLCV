@@ -4,7 +4,7 @@
 #ifndef POINTCLOUDFACTORY_CUH
 #define POINTCLOUDFACTORY_CUH
 
-#include "common_includes.h"
+#include "common_includes.hpp"
 #include "Image.cuh"
 #include "MatchFactory.cuh"
 #include "Unity.cuh"

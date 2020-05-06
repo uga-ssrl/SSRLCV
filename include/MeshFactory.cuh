@@ -4,7 +4,7 @@
 #ifndef MESHFACTORY_CUH
 #define MESHFACTORY_CUH
 
-#include "common_includes.h"
+#include "common_includes.hpp"
 #include "Image.cuh"
 #include "Octree.cuh"
 #include <thrust/scan.h>

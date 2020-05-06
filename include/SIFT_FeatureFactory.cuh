@@ -4,7 +4,7 @@
 #ifndef SIFT_FEATUREFACTORY_CUH
 #define SIFT_FEATUREFACTORY_CUH
 
-#include "common_includes.h"
+#include "common_includes.hpp"
 #include "FeatureFactory.cuh"
 
 namespace ssrlcv{

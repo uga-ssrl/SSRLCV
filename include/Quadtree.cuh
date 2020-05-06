@@ -4,7 +4,7 @@
 #ifndef QUADTREE_CUH
 #define QUADTREE_CUH
 
-#include "common_includes.h"
+#include "common_includes.hpp"
 #include "Image.cuh"
 #include <thrust/sort.h>
 #include <thrust/pair.h>
