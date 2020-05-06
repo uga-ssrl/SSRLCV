@@ -4,8 +4,9 @@
  * \details This file includes all exceptions that could be thrown
  * in the ssrlcv library that do not involve CUDA or the Unity class.
 */
-#ifndef CVEXCEPTIONS_HPP
-#define CVEXCEPTIONS_HPP
+#pragma once
+#ifndef EXCEPTIONS_HPP
+#define EXCEPTIONS_HPP
 
 #include <stdio.h>
 #include <string>
@@ -22,17 +23,23 @@ namespace ssrlcv{
    * \details All other SSRLCV exceptions should be 
    * children of this struct.
   */
-  struct CVException : std::exception{
+  struct SSRLCVException : std::exception{
     std::string msg;
-    CVException(){
+    SSRLCVException()
+    {
       msg = "SSRLCV Exception";
     }
-    CVException(std::string msg) : msg("SSRLCV Exception: " + msg){}
+    SSRLCVException(std::string msg) : msg("SSRLCV Exception: " + msg) {}
     virtual const char* what() const throw(){
       return msg.c_str();
     }
   };
-  struct FileIOExpection : CVException{
+  /**
+   * \brief Base SSRLCV File IO Exception
+   * \details All exceptions related to file IO should be 
+   * derived from this struct.  
+   */
+  struct FileIOExpection : SSRLCVException{
     std::string msg;
     FileIOExpection(){
       msg = "File IO Exception";
@@ -42,12 +49,16 @@ namespace ssrlcv{
       return msg.c_str();
     }
   };
+  /**
+   * \brief Exception thrown when there is an attempt to use 
+   * an unsupported image type. (tiff is one of these right now)
+   */
   struct UnsupportedImageException : FileIOExpection{
     std::string msg;
     UnsupportedImageException(){
       msg = "Unsupported Image Type Exception (supported = png,jpg,tiff)";
     }
-    UnsupportedImageException(std::string msg) : msg("Unsupported Image Type Exception (supported = png,jpg,tiff): " + msg) {}
+    UnsupportedImageException(std::string msg) : msg("Unsupported Image Type Exception (supported = png,jpg): " + msg) {}
     virtual const char *what() const throw(){
       return msg.c_str();
     }
@@ -63,4 +74,4 @@ namespace ssrlcv{
 
 
 
-#endif /* CVEXCEPTIONS_HPP */
+#endif /* EXCEPTIONS_HPP */

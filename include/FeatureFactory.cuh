@@ -3,11 +3,11 @@
 * \details All feature factories should be derivative of this class
 * and should include this file.
 */
-
+#pragma once
 #ifndef FEATUREFACTORY_CUH
 #define FEATUREFACTORY_CUH
 
-#include "common_includes.h"
+#include "common_includes.hpp"
 #include "Image.cuh"
 #include "Feature.cuh"
 #include <thrust/device_ptr.h>
