@@ -355,7 +355,7 @@ depth(depth), isDOG(makeDOG){
 
     int numResize = (int)powf(2, startingOctave+depth.x);
     if(image->size.x/numResize == 0 || image->size.y/numResize == 0){
-        std::cerr<<"This image is too small to make a ScaleSpace of the specified depth"<<std::endl;
+        logger.err<<"This image is too small to make a ScaleSpace of the specified depth"<<"\n";
         exit(-1);
     }
 
@@ -488,15 +488,15 @@ void ssrlcv::FeatureFactory::ScaleSpace::dumpData(std::string filePath){
     }
 }
 void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, float edgeThreshold, bool subpixel){
-    std::cout<<"looking for keypoints..."<<std::endl;
+    std::cout<<"looking for keypoints..."<<"\n";
     if(this->depth.y < 4){
-        std::cerr<<"findKeyPoints should be done on a dog scale space - this is either not a dog or the number of blurs is insufficient"<<std::endl;
+        logger.err<<"findKeyPoints should be done on a dog scale space - this is either not a dog or the number of blurs is insufficient"<<"\n";
         exit(-1);
     }
     int temp = 0;
     Unity<SSKeyPoint>* currentExtrema = nullptr;
     for(int i = 0; i < this->depth.x; ++i){
-        if(i != 0 && this->octaves[i]->extrema != nullptr) std::cout<<std::endl;
+        if(i != 0 && this->octaves[i]->extrema != nullptr) std::cout<<"\n";
         this->octaves[i]->searchForExtrema();
         this->octaves[i]->normalize();
         currentExtrema = this->octaves[i]->extrema;
@@ -526,7 +526,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, flo
         this->octaves[i]->removeEdges(edgeThreshold);
         if(currentExtrema == nullptr) continue;
         std::cout<<"-"<<temp - currentExtrema->size();
-        std::cout<<"="<<currentExtrema->size()<<std::endl;
+        std::cout<<"="<<currentExtrema->size()<<"\n";
     }
     for(int i = 0; i < this->depth.x; ++i){
         if(this->octaves[i]->extrema == nullptr){
@@ -546,7 +546,7 @@ ssrlcv::Unity<ssrlcv::FeatureFactory::ScaleSpace::SSKeyPoint>* ssrlcv::FeatureFa
         totalKeyPoints += this->octaves[i]->extrema->size();
     }
     if(totalKeyPoints == 0){
-        std::cerr<<"scale space has no keyPoints generated within its octaves"<<std::endl;
+        logger.err<<"scale space has no keyPoints generated within its octaves"<<"\n";
         exit(0);
     }
     Unity<SSKeyPoint>* aggregatedKeyPoints = new Unity<SSKeyPoint>(nullptr,totalKeyPoints,keepThenTransfer ? gpu : destination);
@@ -566,7 +566,7 @@ ssrlcv::Unity<ssrlcv::FeatureFactory::ScaleSpace::SSKeyPoint>* ssrlcv::FeatureFa
 }
 
 void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orientationThreshold, unsigned int maxOrientations, float contributerWindowWidth, bool keepGradients){
-    std::cout<<"computing keypoint orientations..."<<std::endl;
+    std::cout<<"computing keypoint orientations..."<<"\n";
     ScaleSpace::Octave* currentOctave = nullptr;
     ScaleSpace::Octave::Blur* currentBlur = nullptr;
     int* thetaAddresses_device = nullptr;

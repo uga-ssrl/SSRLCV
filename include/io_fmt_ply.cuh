@@ -1,11 +1,10 @@
-#ifndef __IO_FILE__
-#define __IO_FILE__
+#pragma once
+#ifndef IO_FMT_PLY_CUH
+#define IO_FMT_PLY_CUH
 
-#include "common_includes.h"
-#include "Unity.cuh"
+#include "common_includes.hpp"
 #include "Octree.cuh"
-#include "io_util.h"
-
+#include "io_util.hpp"
 #include <fstream> 
 
 namespace ssrlcv {
@@ -44,4 +43,4 @@ namespace ssrlcv {
   }
 }
 
-#endif
+#endif /* IO_FMT_PLY_CUH */

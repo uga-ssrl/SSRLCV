@@ -5,9 +5,15 @@
 * be defined. All features need a distProtocol implemented to be 
 * compatible with MatchFactory. 
 */
+#pragma once
 #ifndef FEATURE_CUH
 #define FEATURE_CUH
-#include "common_includes.h"
+#include <iostream>
+#include <stdio.h>
+#include <cuda.h>
+#include <cfloat>
+
+//#include "common_includes.hpp"
 
 namespace ssrlcv{
   /**
