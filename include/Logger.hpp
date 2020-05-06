@@ -54,7 +54,7 @@ namespace ssrlcv{
       Warning &operator<<(const char *input);
       Warning &operator<<(std::string input);
     };
-
+    //TODO add this support and think about this
     enum Verbosity{
       nothing = 0,
       errors = 1,
