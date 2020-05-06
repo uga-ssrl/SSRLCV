@@ -2,6 +2,7 @@
 * \brief this contains helpful ways to log data
 * \note The global logger is declared externally at the bottom  of this file
 */
+#pragma once
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
 

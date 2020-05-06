@@ -4,6 +4,7 @@
  * \details This file includes all exceptions that could be thrown
  * in the ssrlcv library that do not involve CUDA or the Unity class.
 */
+#pragma once
 #ifndef EXCEPTIONS_HPP
 #define EXCEPTIONS_HPP
 

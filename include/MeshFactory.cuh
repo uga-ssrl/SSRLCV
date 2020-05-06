@@ -1,6 +1,7 @@
 /** \file MeshFactory.cuh
 * \brief this file contains all mesh generation methods
 */
+#pragma once
 #ifndef MESHFACTORY_CUH
 #define MESHFACTORY_CUH
 

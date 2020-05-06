@@ -2,6 +2,7 @@
 * \file MatchFactory.cuh
 * \brief this file contains all feature matching methods
 */
+#pragma once
 #ifndef MATCHFACTORY_CUH
 #define MATCHFACTORY_CUH
 
@@ -104,21 +105,27 @@ namespace ssrlcv{
   }
 
   /**
-  * \brief Factory for generating matches for accepted features
-  * \details 
-  * \note if attempting to add new Feature support implement distProtocol() for 
-  * \see Feature 
-  * \see SIFT_Descriptor
-  * \see Window3x3
-  * \see Window9x9
-  * \see Window15x15
-  * \see Window25x25
-  * \see Window31x31
-  */
+   * \brief Factory for generating matches for accepted features
+   * \details This factory has a series of methods for matching 
+   * Fetures with filled descriptors. The descriptors implemented must 
+   * have the distProtocol method implemented (see Feature.cuh). For 
+   * better matching it is recommended to utilize a seed image where  
+   * images in question will have no overlap. Additionally, before 
+   * this becomes a header only implementation it is necessary 
+   * to forward declare the new descriptor at the top of MatchFactory.cu like 
+   * "template class ssrlcv::MatchFactory<Descriptor>;"".
+   * \see Feature 
+   * \see SIFT_Descriptor
+   * \see Window3x3
+   * \see Window9x9
+   * \see Window15x15
+   * \see Window25x25
+   * \see Window31x31
+   */
   template<typename T>
   class MatchFactory{
   private:
-    Unity<Feature<T>>* seedFeatures;
+    Unity<Feature<T>>* seedFeatures;///< \
   public:
     float absoluteThreshold;//squared distance
     float relativeThreshold;
@@ -126,20 +133,75 @@ namespace ssrlcv{
     MatchFactory(float relativeThreshold, float absoluteThreshold);
     void setSeedFeatures(Unity<Feature<T>>* seedFeatures);//implement
 
+    /**
+     * \brief Discards matches flagged as invalid
+     * \details This will discard any Match with the 
+     * invalid parameter set to true.
+     * \param matches Unity with matches
+     * \see Unity
+     */
     void validateMatches(Unity<Match>* matches);
+    /**
+     * \brief Discards matches flagged as invalid
+     * \details This will discard any DMatch with the 
+     * invalid parameter set to true.
+     * \param matches Unity with matches
+     * \see Unity
+     */
     void validateMatches(Unity<DMatch>* matches);
+    /**
+     * \brief Discards matches flagged as invalid
+     * \details This will discard any FeatureMatch<T> with the 
+     * invalid parameter set to true.
+     * \param matches Unity with matches
+     * \see Unity
+     */
     void validateMatches(Unity<FeatureMatch<T>>* matches);
+    /**
+     * \brief Discards matches flagged as invalid
+     * \details This will discard any uint2_pair with the 
+     * invalid parameter set to true.
+     * \param matches Unity with matches
+     * \see Unity
+     */
     void validateMatches(Unity<uint2_pair>* matches);
 
+    /**
+     * \brief Discards matches with distance over an absolute threshold.
+     * \details Depending on the descriptor that the DMatch came from,
+     * the distProtocol method fills in the distance parameter. If 
+     * the distance is less than the treshold it is kept. 
+     * \param matches Unity with matches
+     * \param threshold absolute threshold for checking distance
+     * \see Unity
+     */
     void refineMatches(Unity<DMatch>* matches, float threshold);
+    /**
+     * \brief Discards matches with distance over an absolute threshold.
+     * \details Depending on the descriptor that the FeatureMatch<T> came from,
+     * the distProtocol method fills in the distance parameter. If 
+     * the distance is less than the treshold it is kept. 
+     * \param matches Unity with matches
+     * \param threshold absolute threshold for checking distance
+     * \see Unity
+     */
     void refineMatches(Unity<FeatureMatch<T>>* matches, float threshold);
 
     /**
-    * \brief sorts all matches by mismatch distance
-    * \note this is a cpu version
-    */
+     * \brief sorts all DMatches by mismatch distance
+     * \param matches Unity of DMatches to be sorted by mismatch distance
+     * \see Unity 
+     */
     void sortMatches(Unity<DMatch>* matches);
+    /**
+     * \brief sorts all FeatureMatch<T> by mismatch distance
+     * \param matches Unity of FeatureMatches to be sorted by mismatch distance
+     * \see Unity
+     */
     void sortMatches(Unity<FeatureMatch<T>>* matches);
+    /**
+     *
+     */
     Unity<Match>* getRawMatches(Unity<DMatch>* matches);
     Unity<Match>* getRawMatches(Unity<FeatureMatch<T>>* matches);
 

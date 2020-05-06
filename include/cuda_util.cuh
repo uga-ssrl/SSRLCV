@@ -7,6 +7,7 @@
 * used from outside the compilation unit, they are listed at the bottom 
 * of the cuda_util.cuh header. 
 */
+#pragma once
 #ifndef CUDA_UTIL_CUH
 #define CUDA_UTIL_CUH
 

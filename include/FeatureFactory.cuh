@@ -3,7 +3,7 @@
 * \details All feature factories should be derivative of this class
 * and should include this file.
 */
-
+#pragma once
 #ifndef FEATUREFACTORY_CUH
 #define FEATUREFACTORY_CUH
 

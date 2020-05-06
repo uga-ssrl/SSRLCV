@@ -2,6 +2,7 @@
 * \file io_util.h
 * \brief This file contains image io methods.
 */
+#pragma once
 #ifndef IO_UTIL_H
 #define IO_UTIL_H
 

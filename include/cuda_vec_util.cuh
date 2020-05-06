@@ -2,6 +2,7 @@
 * \file cuda_vec_util.cuh
 * \brief This file contains operator overloads and utility functions for cuda built in vectors.
 */
+#pragma once
 #ifndef CUDA_VEC_UTIL_CUH
 #define CUDA_VEC_UTIL_CUH
 

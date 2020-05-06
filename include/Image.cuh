@@ -3,6 +3,7 @@
 * \brief Image related structs, methods and CUDA kernels
 * \todo Convert all methods and struct to allow any arithmetic type for pixel values.
 */
+#pragma once
 #ifndef IMAGE_CUH
 #define IMAGE_CUH
 

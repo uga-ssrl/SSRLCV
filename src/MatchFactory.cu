@@ -1,12 +1,15 @@
 #include "MatchFactory.cuh"
 
+
+/**
+ * forward declarations of MatchFactories with descriptors that have distProtocol() implemented
+ */
 template class ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>;
 template class ssrlcv::MatchFactory<ssrlcv::Window_3x3>;
 template class ssrlcv::MatchFactory<ssrlcv::Window_9x9>;
 template class ssrlcv::MatchFactory<ssrlcv::Window_15x15>;
 template class ssrlcv::MatchFactory<ssrlcv::Window_25x25>;
 template class ssrlcv::MatchFactory<ssrlcv::Window_31x31>;
-
 
 template<typename T>
 ssrlcv::MatchFactory<T>::MatchFactory(){

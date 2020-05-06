@@ -1,6 +1,7 @@
 /** \file Quadtree.cuh
  * \brief File contains all things related to CUDA Quadtree.
 */
+#pragma once
 #ifndef QUADTREE_CUH
 #define QUADTREE_CUH
 

@@ -1,6 +1,7 @@
 /** \file PointCloudFactory.cuh
 * \brief this file contains methods for deriving point clouds
 */
+#pragma once
 #ifndef POINTCLOUDFACTORY_CUH
 #define POINTCLOUDFACTORY_CUH
 

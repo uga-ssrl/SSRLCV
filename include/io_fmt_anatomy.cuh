@@ -1,3 +1,4 @@
+#pragma once
 #ifndef IO_FMT_ANATOMY_CUH
 #define IO_FMT_ANATOMY_CUH
 

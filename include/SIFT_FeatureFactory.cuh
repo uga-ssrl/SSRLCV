@@ -1,6 +1,7 @@
 /** \file This file contains methods and kernels for the SIFT_FeatureFactory
 *
 */
+#pragma once
 #ifndef SIFT_FEATUREFACTORY_CUH
 #define SIFT_FEATUREFACTORY_CUH
 
