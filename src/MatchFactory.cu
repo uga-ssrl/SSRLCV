@@ -11,10 +11,11 @@ template class ssrlcv::MatchFactory<ssrlcv::Window_15x15>;
 template class ssrlcv::MatchFactory<ssrlcv::Window_25x25>;
 template class ssrlcv::MatchFactory<ssrlcv::Window_31x31>;
 
+
 template<typename T>
 ssrlcv::MatchFactory<T>::MatchFactory(){
-  this->relativeThreshold = 0.8f;
-  this->absoluteThreshold = 250.0f;
+  this->relativeThreshold = 1.0f;
+  this->absoluteThreshold = FLT_MAX;
   this->seedFeatures = nullptr;
 }
 template<typename T>
@@ -1090,15 +1091,10 @@ __device__ __forceinline__ float ssrlcv::atomicMinFloat (float * addr, float val
   return old;
 }
 
-//TODO change currentDist to type D
-
 /*
-matching
+  diparity matching kernels
 */
-//base matching kernels
 
-//base matching kernels
-//TODO block this out
 __global__ void ssrlcv::disparityMatching(uint2 querySize, unsigned char* pixelsQuery, uint2 targetSize, unsigned char* pixelsTarget, float* fundamental, Match* matches, unsigned int maxDisparity, Direction direction){
   unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   uint2 minimizedSize = {querySize.x-blockDim.x-1,querySize.y-blockDim.x-1};
@@ -1233,6 +1229,9 @@ __global__ void ssrlcv::disparityScanMatching(uint2 querySize, unsigned char* pi
 }
 
 
+/*
+  Matching kernels
+*/
 template<typename T>
 __global__ void ssrlcv::getSeedMatchDistances(unsigned long numFeaturesQuery, Feature<T>* featuresQuery, unsigned long numSeedFeatures,
 Feature<T>* seedFeatures, float* matchDistances){
@@ -1261,7 +1260,6 @@ Feature<T>* seedFeatures, float* matchDistances){
     matchDistances[blockId] = currentDist;
   }
 }
-
 template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
@@ -1485,7 +1483,6 @@ float relativeThreshold, float absoluteThreshold){
     matches[blockId] = match;
   }
 }
-
 
 template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
@@ -1953,8 +1950,6 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
   }
 }
 
-
-
 template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
@@ -2163,7 +2158,9 @@ float relativeThreshold, float absoluteThreshold){
   }
 }
 
-//utility kernels
+/*
+  utility kernels
+*/
 __global__ void ssrlcv::convertMatchToRaw(unsigned long numMatches, ssrlcv::Match* rawMatches, ssrlcv::DMatch* matches){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < numMatches){
