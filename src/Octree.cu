@@ -1440,7 +1440,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
   if(points_origin == cpu){
     this->points->transferMemoryTo(gpu);
   }
-  std::cout<<"WARNING: float3 normal calculation is currently performed only on sphere centers"<<std::endl;
+  logger.warn <<"WARNING: float3 normal calculation is currently performed only on sphere centers\n";
   findNormalNeighborsAndComputeCMatrix<<<grid, block>>>(numNodesAtDepth, nodeDepthIndex, maxNeighbors,
     this->nodes->device, this->points->device, cMatrix_device, neighborIndices_device, numRealNeighbors_device);
 

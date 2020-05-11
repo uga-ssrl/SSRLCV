@@ -13,19 +13,14 @@
 
 
 
-#include "common_includes.h"
+#include "common_includes.hpp"
 #include "Image.cuh"
-#include "io_util.h"
+#include "io_util.hpp"
 #include "SIFT_FeatureFactory.cuh"
 #include "MatchFactory.cuh"
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
-#include "Logger.hpp"
 
-/**
- * The global logger
- */
-ssrlcv::Logger logger;
 
 /**
  * the safe shutdown methods is initiated when a SIGINT is captured, but can be extended

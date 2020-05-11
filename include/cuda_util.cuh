@@ -7,23 +7,20 @@
 * used from outside the compilation unit, they are listed at the bottom 
 * of the cuda_util.cuh header. 
 */
+#pragma once
 #ifndef CUDA_UTIL_CUH
 #define CUDA_UTIL_CUH
 
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
 #include <cuda.h>
+#include <cuda_occupancy.h>
 #include <thrust/device_ptr.h>
 #include <thrust/sort.h>
 #include <thrust/remove.h>
+#include <cusolverDn.h>
+#include <iostream>
+#include <string>
 #include "Unity.cuh"
 
-#include <cusolverDn.h>
-#include <stdio.h>
-#include <cuda_occupancy.h>
-#include <iostream>
-#include <map>
-#include <string>
 
 
 /**

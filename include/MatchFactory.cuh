@@ -2,10 +2,11 @@
 * \file MatchFactory.cuh
 * \brief this file contains all feature matching methods
 */
+#pragma once
 #ifndef MATCHFACTORY_CUH
 #define MATCHFACTORY_CUH
 
-#include "common_includes.h"
+#include "common_includes.hpp"
 #include "Image.cuh"
 #include "Feature.cuh"
 #include <thrust/device_ptr.h>
@@ -22,8 +23,6 @@ namespace ssrlcv{
     uint2 a;
     uint2 b;
   };
-
-  //TODO differentiate distance methods and pass function pointers to matching kernels
 
   /**
   * \brief simple struct meant to fill out matches
@@ -72,6 +71,9 @@ namespace ssrlcv{
   };
 
   namespace{
+    /**
+     * Structs used with thrust::remove_if on GPU arrays
+     */
     struct validate{
       __host__ __device__ bool operator()(const Match &m){
         return m.invalid;
@@ -86,7 +88,6 @@ namespace ssrlcv{
         return m.distance > 0.0f;
       }
     };
-
     struct match_dist_thresholder{
       float threshold;
       match_dist_thresholder(float threshold) : threshold(threshold){};
@@ -95,6 +96,10 @@ namespace ssrlcv{
         return (m.distance > threshold);
       }
     };
+
+    /**
+     * Struct for comparison to be used with thrust::sort on GPU arrays
+     */
     struct match_dist_comparator{
       __host__ __device__
       bool operator()(const DMatch& a, const DMatch& b){
@@ -104,92 +109,191 @@ namespace ssrlcv{
   }
 
   /**
-  * \brief Factory for generating matches for accepted features
-  * \details 
-  * \note if attempting to add new Feature support implement distProtocol() for 
-  * \see Feature 
-  * \see SIFT_Descriptor
-  * \see Window3x3
-  * \see Window9x9
-  * \see Window15x15
-  * \see Window25x25
-  * \see Window31x31
-  */
+   * \brief Factory for generating matches for accepted features
+   * \details This factory has a series of methods for matching 
+   * Fetures with filled descriptors. The descriptors implemented must 
+   * have the distProtocol method implemented (see Feature.cuh). For 
+   * better matching it is recommended to utilize a seed image where  
+   * images in question will have no overlap. Additionally, before 
+   * this becomes a header only implementation it is necessary 
+   * to forward declare the new descriptor at the top of MatchFactory.cu like 
+   * "template class ssrlcv::MatchFactory<Descriptor>;"".
+   * \see Feature 
+   * \see SIFT_Descriptor
+   * \see Window3x3
+   * \see Window9x9
+   * \see Window15x15
+   * \see Window25x25
+   * \see Window31x31
+   * \todo allow user to pass in their own distProtocol methods for features
+   */
   template<typename T>
   class MatchFactory{
   private:
-    Unity<Feature<T>>* seedFeatures;
+    Unity<Feature<T>>* seedFeatures;///<\brief Features generated from false seed image
   public:
-    float absoluteThreshold;//squared distance
-    float relativeThreshold;
+    float absoluteThreshold;///<\brief Absolute distance threshold relative to the return of Descrpitor type T's distProtocol()
+    float relativeThreshold;///<\brief Relative threshold based on closest descriptor neighbor/closest seed descriptor (fraction)
+    /**
+     * \brief Default constructor
+     * \details This constructor sets absoluteThreshold to FLT_MAX and 
+     * and relativeThreshold to 1.0. Keeping these values is not recommended. 
+     */
     MatchFactory();
+    /**
+     * \brief Primary constructor
+     * \param relativeThreshold seed distance threshold
+     * \param absoluteThreshold distProtocol returm threshold
+     */
     MatchFactory(float relativeThreshold, float absoluteThreshold);
-    void setSeedFeatures(Unity<Feature<T>>* seedFeatures);//implement
+    /**
+     * \brief Sets seed features of MatchFactory to enable relative thresholding. 
+     * \details These feature should come from and image that will have no overlap 
+     * with iamges that are attempting to be matched. 
+     * \param seedFeatures Unity of Features from a nonoverlapping image. 
+     * \see Unity
+     */
+    void setSeedFeatures(Unity<Feature<T>>* seedFeatures);
 
+    /**
+     * \brief Discards matches flagged as invalid
+     * \details This will discard any Match with the 
+     * invalid parameter set to true.
+     * \param matches Unity with matches
+     * \see Unity
+     */
     void validateMatches(Unity<Match>* matches);
+    /**
+     * \brief Discards matches flagged as invalid
+     * \details This will discard any DMatch with the 
+     * invalid parameter set to true.
+     * \param matches Unity with matches
+     * \see Unity
+     */
     void validateMatches(Unity<DMatch>* matches);
+    /**
+     * \brief Discards matches flagged as invalid
+     * \details This will discard any FeatureMatch<T> with the 
+     * invalid parameter set to true.
+     * \param matches Unity with matches
+     * \see Unity
+     */
     void validateMatches(Unity<FeatureMatch<T>>* matches);
+    /**
+     * \brief Discards matches flagged as invalid
+     * \details This will discard any uint2_pair with the 
+     * invalid parameter set to true.
+     * \param matches Unity with matches
+     * \see Unity
+     */
     void validateMatches(Unity<uint2_pair>* matches);
 
+    /**
+     * \brief Discards matches with distance over an absolute threshold.
+     * \details Depending on the descriptor that the DMatch came from,
+     * the distProtocol method fills in the distance parameter. If 
+     * the distance is less than the treshold it is kept. 
+     * \param matches Unity with matches
+     * \param threshold absolute threshold for checking distance
+     * \see Unity
+     */
     void refineMatches(Unity<DMatch>* matches, float threshold);
+    /**
+     * \brief Discards matches with distance over an absolute threshold.
+     * \details Depending on the descriptor that the FeatureMatch<T> came from,
+     * the distProtocol method fills in the distance parameter. If 
+     * the distance is less than the treshold it is kept. 
+     * \param matches Unity with matches
+     * \param threshold absolute threshold for checking distance
+     * \see Unity
+     */
     void refineMatches(Unity<FeatureMatch<T>>* matches, float threshold);
 
     /**
-    * \brief sorts all matches by mismatch distance
-    * \note this is a cpu version
-    */
+     * \brief sorts all DMatches by mismatch distance
+     * \param matches Unity of DMatches to be sorted by mismatch distance
+     * \see Unity 
+     */
     void sortMatches(Unity<DMatch>* matches);
+    /**
+     * \brief sorts all FeatureMatch<T> by mismatch distance
+     * \param matches Unity of FeatureMatches to be sorted by mismatch distance
+     * \see Unity
+     */
     void sortMatches(Unity<FeatureMatch<T>>* matches);
+    /**
+     * \brief Returns Unity of simplified Match structs.
+     * \details This simply converts every element in the Unity 
+     * to the base Match struct, removing distance as a parameter.
+     * \param matches Unity of DMatches to be converted to Matches
+     * \returns Unity<Match>* an array of simplified matches
+     * \see Unity
+     */
     Unity<Match>* getRawMatches(Unity<DMatch>* matches);
+    /**
+     * \brief Returns Unity of simplified Match structs.
+     * \details This simply converts every element in the Unity 
+     * to the base Match struct, removing distance and the matched descriptors.
+     * \param matches Unity of FeatureMatches to be converted to Matches
+     * \returns Unity<Match>* an array of simplified matches
+     * \see Unity
+     */
     Unity<Match>* getRawMatches(Unity<FeatureMatch<T>>* matches);
 
+    /**
+     * \brief Generates distances between a set of features and the closest seedFeatures.
+     * \details This method matches this->seedFeatures and the passed in Unity of Features 
+     * and returns the distance of the closest seedFeature based on the distProtocol method 
+     * of the descriptor. 
+     * \param features features to be matches against this->seedFeatures
+     * \returns Unity<float>* an array same length as features with distances associated 
+     */
     Unity<float>* getSeedDistances(Unity<Feature<T>>* features);
 
     /**
-    * \brief Generates matches between sift features
-    */
+     * \brief Generates Matches between Feature<Descriptor> when Descriptor::distProtocol() is implemented
+     */
     Unity<Match>* generateMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances = nullptr);
     /**
-    * \brief Generates matches between sift features constrained by epipolar line
-    * \warning This method requires Images to have filled out Camera variables
-    */
+     * \brief Generates Matches between Feature<Descriptor> when Descriptor::distProtocol() is implemented with epipolar constaints
+     * \param fundamental fundamental matrix generated from the query and target image camera parameters
+     * \warning If bad fundamental matrix between two images, matches will be very bad. 
+     */
     Unity<Match>* generateMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
 
     /**
-    * \brief Generates matches between sift features
-    */
+     * \brief Generates DMatches between Feature<Descriptor> when Descriptor::distProtocol() is implemented
+     */
     Unity<DMatch>* generateDistanceMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances = nullptr);
     /**
-    * \brief Generates matches between sift features constrained by epipolar line
-    * \warning This method requires Images to have filled out Camera variables
-    */
+     * \brief Generates DMatches between Feature<Descriptor> when Descriptor::distProtocol() is implemented with epipolar constaints
+     * \warning If bad fundamental matrix between two images, matches will be very bad. 
+     */
     Unity<DMatch>* generateDistanceMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
     
     /**
-    * \brief Generates matches between sift features
-    */
+     * \brief Generates FeatureMatch<Descriptor>s between Feature<Descriptor> when Descriptor::distProtocol() is implemented
+     */
     Unity<FeatureMatch<T>>* generateFeatureMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances = nullptr);
     /**
-    * \brief Generates matches between sift features constrained by epipolar line
-    * \warning This method requires Images to have filled out Camera variables
-    */
+     * \brief Generates FeatureMatch<Descriptor>s between Feature<Descriptor> when Descriptor::distProtocol() is implemented with epipolar constraints
+     * \warning This method requires Images to have filled out Camera variables
+     */
     Unity<FeatureMatch<T>>* generateFeatureMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
 
-    //todo also add int3 to include distance
+
     Unity<uint2_pair>* generateMatchesIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances = nullptr);
     Unity<uint2_pair>* generateMatchesConstrainedIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
 
-    //estimated overlap is a fraction
     /**
     * \brief Match a set of images 
-    * \details 
+    * \param images images that features were generated from
+    * \param features features generated from images
+    * \param ordered is the image set ordered or not
+    * \param estimatedOverlap fraction of overlap from one image to the next
     */
     MatchSet generateMatchesExaustive(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
-    MatchSet generateMatchesBBF(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
-    MatchSet generateMatchesKDTree(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
-
-    
-
+  
   };
 
   Unity<Match>* generateDiparityMatches(uint2 querySize, Unity<unsigned char>* queryPixels, uint2 targetSize, Unity<unsigned char>* targetPixels, 

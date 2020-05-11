@@ -2,7 +2,7 @@
 #define SURF_FEATUREFACTORY_CUH
 
 
-#include "common_includes.h"
+#include "common_includes.hpp"
 #include "FeatureFactory.cuh"
 
 namespace ssrlcv{

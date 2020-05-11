@@ -1,11 +1,12 @@
 /** \file matrix_util.cuh
  * \brief file for housing matrix utility functions
 */
+#pragma once
 #ifndef MATRIXUTIL_CUH
 #define MATRIXUTIL_CUH
 
-#include "common_includes.h"
 #include "cuda_util.cuh"
+#include "cuda_vec_util.cuh"
 
 namespace ssrlcv{
   __device__ __host__ float sum(const float3 &a);

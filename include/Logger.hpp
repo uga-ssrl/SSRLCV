@@ -1,23 +1,71 @@
 /** \file logger.hpp
 * \brief this contains helpful ways to log data
+* \note The global logger is declared externally at the bottom  of this file
 */
+#pragma once
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
 
-#include "common_includes.h"
-#include "Image.cuh"
-#include "MatchFactory.cuh"
-#include "Unity.cuh"
-#include "Octree.cuh"
-#include "io_util.h"
+
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+// #include <cstring>
+// #include <ctype.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <iomanip>
+#include <thread>
+#include <mutex>
 
 
 namespace ssrlcv{
 
 
   class Logger{
+  
 
   public:
+
+    /**
+     * Structure to handle error messages
+     */
+    struct Error{
+      Logger* logger;
+      Error();
+      Error(Logger* logger);
+      /**
+       * Overloaded Bit Shift Left Operator, needed to keep united mutex locking
+       */
+      Error &operator<<(const char* input);
+      Error &operator<<(std::string input);
+    };
+    /**
+     * Structure to handle warning messages
+     */
+    struct Warning{
+      Logger* logger;
+      Warning();
+      Warning(Logger* logger);
+      /**
+       * Overloaded Bit Shift Left Operator, needed to keep united mutex locking
+       */
+      Warning &operator<<(const char *input);
+      Warning &operator<<(std::string input);
+    };
+
+    enum Verbosity{
+      nothing = 0,
+      errors = 1,
+      warnings = 2,
+      comments = 3
+    };
+
+    Error err;
+    Warning warn;
+
+    int verbosity;//
 
     // public variables
 
@@ -58,6 +106,11 @@ namespace ssrlcv{
     Logger &operator=(Logger const &loggerCopy);
 
     /**
+     * Overloaded Bit Shift Left Operator, needed to keep united mutex locking
+     */
+    Logger &operator<<(const char* input);
+
+    /**
      * Default destructor
      */
     ~Logger();
@@ -91,6 +144,18 @@ namespace ssrlcv{
      * @param state a string to be tagged as a state
      */
     void logState(std::string state);
+
+    /**
+     * logs a message with an error tag
+     * @param input a string to write to the log
+     */
+    void logWarning(const char *input);
+
+    /**
+     * logs a message with an error tag
+     * @param input a string to write to the log
+     */
+    void logWarning(std::string input);
 
     /**
      * logs a message with an error tag
@@ -180,7 +245,12 @@ namespace ssrlcv{
     unsigned long getTime();
 
   }; // end Logger class
+
 }
 
+/**
+ * The global logger
+ */
+extern ssrlcv::Logger logger;
 
 #endif /* LOGGER_HPP */

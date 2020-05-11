@@ -104,7 +104,7 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
   bool local_debug   = false;
   bool local_verbose = true;
 
-  if (local_verbose || local_debug) std::cout << "Reading Mesh ... " << std::endl;
+  if (local_verbose || local_debug) std::cout << "Reading Mesh ... " << "\n";
 
   // temp storage
   std::vector<float3> tempPoints;
@@ -129,7 +129,7 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
       // Handle elements here
       //
       if (!tag.compare("element")){
-        if(local_debug) std::cout << "element found" << std::endl;
+        if(local_debug) std::cout << "element found" << "\n";
         // temp vars for strings
         std::string elem;
         std::string type;
@@ -141,14 +141,14 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
         // set the correct value
         if (!type.compare("vertex")){
           numPoints = num;
-          if(local_debug) std::cout << "detected " << num << " Points" << std::endl;
+          if(local_debug) std::cout << "detected " << num << " Points" << "\n";
         } else if (!type.compare("face")) {
           numFaces = num;
-          if(local_debug) std::cout << "detected " << num << " Faces" << std::endl;
+          if(local_debug) std::cout << "detected " << num << " Faces" << "\n";
         } else if (!type.compare("edge")) {
           // TODO read in edges if desired
-          std::cout << "\tWARN: edge reading is not currently supported in MeshFactory" << std::endl;
-          if(local_debug) std::cout << "detected " << num << " Edges" << std::endl;
+          logger.warn << "\tWARN: edge reading is not currently supported in MeshFactory" << "\n";
+          if(local_debug) std::cout << "detected " << num << " Edges" << "\n";
         }
 
       }
@@ -173,7 +173,7 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
         iss >> point.y;
         iss >> point.z;
         tempPoints.push_back(point);
-        if (local_debug) std::cout << "\t" << point.x << ", " << point.y << ", " << point.z << std::endl;
+        if (local_debug) std::cout << "\t" << point.x << ", " << point.y << ", " << point.z << "\n";
       } else if (tempFaces.size() < numFaces && numFaces) {
         //
         // add the face
@@ -184,11 +184,11 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
           iss >> this->faceEncoding;
           numFaces *= this->faceEncoding; // because they are not stored as int3 or int4 yet
           if (local_debug) {
-            std::cout << "face encoding set to: " << this->faceEncoding << std::endl;
-            std::cout << "faceNum updated to:   " << numFaces << "\t from " << (numFaces / this->faceEncoding) << std::endl;
+            std::cout << "face encoding set to: " << this->faceEncoding << "\n";
+            std::cout << "faceNum updated to:   " << numFaces << "\t from " << (numFaces / this->faceEncoding) << "\n";
           }
           if (!(this->faceEncoding == 3 || this->faceEncoding == 4)){
-            std::cerr << "ERROR: error with reading mesh PLY face encoding, encoding was: " << this->faceEncoding << std::endl;
+            logger.err << "ERROR: error with reading mesh PLY face encoding, encoding was: " << std::to_string(this->faceEncoding) << "\n";
             return;
           }
         } else {
@@ -204,7 +204,7 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
           tempFaces.push_back(index);
           if (local_debug) std::cout << index << ", ";
         }
-        if (local_debug) std::cout << std::endl;
+        if (local_debug) std::cout << "\n";
 
       } // end face reading
 
@@ -225,10 +225,10 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
   }
 
   if (local_verbose || local_debug) {
-    std::cout << "Done reading mesh!" << std::endl;
-    std::cout << "\t Total Points Loaded:  " << this->points->size() << std::endl;
-    std::cout << "\t Total Faces  Loaded:  " << (this->faces->size() / (int) this->faceEncoding) << std::endl;
-    std::cout << "\t Faces Num: " << this->faces->size() << std::endl;
+    std::cout << "Done reading mesh!" << "\n";
+    std::cout << "\t Total Points Loaded:  " << this->points->size() << "\n";
+    std::cout << "\t Total Faces  Loaded:  " << (this->faces->size() / (int) this->faceEncoding) << "\n";
+    std::cout << "\t Faces Num: " << this->faces->size() << "\n";
   }
 
 }
@@ -250,7 +250,7 @@ void ssrlcv::MeshFactory::loadPoints(const char* filePath){
 void ssrlcv::MeshFactory::saveMesh(const char* filename){
   // make sure we are not trying to save an empty thing
   if (!faceEncoding) {
-    std::cerr << "ERROR: cannot save MESH, no face encoding was set. Have point and face unity's been set?" << std::endl;
+    logger.err << "ERROR: cannot save MESH, no face encoding was set. Have point and face unity's been set?" << "\n";
     return;
   }
   // save the boi!
@@ -286,10 +286,10 @@ float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud,
   bool local_debug   = false;
   bool local_verbose = true;
 
-  if (local_verbose || local_debug) std::cout << "Computing average diff between mesh and point cloud ..." << std::endl;
+  if (local_verbose || local_debug) std::cout << "Computing average diff between mesh and point cloud ..." << "\n";
 
   if (!faceEncoding){
-    std::cerr << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" << std::endl;
+    logger.err << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" << "\n";
     return -1.0f;
   }
 
@@ -352,7 +352,7 @@ float ssrlcv::MeshFactory::calculateAverageDifference(Unity<float3>* pointCloud,
   cudaFree(d_misses);
 
   if (local_debug || local_verbose) {
-    std::cout << "\t " << (pointCloud->size() - misses) << " / " << pointCloud->size() << " are valid errors" << std::endl;
+    std::cout << "\t " << (pointCloud->size() - misses) << " / " << pointCloud->size() << " are valid errors" << "\n";
   }
   if (misses) {
     // discount the misses
@@ -379,10 +379,10 @@ ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculatePerPointDifference(Unity<flo
   bool local_debug   = false;
   bool local_verbose = true;
 
-  if (local_verbose || local_debug) std::cout << "Computing per point diff between mesh and point cloud ..." << std::endl;
+  if (local_verbose || local_debug) std::cout << "Computing per point diff between mesh and point cloud ..." << "\n";
 
   if (!faceEncoding){
-    std::cerr << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" << std::endl;
+    logger.err << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" << "\n";
     return nullptr;
   }
 
@@ -490,9 +490,9 @@ void ssrlcv::MeshFactory::filterByOctreeNeighborDistance(float sigma){
   float variance = sum / samples->size();
   float cutoff;
   if (local_debug){
-    std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
-    std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
-    std::cout << "\tCutoff Set To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
+    std::cout << "\tSample variance: " << std::setprecision(32) << variance << "\n";
+    std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << "\n";
+    std::cout << "\tCutoff Set To: " << std::setprecision(32) << sigma * sqrtf(variance) << "\n";
   }
   cutoff = sigma * sqrtf(variance);
 
@@ -503,7 +503,7 @@ void ssrlcv::MeshFactory::filterByOctreeNeighborDistance(float sigma){
     if (isnan(newPoints->host[i].x)) bad_points++;
     // std::cout << "boi: " << newPoints->host[i].x << "\t";
   }
-  if (local_debug || local_verbose) std::cout << "Detected " << bad_points << " points in low density regions to remove ..." << std::endl;
+  if (local_debug || local_verbose) std::cout << "Detected " << bad_points << " points in low density regions to remove ..." << "\n";
 
   // allocate new space and fill the points
   delete this->points;
@@ -516,7 +516,7 @@ void ssrlcv::MeshFactory::filterByOctreeNeighborDistance(float sigma){
     }
   }
   delete newPoints;
-  if (local_debug || local_verbose) std::cout << "Removed " << bad_points << " bad points, " <<  this->points->size() << " good points remain ..." << std::endl;
+  if (local_debug || local_verbose) std::cout << "Removed " << bad_points << " bad points, " <<  this->points->size() << " good points remain ..." << "\n";
 }
 
 /**
@@ -529,7 +529,7 @@ ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculateAverageDistancesToNeighbors(
   bool local_verbose = true;
 
   if (n > 6){
-    std::cout << "WARN: values larger than N = 6 neighbors are not nesseary, chaning N from " << n << " to 6 ..." << std::endl;
+    logger.warn << "WARNING: values larger than N = 6 neighbors are not nesseary, chaning N from " << std::to_string(n) << " to 6 ..." << "\n";
   }
 
   int* d_num;
@@ -545,7 +545,7 @@ ssrlcv::Unity<float>* ssrlcv::MeshFactory::calculateAverageDistancesToNeighbors(
   void (*fp)(int *, unsigned long, float3*, float*) = &averageDistToNeighbors;
   getFlatGridBlock(this->points->size(),grid,block,fp);
 
-  if (local_verbose) std::cout << "calulating nearest neighbors via exaustive kernel search ..." << std::endl;
+  if (local_verbose) std::cout << "calulating nearest neighbors via exaustive kernel search ..." << "\n";
 
   averageDistToNeighbors<<<grid,block>>>(d_num,this->points->size(),this->points->device,averages->device);
 
@@ -600,9 +600,9 @@ void ssrlcv::MeshFactory::filterByNeighborDistance(float sigma){
   float variance = sum / samples->size();
   float cutoff;
   if (local_debug){
-    std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
-    std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
-    std::cout << "\tCutoff Set To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
+    std::cout << "\tSample variance: " << std::setprecision(32) << variance << "\n";
+    std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << "\n";
+    std::cout << "\tCutoff Set To: " << std::setprecision(32) << sigma * sqrtf(variance) << "\n";
   }
   cutoff = sigma * sqrtf(variance);
 
@@ -612,7 +612,7 @@ void ssrlcv::MeshFactory::filterByNeighborDistance(float sigma){
     if (samples->host[i] > cutoff) bad_points++;
   }
 
-  if (local_debug || local_verbose) std::cout << "Detected " << bad_points << " points in low density regions to remove ..." << std::endl;
+  if (local_debug || local_verbose) std::cout << "Detected " << bad_points << " points in low density regions to remove ..." << "\n";
 
   // allocate new space and fill the points
   ssrlcv::Unity<float3>* temp = new Unity<float3>(nullptr,(this->points->size() - bad_points),cpu);
@@ -631,7 +631,7 @@ void ssrlcv::MeshFactory::filterByNeighborDistance(float sigma){
 
   delete samples;
   delete temp;
-  if (local_debug || local_verbose) std::cout << "Removed " << bad_points << " bad points, " <<  this->points->size() << " good points remain ..." << std::endl;
+  if (local_debug || local_verbose) std::cout << "Removed " << bad_points << " bad points, " <<  this->points->size() << " good points remain ..." << "\n";
 }
 
 
@@ -1321,10 +1321,10 @@ void ssrlcv::MeshFactory::generateMesh(){
       stringBuffer << "\n";
       plystream << stringBuffer.str();
     }
-    std::cout<<newFile + " has been created.\n"<<std::endl;
+    std::cout<<newFile + " has been created.\n"<<"\n";
   }
   else{
-    std::cout << "Unable to open: " + newFile<< std::endl;
+    std::cout << "Unable to open: " + newFile<< "\n";
     exit(1);
   }
 }
@@ -1404,10 +1404,10 @@ void ssrlcv::MeshFactory::generateMeshWithFinestEdges(){
       stringBuffer << " 255 255 255\n";
       plystream << stringBuffer.str();
     }
-    std::cout<<newFile + " has been created.\n"<<std::endl;
+    std::cout<<newFile + " has been created.\n"<<"\n";
   }
   else{
-    std::cout << "Unable to open: " + newFile<< std::endl;
+    std::cout << "Unable to open: " + newFile<< "\n";
     exit(1);
   }
   this->octree->vertices->transferMemoryTo(origin[0]);
