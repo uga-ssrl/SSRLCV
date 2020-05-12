@@ -18,29 +18,23 @@ ________________________________________________________________________________
 
 This computer vision software is for the [University of Georgia Small Satellite Research Laboratory](smallsat.uga.edu)'s MOCI (Multiview Onbloard Computational Imager) Satellite Mission. If you utilize this software please cite the papers listed below.
 
-## Create the following directories if they do not exist
-bin, data, obj, out, src, util
-(util, data, and src should be in repository)
+It is reccomended to also use the following repositories
 
-## File Naming Convention
-If a file has CUDA in it of any sort -> .cu and its header -> .cuh.
-All other files can be .cpp and .h
+* Sample Data: **Highly Reccomended** to use, is maintained as [SSRLCV-Sample-Data](https://gitlab.smallsat.uga.edu/payload_software/ssrlcv-sample-data) on gitlab, and [mirrored on github](https://github.com/uga-ssrl/SSRLCV-Sample-Data)
+* Utilities: is maintained as [SSRLCV-Utilities](https://gitlab.smallsat.uga.edu/payload_software/ssrlcv-utilities) on gitlab, and [mirrored on github](https://github.com/uga-ssrl/SSRLCV-Util)
 
-## Dependencies and Conventions
+Check out the [contributors guide](CONTRIB.md) if you would like to help further develop SSRLCV
+
+## Dependencies
 
 Required:
+
   * libpng-dev
   * libtiff-dev
   * g++
   * gcc
   * nvcc
   * CUDA 10.0
-
-You may need to create the following directories: `bin, obj, out`
-
-## Intended Hardware
-
-TODO write about the indented hardware
 
 ## Compilation
 
@@ -60,35 +54,15 @@ make sfm -j# SM=##
 | Jetson Xavier                        | `make sfm -j6 SM=72` | 72 |
 | Ubuntu 16.04+ with GTX 1060/1070     | `make sfm -j8 SM=61` | 61 |
 
-You can also clean out the repo, to just have the standard files again, with
+You can clean back to source files only with:
 
 ```
 make clean
 ```
 
-## Documentation
+## Usage
 
-### Online Documentation
-
-Documentation on the use of SSRLCV can be found at:
-
-* TODO put live link to wiki here
-* TODO put live link to doxy here
-
-### SSRLCV Utilities
-
-The SSRLCV has various utilities for testing, IO, and data visualization. These can be found at the [SSRLCV utilities gitlab](https://gitlab.smallsat.uga.edu/payload_software/ssrlcv-utilities) repository.
-
-These additional software packages are benefitional:
-* [MeshLab](http://www.meshlab.net/) - Critical for viewing the results of SSRLCV.
-* [CloudCompare](https://cloudcompare.org/) - Useful for comparing ground truth models, the ICP algorithm within CC is great for this.
-
-### Manual Generation
-
-* Generate Doxygen by executing `doxygen doc/doxygen/Doxyfile` from within the projects root directory
-* index.html will be available in doc/doxygen/documentation/html and will allow traversal of the documentation
-
-## Running
+Simply use the command `./sfm -d /path/to/images -s path/to/seed.png`
 
 | Flag              | Command Line Argument          | Details                      |
 |:-----------------:|:------------------------------:|:----------------------------:|
@@ -98,9 +72,9 @@ These additional software packages are benefitional:
 | -np or --noparams |             N/A                | signify no use of params.csv |
 
 
-### Computer Vision Pipelines
+### Output
 
-TODO put current pipeline information here
+SSRLCV currently produces `.ply` files in the `out` folder. A future release will allow for better control of output files and allow
 
 ## Camera Parameters
 
@@ -117,6 +91,12 @@ The image rotation encodes which way the camera was facing as a [rotation of axe
 | `uint2`         | `size`            | Pixels          |  The x and y pixel size of the image       |
 
 ## File Formats
+
+### The SSRLCV Logger
+
+SSRLCV includes a logger that produces a comma segmented, `.csv` encoded, log file at `out/ssrlcv.log`
+
+
 
 ### ASCII Camera Parameters - `.csv` ASCII encoded file
 
@@ -138,35 +118,45 @@ ev02.png,0.0,0.0,4500.0,0.0,0.0,0.0,0.19933754453,0.19933754453,0.16,0.4,0.4,158
 
 ### Binary Camera Parameters - `.bcp` file type
 
-This is the binary version of the ascii format.
+Binary camera parameters are not currently defined but will be in a later release
 
-### Image File Formats - `.png` , `.tiff` , `.jpg`
+## Documentation
 
-TODO information about image support limitations here
+### Online Documentation
 
-### Point Clouds - `.ply` stanford PLY format
+Documentation on the use of SSRLCV can be found at:
 
-TODO information about ply support and limitations here
+* TODO [The SSRLCV Wiki]()
+* TODO [SSRLCV Doxygen]()
 
-### Match Files - unknown
+### SSRLCV Utilities
 
-TODO Match file support here
+The SSRLCV has various utilities for testing, IO, and data visualization. These can be found at the [SSRLCV utilities gitlab](https://gitlab.smallsat.uga.edu/payload_software/ssrlcv-utilities) repository.
 
-Check out the [contributors guide](CONTRIB.md) for imformation on contributions
+These additional software packages are benefitional:
+* [MeshLab](http://www.meshlab.net/) - Critical for viewing the results of SSRLCV.
+* [CloudCompare](https://cloudcompare.org/) - Useful for comparing ground truth models, the ICP algorithm within CC is great for this.
 
-# TODO
-* ensure that thrust functions are usi ng GPU
-* more documentations
+### Manual Generation
 
-## Generating Test Data
-
-TODO fill out information about how to make test data
+Generate Doxygen by executing `doxygen doc/doxygen/Doxyfile` from within the projects root directory. An `index.html` file will be available in `doc/doxygen/documentation/html`, you can start there when exploring documentation locally.
 
 # Citations
 
 Upon usage please cite one or more of the following:
 
-### Hardware Related Citation:
+[High Performance Computation with Small Satellites and Small Satellite Swarms for 3D Reconstruction](http://piepieninja.github.io/research-papers/thesis.pdf)
+
+```
+@mastersthesis{CalebAdamsMSThesis,
+  author={Caleb Ashmore Adams},
+  title={High Performance Computation with Small Satellites and Small Satellite Swarms for 3D Reconstruction},
+  school={The University of Georgia},
+  url={http://piepieninja.github.io/research-papers/thesis.pdf},
+  year=2020,
+  month=may
+}
+```
 
 [Towards an Integrated GPU Accelerated SoC as a Flight Computer for Small Satellites](https://ieeexplore.ieee.org/document/8741765)
 
@@ -183,8 +173,6 @@ Upon usage please cite one or more of the following:
 }
 ```
 
-### Pipeline Related Citation:
-
 [A Near Real Time Space Based Computer Vision System for Accurate Terrain Mapping](https://digitalcommons.usu.edu/cgi/viewcontent.cgi?article=4216&context=smallsat)
 
 ```
@@ -197,13 +185,6 @@ Upon usage please cite one or more of the following:
 }
 ```
 
-### Use of Library Structure Citation:
-
-TBD
-
-### Use of 3D reconstruction Citation:
-
-TBD
 
 
 
