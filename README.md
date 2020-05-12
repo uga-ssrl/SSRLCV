@@ -18,7 +18,7 @@ ________________________________________________________________________________
 
 [University of Georgia Small Satellite Research Laboratory](smallsat.uga.edu) Computer Vision, SSRLCV, is a computer vision software library written in C++ and the Nvidia CUDA programming language for Nvidia GPU SoCs in space enviromentents. The software will be used onboard the MOCI satellite with our modified TX2i, but is also compatible with Ubuntu 16.04, Ubuntu 18.04, and Linux for Tegra. SSRLCV can also run on the TX2 and the Jetson Nano. The software currently inculdes SIFT feature detection, SIFT feature generation, SIFT feature matching, point cloud filtering, 2 view triangulation, N view triangulation, and 2 view bundle adjustment.
 
-You can begin reading documentation [in the SSRLCV github wiki](https://github.com/uga-ssrl/SSRLCV/wiki), and view code documentation at [data.calebadams.space/doxygen/documentation/html/](data.calebadams.space/doxygen/documentation/html/examples.html). It is also reccomended to clone the following repositories:
+You can begin reading documentation on [the SSRLCV github wiki](https://github.com/uga-ssrl/SSRLCV/wiki), and view code documentation at [data.calebadams.space/doxygen/documentation/html/](data.calebadams.space/doxygen/documentation/html/examples.html). It is also reccomended to clone the following repositories:
 
 * Sample Data: **Highly Reccomended** to use, this is maintained as [SSRLCV-Sample-Data](https://gitlab.smallsat.uga.edu/payload_software/ssrlcv-sample-data) on gitlab, and [mirrored on github](https://github.com/uga-ssrl/SSRLCV-Sample-Data)
 * Utilities: maintained as [SSRLCV-Utilities](https://gitlab.smallsat.uga.edu/payload_software/ssrlcv-utilities) on gitlab, and [mirrored on github](https://github.com/uga-ssrl/SSRLCV-Util)
@@ -113,6 +113,8 @@ and example of this is:
 ev01.png,781.417,0.0,4436.30,0.0,0.1745329252,0.0,0.19933754453,0.19933754453,0.16,0.4,0.4,1580766557,1024,1024,
 ev02.png,0.0,0.0,4500.0,0.0,0.0,0.0,0.19933754453,0.19933754453,0.16,0.4,0.4,1580766557,1024,1024,
 ```
+
+Examples of such parameters can be found at [data.calebadams.space/CalebAdams-Tests-Used-In-Thesis/](http://104.236.14.11/CalebAdams-Tests-Used-In-Thesis/)
 
 ### Binary Camera Parameters - `.bcp` file type
 
