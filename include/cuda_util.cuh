@@ -1,11 +1,11 @@
-/** 
+/**
 * \file cuda_util.cuh
 * \brief This file contains simple cuda utility functions.
-* \details The primary contents of this file will be cuda vector 
-* operator overloads as well as grid and block configurers. 
-* \note Even though inline methods for calculating cannot be 
-* used from outside the compilation unit, they are listed at the bottom 
-* of the cuda_util.cuh header. 
+* \details The primary contents of this file will be cuda vector
+* operator overloads as well as grid and block configurers.
+* \note Even though inline methods for calculating cannot be
+* used from outside the compilation unit, they are listed at the bottom
+* of the cuda_util.cuh header.
 */
 #pragma once
 #ifndef CUDA_UTIL_CUH
@@ -31,21 +31,21 @@
 
 /**
 * \brief Method for getting grid and block for a 1D kernel.
-* \details This method calculates a grid and block configuration 
-* in an attempt to achieve high levels of CUDA occupancy as well 
-* as ensuring there will be enough threads for a specified number of elements. 
-* Methods for determining globalThreadID's from the returned grid and block 
-* can be found at the bottom of cuda_util.h but must be placed in the same 
+* \details This method calculates a grid and block configuration
+* in an attempt to achieve high levels of CUDA occupancy as well
+* as ensuring there will be enough threads for a specified number of elements.
+* Methods for determining globalThreadID's from the returned grid and block
+* can be found at the bottom of cuda_util.h but must be placed in the same
 * compilational unit.
 * \param numElements - number of elements that will be threaded in kernel
 * \param grid - dim3 grid argument to be set withint this function
 * \param block - dim3 block argument to be set within this function
-* \param kernel - function pointer to the kernel that is going to use the grid and block 
+* \param kernel - function pointer to the kernel that is going to use the grid and block
 * \param dynamicSharedMem - size of dynamic shared memory used in kernel (optional parameter - will default to 0)
 * \param device - the NVIDIA GPU device ID (optional parameter - will default to 0)
-* \warning This creates grid and block dimensions that guarantee coverage of numElements. 
-* This likely means that there will be more threads that necessary, so make sure to check that 
-* globalThreadID < numElements in you kernel. Otherwise there will be an illegal memory access. 
+* \warning This creates grid and block dimensions that guarantee coverage of numElements.
+* This likely means that there will be more threads that necessary, so make sure to check that
+* globalThreadID < numElements in you kernel. Otherwise there will be an illegal memory access.
 */
 template<typename... Types>
 void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0){
@@ -53,7 +53,7 @@ void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (
   block = {1,1,1};
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
-  
+
   int blockSize;
   int minGridSize;
   cudaOccupancyMaxPotentialBlockSize(
@@ -63,7 +63,7 @@ void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (
     dynamicSharedMem,
     numElements
   );
-  block = {(unsigned int)blockSize,1,1}; 
+  block = {(unsigned int)blockSize,1,1};
   unsigned int gridSize = (numElements + (unsigned int)blockSize - 1) / (unsigned int)blockSize;
   if(gridSize > prop.maxGridSize[0]){
     if(gridSize >= 65535L*65535L*65535L){
@@ -74,9 +74,9 @@ void getFlatGridBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (
       grid.x = 65535;
       if(gridSize > 65535){
         grid.z = (grid.y/65535) + 1;
-        grid.y = 65535; 
+        grid.y = 65535;
       }
-      else{ 
+      else{
         grid.y = 65535;
         grid.z = 1;
       }
@@ -95,7 +95,7 @@ void getGridWMaxBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (
   block = {1,1,1};
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
-  
+
   int blockSize;
   int minGridSize;
   cudaOccupancyMaxPotentialBlockSize(
@@ -105,7 +105,7 @@ void getGridWMaxBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (
     dynamicSharedMem,
     0
   );
-  block = {(unsigned int)blockSize,1,1}; 
+  block = {(unsigned int)blockSize,1,1};
   if(numElements > prop.maxGridSize[0]){
     if(numElements >= 65535L*65535L*65535L){
       grid = {65535,65535,65535};
@@ -115,16 +115,16 @@ void getGridWMaxBlock(unsigned long numElements, dim3 &grid, dim3 &block, void (
       grid.x = 65535;
       if(numElements > 65535){
         grid.z = (grid.y/65535) + 1;
-        grid.y = 65535; 
+        grid.y = 65535;
       }
-      else{ 
+      else{
         grid.y = 65535;
         grid.z = 1;
       }
     }
   }
   else{
-    grid = {numElements,1,1};
+    grid = {(unsigned int) numElements,1,1};
   }
 }
 template<typename... Types>
@@ -133,7 +133,7 @@ void getGridAndBlock(unsigned long numElements, dim3 &grid, unsigned int desired
   block = {1,1,1};
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
-  
+
   int blockSize;
   int minGridSize;
   cudaOccupancyMaxPotentialBlockSize(
@@ -143,7 +143,7 @@ void getGridAndBlock(unsigned long numElements, dim3 &grid, unsigned int desired
     dynamicSharedMem,
     0
   );
-  block = {(blockSize > desiredBlockSize) ? desiredBlockSize : (unsigned int) blockSize,1,1}; 
+  block = {(blockSize > desiredBlockSize) ? desiredBlockSize : (unsigned int) blockSize,1,1};
 
   if(numElements > prop.maxGridSize[0]){
     if(numElements >= 65535L*65535L*65535L){
@@ -154,42 +154,42 @@ void getGridAndBlock(unsigned long numElements, dim3 &grid, unsigned int desired
       grid.x = 65535;
       if(numElements > 65535){
         grid.z = (grid.y/65535) + 1;
-        grid.y = 65535; 
+        grid.y = 65535;
       }
-      else{ 
+      else{
         grid.y = 65535;
         grid.z = 1;
       }
     }
   }
   else{
-    grid = {numElements,1,1};
+    grid = {(unsigned int) numElements,1,1};
   }
 }
 
 
 /**
 * \brief Method for getting grid and block for a 2D kernel.
-* \details This method calculates a grid and block configuration 
-* in an attempt to achieve high levels of CUDA occupancy as well 
-* as ensuring there will be enough threads for the specified 2D size. 
+* \details This method calculates a grid and block configuration
+* in an attempt to achieve high levels of CUDA occupancy as well
+* as ensuring there will be enough threads for the specified 2D size.
 * \note User will have to calculate x and y threadIds in their kernels for this to be useful.
 * \param size - 2D size for threading over data
 * \param grid - dim3 grid argument to be set within this function
 * \param block - dim3 block argument to be set within this function
-* \param kernel - function pointer to the kernel that is going to use the grid and block 
+* \param kernel - function pointer to the kernel that is going to use the grid and block
 * \param dynamicSharedMem - size of dynamic shared memory used in kernel (optional parameter - will default to 0)
 * \param device - the NVIDIA GPU device ID (optional parameter - will default to 0)
-* \warning This creates grid and block dimensions that guarantee coverage of 2D sizes. 
-* This likely means that there will be more threads that necessary, so make sure to check that 
-* globalThreadID.x < size.x && globalThreadID.y < size.y in you kernel. 
-* Otherwise there will be an illegal memory access. 
+* \warning This creates grid and block dimensions that guarantee coverage of 2D sizes.
+* This likely means that there will be more threads that necessary, so make sure to check that
+* globalThreadID.x < size.x && globalThreadID.y < size.y in you kernel.
+* Otherwise there will be an illegal memory access.
 */
 template<typename... Types>
 void get2DGridBlock(uint2 size, dim3 &grid, dim3 &block,  void (*kernel)(Types...), size_t dynamicSharedMem = 0, int device = 0){
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
-  
+
   int blockSize;
   int minGridSize;
   cudaOccupancyMaxPotentialBlockSize(
@@ -199,41 +199,41 @@ void get2DGridBlock(uint2 size, dim3 &grid, dim3 &block,  void (*kernel)(Types..
     dynamicSharedMem,
     size.x*size.y
   );
-  block = {(unsigned int)sqrt(blockSize),1,1}; 
+  block = {(unsigned int)sqrt(blockSize),1,1};
   block.y = block.x;
   grid = {(size.x + block.x - 1) / block.x,
     (size.y + block.y - 1) / block.y,
     1
   };
-  
+
 }
 /**
 * \brief Method for getting grid for a 1D kernel.
-* \details This method is used when the user need a grid 
-* configuration to loop over a set of elements when the block 
-* has been configured by the user for another threading purpose. 
+* \details This method is used when the user need a grid
+* configuration to loop over a set of elements when the block
+* has been configured by the user for another threading purpose.
 * \param numElements - number of elements to be threaded
 * \param grid - dim3 grid argument to be set within this function
 * \param device - the NVIDIA GPU device ID (optional parameter - will be default to 0)
-* \warning The block configuration set by the user must be within 
-* the capabilities of the device used or an exception will be thrown. 
-* Methods like get2DGridBlock() and getFlatGridBlock make sure that 
-* this does not happen. 
+* \warning The block configuration set by the user must be within
+* the capabilities of the device used or an exception will be thrown.
+* Methods like get2DGridBlock() and getFlatGridBlock make sure that
+* this does not happen.
 */
 void getGrid(unsigned long numElements, dim3 &grid, int device = 0);
 /**
 * \brief Method for checking if grid and block to not exceed limits.
-* \details This method will check that grid and block configurations 
+* \details This method will check that grid and block configurations
 * do not exceed the theoretical limit of a specified GPU.
 * \param grid - dim3 grid configuration to check
 * \param block - dim3 block configuration to check
 * \param device - the NVIDIA GPU device ID (optional parameter - will be default to 0)
-* \todo Update to take in a kernel to ensure that the 
-* configuration will work for the specified kernel. 
-* \warning This currently does not guarentee that the configuration 
+* \todo Update to take in a kernel to ensure that the
+* configuration will work for the specified kernel.
+* \warning This currently does not guarentee that the configuration
 * will work for a resource greedy kernel. (completing todo will resolve this)
 */
-void checkDims(dim3 grid, dim3 block, int device = 0);  
+void checkDims(dim3 grid, dim3 block, int device = 0);
 
 
 /**
@@ -291,10 +291,10 @@ void sort(ssrlcv::Unity<T>* array, bool (*compare)(const T&,const T&)){
   if(origin != ssrlcv::gpu) array->setMemoryState(origin);
 }
 namespace{
-  template<typename T> 
+  template<typename T>
   __host__ __device__ bool check_if_valid(const T &var){
     return var.invalid;
-  } 
+  }
 }
 
 
@@ -329,9 +329,9 @@ void remove(ssrlcv::Unity<T>* array, bool (*validate)(const T&)){
 
 /**
 * \brief struct for use in thrust::compaction methods
-* \details When calling a thrust::compaction method using 
-* is_not_neg() as the protocol will move all non negative values 
-* to the end of the array for easy removal. 
+* \details When calling a thrust::compaction method using
+* is_not_neg() as the protocol will move all non negative values
+* to the end of the array for easy removal.
 */
 struct is_not_neg{
   __host__ __device__
