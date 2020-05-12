@@ -18,7 +18,7 @@ ________________________________________________________________________________
 
 [University of Georgia Small Satellite Research Laboratory](smallsat.uga.edu) Computer Vision, SSRLCV, is a computer vision software library written in C++ and the Nvidia CUDA programming language for Nvidia GPU SoCs in space environments. The software will be used onboard the MOCI satellite with our modified TX2i, but is also compatible with Ubuntu 16.04, Ubuntu 18.04, and Linux for Tegra. SSRLCV can also run on the TX2 and the Jetson Nano. The software currently includes SIFT feature detection, SIFT feature generation, SIFT feature matching, point cloud filtering, 2 view triangulation, N view triangulation, and 2 view bundle adjustment. SSRLCV is capable of generating point clouds with 15 - 100 meter accuracy from a 400 km circular orbit and a 6 meter GSD; the results are documented in [this thesis research](http://piepieninja.github.io/research-papers/thesis.pdf) and several updates are expected in the near future.
 
-You can begin reading documentation on [the SSRLCV github wiki](https://github.com/uga-ssrl/SSRLCV/wiki), and view code documentation at [data.calebadams.space/doxygen/documentation/html/](data.calebadams.space/doxygen/documentation/html/examples.html). It is also recommended to clone the following repositories:
+You can begin reading documentation on [the SSRLCV github wiki](https://github.com/uga-ssrl/SSRLCV/wiki), and view code documentation at [data.calebadams.space/doxygen/documentation/html/](http://data.calebadams.space/doxygen/documentation/html/). It is also recommended to clone the following repositories:
 
 * Sample Data: **Highly Recommended** to use, this is maintained as [SSRLCV-Sample-Data](https://gitlab.smallsat.uga.edu/payload_software/ssrlcv-sample-data) on gitlab, and [mirrored on github](https://github.com/uga-ssrl/SSRLCV-Sample-Data)
 * Utilities: maintained as [SSRLCV-Utilities](https://gitlab.smallsat.uga.edu/payload_software/ssrlcv-utilities) on gitlab, and [mirrored on github](https://github.com/uga-ssrl/SSRLCV-Util)
@@ -127,7 +127,7 @@ Binary camera parameters are not currently defined but will be in a later releas
 Documentation on the use of SSRLCV can be found at:
 
 * The SSRLCV wiki is located at [https://github.com/uga-ssrl/SSRLCV/wiki](https://github.com/uga-ssrl/SSRLCV/wiki)
-* Code documentation is located at [data.calebadams.space/doxygen/documentation/html/](data.calebadams.space/doxygen/documentation/html)
+* Code documentation is located at [data.calebadams.space/doxygen/documentation/html/](http://data.calebadams.space/doxygen/documentation/html)
 
 ### SSRLCV Utilities
 
