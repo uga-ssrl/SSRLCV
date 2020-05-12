@@ -1920,7 +1920,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   // each time the error is cut in half, so is the stepsize
   // float error_comp;
   float bestError;
-  // float secondBestError;
+  float secondBestError;
 
   // does an initial computation of the starting error
   // NOTE print off new error
@@ -3111,7 +3111,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
   tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,1,ssrlcv::cpu);
   ssrlcv::Unity<float>*    errors;
   ssrlcv::Unity<float>*    errors_sample;
-  // ssrlcv::Unity<float3>*   points;
+  ssrlcv::Unity<float3>*   points;
 
   // need bundles
   bundleSet = generateBundles(matchSet,images);
@@ -3318,7 +3318,7 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
   tempMatchSet.matches   = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,1,ssrlcv::cpu);
   ssrlcv::Unity<float>*    errors;
   ssrlcv::Unity<float>*    errors_sample;
-  // ssrlcv::Unity<float3>*   points;
+  ssrlcv::Unity<float3>*   points;
 
   // need bundles
   bundleSet = generateBundles(matchSet,images);
@@ -3524,7 +3524,7 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
 
   // the boiz
   ssrlcv::BundleSet        bundleSet;
-  // ssrlcv::Unity<float3>*   points;
+  ssrlcv::Unity<float3>*   points;
   ssrlcv::Unity<float>*    errors;
   ssrlcv::MatchSet         tempMatchSet;
   tempMatchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,1,ssrlcv::cpu);
@@ -3934,7 +3934,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet
 
   ssrlcv::Unity<float>*  errors;
   ssrlcv::Unity<float>*  errors_sample;
-  // ssrlcv::Unity<float3>* points;
+  ssrlcv::Unity<float3>* points;
 
   // need bundles
   // bundleSet = generateBundles(matchSet,images);

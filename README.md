@@ -127,7 +127,7 @@ Binary camera parameters are not currently defined but will be in a later releas
 Documentation on the use of SSRLCV can be found at:
 
 * The SSRLCV wiki is located at [https://github.com/uga-ssrl/SSRLCV/wiki](https://github.com/uga-ssrl/SSRLCV/wiki)
-* Code documentation is located at [data.calebadams.space/doxygen/documentation/html/](data.calebadams.space/doxygen/documentation/html/examples.html)
+* Code documentation is located at [data.calebadams.space/doxygen/documentation/html/](data.calebadams.space/doxygen/documentation/html)
 
 ### SSRLCV Utilities
 
