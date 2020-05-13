@@ -4823,9 +4823,11 @@ __global__ void ssrlcv::voidComputeTwoViewTriangulate(float* linearError, unsign
 
   // add the linear errors locally within the block before
   float error = (s1.x - s2.x)*(s1.x - s2.x) + (s1.y - s2.y)*(s1.y - s2.y) + (s1.z - s2.z)*(s1.z - s2.z);
+  /*
   if (isnan(error)){
     printf(" L1: %f %f %f \t L2: %f %f %f \n\t S1: %f %f %f \t S2: %f %f %f \n", L1.pnt.x, L1.pnt.y, L1.pnt.z, L2.pnt.x, L2.pnt.y, L2.pnt.z, s1.x, s1.y, s1.z, s2.x, s2.y, s2.z);
   }
+  */
   //float error = dotProduct(s1,s2)*dotProduct(s1,s2);
   //if(error != 0.0f) error = sqrtf(error);
   // only add errors that we like

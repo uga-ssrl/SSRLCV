@@ -24,7 +24,7 @@
  * \details the safe shutdown methods is initiated when a SIGINT is captured, but can be extended
  * to many other types of exeption handleing. Here we should makes sure that
  * memory is safely shutting down, CPU threads are killed, and whatever else is desired.
- * \note ssrlcv::Unity<T>::checkpoint() is a great way to keep progress, but the Unity must be 
+ * \note ssrlcv::Unity<T>::checkpoint() is a great way to keep progress, but the Unity must be
  * global to call this in any signal capturing method
  */
 void safeShutdown(int sig){
@@ -175,6 +175,11 @@ int main(int argc, char *argv[]){
 
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
       std::cout << "\tUnfiltered Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
+
+      if (images[0].isPushbroom) {
+        ssrlcv::writePLY("out/unfiltered.ply",points);
+      }
+
       logger.logState("TRIANGULATE");
 
       // ============= Filtering
@@ -208,14 +213,16 @@ int main(int argc, char *argv[]){
 
       logger.logState("FILTER");
 
-      // ============= Bundle Adjustment
+      if (!images[0].isPushbroom) { // <-- make sure
+        // ============= Bundle Adjustment
 
-      logger.logState("BA");
-      points = demPoints.BundleAdjustTwoView(&matchSet,images, 10, "");
-      finalMesh.setPoints(points);
-      //finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
-      finalMesh.savePoints("ssrlcv-BA-final");
-      logger.logState("BA");
+        logger.logState("BA");
+        points = demPoints.BundleAdjustTwoView(&matchSet,images, 10, "");
+        finalMesh.setPoints(points);
+        //finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
+        finalMesh.savePoints("ssrlcv-BA-final");
+        logger.logState("BA");
+      }
 
     } else {
       //
