@@ -4290,22 +4290,20 @@ __global__ void ssrlcv::generatePushbroomBundle(unsigned int numBundles, Bundle*
     float arc_length = (gsd * (currentKP.loc.y - center.y)); // get "pixel distance" as real world scale in km
     // float arc_length = (pushbrooms[currentKP.parentId].dpix.y * (currentKP.loc.y - center.y)); // get "pixel distance" as real world scale in km
     float angle_out  = arc_length / radius;
+    float kp_roll = asinf( ( position.x ) / ( radius + altitude ) );
     // rotate the keypoint to the correct orientation
-    kp[k]    = rotatePoint(kp[k],{0.0f,roll,0.0f}); // do the roll, which is the off angle of the pushbroom scan
+    kp[k]    = rotatePoint(kp[k],{0.0f,kp_roll,0.0f}); // do the roll, which is the off angle of the pushbroom scan
     // kp[k].z += radius;
     // kp[k]    = rotatePoint(kp[k],{angle_out, 0.0f, 0.0f}); // // rotate around the x+ axis to move forward in the "orbit"
     // kp[k].z -= radius;
     // rotate the position to the correct orientation
     // position.z += radius;
     position    = rotatePoint(position,{angle_out, 0.0f, 0.0f}); // rotate around the x+ axis to move forward in the "orbit"
-    // position.z -= radius;
     // move the keypoint to the position
-    // kp[k]   += position;
     kp[k].x = position.x - (kp[k].x);
     kp[k].y = position.y - (kp[k].y);
     kp[k].z = position.z - (kp[k].z);
     // get the vector of pointing
-    // lines[i].vec = kp[k] - position;
     lines[i].vec = {
       position.x - kp[k].x,
       position.y - kp[k].y,
