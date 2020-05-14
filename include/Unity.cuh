@@ -228,12 +228,18 @@ namespace ssrlcv{
     MemoryState fore;
 
 
-    bool pinned;
+    bool pinned;///< \brief indicates if gpu memory is optimized for transfer
 
     unsigned long numElements;///< \brief number of elements in *device or *host
 
   public:
+    /**
+    * \brief comparison function pointer type for user defined sorting 
+    */
     typedef bool (*comp_ptr)(const T& a, const T& b);
+    /**
+    * \brief predicate function pointer type for user defined remove and copy 
+    */
     typedef bool (*pred_ptr)(const T& a);
 
     T* device;///< \brief pointer to device memory (gpu)
@@ -327,10 +333,27 @@ namespace ssrlcv{
     */
     void setMemoryState(MemoryState state);
     
-    //TODO Comment and test
-    MemoryState resetToPreviousMemoryState();
+    /**
+    * \brief Sets memory to previous memory state
+    * \returns the new MemoryState
+    * \see MemoryState
+    * \see previousMemoryState
+    */
+    MemoryState resetMemoryState();
+    /**
+    * \brief Checks if the gpu memory is pinned for optimized data transfer 
+    * \returns bool indicating if memory is pinned or not
+    * \see MemoryState
+    * \see pinned
+    */
     bool isPinned();
+    /**
+    * \brief Pins gpu memory to cpu memory for optimized data transfer
+    */
     void pin();
+    /**
+    * \brief unpins gpu memory from cpu memory when optimized data transfer is not needed 
+    */
     void unpin();
 
     /**
@@ -422,6 +445,7 @@ namespace ssrlcv{
     this->host = nullptr;
     this->device = nullptr;
     this->state = null;
+    this->previousState = null;
     this->fore = null;
     this->pinned = false;
     this->numElements = 0;
@@ -431,6 +455,7 @@ namespace ssrlcv{
     this->host = nullptr;
     this->device = nullptr;
     this->state = null;
+    this->previousState = null;
     this->fore = null;
     this->pinned = false;
     this->setData(data, numElements, state, pinned);
@@ -440,6 +465,7 @@ namespace ssrlcv{
     this->host = nullptr;
     this->device = nullptr;
     this->state = null;
+    this->previousState = null;
     this->fore = null;
     this->pinned = false;
     this->numElements = 0;
@@ -456,11 +482,13 @@ namespace ssrlcv{
       CudaSafeCall(cudaMemcpy(this->device,copy->device,this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
     } 
   }
+  //TODO add unified memory support
   template<typename T>
   Unity<T>::Unity(Unity<T>* copy,bool (*predicate)(const T&)){
     this->host = nullptr;
     this->device = nullptr;
     this->state = null;
+    this->previousState = null;
     this->fore = null;
     this->pinned = false;
     this->numElements = 0;
@@ -491,6 +519,7 @@ namespace ssrlcv{
     this->host = nullptr;
     this->device = nullptr;
     this->state = null;
+    this->previousState = null;
     this->fore = null;
     this->pinned = false;
     this->numElements = 0;
@@ -555,6 +584,9 @@ namespace ssrlcv{
   unsigned long Unity<T>::size(){
     return this->numElements;
   }
+  //TODO look into using realloc for cpu 
+  //TODO add previousState support
+  //TODO add unified memory support
   template<typename T> 
   void Unity<T>::resize(unsigned long resizeLength){
     if(this->state == null){
@@ -600,6 +632,8 @@ namespace ssrlcv{
       throw UnityException(error);
     }
   }
+  //TODO add previousState support
+  //TODO add unified memory support
   template<typename T>
   void Unity<T>::clear(MemoryState state){
     if(state == null){
@@ -632,6 +666,8 @@ namespace ssrlcv{
       throw IllegalUnityTransition("unknown memory state in clear() (supported states = both, cpu & gpu)");
     }
   }
+  //TODO add previousState support
+  //TODO add unified memory support
   template<typename T>
   void Unity<T>::zeroOut(MemoryState state){
     if(state == null){
@@ -673,6 +709,8 @@ namespace ssrlcv{
   MemoryState Unity<T>::getMemoryState(){
     return this->state;
   }
+  //TODO add previousState support
+  //TODO add unified memory support
   template<typename T>
   void Unity<T>::setMemoryState(MemoryState state){
     if(state == this->state){
@@ -694,14 +732,16 @@ namespace ssrlcv{
     }
   }
   template<typename T>
+  MemoryState Unity<T>::resetMemoryState(){
+    this->setMemoryState(this->previousState);
+  }
+  template<typename T>
   bool Unity<T>::isPinned(){
     return this->pinned;
   }
-
-
-
-
   //TODO test and add checks for 0 and null
+  //TODO add previousState support
+  //TODO determine what to do if it is unified
   template<typename T>
   void Unity<T>::pin(){
     if(this->pinned){
@@ -718,13 +758,15 @@ namespace ssrlcv{
       this->host = pinned_host;
     }
   }
+  //TODO test and add checks for 0 and null
+  //TODO add previousState support
+  //TODO determine what to do if it is unified
   template<typename T>
   void Unity<T>::unpin(){
     if(!this->pinned){
       logger.warn<<"WARNING: attempt to unpin nonpinned Unity<T> does nothing\n";
       return;
     }
-    //determine what to do if it is unified
     this->pinned = false;
     if(this->state != gpu){
       T* pageable_host = new T[this->numElements]();
@@ -733,11 +775,8 @@ namespace ssrlcv{
       this->host = pageable_host;
     }
   }
-
-
-
-
-
+  //TODO add previousState support
+  //TODO add unified memory support
   template<typename T>
   void Unity<T>::setData(T* data, unsigned long numElements, MemoryState state, bool pinned){
     if(state == null){
@@ -812,6 +851,8 @@ namespace ssrlcv{
     }
     this->fore = state;
   }
+  //TODO add previousState support
+  //TODO add unified memory support
   template<typename T>
   void Unity<T>::transferMemoryTo(MemoryState state){
     if(this->state == null || sizeof(T)*this->numElements == 0){
@@ -849,6 +890,8 @@ namespace ssrlcv{
       throw IllegalUnityTransition("unsupported memory destination in Unity<T>::transferMemoryTo (supported states = both, cpu & gpu)");
     }
   }
+  //TODO add previousState support
+  //TODO add unified memory support
   template<typename T>
   void Unity<T>::remove(bool (*predicate)(const T&),MemoryState destination){
     if(this->state == null || this->numElements == 0){
@@ -876,6 +919,8 @@ namespace ssrlcv{
     }
     if(destination != this->state) this->setMemoryState(destination);
   }
+  //TODO add previousState support
+  //TODO add unified memory support
   template<typename T>
   void Unity<T>::sort(bool greater, MemoryState destination){
     if(this->state == null || this->numElements == 0){
@@ -899,6 +944,8 @@ namespace ssrlcv{
     this->fore = gpu;
     if(origin != this->state) this->setMemoryState(origin);
   }
+  //TODO add previousState support
+  //TODO add unified memory support
   template<typename T>
   void Unity<T>::sort(comp_ptr comparator, MemoryState destination){
     if(this->state == null || this->numElements == 0){
@@ -917,6 +964,8 @@ namespace ssrlcv{
     this->fore = gpu;
     if(origin != this->state) this->setMemoryState(origin);
   }
+  //TODO add previousState support
+  //TODO add unified memory support
   template<typename T>
   void Unity<T>::checkpoint(int id, std::string dirPath){
     if(this->state == null){
