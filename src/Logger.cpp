@@ -1,7 +1,7 @@
 #include "Logger.hpp"
 
 // log in the out directory;
-ssrlcv::Logger logger = ssrlcv::Logger("out"); 
+ssrlcv::Logger logger = ssrlcv::Logger("out");
 
 // =============================================================================================================
 //
