@@ -561,9 +561,9 @@ ssrlcv::Unity<float3>* ssrlcv::readPLY(const char* filePath){
   std::vector<float3> tempPoints;
   // std::vector<int> tempFaces;
   std::ifstream input(filePath);
-  int numPoints = 0;
-  int numFaces  = 0;
-  int numEdges  = 0;
+  unsigned int numPoints = 0;
+  unsigned int numFaces  = 0;
+  unsigned int numEdges  = 0;
   bool inData   = false;
 
   // assuming ASCII encoding
@@ -717,7 +717,7 @@ void ssrlcv::writePLY(const char* filename, Unity<float3>* points){
   of << "property float x\nproperty float y\nproperty float z\n"; // the elements in the guy
   of << "end_header\n";
   // start writing the values
-  for (int i = 0; i < points->size(); i++){
+  for (unsigned int i = 0; i < points->size(); i++){
     of << points->host[i].x << " " << points->host[i].y << " " << points->host[i].z << "\n";
   }
   of.close(); // done with the file building
@@ -738,7 +738,7 @@ void ssrlcv::writePLY(std::string filename, Unity<float3>* points){
   of << "property float x\nproperty float y\nproperty float z\n"; // the elements in the guy
   of << "end_header\n";
   // start writing the values
-  for (int i = 0; i < points->size(); i++){
+  for (unsigned int i = 0; i < points->size(); i++){
     of << points->host[i].x << " " << points->host[i].y << " " << points->host[i].z << "\n";
   }
   of.close(); // done with the file building
@@ -885,7 +885,7 @@ void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float>*
   struct colorPoint* cpoints = (colorPoint*)  malloc(points->size() * sizeof(struct colorPoint));
 
   float max = 0.0; // it would be nice to have a better way to get the max, but because this is only for debug idc
-  for (int i = 0; i < gradient->size(); i++){
+  for (unsigned int i = 0; i < gradient->size(); i++){
     if (gradient->host[i] > max){
       max = gradient->host[i];
     }
@@ -942,7 +942,7 @@ void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float>*
  struct colorPoint* cpoints = (colorPoint*)  malloc(points->size() * sizeof(struct colorPoint));
 
  // now fill in the color point locations
- for (int i = 0; i < points->size(); i++){
+ for (unsigned int i = 0; i < points->size(); i++){
    // i assume that the errors and the points will have the same indices
    cpoints[i].x = points->host[i].x; //
    cpoints[i].y = points->host[i].y;
@@ -976,7 +976,7 @@ void ssrlcv::writePLY(const char* filename, Unity<float3>* points, Unity<float3>
   of << "property float x\nproperty float y\nproperty float z\nproperty float nx\nproperty float ny\nproperty float nz\n"; // the elements in the guy
   of << "end_header\n";
   // start writing the values
-  for (int i = 0; i < points->size(); i++){
+  for (unsigned int i = 0; i < points->size(); i++){
     of << std::fixed << std::setprecision(32) << points->host[i].x << " " << points->host[i].y << " " << points->host[i].z << " " << normals->host[i].x << " " << normals->host[i].y << " " << normals->host[i].z << "\n";
   }
   of.close(); // done with the file building
@@ -1011,7 +1011,7 @@ void ssrlcv::writeCSV(float* values, int num, std::string filename){
 void ssrlcv::writeCSV(std::vector<float> v, std::string filename){
   std::ofstream outfile;
   outfile.open("out/" + filename + ".csv");
-  for (int i = 0; i < v.size(); i++) outfile << std::fixed << std::setprecision(32) << v[i] << ",";
+  for (unsigned int i = 0; i < v.size(); i++) outfile << std::fixed << std::setprecision(32) << v[i] << ",";
   outfile.close();
 }
 
@@ -1030,7 +1030,7 @@ void ssrlcv::writeCSV(std::vector<float> x, std::vector<float> y, std::string fi
   }
   std::ofstream outfile;
   outfile.open("out/" + filename + ".csv");
-  for (int i = 0; i < x.size(); i++) {
+  for (unsigned int i = 0; i < x.size(); i++) {
       outfile << std::fixed << std::setprecision(32) << x[i] << "," << y[i] << "\n";
   }
   outfile.close();
@@ -1046,7 +1046,7 @@ void ssrlcv::writeCSV(std::vector<float3> v, const char* filename){
   std::ofstream outfile;
   std::string fname = filename;
   outfile.open("out/" + fname + ".csv");
-  for (int i = 0; i < v.size(); i++) {
+  for (unsigned int i = 0; i < v.size(); i++) {
       outfile << std::fixed << std::setprecision(32) << v[i].x << "," << v[i].y << "," << v[i].z << "\n";
   }
   outfile.close();
@@ -1061,7 +1061,7 @@ void ssrlcv::writeCSV(Unity<float>* values, const char* filename){
   std::ofstream outfile;
   std::string fname = filename;
   outfile.open("out/" + fname + ".csv");
-  for (int i = 0; i < values->size(); i++) outfile << std::fixed << std::setprecision(32) << values->host[i] << ",";
+  for (unsigned int i = 0; i < values->size(); i++) outfile << std::fixed << std::setprecision(32) << values->host[i] << ",";
   outfile.close();
 }
 
@@ -1075,7 +1075,7 @@ void ssrlcv::writeCSV(Unity<float3>* v, const char* filename){
   std::ofstream outfile;
   std::string fname = filename;
   outfile.open("out/" + fname + ".csv");
-  for (int i = 0; i < v->size(); i++) {
+  for (unsigned int i = 0; i < v->size(); i++) {
       outfile << std::fixed << std::setprecision(32) << v->host[i].x << "," << v->host[i].y << "," << v->host[i].z << "\n";
   }
   outfile.close();

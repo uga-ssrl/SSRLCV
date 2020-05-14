@@ -1550,7 +1550,7 @@ ssrlcv::Unity<float>* ssrlcv::PointCloudFactory::calculateImageHessianInverse(Un
 
   bool local_debug = false;
 
-  const unsigned int N = (const unsigned int) sqrt(hessian->size());
+  const unsigned int N = sqrt(hessian->size());
 
   ssrlcv::Unity<float>* A  = new ssrlcv::Unity<float>(nullptr,hessian->size(),ssrlcv::cpu);
   ssrlcv::Unity<float>* S  = new ssrlcv::Unity<float>(nullptr,N              ,ssrlcv::gpu);
@@ -1918,7 +1918,7 @@ ssrlcv::Unity<float3>* ssrlcv::PointCloudFactory::BundleAdjustTwoView(ssrlcv::Ma
   float angle_mag = 1.0; // starting angle mag
 
   // each time the error is cut in half, so is the stepsize
-  float error_comp;
+  // float error_comp;
   float bestError;
   float secondBestError;
 
@@ -2884,7 +2884,7 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(Unity<float3>* pointClo
   for (int x = - 1 * bounds; x < bounds; x += step){
     for (int y = - 1 * bounds; y < bounds; y += step){
       float z  = point->host[0].z - ((normal->host[0].x * ( (float) x - point->host[0].x)) + (normal->host[0].y * ( (float) y - point->host[0].y))) / normal->host[0].z;
-      vertices->host[index] = {x, y, z};
+      vertices->host[index] = {x, y, (int) z};
       index++;
     }
   }
