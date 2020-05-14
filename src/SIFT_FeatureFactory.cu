@@ -43,7 +43,8 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
   else{
     uint2 scaleSpaceDim = {4,6};
     //int nspo = scaleSpaceDim.y - 3;//num scale space/octave in dog made from a {4,6} ScaleSpace
-    float noiseThreshold = 0.01f;//*(powf(2,1.0f/nspo)-1)/(powf(2,1.0f/3.0f)-1);//if 0.15 there is a segfault
+    //0.01 gives illegal memory access for 5 view
+    float noiseThreshold = 0.015f;//*(powf(2,1.0f/nspo)-1)/(powf(2,1.0f/3.0f)-1);//if 0.15 there is a segfault
     float edgeThreshold = 12.1f;//12.1 = (10.0f + 1)^2 / 10.0f //formula = (r+1)^2/r from lowes paper where r = 10
     DOG* dog = new DOG(image,-1,scaleSpaceDim,sqrtf(2.0f)/2.0f,{2,sqrtf(2.0f)},{8,8},true);//last true specifies dog conversion
     std::cout<<"\tdog created"<<std::endl;

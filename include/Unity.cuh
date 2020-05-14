@@ -207,6 +207,16 @@ namespace ssrlcv{
     * \note Can be retrieved in Unity<T>::getMemoryState()
     */
     MemoryState state;
+
+
+
+    /**
+    * \brief Previous MemoryState for return to origin
+    */
+    MemoryState previousState;
+
+
+
     /**
     * \brief Location of most up to date memory
     * \details This class member is used  to ensure that most updated memory 
@@ -317,7 +327,8 @@ namespace ssrlcv{
     */
     void setMemoryState(MemoryState state);
     
-    //TODO Comment
+    //TODO Comment and test
+    MemoryState resetToPreviousMemoryState();
     bool isPinned();
     void pin();
     void unpin();
