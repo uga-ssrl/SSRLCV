@@ -195,6 +195,9 @@ namespace ssrlcv{
   * \todo make sure to flesh out docs for new methods
   * \todo add identifier variable of some sort
   * \todo change getMemoryState to state() and getFore to fore() (have more verbose names for variables)
+  * \todo make return status for all void functions
+  * \todo for host allocation consider moving from new to malloc and calloc so realloc can be used
+  * \todo look at this: do pinning and unpinning with cudaHostRegister, cudaHostUnregister 
   */
   template<class T>
   class Unity{
@@ -257,6 +260,7 @@ namespace ssrlcv{
     * \param data pointer to dynamically allocated array on host or device
     * \param numElements number of elements inside data pointer
     * \param state MemoryState of data
+    * \see Unity<T>::setData
     */
     Unity(T* data, unsigned long numElements, MemoryState state, bool pinned = false);
 
@@ -271,7 +275,7 @@ namespace ssrlcv{
     * \param copy Unity<T>* to be copied
     * \param predicate - predicate for copy_if
     */
-    Unity(Unity<T>* copy,pred_ptr predicate);
+    Unity(Unity<T>* copy, pred_ptr predicate);
     
     /**
     * \brief Checkpoint constructor
@@ -303,6 +307,7 @@ namespace ssrlcv{
     * \details This method deletes memory in a specific location. Default argument is 
     * both, which would effectively delete the contents of Unity and set this->numElements to 0.
     * \param state - location to clear (default = clearing both this->device and this->host)
+    * \note if both is state then previousState will reset to null
     */
     void clear(MemoryState state = both);
     /**
@@ -349,10 +354,18 @@ namespace ssrlcv{
     bool isPinned();
     /**
     * \brief Pins gpu memory to cpu memory for optimized data transfer
+    * \details This will ensure that when the cpu memory is allocated it will utilize cudaMallocHost 
+    * to optimize transfer speeds between gpu.
+    * \note this does not change this state of the Unity, so the user must transferMemory(both) or setMemoryState(both)
+    * to ensure that pinned memory can be used
+    * \warning if pinned host must be deallocated with cudaFreeHost
     */
     void pin();
     /**
     * \brief unpins gpu memory from cpu memory when optimized data transfer is not needed 
+    * \details This will unpin and make it so all future cpu memory allocations are 
+    * done with new and not cudaMallocHost. This optimizes allocation and deallocation 
+    * speeds. 
     */
     void unpin();
 
@@ -378,6 +391,7 @@ namespace ssrlcv{
     * In other words, this function will not delete memory in either device or host 
     * regardless of the transfer and will result in state = both.
     * \param state - MemoryState location to transfer too
+    * \note this method uses the fore to ensure up to date memory is transfered properly 
     * \warning this can overwrite most up to date memory if user is not setting fore 
     * after updates to a location when this->state = both
     */
@@ -389,8 +403,10 @@ namespace ssrlcv{
     * \param data - must be of previous type (can use nullptr for blank array of length numElements)
     * \param numElements - size of new data
     * \param state - location of new data (must be cpu or gpu)
+    * \note this resets previousState to null
+    * \warning if state == unified, user must either have data == nullptr or allocate data with cudaMallocManaged
     */
-    void setData(T* data, unsigned long numElements, MemoryState state, bool pinned = false);
+    void setData(T* data, unsigned long numElements, MemoryState state);
     
     /**
     * \brief remove elements of a unity
@@ -458,7 +474,8 @@ namespace ssrlcv{
     this->previousState = null;
     this->fore = null;
     this->pinned = false;
-    this->setData(data, numElements, state, pinned);
+    this->setData(data, numElements, state);
+    if(pinned) this->pin();
   }
   template<typename T>
   Unity<T>::Unity(Unity<T>* copy){
@@ -484,7 +501,7 @@ namespace ssrlcv{
   }
   //TODO add unified memory support
   template<typename T>
-  Unity<T>::Unity(Unity<T>* copy,bool (*predicate)(const T&)){
+  Unity<T>::Unity(Unity<T>* copy, pred_ptr predicate){
     this->host = nullptr;
     this->device = nullptr;
     this->state = null;
@@ -584,9 +601,8 @@ namespace ssrlcv{
   unsigned long Unity<T>::size(){
     return this->numElements;
   }
-  //TODO look into using realloc for cpu 
-  //TODO add previousState support
   //TODO add unified memory support
+  //TODO optimize this
   template<typename T> 
   void Unity<T>::resize(unsigned long resizeLength){
     if(this->state == null){
@@ -611,7 +627,6 @@ namespace ssrlcv{
         }
          this->host = replacement;
       }
-      //TODO look at this for optimization
       if(this->state == gpu || this->state == both){
         T* replacement  = nullptr;
         CudaSafeCall(cudaMalloc((void**)&replacement,resizeLength*sizeof(T)));
@@ -632,7 +647,6 @@ namespace ssrlcv{
       throw UnityException(error);
     }
   }
-  //TODO add previousState support
   //TODO add unified memory support
   template<typename T>
   void Unity<T>::clear(MemoryState state){
@@ -649,7 +663,7 @@ namespace ssrlcv{
       logger.warn<<"WARNING: Attempt to clear null (empty) Unity...action prevented\n";
       return;
     }
-    else if(this->state <= 3){//currently supported types
+    else if(this->state <= 3){
       if(state == cpu || (state == both && this->host != nullptr)){
         if(!this->pinned) delete[] this->host;
         else CudaSafeCall(cudaFreeHost(this->host));
@@ -660,13 +674,13 @@ namespace ssrlcv{
         this->device = nullptr;
       }
       this->fore = (state == both) ? null : (state == cpu) ? gpu : cpu;
+      this->previousState = (state == both) ? null : this->state;
       this->state = (state == both) ? null : (state == cpu) ? gpu : cpu;
     }
     else{
       throw IllegalUnityTransition("unknown memory state in clear() (supported states = both, cpu & gpu)");
     }
   }
-  //TODO add previousState support
   //TODO add unified memory support
   template<typename T>
   void Unity<T>::zeroOut(MemoryState state){
@@ -709,7 +723,6 @@ namespace ssrlcv{
   MemoryState Unity<T>::getMemoryState(){
     return this->state;
   }
-  //TODO add previousState support
   //TODO add unified memory support
   template<typename T>
   void Unity<T>::setMemoryState(MemoryState state){
@@ -721,14 +734,17 @@ namespace ssrlcv{
       throw NullUnityException("Cannot setMemoryState of a null Unity");
     }
     else if(state == null) this->clear();
-    else if(state == both){
-      if(cpu == this->fore) this->transferMemoryTo(gpu);
-      else if(gpu == this->fore) this->transferMemoryTo(cpu);
-    }
     else{
-      if(this->fore != state) this->transferMemoryTo(state);
-      if(state == cpu) this->clear(gpu);
-      else if(state == gpu) this->clear(cpu);
+      this->previousState = this->state;
+      if(state == both){
+        if(cpu == this->fore) this->transferMemoryTo(gpu);
+        else if(gpu == this->fore) this->transferMemoryTo(cpu);
+      }
+      else{
+        if(this->fore != state) this->transferMemoryTo(state);
+        if(state == cpu) this->clear(gpu);
+        else if(state == gpu) this->clear(cpu);
+      }
     }
   }
   template<typename T>
@@ -739,18 +755,18 @@ namespace ssrlcv{
   bool Unity<T>::isPinned(){
     return this->pinned;
   }
-  //TODO test and add checks for 0 and null
-  //TODO add previousState support
-  //TODO determine what to do if it is unified
+  //TODO optimize this 
   template<typename T>
   void Unity<T>::pin(){
+    if(this->state == unified){
+      throw IllegalUnityTransition("cannot unpin or pin unified cuda memory");
+    }
     if(this->pinned){
       logger.warn<<"WARNING: attempt to pin already pinned Unity<T> does nothing\n";
       return;
     }
-    //determine what to do if it is unified
     this->pinned = true;
-    if(this->state != gpu){
+    if(this->state == cpu || this->state == both){//make sure cpu memory exists
       T* pinned_host = nullptr;
       CudaSafeCall(cudaMallocHost((void**)&pinned_host,this->numElements*sizeof(T)));
       std::memcpy(pinned_host,this->host,this->numElements*sizeof(T));
@@ -758,27 +774,26 @@ namespace ssrlcv{
       this->host = pinned_host;
     }
   }
-  //TODO test and add checks for 0 and null
-  //TODO add previousState support
-  //TODO determine what to do if it is unified
+  //TODO optimize this 
   template<typename T>
   void Unity<T>::unpin(){
+    if(this->state == unified){
+      throw IllegalUnityTransition("cannot unpin or pin unified cuda memory");
+    }
     if(!this->pinned){
-      logger.warn<<"WARNING: attempt to unpin nonpinned Unity<T> does nothing\n";
+      logger.warn<<"attempt to unpin nonpinned Unity<T> does nothing\n";
       return;
     }
     this->pinned = false;
-    if(this->state != gpu){
+    if(this->state == cpu || this->state == both){//make sure cpu memory exists
       T* pageable_host = new T[this->numElements]();
       memcpy(pageable_host,this->host,this->numElements*sizeof(T));
       CudaSafeCall(cudaFreeHost(this->host));
       this->host = pageable_host;
     }
   }
-  //TODO add previousState support
-  //TODO add unified memory support
   template<typename T>
-  void Unity<T>::setData(T* data, unsigned long numElements, MemoryState state, bool pinned){
+  void Unity<T>::setData(T* data, unsigned long numElements, MemoryState state){
     if(state == null){
       throw NullUnityException("cannot use null as state of T* data in Unity<T>::setData");
     }
@@ -788,30 +803,42 @@ namespace ssrlcv{
     else if(data != nullptr && (data == this->host || data == this->device)){
       throw UnityException("cannot use Unity<T>::setData where T* data is this->host or this->device");
     }
+    else if(pinned && this->state == unified){
+      throw IllegalUnityTransition("cannot have pinned unified memory");
+    }
     if(this->state != null) this->clear();
     this->numElements = numElements;
     this->state = state;
     this->fore = state;
-    this->pinned = pinned;
     if(data == nullptr){
-      if(state == null || state > 3){//greater than three means pinned or unified
+      if(state == null || state > 4){//greater than three means pinned or unified
         throw IllegalUnityTransition("attempt to instantiate unkown MemoryState fron nullptr (supported states = both, cpu & gpu)");
       }
-      if(state == cpu || state == both){
-        if(!this->pinned) this->host = new T[numElements]();
-        else{
-          CudaSafeCall(cudaMallocHost((void**)&this->host,this->numElements*sizeof(T)));
-          this->zeroOut(cpu);
-        } 
+      else if(state == unified){
+        CudaSafeCall(cudaMallocManaged((void**)&this->host,numElements*sizeof(T)));
+        this->device = this->host;
       }
-      if(state == gpu || state == both){
-        CudaSafeCall(cudaMalloc((void**)&this->device,this->numElements*sizeof(T)));
-        this->zeroOut(gpu);
+      else{
+        if(state == cpu || state == both){
+          if(!this->pinned) this->host = new T[numElements]();
+          else{
+            CudaSafeCall(cudaMallocHost((void**)&this->host,numElements*sizeof(T)));
+            this->zeroOut(cpu);
+          } 
+        }
+        if(state == gpu || state == both){
+          CudaSafeCall(cudaMalloc((void**)&this->device,numElements*sizeof(T)));
+          this->zeroOut(gpu);
+        }
       }
     }
     else if(state <= 2){
-      if(state == cpu) this->host = data;//TODO warn about using pinned here
+      if(state == cpu) this->host = data;
       else if(state == gpu) this->device = data;
+    }
+    else if(state == unified){//user must use cudaMallocManaged for allocation for this to be a safe opeartion
+      this->host = data;
+      this->device = this->host;
     }
     else{
       if(state == both){
@@ -833,12 +860,16 @@ namespace ssrlcv{
     if(this->state == null){
       throw NullUnityException("attempt to Unity<T>::setFore(MemoryState state) when this->state == null");
     }
+    else if(this->state == unified){
+      logger.warn<<"Unity<T>::setFore(MemoryState state) when state == unified does nothing\n";
+      return;
+    }
     else if(this->fore == state){
-      logger.warn<<"WARNING: Unity<T>::setFore(MemoryState state) when state == this->fore does nothing\n";
+      logger.warn<<"Unity<T>::setFore(MemoryState state) when state == this->fore does nothing\n";
       return;
     }
     else if(state == both){
-      logger.warn<<"ERROR: cannot set fore to both manually: \n\tuse setMemoryState(both) or transferMemoryTo((this->fore == gpu) ? cpu : gpu)\n";
+      logger.err<<"cannot set fore to both manually: \n\tuse setMemoryState(both) or transferMemoryTo((this->fore == gpu) ? cpu : gpu)\n";
       exit(-1);
     }
     else if(this->state != both && this->state != state){
@@ -851,19 +882,24 @@ namespace ssrlcv{
     }
     this->fore = state;
   }
-  //TODO add previousState support
-  //TODO add unified memory support
   template<typename T>
   void Unity<T>::transferMemoryTo(MemoryState state){
     if(this->state == null || sizeof(T)*this->numElements == 0){
       throw NullUnityException("thrown in Unity<T>::transferMemoryTo()");
     }
     else if(state == null){
-      throw IllegalUnityTransition("Cannot transfer unity memory to null");
+      throw IllegalUnityTransition("cannot transfer unity memory to null");
     }
-    if(state <= 3){
+    if(this->state == unified){
+      logger.warn<<"Unity<T>::transferMemoryTo is not necessary when this->state == unified, as this->device == this->host"<<std::endl;
+      return;
+    }
+    else if(state == unified){
+      throw IllegalUnityTransition("cannot Unity<T>::transferMemoryTo(unified), this->device and this->host can be unified in Unity<T>::setMemoryState");
+    }
+    else if(state <= 3){
       if(this->fore == state){
-        logger.warn<<"WARNING: transfering memory to location of fore does nothing: "<<memoryStateToString(state)<<"\n";
+        logger.warn<<"transfering memory to location of fore does nothing: "<<memoryStateToString(state)<<"\n";
         return;
       }
       else{
@@ -875,6 +911,7 @@ namespace ssrlcv{
             if(!this->pinned) this->host = new T[this->numElements]();
             else CudaSafeCall(cudaMallocHost((void**)&this->host,this->numElements*sizeof(T)));
           }
+          this->previousState = this->state;
           this->state = both;
         }
         if(this->fore == cpu){
@@ -890,14 +927,14 @@ namespace ssrlcv{
       throw IllegalUnityTransition("unsupported memory destination in Unity<T>::transferMemoryTo (supported states = both, cpu & gpu)");
     }
   }
-  //TODO add previousState support
   //TODO add unified memory support
   template<typename T>
-  void Unity<T>::remove(bool (*predicate)(const T&),MemoryState destination){
+  void Unity<T>::remove(pred_ptr predicate, MemoryState destination){
     if(this->state == null || this->numElements == 0){
       throw NullUnityException("cannot remove anything from an already null Unity<T>");
     }
     if(destination == nc) destination = this->state;
+    MemoryState tempPrev = this->previousState;
     if(this->state == null){
       throw UnityException("cannot perform sort on an empty Unity<T>");
     }
@@ -918,15 +955,16 @@ namespace ssrlcv{
       this->resize(compressedSize);
     }
     if(destination != this->state) this->setMemoryState(destination);
+    if(tempPrev != this->previousState) this->previousState = tempPrev;
   }
-  //TODO add previousState support
   //TODO add unified memory support
   template<typename T>
   void Unity<T>::sort(bool greater, MemoryState destination){
     if(this->state == null || this->numElements == 0){
       throw NullUnityException("cannot sort a null Unity<T>");
     }
-    MemoryState origin = (destination == nc) ? this->state : destination;
+    if(destination == nc) destination = this->state;
+    MemoryState tempPrev = this->previousState;//necessary to ensure that a possible memoryTransfer does not manipulate previousState
     if(origin == null){
       throw UnityException("cannot perform sort on an empty Unity<T>");
     }
@@ -942,16 +980,17 @@ namespace ssrlcv{
     }
     CudaCheckError();
     this->fore = gpu;
-    if(origin != this->state) this->setMemoryState(origin);
+    if(destination != this->state) this->setMemoryState(origin);
+    if(tempPrev != this->previousState) this->previousState = tempPrev;
   }
-  //TODO add previousState support
   //TODO add unified memory support
   template<typename T>
   void Unity<T>::sort(comp_ptr comparator, MemoryState destination){
     if(this->state == null || this->numElements == 0){
       throw NullUnityException("cannot sort a null Unity<T>");
     }
-    MemoryState origin = (destination == nc) ? this->state : destination;
+    if(destination == nc) destination = this->state;
+    MemoryState tempPrev = this->previousState;//necessary to ensure that a possible memoryTransfer does not manipulate previousState
     if(origin == null){
       throw UnityException("cannot perform sort on an empty Unity<T>");
     }
@@ -962,9 +1001,9 @@ namespace ssrlcv{
     thrust::stable_sort(data_ptr,data_ptr+this->numElements,comparator);
     CudaCheckError();
     this->fore = gpu;
-    if(origin != this->state) this->setMemoryState(origin);
+    if(destination != this->state) this->setMemoryState(origin);
+    if(tempPrev != this->previousState) this->previousState = tempPrev;
   }
-  //TODO add previousState support
   //TODO add unified memory support
   template<typename T>
   void Unity<T>::checkpoint(int id, std::string dirPath){
@@ -984,8 +1023,9 @@ namespace ssrlcv{
     std::ofstream cp(pathToFile.c_str(), std::ofstream::binary);
 
     MemoryState origin = this->state;
+    MemoryState tempPrev = this->previousState;//necessary to ensure that a possible memoryTransfer does not manipulate previousState
     if(this->fore == gpu) this->transferMemoryTo(cpu);
-    
+
     if(cp.is_open()){
       //header
       cp.write(name,strlen(name));
@@ -1014,12 +1054,15 @@ namespace ssrlcv{
       pathToFile = "could not open for writing: " + pathToFile;
       throw CheckpointException(pathToFile);
     }
+    if(origin != this->state) this->setMemoryState(origin);
+    if(tempPrev != this->previousState) this->previousState = tempPrev;
   }
   template<typename T> 
   void Unity<T>::printInfo(){
     std::cout<<"numElements = "<<this->numElements;
     std::cout<<" state = "<<memoryStateToString(this->state);
     if(this->pinned && (this->state == cpu || this->state == both)) std::cout<<" (pinned)";
+    std::cout<<" previousState = "<<memoryStateToString(this->previousState);
     std::cout<<" fore = "<<memoryStateToString(this->fore);
     std::cout<<" type = "<<typeid(T).name()<<"\n";
   }
