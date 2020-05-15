@@ -492,14 +492,15 @@ namespace ssrlcv{
     this->setData(nullptr,copy->size(),copy->getMemoryState());
     this->fore = copy->getFore();
     this->state = copy->getMemoryState();
-    if(this->state == cpu || this->state == both){
+    if(this->state == cpu || this->state == both || this->state == unified){
       std::memcpy(this->host,copy->host,this->numElements*sizeof(T));
     }
     if(this->state == gpu || this->state == both){
       CudaSafeCall(cudaMemcpy(this->device,copy->device,this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
     } 
+    if(this->state == unified) this->device = this->host;
   }
-  //TODO add unified memory support
+  //TODO add unified memory support (needs support in setMemoryState)
   template<typename T>
   Unity<T>::Unity(Unity<T>* copy, pred_ptr predicate){
     this->host = nullptr;
