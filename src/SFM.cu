@@ -176,8 +176,16 @@ int main(int argc, char *argv[]){
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
       std::cout << "\tUnfiltered Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
 
-      if (images[0].isPushbroom) {
-        ssrlcv::writePLY("out/unfiltered.ply",points);
+      if (images.at(0)->isPushbroom) {
+        ssrlcv::writePLY("unfiltered",points);
+        // the bundles can also be printed
+        ssrlcv::Unity<float3>* testpositions = new ssrlcv::Unity<float3>(nullptr,bundleSet.lines->size(),ssrlcv::cpu);
+        ssrlcv::Unity<float3>* testnormals   = new ssrlcv::Unity<float3>(nullptr,bundleSet.lines->size(),ssrlcv::cpu);
+        for (int b = 0; b < bundleSet.lines->size(); b++) {
+          testpositions->host[b] = bundleSet.lines->host[b].pnt;
+          testnormals->host[b]   = bundleSet.lines->host[b].vec;
+        }
+        ssrlcv::writePLY("pushbroomBundles",testpositions,testnormals);
       }
 
       logger.logState("TRIANGULATE");
@@ -213,7 +221,7 @@ int main(int argc, char *argv[]){
 
       logger.logState("FILTER");
 
-      if (!images[0].isPushbroom) { // <-- make sure
+      if (!images.at(0)->isPushbroom) { // <-- make sure
         // ============= Bundle Adjustment
 
         logger.logState("BA");

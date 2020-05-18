@@ -4292,7 +4292,8 @@ __global__ void ssrlcv::generatePushbroomBundle(unsigned int numBundles, Bundle*
     float angle_out  = arc_length / radius;
     float kp_roll = asinf( ( position.x ) / ( radius + altitude ) );
     // rotate the keypoint to the correct orientation
-    kp[k]    = rotatePoint(kp[k],{0.0f,kp_roll,0.0f}); // do the roll, which is the off angle of the pushbroom scan
+    kp[k]    = rotatePoint(kp[k],{0.0f,kp_roll,0.0f}); // set the kp to the nadir refrence 
+    kp[k]    = rotatePoint(kp[k],{0.0f,roll,0.0f}); // do the roll, which is the off angle of the pushbroom scan
     // kp[k].z += radius;
     // kp[k]    = rotatePoint(kp[k],{angle_out, 0.0f, 0.0f}); // // rotate around the x+ axis to move forward in the "orbit"
     // kp[k].z -= radius;
