@@ -439,6 +439,62 @@ ssrlcv::Unity<float>* ssrlcv::Image::getExtrinsicDifference(Camera other){
   return diff;
 }
 
+/**
+* Estimates the fundamental matrix F between this image and the input image, see the book Multiview Geometry in
+* Computer Vision chapter 11, Computation of the Fundamental Matrix F
+* @param otherImg The other image to caclulate the fundamental matrix from
+* @param localPnt A float2 array of points on this image who indexes correspond to the matches on otherPnt
+* @param otherPnt A float2 array of points on the other image who indexes correspond to the matches on localPnt
+* @returns a 3x3 unity of single floats in row col order representing the fundamental matrix
+*/
+ssrlcv::Unity<float>* ssrlcv::Image::estimateFundamentalMatrix(Image* otherImg, Unity<float2>* localPnt, Unity<float2>* otherPnt){
+
+  // allocate the space for the fundamental matrix
+  Unity<float>* fundamental = new Unity<float3>(nullptr,9,cpu);
+
+  // see if we have enough points to do the estimation
+  if (localPnt->size() != otherPnt->size()) {
+    std::cerr  << "ERROR: Fundamental Matrix Estimation requires the same number of points for point correspondences" << std::endl;
+    logger.err << "ERROR: Fundamental Matrix Estimation requires the same number of points for point correspondences";
+    return nullptr;
+  }
+  if (localPnt->size() < 8){
+    std::cerr  << "ERROR: Fundamental Matrix Estimation requires 8 or more points" << std::endl;
+    logger.err << "ERROR: Fundamental Matrix Estimation requires 8 or more points";
+    return nullptr;
+  }
+
+  // shuffle the points around so that we will get a good distribution of estimations
+  // from stack overflow https://stackoverflow.com/questions/5008804/generating-random-integer-from-a-range
+  std::random_device rd;     // only used once to initialise (seed) engine
+  std::mt19937 rng(rd());    // random-number engine used (Mersenne-Twister in this case)
+  std::uniform_int_distribution<int> uni(0,localPnt->size() - 1); // guaranteed unbiased
+  for (int i = 0; i < localPnt->size() / 4; i++){
+    auto index1  = uni(rng);
+    float2 temp1 = localPnt->host[index1];
+    float2 temp2 = otherPnt->host[index1];
+    auto index2  = uni(rng);
+    localPnt->host[index1] = localPnt->host[index2];
+    localPnt->host[index2] = temp1;
+    otherPnt->host[index1] = otherPnt->host[index2];
+    otherPnt->host[index2] = temp2;
+  }
+
+  // Generate a matrix A values for every 8-point correspondences
+  Unity<float>* A_list = new Unity<float3>(nullptr, ((localPnt->size() - (localPnt->size()%8)) * 9) ,cpu);
+  std::cout << "A_list adjusted to size: " << << std::endl;
+  for (int i, j; i < A_list->size(); i+=9){
+    A_list->
+  }
+
+  // bulk caclulate F with cuSOLVER
+  // https://docs.nvidia.com/cuda/cusolver/index.html#cuds-lt-t-gt-potrsBatched
+
+  // choose best fit F by testing against all other points 
+
+  return fundamental;
+}
+
 // =============================================================================================================
 //
 // Other Host Methods

@@ -14,6 +14,29 @@ ________________________________________________________________________________
 
 ```
 
+---
+
+<h1 align="center">SSRL Computer Vision</h1>
+
+<p align="center">A CUDA Accelerated Computer Vision Library for Small Satellites using Jetson Platforms<p>
+
+
+<p align="center">
+  <a href="https://www.gnu.org/licenses/lgpl-3.0.en.html"><img src="https://img.shields.io/badge/license-LGPLv3-blue" alt="license"></a>
+  <a href="https://github.com/uga-ssrl/SSRLCV"><img src="https://img.shields.io/github/repo-size/uga-ssrl/ssrlcv" alt="size"></a>
+  <a href="https://developer.nvidia.com/cuda-10.0-download-archive"><img src="https://img.shields.io/badge/CUDA-v10.0-green" alt=""></a>
+  <a href=""><img src="https://img.shields.io/badge/status-alpha-yellow"></a>
+  <a href=""><img src="https://img.shields.io/badge/alpha-v0.1-yellow"></a>
+</p align="center">
+<p align="center">
+  <a href="https://www.researchgate.net/publication/341254626_High_Performance_Computation_with_Small_Satellites_and_Small_Satellite_Swarms_for_3D_Reconstruction"><img src="https://img.shields.io/badge/DOI-10.13140%2FRG.2.2.10511.20646-informational" alt="research"></a>
+  <a href="https://doi.org/10.1109/aero.2019.8741765"><img src="https://img.shields.io/badge/DOI-10.1109%2Faero.2019.8741765-informational" alt="research"></a>
+
+
+</p>
+
+---
+
 # UGA SSRL Computer Vision
 
 [University of Georgia Small Satellite Research Laboratory](smallsat.uga.edu) Computer Vision, SSRLCV, is a computer vision software library written in C++ and the Nvidia CUDA programming language for Nvidia GPU SoCs in space environments. The software will be used onboard the MOCI satellite with our modified TX2i, but is also compatible with Ubuntu 16.04, Ubuntu 18.04, and Linux for Tegra. SSRLCV can also run on the TX2 and the Jetson Nano. The software currently includes SIFT feature detection, SIFT feature generation, SIFT feature matching, point cloud filtering, 2 view triangulation, N view triangulation, and 2 view bundle adjustment. SSRLCV is capable of generating point clouds with 15 - 100 meter accuracy from a 400 km circular orbit and a 6 meter GSD; the results are documented in [this thesis research](http://piepieninja.github.io/research-papers/thesis.pdf) and several updates are expected in the near future.
@@ -33,6 +56,8 @@ Check out the [contributors guide](CONTRIB.md) if you would like to help further
   * gcc
   * nvcc
   * CUDA 10.0
+  * cuBLAS
+  * cuSOLVER
 
 ## Compilation
 
@@ -147,8 +172,11 @@ Upon usage please cite one or more of the following:
 
 [High Performance Computation with Small Satellites and Small Satellite Swarms for 3D Reconstruction](http://piepieninja.github.io/research-papers/thesis.pdf)
 
+<a href="https://www.researchgate.net/publication/341254626_High_Performance_Computation_with_Small_Satellites_and_Small_Satellite_Swarms_for_3D_Reconstruction"><img src="https://img.shields.io/badge/DOI-10.13140%2FRG.2.2.10511.20646-informational" alt="research"></a>
+
 ```
 @mastersthesis{CalebAdamsMSThesis,
+  doi = {10.13140/RG.2.2.10511.20646},
   author={Caleb Ashmore Adams},
   title={High Performance Computation with Small Satellites and Small Satellite Swarms for 3D Reconstruction},
   school={The University of Georgia},
@@ -159,6 +187,8 @@ Upon usage please cite one or more of the following:
 ```
 
 [Towards an Integrated GPU Accelerated SoC as a Flight Computer for Small Satellites](https://ieeexplore.ieee.org/document/8741765)
+
+<a href="https://doi.org/10.1109/aero.2019.8741765"><img src="https://img.shields.io/badge/DOI-10.1109%2Faero.2019.8741765-informational" alt="research"></a>
 
 ```
 @inproceedings{TowardsAdams2019,
@@ -177,6 +207,7 @@ Upon usage please cite one or more of the following:
 
 ```
 @inproceedings{CVAdams2018,
+  url={https://digitalcommons.usu.edu/cgi/viewcontent.cgi?article=4216&context=smallsat},
   title={A Near Real Time Space Based Computer Vision System for Accurate Terrain Mapping},
   author={Adams, Caleb},
   journal={32nd Annual AIAA/USU Conference on Small Satellites},

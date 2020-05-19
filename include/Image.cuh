@@ -33,6 +33,7 @@ namespace ssrlcv{
   class Image{
 
   public:
+
     /**
     * \brief This struct is meant to house image and camera parameters.
     */
@@ -79,6 +80,7 @@ namespace ssrlcv{
     Camera camera; ///<\brief Camera struct holding all camera parameters
     PushbroomCamera pushbroom; ///<\brief Camera struct holding all camera parameters
     bool isPushbroom; ///<\brief variable is true if the image was generated with a pushbroom camera
+    bool hasParameters;
     Unity<unsigned char>* pixels;///<\brief pixels of image flattened row-wise
 
     // =============================================================================================================
@@ -189,6 +191,15 @@ namespace ssrlcv{
     */
     Unity<float>* getExtrinsicDifference(Camera other);
 
+    /**
+    * Estimates the fundamental matrix F between this image and the input images
+    * @param otherImg The other image to caclulate the fundamental matrix from
+    * @param localPnt A float2 array of points on this image who indexes correspond to the matches on otherPnt
+    * @param otherPnt A float2 array of points on the other image who indexes correspond to the matches on localPnt
+    * @returns a 3x3 unity of single floats in row col order representing the fundamental matrix
+    */
+    Unity<float>* estimateFundamentalMatrix(Image* otherImg, Unity<float2>* localPnt, Unity<float2>* otherPnt);
+
     /*
     // Binary camera params [Gitlab #58]
     void bcp_in(bcpFormat data) {
@@ -229,6 +240,7 @@ namespace ssrlcv{
   * \see Unity
   */
   Unity<unsigned char>* addBufferBorder(uint2 size, ssrlcv::Unity<unsigned char>* pixels, int2 border);
+
   /**
   * \brief Generate a new image with a border.
   * \details This method takes in a Unity<unsigned char> pixel array and will add
@@ -242,6 +254,7 @@ namespace ssrlcv{
   * \see Unity
   */
   Unity<float>* addBufferBorder(uint2 size, ssrlcv::Unity<float>* pixels, int2 border);
+
   /**
   * \brief Convert Unity<float>* to Unity<unsigned char>*
   * \details This method will determine min and max pixel values
@@ -253,6 +266,7 @@ namespace ssrlcv{
   * \see convertToCharImage
   */
   Unity<unsigned char>* convertImageToChar(Unity<float>* pixels);
+
   /**
   * \brief Convert Unity<unsigned char>* to Unity<float>*
   * \details This method will simply convert unsigned char values to
@@ -263,6 +277,7 @@ namespace ssrlcv{
   * \see convertToFltImage
   */
   Unity<float>* convertImageToFlt(Unity<unsigned char>* pixels);
+
   /**
   * \brief Normalize float values in Unity from 0-1.
   * \details This method will determine min and max for the values
@@ -273,6 +288,7 @@ namespace ssrlcv{
   * \todo add option to normalize between two numbers
   */
   void normalizeImage(Unity<float>* pixels);
+
   /**
   * \brief Normalize float values in Unity from 0-1.
   * \details This method will use the provided min and max for the values
@@ -286,6 +302,7 @@ namespace ssrlcv{
   * be incorrect
   */
   void normalizeImage(Unity<float>* pixels, float2 minMax);
+
   /**
   * \brief Convert pixel values to grayscale.
   * \details This method will take pixels of a higher colorDepth and
@@ -296,6 +313,7 @@ namespace ssrlcv{
   * \see generateBW
   */
   void convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth);
+
   /**
   * \brief Convert pixel values to RGB.
   * \details This method will take pixels and
@@ -320,6 +338,7 @@ namespace ssrlcv{
   * \todo implement!!!!!
   */
   void calcFundamentalMatrix_2View(float cam0[3][3], float cam1[3][3], float (&F)[3][3]);
+
   /**
   * \brief Generate float3[3] fundamental matrix from 2 images.
   * \details This method takes in two images and uses their camera variables to
@@ -331,6 +350,7 @@ namespace ssrlcv{
   * \see Image::Camera
   */
   void calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F)[3]);
+
   /**
   * \brief
   * \details
