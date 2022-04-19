@@ -10,7 +10,7 @@ Initial triangulation begins after feature matching. First the bundles are gener
 
 ## Functions
 
-#### Feature Extraction
+### Feature Extraction
 
 **SIFT_FeatureFactory(orientationContriWidth, descriptorContriWidth)**   
 creates FeatureFactory object.  
