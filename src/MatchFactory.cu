@@ -314,23 +314,34 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::getRawMatches(Unity<Featu
   }
 }
 
+/**
+ * @brief This function computes the seed distances.
+ * 
+ * @tparam T 
+ * @param features a pointer to a Unity data structure containing features of type T
+ * @return a pointer to a Unity data structure containing the match distances
+ */
 template<typename T>
 ssrlcv::Unity<float>* ssrlcv::MatchFactory<T>::getSeedDistances(Unity<Feature<T>>* features){
   MemoryState origin = features->getMemoryState();
 
+  // set the memory state for seedFeatures and features to GPU
   if(this->seedFeatures->getMemoryState() != gpu) this->seedFeatures->setMemoryState(gpu);
   if(origin != gpu) features->setMemoryState(gpu);
 
+  // the size of the feature vector is assigned to numPossibleMatches 
   unsigned int numPossibleMatches = features->size();
 
   Unity<float>* matchDistances = new Unity<float>(nullptr, numPossibleMatches,gpu);
 
+  // initilize grid and block dimensions
   dim3 grid = {1,1,1};
   dim3 block = {32,1,1};//IMPROVE
   getGrid(matchDistances->size(),grid);
 
   clock_t timer = clock();
 
+  // call the kernel function getSeedMatchDistances
   getSeedMatchDistances<T><<<grid, block>>>(features->size(),features->device,this->seedFeatures->size(),
     this->seedFeatures->device,matchDistances->device);
 
@@ -342,7 +353,7 @@ ssrlcv::Unity<float>* ssrlcv::MatchFactory<T>::getSeedDistances(Unity<Feature<T>
   if(origin != gpu) features->setMemoryState(origin);
   
   return matchDistances;
-}
+} // getSeedDistances
 
 template<typename T>
 ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances){
@@ -1232,9 +1243,22 @@ __global__ void ssrlcv::disparityScanMatching(uint2 querySize, unsigned char* pi
 /*
   Matching kernels
 */
+
+/**
+ * @brief This function computes the seed match distances.
+ * 
+ * @tparam T 
+ * @param numFeaturesQuery the number of features to query 
+ * @param featuresQuery a ptr to the feature vector to be queried
+ * @param numSeedFeatures the number of seed features
+ * @param seedFeatures a ptr to the ffeature vector containing the seed features
+ * @param matchDistances a ptr to the match distances
+ * @return __global__ 
+ */
 template<typename T>
 __global__ void ssrlcv::getSeedMatchDistances(unsigned long numFeaturesQuery, Feature<T>* featuresQuery, unsigned long numSeedFeatures,
 Feature<T>* seedFeatures, float* matchDistances){
+  // define the block ID
   unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   if(blockId < numFeaturesQuery){
     Feature<T> feature = featuresQuery[blockId];
@@ -1248,7 +1272,7 @@ Feature<T>* seedFeatures, float* matchDistances){
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
       }
-    }
+    } // for
     __syncthreads();
     if(threadIdx.x != 0) return;
     currentDist = FLT_MAX;
@@ -1256,10 +1280,11 @@ Feature<T>* seedFeatures, float* matchDistances){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
       }
-    }
+    } // if
     matchDistances[blockId] = currentDist;
-  }
-}
+  } // if
+} // getSeedMatchDistances
+
 template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,

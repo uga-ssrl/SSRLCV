@@ -5,16 +5,30 @@ ssrlcv::SIFT_FeatureFactory::SIFT_FeatureFactory(float orientationContribWidth, 
   this->descriptorContribWidth = descriptorContribWidth;
 }
 
+/**
+ * @brief This function generates features points from an image.
+ * 
+ * @param image a pointer to the image object
+ * @param dense specifies whether or not dense SIFT is used
+ * @param maxOrientations max orientations of the image
+ * @param orientationThreshold orientation threshold
+ * @return a vector of SIFT feature descriptors
+ */
 ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFactory::generateFeatures(ssrlcv::Image* image, bool dense, unsigned int maxOrientations, float orientationThreshold){
   std::cout<<"Generating SIFT features for image "<<image->id<<std::endl<<"\t";
   Unity<Feature<SIFT_Descriptor>>* features = nullptr;
+  
+  // make sure we are operating in GPU memory
   MemoryState origin = image->pixels->getMemoryState();
   if(origin != gpu) image->pixels->setMemoryState(gpu);
 
+  // convert image to BW
   if(image->colorDepth != 1){
     convertToBW(image->pixels,image->colorDepth);
     image->colorDepth = 1;
   }
+
+  // this conditional is skipped becuase we are NOT using dense SIFT
   if(dense){
 
     clock_t timer = clock();
@@ -31,7 +45,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
       }
     }
 
-    //will free cpu memory and instantiate gpu memory
+    // will free CPU memory and instantiate GPU memory
     keyPoints->setMemoryState(gpu);
 
     printf("\nDense SIFT prep done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
@@ -45,8 +59,12 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     //int nspo = scaleSpaceDim.y - 3;//num scale space/octave in dog made from a {4,6} ScaleSpace
     float noiseThreshold = 0.01f;//*(powf(2,1.0f/nspo)-1)/(powf(2,1.0f/3.0f)-1);//if 0.15 there is a segfault
     float edgeThreshold = 12.1f;//12.1 = (10.0f + 1)^2 / 10.0f //formula = (r+1)^2/r from lowes paper where r = 10
+    
+    // instantiate a pointer to a DOG object with the image
     DOG* dog = new DOG(image,-1,scaleSpaceDim,sqrtf(2.0f)/2.0f,{2,sqrtf(2.0f)},{8,8},true);//last true specifies dog conversion
     std::cout<<"\tdog created"<<std::endl;
+
+    // set memory back to CPU
     if(origin != gpu) image->pixels->setMemoryState(origin);//no longer need to force pixels on gpu
     // std::string dump = "out/dog";
     // dog->dumpData(dump);
@@ -87,11 +105,11 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
       }
       currentOctave->discardExtrema();
     }
-    //have not transfered any extrema back to extremaOrigin
+    // have not transfered any extrema back to extremaOrigin
 
     dog->computeKeyPointOrientations(orientationThreshold,maxOrientations,this->orientationContribWidth,true);
 
-    //then create features from each of the keyPoints
+    // then create features from each of the keyPoints
     unsigned int numKeyPoints = 0;
     for(int o = 0; o < dog->depth.x; ++o){
       if(dog->octaves[o]->extrema == nullptr) continue;
@@ -103,8 +121,9 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
     }
     std::cout<<"total keypoints found = "<<numKeyPoints<<std::endl;
     std::cout<<"creating features from keypoints..."<<std::endl;
+    // here, a feature vector containing SIFT feature descriptors is generated for each key point
     features = new Unity<Feature<SIFT_Descriptor>>(nullptr,numKeyPoints,gpu);
-    //fill descriptors based on SSKeyPoint information
+    // fill descriptors based on SSKeyPoint information
     block = {4,4,8};
 
     MemoryState gradientsOrigin;
@@ -124,9 +143,15 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
   
         currentBlur = currentOctave->blurs[b];
         gradientsOrigin = currentBlur->gradients->getMemoryState();
+        
+        // set memory state to GPU
         if(gradientsOrigin != gpu) currentBlur->gradients->setMemoryState(gpu);
+        // initilize grid var
         grid = {1,1,1};
+        // get grid dimensions
         getGrid(numKeyPointsInBlur,grid);
+        
+        // execute the fillDescriptors kernel, which fills the descriptors
         fillDescriptors<<<grid,block>>>(numKeyPointsInBlur,currentBlur->size, 
           features->device + numFeaturesProduced, currentOctave->pixelWidth, this->descriptorContribWidth,
           currentOctave->extrema->device + currentOctave->extremaBlurIndices[b], currentBlur->gradients->device);
@@ -135,16 +160,16 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFac
 
         numFeaturesProduced += numKeyPointsInBlur;
         if(gradientsOrigin != gpu) currentBlur->gradients->setMemoryState(gradientsOrigin);
-      }
+      } // for
       if(extremaOrigin[o] != gpu) currentOctave->extrema->setMemoryState(extremaOrigin[o]);
       std::cout<<"\tfeatures created from octave "<<o<<std::endl;
-    }
+    } // for
     delete[] extremaOrigin;
     delete dog;
   }
   std::cout<<"\n\n";
-  return features;
-}
+  return features; 
+} // generateFeatures
 
 ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* ssrlcv::SIFT_FeatureFactory::createFeatures(uint2 imageSize,float orientationThreshold, unsigned int maxOrientations, float pixelWidth, Unity<float2>* gradients, Unity<float2>* keyPoints){
 
@@ -443,7 +468,18 @@ __global__ void ssrlcv::checkKeyPoints(unsigned int numKeyPoints, unsigned int k
   }
 }
 
-
+/**
+ * @brief This functions fills the descriptors.
+ * 
+ * @param numFeatures number of features
+ * @param imageSize image size
+ * @param features a pointer to a vector of SIFT feature descriptions
+ * @param pixelWidth pixel width
+ * @param lambda ???
+ * @param keyPoints a pointer to the key points in the image
+ * @param gradients ???
+ * @return __global__ 
+ */
 __global__ void ssrlcv::fillDescriptors(unsigned int numFeatures, uint2 imageSize, Feature<SIFT_Descriptor>* features,
 float pixelWidth, float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoints, float2* gradients){
   unsigned long blockId = blockIdx.y* gridDim.x+ blockIdx.x;
@@ -518,4 +554,4 @@ float pixelWidth, float lambda, FeatureFactory::ScaleSpace::SSKeyPoint* keyPoint
       features[blockId].loc = kp.loc*pixelWidth;//absolute location on image
     }
   }
-}
+} // fillDescriptors

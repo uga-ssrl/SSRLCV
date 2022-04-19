@@ -40,7 +40,7 @@ int main(int argc, char *argv[]){
     // register the SIGINT safe shutdown
     std::signal(SIGINT, safeShutdown);
 
-    //CUDA INITIALIZATION
+    // CUDA INITIALIZATION
     cuInit(0);
     clock_t totalTimer = clock();
     clock_t partialTimer = clock();
@@ -51,7 +51,7 @@ int main(int argc, char *argv[]){
     logger.logState("start"); // these can be used to time parts of the pipeline afterwards and correlate it with ofther stuff
     logger.startBackgoundLogging(1); // write a voltage, current, power log every 5 seconds
 
-    //ARG PARSING
+    // ARG PARSING
 
     logger.logState("SEED");
     std::map<std::string,ssrlcv::arg*> args = ssrlcv::parseArgs(argc,argv);
@@ -76,22 +76,38 @@ int main(int argc, char *argv[]){
     std::cout<<"found "<<numImages<<" in directory given"<<std::endl;
     logger.logState("SEED");
 
+    //
+    // FEATURE GENERATION
+    //
+
     logger.logState("FEATURES");
-    std::vector<ssrlcv::Image*> images;
-    std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
-    for(int i = 0; i < numImages; ++i){
-      // logger.logState("generating features");
+    // a vector containing pointers to Image objects
+    std::vector<ssrlcv::Image*> images; 
+    // a vector containing pointers to Unity data structures
+    std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures; 
+
+    // GENERATE FEATURES
+    for(int i = 0; i < numImages; ++i){ // for each image in the image directory 
+
+      // image var is instantiated with the file path to the image and an id
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
+
+      // feature var contains a vector of SIFT feature descriptors
       ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
+      // transfer the feacture fector data to CPU
       features->transferMemoryTo(ssrlcv::cpu);
+      // add the image to the images vector
       images.push_back(image);
+      // add the vector of features to the allFeatures vector
       allFeatures.push_back(features);
+
+
       // logger.logState("done generating features");
     }
     logger.logState("FEATURES");
 
     //
-    // MATCHING
+    // FEATURE MATCHING
     //
 
     std::cout << "Starting matching..." << std::endl;
