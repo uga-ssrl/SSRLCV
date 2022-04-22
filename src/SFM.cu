@@ -12,6 +12,7 @@
 //           _______________________________________________________________________________________________________________
 
 #include "common_includes.hpp"
+#include "SFM.cuh"
 #include "Image.cuh"
 #include "io_util.hpp"
 #include "SIFT_FeatureFactory.cuh"
@@ -34,6 +35,34 @@ void safeShutdown(int sig){
   exit(sig); // exit with the same signal
 }
 
+void doFeatureGeneration(ssrlcv::FeatureGenerationArgs *args) {
+  ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1.5f,6.0f);
+
+  logger.logState("SEED");
+  if (args->seedPath.size() > 0) {
+    // new image with path and ID
+    ssrlcv::Image *seed = new ssrlcv::Image(args->seedPath,-1);
+    // array of features containing sift descriptors at every point
+    args->seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8);
+    delete seed;
+  }
+  logger.logState("SEED");
+
+  logger.logState("FEATURES");
+  for (int i = 0; i < args->numImages; i ++) {
+    // new image with path and ID
+    ssrlcv::Image *image = new ssrlcv::Image(args->imagePaths[i], i);
+    // array of features containing sift descriptors at every point
+    ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> *features =
+              featureFactory.generateFeatures(image,false,2,0.8);
+    features->transferMemoryTo(ssrlcv::cpu);
+    args->images.push_back(image);
+    args->allFeatures.push_back(features);
+  }
+  logger.logState("FEATURES");
+
+}
+
 int main(int argc, char *argv[]){
   try{
 
@@ -53,68 +82,40 @@ int main(int argc, char *argv[]){
 
     // ARG PARSING
 
-    logger.logState("SEED");
-    std::map<std::string,ssrlcv::arg*> args = ssrlcv::parseArgs(argc,argv);
+    std::map<std::string, ssrlcv::arg*> args = ssrlcv::parseArgs(argc, argv);
+
     if(args.find("dir") == args.end()){
-      std::cerr<<"ERROR: SFM executable requires a directory of images"<<std::endl;
+      std::cerr << "ERROR: SFM executable requires a directory of images" << std::endl;
       exit(-1);
     }
-    ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1.5f,6.0f);
-    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,200.0f*200.0f);
-    bool seedProvided = false;
-    ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* seedFeatures = nullptr;
+
+    std::string seedPath;
     if(args.find("seed") != args.end()){
-      seedProvided = true;
-      std::string seedPath = ((ssrlcv::img_arg*)args["seed"])->path;
-      ssrlcv::Image* seed = new ssrlcv::Image(seedPath,-1);
-      seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8);
-      matchFactory.setSeedFeatures(seedFeatures);
-      delete seed;
+      seedPath = ((ssrlcv::img_arg *)args["seed"])->path;
     }
-    std::vector<std::string> imagePaths = ((ssrlcv::img_dir_arg*)args["dir"])->paths;
+    std::vector<std::string> imagePaths = ((ssrlcv::img_dir_arg *)args["dir"])->paths;
     int numImages = (int) imagePaths.size();
-    std::cout<<"found "<<numImages<<" in directory given"<<std::endl;
+    std::cout<<"Found " << numImages << " images in directory given" << std::endl;
     logger.logState("SEED");
 
-    //
-    // FEATURE GENERATION
-    //
-
-    logger.logState("FEATURES");
-    // a vector containing pointers to Image objects
-    std::vector<ssrlcv::Image*> images; 
-    // a vector containing pointers to Unity data structures
-    std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures; 
-
-    // GENERATE FEATURES
-    for(int i = 0; i < numImages; ++i){ // for each image in the image directory 
-
-      // image var is instantiated with the file path to the image and an id
-      ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
-
-      // feature var contains a vector of SIFT feature descriptors
-      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
-      // transfer the feacture fector data to CPU
-      features->transferMemoryTo(ssrlcv::cpu);
-      // add the image to the images vector
-      images.push_back(image);
-      // add the vector of features to the allFeatures vector
-      allFeatures.push_back(features);
-
-
-      // logger.logState("done generating features");
-    }
-    logger.logState("FEATURES");
-
+    ssrlcv::FeatureGenerationArgs featureGenArgs(seedPath, imagePaths, numImages);
+    doFeatureGeneration(&featureGenArgs);
+    std::vector<ssrlcv::Image *> images = featureGenArgs.images; 
+    std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> *> allFeatures = featureGenArgs.allFeatures; 
+    ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> *seedFeatures = featureGenArgs.seedFeatures;
+    
     //
     // FEATURE MATCHING
     //
 
-    std::cout << "Starting matching..." << std::endl;
 
+    std::cout << "Starting matching..." << std::endl;
+    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,200.0f*200.0f);
     logger.logState("MATCHING");
     // logger.logState("generating seed matches");
-    ssrlcv::Unity<float>* seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
+    if (seedFeatures != nullptr)
+      matchFactory.setSeedFeatures(seedFeatures);
+    ssrlcv::Unity<float>* seedDistances = (seedFeatures != nullptr) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
     ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
     if(seedDistances != nullptr) delete seedDistances;
     // logger.logState("done generating seed matches");
