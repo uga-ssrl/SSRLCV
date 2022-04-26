@@ -50,3 +50,6 @@ data/*/*/matches.txt
 data/*/*/*/matches.txt
 data/*/*/*/*/matches.txt
 data/temp/*
+
+sub.sh
+log/*
