@@ -11,6 +11,9 @@ template class ssrlcv::MatchFactory<ssrlcv::Window_15x15>;
 template class ssrlcv::MatchFactory<ssrlcv::Window_25x25>;
 template class ssrlcv::MatchFactory<ssrlcv::Window_31x31>;
 
+//
+// CONSTRUCTORS
+//
 
 template<typename T>
 ssrlcv::MatchFactory<T>::MatchFactory(){
@@ -24,10 +27,18 @@ relativeThreshold(relativeThreshold), absoluteThreshold(absoluteThreshold)
 {
   this->seedFeatures = nullptr;
 }
+
+/**
+ * @brief A setter method which sets the features for the seed image.  
+ * 
+ * @tparam T 
+ * @param seedFeatures a pointer to a Unity data structure containing features of type T
+ */
 template<typename T>
 void ssrlcv::MatchFactory<T>::setSeedFeatures(Unity<Feature<T>>* seedFeatures){
   this->seedFeatures = seedFeatures;
-}
+} // setSeedFeatures
+
 template<typename T>
 void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<uint2_pair>* matches){
   MemoryState origin = matches->getMemoryState();
@@ -43,8 +54,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<uint2_pair>* matches
     delete matches;
     matches = nullptr;
     return;
-  }
-  
+  } 
 
   printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
 
@@ -55,7 +65,8 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<uint2_pair>* matches
   matches->setData(validatedMatches_device,numMatchesLeft,gpu);
 
   if(origin != gpu) matches->setMemoryState(origin);
-}
+} // validateMatches
+
 template<typename T>
 void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::Match>* matches){
   MemoryState origin = matches->getMemoryState();
@@ -83,7 +94,8 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::Match>* matc
   matches->setData(validatedMatches_device,numMatchesLeft,gpu);
 
   if(origin != gpu) matches->setMemoryState(origin);
-}
+} // validateMatches
+
 template<typename T>
 void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::DMatch>* matches){
   MemoryState origin = matches->getMemoryState();
@@ -102,7 +114,6 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::DMatch>* mat
     return;
   }
   
-
   printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
 
   DMatch* validatedMatches_device = nullptr;
@@ -112,7 +123,8 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::DMatch>* mat
   matches->setData(validatedMatches_device,numMatchesLeft,gpu);
 
   if(origin != gpu) matches->setMemoryState(origin);
-}
+} // validateMatches
+
 template<typename T>
 void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T>>* matches){
   MemoryState origin = matches->getMemoryState();
@@ -131,7 +143,6 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::FeatureMatch
     return;
   }
   
-
   printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
 
   FeatureMatch<T>* validatedMatches_device = nullptr;
@@ -142,7 +153,8 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::FeatureMatch
 
   if(origin != gpu) matches->setMemoryState(origin);
 
-}
+}// validateMatches
+
 template<typename T>
 void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::DMatch>* matches, float threshold){
   if(threshold == 0.0f){
@@ -171,7 +183,8 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::DMatch>* match
   matches->setData(compactedMatches_device,numElementsBelowThreshold,gpu);
 
   if(origin != gpu) matches->setMemoryState(origin);
-}
+} // refineMatches
+
 template<typename T>
 void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T>>* matches, float threshold){
   if(threshold == 0.0f){
@@ -199,7 +212,8 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T
   matches->setData(compactedMatches_device,numElementsBelowThreshold,gpu);
 
   if(origin != gpu) matches->setMemoryState(origin);
-}
+} // refineMatches
+
 template<typename T>
 void ssrlcv::MatchFactory<T>::sortMatches(Unity<DMatch>* matches){
   if(matches->getFore() == gpu || matches->getFore() == both){
@@ -231,7 +245,8 @@ void ssrlcv::MatchFactory<T>::sortMatches(Unity<DMatch>* matches){
     logger.err<<"ERROR cannot perform sortMatches with matches->getMemoryState() = "<<std::to_string(matches->getMemoryState())<<"\n";
     exit(-1);
   }
-}
+} // sortMatches
+
 template<typename T>
 void ssrlcv::MatchFactory<T>::sortMatches(Unity<FeatureMatch<T>>* matches){
   if(matches->getFore() == gpu || matches->getFore() == both){
@@ -263,7 +278,7 @@ void ssrlcv::MatchFactory<T>::sortMatches(Unity<FeatureMatch<T>>* matches){
     logger.err<<"ERROR cannot perform sortMatches with matches->getMemoryState() = "<<std::to_string(matches->getMemoryState())<<"\n";
     exit(-1);
   }
-}
+} // sortMatches
 
 template<typename T>
 ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::getRawMatches(Unity<DMatch>* matches){
@@ -288,7 +303,8 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::getRawMatches(Unity<DMatc
     }
     return new Unity<Match>(rawMatches_host, matches->size(), cpu);
   }
-}
+} // getRawMatches
+
 template<typename T>
 ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::getRawMatches(Unity<FeatureMatch<T>>* matches){
   if(matches->getMemoryState() == gpu || matches->getFore() == gpu){
@@ -312,7 +328,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::getRawMatches(Unity<Featu
     }
     return new Unity<Match>(rawMatches_host, matches->size(), cpu);
   }
-}
+} // getRawMatches
 
 /**
  * @brief This function computes the distance from seed feature to image feature.
@@ -332,9 +348,9 @@ ssrlcv::Unity<float>* ssrlcv::MatchFactory<T>::getSeedDistances(Unity<Feature<T>
   // the size of the feature vector is assigned to numPossibleMatches 
   unsigned int numPossibleMatches = features->size();
 
-  Unity<float>* matchDistances = new Unity<float>(nullptr, numPossibleMatches,gpu);
+  Unity<float>* matchDistances = new Unity<float>(nullptr, numPossibleMatches, gpu);
 
-  // initilize grid and block dimensions
+  // initilize grid and block dimensions for GPU
   dim3 grid = {1,1,1};
   dim3 block = {32,1,1};//IMPROVE
   getGrid(matchDistances->size(),grid);
@@ -1245,13 +1261,13 @@ __global__ void ssrlcv::disparityScanMatching(uint2 querySize, unsigned char* pi
 */
 
 /**
- * @brief This function computes the seed match distances.
+ * @brief This helper function computes the seed match distances.
  * 
  * @tparam T 
  * @param numFeaturesQuery the number of features to query 
- * @param featuresQuery a ptr to the feature vector to be queried
+ * @param featuresQuery a ptr to the image features
  * @param numSeedFeatures the number of seed features
- * @param seedFeatures a ptr to the ffeature vector containing the seed features
+ * @param seedFeatures a ptr to the seed features
  * @param matchDistances a ptr to the match distances
  * @return __global__ 
  */
@@ -1260,14 +1276,22 @@ __global__ void ssrlcv::getSeedMatchDistances(unsigned long numFeaturesQuery, Fe
 Feature<T>* seedFeatures, float* matchDistances){
   // define the block ID
   unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
-  if(blockId < numFeaturesQuery){
+  
+  // validate the current block is sufficiently large
+  if(blockId < numFeaturesQuery){ 
+    // assign the image feature at position blockID to feature
     Feature<T> feature = featuresQuery[blockId];
-    __shared__ float localDist[32];
+    // initilize array to hold local distances
+    __shared__ float localDist[32]; 
+    // store FLT_MAX at position indicated by current thread id  
     localDist[threadIdx.x] = FLT_MAX;
     __syncthreads();
+
     float currentDist = 0.0f;
     unsigned long numSeedFeatures_reg = numSeedFeatures;
+    // for each thread
     for(int f = threadIdx.x; f < numSeedFeatures_reg; f += 32){
+      // calculate the distance from seed feature to ???
       currentDist = feature.descriptor.distProtocol(seedFeatures[f].descriptor,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
@@ -1280,7 +1304,7 @@ Feature<T>* seedFeatures, float* matchDistances){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
       }
-    } // if
+    } // for
     matchDistances[blockId] = currentDist;
   } // if
 } // getSeedMatchDistances
