@@ -315,7 +315,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::getRawMatches(Unity<Featu
 }
 
 /**
- * @brief This function computes the seed distances.
+ * @brief This function computes the distance from seed feature to image feature.
  * 
  * @tparam T 
  * @param features a pointer to a Unity data structure containing features of type T

@@ -51,7 +51,9 @@ int main(int argc, char *argv[]){
     logger.logState("start"); // these can be used to time parts of the pipeline afterwards and correlate it with ofther stuff
     logger.startBackgoundLogging(1); // write a voltage, current, power log every 5 seconds
 
+    //
     // ARG PARSING
+    //
 
     logger.logState("SEED");
     std::map<std::string,ssrlcv::arg*> args = ssrlcv::parseArgs(argc,argv);
@@ -113,11 +115,18 @@ int main(int argc, char *argv[]){
     std::cout << "Starting matching..." << std::endl;
 
     logger.logState("MATCHING");
-    // logger.logState("generating seed matches");
+    // seedDistances is a pointer to a Unity data structure containing floats
+    // if a seed is provided, call the getSeedDistances function and assign the results to seedDistances
+    // else, assign seedDistances to nullptr
     ssrlcv::Unity<float>* seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
+    
+    // distanceMatches is a pointer to a Unity data structure containing floats
     ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
     if(seedDistances != nullptr) delete seedDistances;
-    // logger.logState("done generating seed matches");
+
+    //
+    // DONE GENERGATING SEED MATCHES
+    //
 
     distanceMatches->transferMemoryTo(ssrlcv::cpu);
     float maxDist = 0.0f;
