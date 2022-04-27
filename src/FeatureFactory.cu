@@ -16,7 +16,7 @@ sigma(sigma),size(size){
     kernelSize.y = ceil((float)kernelSize.y*this->sigma/pixelWidth);
     if(kernelSize.x%2 == 0)kernelSize.x++;
     if(kernelSize.y%2 == 0)kernelSize.y++;
-    float* gaussian = new float[kernelSize.y*kernelSize.x]();
+    float gaussian[kernelSize.y*kernelSize.x];
     for(int y = -kernelSize.y/2, i = 0; y <= kernelSize.y/2; ++y){
         for(int x = -kernelSize.x/2; x <= kernelSize.x/2; ++x){
             gaussian[i++] = expf(-(((x*x) + (y*y))/2.0f/this->sigma/this->sigma))/2.0f/PI/this->sigma/this->sigma;

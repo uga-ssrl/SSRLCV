@@ -264,6 +264,7 @@ unsigned char* ssrlcv::readPNG(const char* filePath, unsigned int &height, unsig
   png_read_image(png_ptr, row_pointers);
   fclose(fp);
   colorDepth = numChannels;
+  png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
   return getPixelArray(row_pointers, width, height, numChannels);
 }
 
@@ -336,6 +337,7 @@ void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned
 
   png_write_end(png_ptr, nullptr);
   fclose(fp);
+  png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
   std::cout<<filePath<<" has been written"<<"\n";
 }
 

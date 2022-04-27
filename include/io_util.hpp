@@ -81,7 +81,9 @@ void getFilePaths(std::string dirPath, std::vector<std::string> &paths, std::str
    * \brief Base arg struct for arg parsing purposes.
    */
 struct arg
-{};
+{
+  virtual ~arg(){};
+};
 
   /**
    * \brief arg containing an image path
@@ -89,6 +91,7 @@ struct arg
   struct img_arg : public arg{
     std::string path;
     img_arg(char* path);
+    ~img_arg(){};
   };
   /**
    * \brief arg containing a vector of image paths
@@ -96,6 +99,7 @@ struct arg
   struct img_dir_arg : public arg{
     std::vector<std::string> paths;
     img_dir_arg(char* path);
+    ~img_dir_arg(){};
   };
   /**
    * \brief arg containing a floating point value
@@ -103,6 +107,7 @@ struct arg
   struct flt_arg : public arg{
     float val;
     flt_arg(char* val);
+    ~flt_arg(){};
   };
   /**
    * \brief arg containing an integer value
@@ -110,6 +115,7 @@ struct arg
   struct int_arg : public arg{
     int val;
     int_arg(char* val);
+    ~int_arg(){};
   };
 
   typedef std::pair<std::string, arg*> arg_pair;

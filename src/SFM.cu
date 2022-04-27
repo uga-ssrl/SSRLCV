@@ -189,7 +189,6 @@ int main(int argc, char *argv[]){
     ssrlcv::Unity<float>* errors;
     ssrlcv::BundleSet bundleSet;
 
-
     if (images.size() == 2){
       //
       // 2 View Case
@@ -287,14 +286,18 @@ int main(int argc, char *argv[]){
     }
 
     // cleanup
+    for (ssrlcv::arg_pair p : args) {
+      delete p.second; 
+    }
     delete points;
     delete matchSet.matches;
     delete matchSet.keyPoints;
     delete bundleSet.bundles;
     delete bundleSet.lines;
+    delete featureGenOutput.seedFeatures;
     for(int i = 0; i < imagePaths.size(); ++i){
-      delete images[i];
-      delete allFeatures[i];
+      delete featureGenOutput.images[i];
+      delete featureGenOutput.allFeatures[i];
     }
 
     logger.logState("end");
