@@ -39,7 +39,7 @@ __device__ float ssrlcv::SIFT_Descriptor::distProtocol(const SIFT_Descriptor& b,
     dist += ((float)this->values[i]-b.values[i])*((float)this->values[i]-b.values[i]);
   }
   return dist;
-}
+} 
 __device__ __host__ ssrlcv::Window_3x3::Window_3x3(){
   for(int x = 0; x < 3; ++x){
     for(int y = 0; y < 3; ++y){

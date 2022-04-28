@@ -94,7 +94,7 @@ int main(int argc, char *argv[]){
       // image var is instantiated with the file path to the image and an id
       ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
 
-      // feature var contains a vector of SIFT feature descriptors
+      // features var contains a vector of SIFT feature descriptors
       ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
       // transfer the feacture fector data to CPU
       features->transferMemoryTo(ssrlcv::cpu);
@@ -102,7 +102,6 @@ int main(int argc, char *argv[]){
       images.push_back(image);
       // add the vector of features to the allFeatures vector
       allFeatures.push_back(features);
-
 
       // logger.logState("done generating features");
     }

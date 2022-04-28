@@ -352,8 +352,8 @@ ssrlcv::Unity<float>* ssrlcv::MatchFactory<T>::getSeedDistances(Unity<Feature<T>
 
   // initilize grid and block dimensions for GPU
   dim3 grid = {1,1,1};
-  dim3 block = {32,1,1};//IMPROVE
-  getGrid(matchDistances->size(),grid);
+  dim3 block = {32,1,1}; // 32 threads
+  getGrid(matchDistances->size(), grid);
 
   clock_t timer = clock();
 
@@ -1261,7 +1261,7 @@ __global__ void ssrlcv::disparityScanMatching(uint2 querySize, unsigned char* pi
 */
 
 /**
- * @brief This helper function computes the seed match distances.
+ * @brief A kernel function which computes the distance between a seed and its best match.
  * 
  * @tparam T 
  * @param numFeaturesQuery the number of features to query 
@@ -1274,24 +1274,24 @@ __global__ void ssrlcv::disparityScanMatching(uint2 querySize, unsigned char* pi
 template<typename T>
 __global__ void ssrlcv::getSeedMatchDistances(unsigned long numFeaturesQuery, Feature<T>* featuresQuery, unsigned long numSeedFeatures,
 Feature<T>* seedFeatures, float* matchDistances){
-  // define the block ID
+  // determine the unique block id
   unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
   
-  // validate the current block is sufficiently large
+  // validate the block is sufficiently large
   if(blockId < numFeaturesQuery){ 
     // assign the image feature at position blockID to feature
     Feature<T> feature = featuresQuery[blockId];
     // initilize array to hold local distances
     __shared__ float localDist[32]; 
     // store FLT_MAX at position indicated by current thread id  
-    localDist[threadIdx.x] = FLT_MAX;
+    localDist[threadIdx.x] = FLT_MAX; 
     __syncthreads();
 
     float currentDist = 0.0f;
     unsigned long numSeedFeatures_reg = numSeedFeatures;
-    // for each thread
+    // for each thread, find the best match 
     for(int f = threadIdx.x; f < numSeedFeatures_reg; f += 32){
-      // calculate the distance from seed feature to ???
+      // calculate the distance from image feature to seed feature
       currentDist = feature.descriptor.distProtocol(seedFeatures[f].descriptor,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
