@@ -92,17 +92,17 @@ namespace ssrlcv{
     unsigned int depth;
 
 
-    ssrlcv::Unity<LocalizedData<T>>* data;
-    ssrlcv::Unity<Node>* nodes;
-    ssrlcv::Unity<Vertex>* vertices;
-    ssrlcv::Unity<Edge>* edges;
+    std::shared_ptr<ssrlcv::Unity<LocalizedData<T>>> data;
+    std::shared_ptr<ssrlcv::Unity<Node>> nodes;
+    std::shared_ptr<ssrlcv::Unity<Vertex>> vertices;
+    std::shared_ptr<ssrlcv::Unity<Edge>> edges;
 
-    ssrlcv::Unity<unsigned int>* dataNodeIndex;
+    std::shared_ptr<ssrlcv::Unity<unsigned int>> dataNodeIndex;
 
     //TODO change these to strict host variables so no need for unity
-    ssrlcv::Unity<unsigned int>* nodeDepthIndex;
-    ssrlcv::Unity<unsigned int>* vertexDepthIndex;
-    ssrlcv::Unity<unsigned int>* edgeDepthIndex;
+    std::shared_ptr<ssrlcv::Unity<unsigned int>> nodeDepthIndex;
+    std::shared_ptr<ssrlcv::Unity<unsigned int>> vertexDepthIndex;
+    std::shared_ptr<ssrlcv::Unity<unsigned int>> edgeDepthIndex;
 
     Quadtree();
     /**
@@ -133,7 +133,7 @@ namespace ssrlcv{
     * \param requireFullNeighbors if true then border pixels have flag set to false
     * \param depthRange used to specify depths of quadtree evaluated in method
     */
-    void setNodeFlags(Unity<bool>* hashMap, bool requireFullNeighbors = false, uint2 depthRange = {0,0});
+    void setNodeFlags(std::shared_ptr<ssrlcv::Unity<bool>> hashMap, bool requireFullNeighbors = false, uint2 depthRange = {0,0});
     /**
     * \brief Method to set Quadtree::Node flags based on a border.
     * \param flagBorder border where flags will be set to false

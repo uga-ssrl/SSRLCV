@@ -22,22 +22,22 @@ namespace ssrlcv {
     };
 
     struct FeatureGenerationOutput {
-        ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> *seedFeatures;
-        std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> *> allFeatures;
-        std::vector<ssrlcv::Image *> images;
+        std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures;
+        std::vector<std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
+        std::vector<std::shared_ptr<ssrlcv::Image>> images;
     };
 
     void doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::FeatureGenerationOutput *out);
 
     struct FeatureMatchingInput {
-        ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> *seedFeatures;
-        const std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> *> allFeatures;
-        const std::vector<ssrlcv::Image *> images;
+        std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures;
+        const std::vector<std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
+        const std::vector<std::shared_ptr<ssrlcv::Image>> images;
 
         FeatureMatchingInput(
-            ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> *seedFeatures,
-            const std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> *> allFeatures,
-            const std::vector<ssrlcv::Image *> images):
+            std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures,
+            const std::vector<std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures,
+            const std::vector<std::shared_ptr<ssrlcv::Image>> images):
                 seedFeatures(seedFeatures),
                 allFeatures(allFeatures),
                 images(images)

@@ -110,14 +110,14 @@ namespace ssrlcv{
     float width;
     int depth;
 
-    Unity<float3>* points;
+    std::shared_ptr<ssrlcv::Unity<float3>> points;
 
-    Unity<float3>* normals;
+    std::shared_ptr<ssrlcv::Unity<float3>> normals;
 
-    Unity<Node>* nodes;
-    Unity<Vertex>* vertices;
-    Unity<Edge>* edges;
-    Unity<Face>* faces;
+    std::shared_ptr<ssrlcv::Unity<Node>> nodes;
+    std::shared_ptr<ssrlcv::Unity<Vertex>> vertices;
+    std::shared_ptr<ssrlcv::Unity<Edge>> edges;
+    std::shared_ptr<ssrlcv::Unity<Face>> faces;
 
     //length = # points, value = node containing point
     //ie value = index of node point is in
@@ -125,17 +125,17 @@ namespace ssrlcv{
     /** the index to the leaf nodes that the points are in (gauruneed to contain points)
      * the value at this index is the location of the leaf node in the node array for this points
      * e.g.
-     * points->host[5] has index 5 so look at 5
-     * pointNodeIndex->host[5] has value 1234
-     * nodes->host[1234] this is the leaf node that contains the point originally searched for
+     * points->host.get()[5] has index 5 so look at 5
+     * pointNodeIndex->host.get()[5] has value 1234
+     * nodes->host.get()[1234] this is the leaf node that contains the point originally searched for
      */
-    Unity<unsigned int>* pointNodeIndex;
+    std::shared_ptr<ssrlcv::Unity<unsigned int>> pointNodeIndex;
 
     //depth index carriers
-    Unity<unsigned int>* nodeDepthIndex;
-    Unity<unsigned int>* vertexDepthIndex;
-    Unity<unsigned int>* edgeDepthIndex;
-    Unity<unsigned int>* faceDepthIndex;
+    std::shared_ptr<ssrlcv::Unity<unsigned int>> nodeDepthIndex;
+    std::shared_ptr<ssrlcv::Unity<unsigned int>> vertexDepthIndex;
+    std::shared_ptr<ssrlcv::Unity<unsigned int>> edgeDepthIndex;
+    std::shared_ptr<ssrlcv::Unity<unsigned int>> faceDepthIndex;
 
     // =============================================================================================================
     //
@@ -144,14 +144,13 @@ namespace ssrlcv{
     // =============================================================================================================
 
     Octree();
-    ~Octree();
 
     Octree(std::string pathToFile, int depth);
-    Octree(int numfloat3s, float3* points, int depth, bool createVEF);
-    Octree(int numfloat3s, float3* points, float deepestWidth, bool createVEF);
+    Octree(int numfloat3s, std::shared_ptr<float3> points, int depth, bool createVEF);
+    Octree(int numfloat3s, std::shared_ptr<float3> points, float deepestWidth, bool createVEF);
 
-    Octree(Unity<float3>* points, int depth, bool createVEF);
-    Octree(Unity<float3>* points, float deepestWidth, bool createVEF);
+    Octree(std::shared_ptr<ssrlcv::Unity<float3>> points, int depth, bool createVEF);
+    Octree(std::shared_ptr<ssrlcv::Unity<float3>> points, float deepestWidth, bool createVEF);
 
     // =============================================================================================================
     //
@@ -175,7 +174,7 @@ namespace ssrlcv{
      * @param the numer of neighbors to consider
      * @return averages a unity float of the average distance for n neighbors per point
      */
-    Unity<float>* averageNeighboorDistances(int n);
+    std::shared_ptr<ssrlcv::Unity<float>> averageNeighboorDistances(int n);
 
     /**
      * calculates the average distance from a point to N of it's neighbors and finds that average for all points
@@ -191,7 +190,7 @@ namespace ssrlcv{
      * @param n the number of neighbor points to consider
      * @return points returns unity pf float3 points that are densly packed enough within the cutoff
      */
-    Unity<float3>* removeLowDensityPoints(float cutoff, int n);
+    std::shared_ptr<ssrlcv::Unity<float3>> removeLowDensityPoints(float cutoff, int n);
 
     // =============================================================================================================
     //
@@ -226,7 +225,7 @@ namespace ssrlcv{
     * @param numCameras the total number of cameras which resulted in the point cloud
     * @param cameraPositions the x,y,z coordinates of the cameras
     */
-    ssrlcv::Unity<float3>* computeAverageNormal(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions);
+    std::shared_ptr<ssrlcv::Unity<float3>> computeAverageNormal(int minNeighForNorms, int maxNeighbors, unsigned int numCameras, float3* cameraPositions);
 
 
     // =============================================================================================================

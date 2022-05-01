@@ -36,14 +36,14 @@ __device__ bool greq70(const int& a){
 }
 __device__ ssrlcv::Unity<int>::pred_ptr greq70_device = greq70;
 
-void add_100(ssrlcv::Unity<int>* i_nums){
+void add_100(std::shared_ptr<ssrlcv::Unity<int>> i_nums){
   //check where the data is 
   ssrlcv::MemoryState origin = i_nums->getMemoryState();
   //make sure i_nums.device has the most up to date memory
   if(origin == ssrlcv::cpu || i_nums->getFore() == ssrlcv::cpu){
     i_nums->transferMemoryTo(ssrlcv::gpu);//this is making i_nums.state = i_nums.fore = ssrlcv::both
   }
-  add_100<<<i_nums->size(),1>>>(i_nums->size(),i_nums->device);
+  add_100<<<i_nums->size(),1>>>(i_nums->size(),i_nums->device.get());
   cudaDeviceSynchronize();//global threadfence
   CudaCheckError();//cuda error checker
   i_nums->setFore(ssrlcv::gpu);//tell Unity where the updated memory is
@@ -233,7 +233,7 @@ int main(int argc, char *argv[]){
 
     std::cout<<"testing result sorting with custom greater than\n\t";
     ssrlcv::Unity<int>::comp_ptr greater_host;
-    cudaMemcpyFromSymbol(&greater_host, greater_device, sizeof(ssrlcv::Unity<int>::comp_ptr));
+    cudaMemcpyFromSymbol(&greater_host, greater_device.get(), sizeof(ssrlcv::Unity<int>::comp_ptr));
     i_nums.sort(greater_host);// Tmust have overloaded > operator
     fullpass += printTest<int>(i_nums.size(),i_nums.host,&truth[0]);
 
@@ -244,14 +244,14 @@ int main(int argc, char *argv[]){
     }
     std::cout<<"testing copy if constructor\n\t";
     ssrlcv::Unity<int>::pred_ptr less70_host;
-    cudaMemcpyFromSymbol(&less70_host, less70_device, sizeof(ssrlcv::Unity<int>::pred_ptr));
+    cudaMemcpyFromSymbol(&less70_host, less70_device.get(), sizeof(ssrlcv::Unity<int>::pred_ptr));
     ssrlcv::Unity<int> i_nums_keep = ssrlcv::Unity<int>(&i_nums,less70_host);
     i_nums_keep.sort();
     fullpass += printTest<int>(i_nums_keep.size(),i_nums_keep.host,&truth[0]);
 
     std::cout<<"testing remove if\n\t"<<std::endl;
     ssrlcv::Unity<int>::pred_ptr greq70_host;
-    cudaMemcpyFromSymbol(&greq70_host, greq70_device, sizeof(ssrlcv::Unity<int>::pred_ptr));
+    cudaMemcpyFromSymbol(&greq70_host, greq70_device.get(), sizeof(ssrlcv::Unity<int>::pred_ptr));
     i_nums.remove(greq70_host);
     i_nums.sort();
     fullpass += printTest<int>(i_nums.size(),i_nums.host,i_nums_keep.host);

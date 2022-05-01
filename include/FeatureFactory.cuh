@@ -92,24 +92,23 @@ namespace ssrlcv{
         struct Blur{
           uint2 size;
           float sigma;
-          Unity<float>* pixels;/**\brief vector of Unity structs holding pixel values*/
-          Unity<float2>* gradients;
+          std::shared_ptr<ssrlcv::Unity<float>> pixels;/**\brief vector of Unity structs holding pixel values*/
+          std::shared_ptr<ssrlcv::Unity<float2>> gradients;
           Blur();
-          Blur(float sigma, int2 kernelSize, Unity<float>* pixels, uint2 size, float pixelWidth);
-          ~Blur();
+          Blur(float sigma, int2 kernelSize, std::shared_ptr<ssrlcv::Unity<float>> pixels, uint2 size, float pixelWidth);
           void computeGradients();
         };
 
 
         int id;
         unsigned int numBlurs;
-        Blur** blurs;/**\brief array of blur pointers*/
+        std::shared_ptr<std::shared_ptr<Blur>> blurs;/**\brief array of blur pointers*/
         float pixelWidth;
-        Unity<SSKeyPoint>* extrema;
-        int* extremaBlurIndices;
+        std::shared_ptr<ssrlcv::Unity<SSKeyPoint>> extrema;
+        std::shared_ptr<int> extremaBlurIndices;
 
         Octave();
-        Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<float>* pixels, uint2 size, float pixelWidth, int keepPixelsAfterBlur);      
+        Octave(int id, unsigned int numBlurs, int2 kernelSize, std::shared_ptr<float> sigmas, std::shared_ptr<ssrlcv::Unity<float>> pixels, uint2 size, float pixelWidth, int keepPixelsAfterBlur);      
         void searchForExtrema();
         void discardExtrema();
         void refineExtremaLocation();
@@ -123,10 +122,10 @@ namespace ssrlcv{
       };
 
       uint2 depth;///< depth of ScaleSpace {numOctaves, numBlurs}
-      Octave** octaves;
+      std::shared_ptr<std::shared_ptr<Octave>> octaves;
 
       ScaleSpace();
-      ScaleSpace(Image* image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize, bool makeDOG = false);
+      ScaleSpace(std::shared_ptr<ssrlcv::Image> image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize, bool makeDOG = false);
       
       bool checkIfDOG();
     
@@ -142,7 +141,7 @@ namespace ssrlcv{
       /**
       * \brief will return all key points in octaves of scalespace
       */
-      Unity<SSKeyPoint>* getAllKeyPoints(MemoryState destination = gpu);
+      std::shared_ptr<ssrlcv::Unity<SSKeyPoint>> getAllKeyPoints(MemoryState destination = gpu);
 
       /**
       * \brief compute orientations for key points - will generate more features based on orientations above threshold
@@ -182,27 +181,27 @@ namespace ssrlcv{
     * \brief feature generators for 3x3 pixel window
     * \details 
     */
-    Unity<Feature<Window_3x3>>* generate3x3Windows(Image* image);
+    std::shared_ptr<Unity<Feature<Window_3x3>>> generate3x3Windows(Image* image);
     /**
     * \brief feature generators for 9x9 pixel window
     * \details 
     */
-    Unity<Feature<Window_9x9>>* generate9x9Windows(Image* image);
+    std::shared_ptr<Unity<Feature<Window_9x9>>> generate9x9Windows(Image* image);
     /**
     * \brief feature generators for 15x15 pixel window
     * \details 
     */
-    Unity<Feature<Window_15x15>>* generate15x15Windows(Image* image);
+    std::shared_ptr<Unity<Feature<Window_15x15>>> generate15x15Windows(Image* image);
     /**
     * \brief feature generators for 25x25 pixel window
     * \details 
     */
-    Unity<Feature<Window_25x25>>* generate25x25Windows(Image* image);
+    std::shared_ptr<Unity<Feature<Window_25x25>>> generate25x25Windows(Image* image);
     /**
     * \brief feature generators for 31x31 pixel window
     * \details 
     */
-    Unity<Feature<Window_31x31>>* generate31x31Windows(Image* image);
+    std::shared_ptr<Unity<Feature<Window_31x31>>> generate31x31Windows(Image* image);
 
     ~FeatureFactory();  
 

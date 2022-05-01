@@ -187,6 +187,27 @@ namespace ssrlcv{
       return msg.c_str();
     }
   };
+
+  template<class T>
+  struct hostDeleter {
+    bool *pinned;
+
+    void operator ()( T * ptr)
+    { 
+      if(this->pinned == nullptr || !*this->pinned) delete[] ptr;
+      else CudaSafeCall(cudaFreeHost((void *)ptr));
+    }
+    hostDeleter(bool *pinned = nullptr) : pinned(pinned) {}
+  };
+
+  template<class T>
+  struct deviceDeleter {
+    void operator ()( T * ptr)
+    { 
+      CudaSafeCall(cudaFree(ptr));
+    }
+  };
+
   /**
   * \class Unity
   * \brief This data structure is designed to hold an array of any data 
@@ -226,8 +247,8 @@ namespace ssrlcv{
     typedef bool (*comp_ptr)(const T& a, const T& b);
     typedef bool (*pred_ptr)(const T& a);
 
-    T* device;///< \brief pointer to device memory (gpu)
-    T* host;///< \brief pointer to host memory (cpu)
+    std::shared_ptr<T> host;///< \brief pointer to host memory (cpu)
+    std::shared_ptr<T> device;///< \brief pointer to device memory (gpu)
 
     /**
     * \brief Default contructor 
@@ -242,20 +263,20 @@ namespace ssrlcv{
     * \param numElements number of elements inside data pointer
     * \param state MemoryState of data
     */
-    Unity(T* data, unsigned long numElements, MemoryState state, bool pinned = false);
+    Unity(std::shared_ptr<T> data, unsigned long numElements, MemoryState state, bool pinned = false);
 
     /**
     * \brief Copy constructor (this becomes an exact copy of the argument)
     * \param copy Unity<T>* to be copied
     */
-    Unity(Unity<T>* copy);
+    Unity(std::shared_ptr<Unity<T>> copy);
 
     /**
     * \brief Copy constructor with predicate
     * \param copy Unity<T>* to be copied
     * \param predicate - predicate for copy_if
     */
-    Unity(Unity<T>* copy,pred_ptr predicate);
+    Unity(std::shared_ptr<Unity<T>> copy,pred_ptr predicate);
     
     /**
     * \brief Checkpoint constructor
@@ -356,7 +377,7 @@ namespace ssrlcv{
     * \param numElements - size of new data
     * \param state - location of new data (must be cpu or gpu)
     */
-    void setData(T* data, unsigned long numElements, MemoryState state, bool pinned = false);
+    void setData(std::shared_ptr<T> data, unsigned long numElements, MemoryState state, bool pinned = false);
     
     /**
     * \brief remove elements of a unity
@@ -408,26 +429,20 @@ namespace ssrlcv{
 
   template<typename T>
   Unity<T>::Unity(){
-    this->host = nullptr;
-    this->device = nullptr;
     this->state = null;
     this->fore = null;
     this->pinned = false;
     this->numElements = 0;
   }
   template<typename T>
-  Unity<T>::Unity(T* data, unsigned long numElements, MemoryState state, bool pinned){
-    this->host = nullptr;
-    this->device = nullptr;
+  Unity<T>::Unity(std::shared_ptr<T> data, unsigned long numElements, MemoryState state, bool pinned){
     this->state = null;
     this->fore = null;
     this->pinned = false;
     this->setData(data, numElements, state, pinned);
   }
   template<typename T>
-  Unity<T>::Unity(Unity<T>* copy){
-    this->host = nullptr;
-    this->device = nullptr;
+  Unity<T>::Unity(std::shared_ptr<Unity<T>> copy){
     this->state = null;
     this->fore = null;
     this->pinned = false;
@@ -439,16 +454,14 @@ namespace ssrlcv{
     this->fore = copy->getFore();
     this->state = copy->getMemoryState();
     if(this->state == cpu || this->state == both){
-      std::memcpy(this->host,copy->host,this->numElements*sizeof(T));
+      std::memcpy(this->host.get(),copy->host.get(),this->numElements*sizeof(T));
     }
     if(this->state == gpu || this->state == both){
-      CudaSafeCall(cudaMemcpy(this->device,copy->device,this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
+      CudaSafeCall(cudaMemcpy(this->device.get(),copy->device.get(),this->numElements*sizeof(T),cudaMemcpyDeviceToDevice));
     } 
   }
   template<typename T>
-  Unity<T>::Unity(Unity<T>* copy,bool (*predicate)(const T&)){
-    this->host = nullptr;
-    this->device = nullptr;
+  Unity<T>::Unity(std::shared_ptr<Unity<T>> copy,bool (*predicate)(const T&)){
     this->state = null;
     this->fore = null;
     this->pinned = false;
@@ -456,29 +469,26 @@ namespace ssrlcv{
     if(copy->getMemoryState() == null || copy->size() == 0){
       throw NullUnityException("cannot copy_if a null Unity<T>");
     }
-    thrust::device_ptr<T> in_ptr;
-    T* tmp_device = nullptr;
+    std::shared_ptr<T> in_ptr;
     if(copy->getFore() != cpu){
-      in_ptr = thrust::device_ptr<T>(copy->device);
+      in_ptr = copy->device;
     }
     else{
+      std::shared_ptr<T> tmp_device(nullptr, deviceDeleter<T>());
       CudaSafeCall(cudaMalloc((void**)&tmp_device,copy->size()*sizeof(T)));
-      CudaSafeCall(cudaMemcpy(tmp_device,copy->host,copy->size()*sizeof(T),cudaMemcpyHostToDevice));
-      in_ptr = thrust::device_ptr<T>(tmp_device);
+      CudaSafeCall(cudaMemcpy(tmp_device.get(),copy->host.get(),copy->size()*sizeof(T),cudaMemcpyHostToDevice));
+      in_ptr = tmp_device;
     }
     this->setData(nullptr,copy->size(),gpu);
-    thrust::device_ptr<T> out_ptr(this->device);
-    thrust::device_ptr<T> new_end = thrust::copy_if(in_ptr,in_ptr+copy->size(),out_ptr,predicate);
+    std::shared_ptr<T> out_ptr(this->device);
+    std::shared_ptr<T> new_end = thrust::copy_if(in_ptr,in_ptr+copy->size(),out_ptr,predicate);
     CudaCheckError();
     unsigned long compressedSize = new_end - out_ptr;
     this->resize(compressedSize);
-    if(tmp_device != nullptr) CudaSafeCall(cudaFree(tmp_device));
     if(this->state != copy->getMemoryState()) this->setMemoryState(copy->getMemoryState());
   }
   template<typename T>
   Unity<T>::Unity(std::string path, bool pinned){
-    this->host = nullptr;
-    this->device = nullptr;
     this->state = null;
     this->fore = null;
     this->pinned = false;
@@ -513,12 +523,15 @@ namespace ssrlcv{
         throw CheckpointException("read origin in Unity checkpoint header shows null");
       }
       this->pinned = pinned;
-      if(!pinned) this->host = new T[this->numElements]();
-      else CudaSafeCall(cudaMallocHost((void**)&this->host,this->numElements*sizeof(T)));
+      if(!pinned) this->host = std::shared_ptr<T>(new T[this->numElements], hostDeleter<T>());
+      else {
+        this->host.reset((T *)nullptr, hostDeleter<T>());
+        CudaSafeCall(cudaMallocHost((void**)&this->host,this->numElements*sizeof(T)));
+      }
       this->state = cpu;
       this->fore = cpu;
       for(unsigned long i = 0; i < this->numElements; ++i){
-        cp.read((char*)&this->host[i],sizeof(T));
+        cp.read((char*)&this->host.get()[i],sizeof(T));
       }
       if(this->state != origin) this->setMemoryState(origin);
 
@@ -555,30 +568,27 @@ namespace ssrlcv{
     else if(this->state <= 3){
       unsigned long toCopy = ((resizeLength > this->numElements) ? this->numElements: resizeLength);
       if(this->state == cpu || this->state == both){
-        T* replacement = nullptr;
+        std::shared_ptr<T> replacement;
         if(!this->pinned){
-          replacement = new T[resizeLength]();
-          std::memcpy(replacement,this->host,toCopy*sizeof(T));
-          delete[] this->host;
+          replacement = std::shared_ptr<T>(new T[resizeLength], std::default_delete<T[]>());
+          std::memcpy(replacement.get(),this->host.get(),toCopy*sizeof(T));
         }
         else{
+          replacement.reset((T *)nullptr, hostDeleter<T>(&this->pinned));
           CudaSafeCall(cudaMallocHost((void**)replacement,resizeLength*sizeof(T)));
-          std::memcpy(replacement,this->host,toCopy*sizeof(T));
-          CudaSafeCall(cudaFreeHost(this->host));
+          std::memcpy(replacement.get(),this->host.get(),toCopy*sizeof(T));
         }
-         this->host = replacement;
+        this->host = replacement;
       }
       //TODO look at this for optimization
       if(this->state == gpu || this->state == both){
-        T* replacement  = nullptr;
+        std::shared_ptr<T> replacement(nullptr, deviceDeleter<T>());
         CudaSafeCall(cudaMalloc((void**)&replacement,resizeLength*sizeof(T)));
         if(resizeLength > this->numElements){
-          T* replacement_host = new T[resizeLength]();
-          CudaSafeCall(cudaMemcpy(replacement,replacement_host,resizeLength*sizeof(T),cudaMemcpyHostToDevice));
-          delete[] replacement_host;
+          std::shared_ptr<T> replacement_host = std::shared_ptr<T>(new T[resizeLength], std::default_delete<T[]>());
+          CudaSafeCall(cudaMemcpy(replacement.get(),replacement_host.get(),resizeLength*sizeof(T),cudaMemcpyHostToDevice));
         }
-        CudaSafeCall(cudaMemcpy(replacement,this->device,toCopy*sizeof(T),cudaMemcpyDeviceToDevice));
-        CudaSafeCall(cudaFree(this->device));
+        CudaSafeCall(cudaMemcpy(replacement.get(),this->device.get(),toCopy*sizeof(T),cudaMemcpyDeviceToDevice));
         this->device = replacement;
       }
       this->numElements = resizeLength;
@@ -606,13 +616,10 @@ namespace ssrlcv{
     }
     else if(this->state <= 3){//currently supported types
       if(state == cpu || (state == both && this->host != nullptr)){
-        if(!this->pinned) delete[] this->host;
-        else CudaSafeCall(cudaFreeHost(this->host));
-        this->host = nullptr;
+        this->host.reset();
       }
       if(state == gpu || (state == both && this->device != nullptr)){
-        CudaSafeCall(cudaFree(this->device));
-        this->device = nullptr;
+        this->device.reset();
       }
       this->fore = (state == both) ? null : (state == cpu) ? gpu : cpu;
       this->state = (state == both) ? null : (state == cpu) ? gpu : cpu;
@@ -634,21 +641,17 @@ namespace ssrlcv{
       }
       else{
         if(state == cpu || (state == both && this->host != nullptr)){
-          T* zerod = new T[this->numElements]();
+          std::shared_ptr<T> zerod = std::shared_ptr<T>(new T[this->numElements], std::default_delete<T[]>());
           if(!this->pinned){
-            delete[] this->host;
             this->host = zerod;
           } 
           else{
-            CudaSafeCall(cudaFreeHost(this->host));
-            CudaSafeCall(cudaMallocHost((void**)&this->host,this->numElements*sizeof(T)));
-            std::memcpy(this->host,zerod,this->numElements*sizeof(T));
-            delete[] zerod;
+            std::memcpy(this->host.get(),zerod.get(),this->numElements*sizeof(T));
           } 
         }
         if(state == gpu || (state == both && this->device != nullptr)){
-          T* zerod = (state == both && this->host != nullptr) ? this->host : new T[this->numElements]();
-          CudaSafeCall(cudaMemcpy(this->device,zerod,this->numElements*sizeof(T),cudaMemcpyHostToDevice));
+          T* zerod = (state == both && this->host != nullptr) ? this->host.get() : new T[this->numElements]();
+          CudaSafeCall(cudaMemcpy(this->device.get(),zerod,this->numElements*sizeof(T),cudaMemcpyHostToDevice));
           if(this->host == nullptr) delete[] zerod;
         }
         this->fore = state;
@@ -697,15 +700,14 @@ namespace ssrlcv{
       logger.warn<<"WARNING: attempt to pin already pinned Unity<T> does nothing\n";
       return;
     }
-    //determine what to do if it is unified
-    this->pinned = true;
+    //TODO: determine what to do if it is unified
     if(this->state != gpu){
-      T* pinned_host = nullptr;
+      std::shared_ptr<T> pinned_host(nullptr, hostDeleter<T>(&this->pinned));
       CudaSafeCall(cudaMallocHost((void**)&pinned_host,this->numElements*sizeof(T)));
-      std::memcpy(pinned_host,this->host,this->numElements*sizeof(T));
-      delete[] this->host;
+      std::memcpy(pinned_host.get(),this->host.get(),this->numElements*sizeof(T));
       this->host = pinned_host;
     }
+    this->pinned = true;
   }
   template<typename T>
   void Unity<T>::unpin(){
@@ -713,14 +715,13 @@ namespace ssrlcv{
       logger.warn<<"WARNING: attempt to unpin nonpinned Unity<T> does nothing\n";
       return;
     }
-    //determine what to do if it is unified
-    this->pinned = false;
+    //TODO determine what to do if it is unified
     if(this->state != gpu){
-      T* pageable_host = new T[this->numElements]();
-      memcpy(pageable_host,this->host,this->numElements*sizeof(T));
-      CudaSafeCall(cudaFreeHost(this->host));
+      std::shared_ptr<T> pageable_host = std::shared_ptr<T>(new T[this->numElements], std::default_delete<T[]>()());
+      memcpy(pageable_host.get(),this->host.get(),this->numElements*sizeof(T));
       this->host = pageable_host;
     }
+    this->pinned = false;
   }
 
 
@@ -728,7 +729,7 @@ namespace ssrlcv{
 
 
   template<typename T>
-  void Unity<T>::setData(T* data, unsigned long numElements, MemoryState state, bool pinned){
+  void Unity<T>::setData(std::shared_ptr<T> data, unsigned long numElements, MemoryState state, bool pinned){
     if(state == null){
       throw NullUnityException("cannot use null as state of T* data in Unity<T>::setData");
     }
@@ -748,13 +749,15 @@ namespace ssrlcv{
         throw IllegalUnityTransition("attempt to instantiate unkown MemoryState fron nullptr (supported states = both, cpu & gpu)");
       }
       if(state == cpu || state == both){
-        if(!this->pinned) this->host = new T[numElements]();
+        if(!this->pinned) this->host = std::shared_ptr<T>(new T[numElements], hostDeleter<T>(&this->pinned));
         else{
+          this->host.reset((T *)nullptr, hostDeleter<T>(&this->pinned));
           CudaSafeCall(cudaMallocHost((void**)&this->host,this->numElements*sizeof(T)));
           this->zeroOut(cpu);
         } 
       }
       if(state == gpu || state == both){
+        this->device.reset((T *)nullptr, deviceDeleter<T>());
         CudaSafeCall(cudaMalloc((void**)&this->device,this->numElements*sizeof(T)));
         this->zeroOut(gpu);
       }
@@ -817,19 +820,23 @@ namespace ssrlcv{
       else{
         if(this->state != both){
           if(this->state == cpu && this->device == nullptr){
+            this->device.reset((T *)nullptr, deviceDeleter<T>());
             CudaSafeCall(cudaMalloc((void**)&this->device,this->numElements*sizeof(T)));
           }
           else if(this->state == gpu && this->host == nullptr){
-            if(!this->pinned) this->host = new T[this->numElements]();
-            else CudaSafeCall(cudaMallocHost((void**)&this->host,this->numElements*sizeof(T)));
+            if(!this->pinned) this->host = std::shared_ptr<T>(new T[this->numElements], hostDeleter<T>(&this->pinned));
+            else {
+              this->host.reset((T *)nullptr, hostDeleter<T>(&this->pinned));
+              CudaSafeCall(cudaMallocHost((void**)&this->host,this->numElements*sizeof(T)));
+            }
           }
           this->state = both;
         }
         if(this->fore == cpu){
-          CudaSafeCall(cudaMemcpy(this->device,this->host,this->numElements*sizeof(T),cudaMemcpyHostToDevice));
+          CudaSafeCall(cudaMemcpy(this->device.get(),this->host.get(),this->numElements*sizeof(T),cudaMemcpyHostToDevice));
         }
         else if(this->fore == gpu){
-          CudaSafeCall(cudaMemcpy(this->host,this->device,this->numElements*sizeof(T),cudaMemcpyDeviceToHost));
+          CudaSafeCall(cudaMemcpy(this->host.get(),this->device.get(),this->numElements*sizeof(T),cudaMemcpyDeviceToHost));
         }
       } 
       this->fore = both;
@@ -877,7 +884,7 @@ namespace ssrlcv{
     if(this->fore == cpu){
       this->transferMemoryTo(gpu);
     } 
-    thrust::device_ptr<T> data_ptr(this->device);
+    thrust::device_ptr<T> data_ptr(this->device.get());
     if(greater){
       thrust::stable_sort(data_ptr,data_ptr+this->numElements,thrust::greater<T>());
     }
@@ -900,7 +907,7 @@ namespace ssrlcv{
     if(this->fore == cpu){
       this->transferMemoryTo(gpu);
     } 
-    thrust::device_ptr<T> data_ptr(this->device);
+    thrust::device_ptr<T> data_ptr(this->device.get());
     thrust::stable_sort(data_ptr,data_ptr+this->numElements,comparator);
     CudaCheckError();
     this->fore = gpu;
@@ -938,7 +945,7 @@ namespace ssrlcv{
       //body
 
       for(unsigned long i = 0; i < this->numElements; ++i){
-        cp.write((char*)&this->host[i],sizeof(T));
+        cp.write((char*)&this->host.get()[i],sizeof(T));
       }
       cp.close();
       if(cp.good()){

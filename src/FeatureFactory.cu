@@ -8,7 +8,7 @@ ssrlcv::FeatureFactory::ScaleSpace::Octave::Blur::Blur(){
     this->gradients = nullptr;
     this->size = {0,0};
 }
-ssrlcv::FeatureFactory::ScaleSpace::Octave::Blur::Blur(float sigma, int2 kernelSize, Unity<float>* pixels, uint2 size, float pixelWidth) : 
+ssrlcv::FeatureFactory::ScaleSpace::Octave::Blur::Blur(float sigma, int2 kernelSize, std::shared_ptr<ssrlcv::Unity<float>> pixels, uint2 size, float pixelWidth) : 
 sigma(sigma),size(size){
     MemoryState origin = pixels->getMemoryState();
     if(origin != gpu) pixels->setMemoryState(gpu);
@@ -24,8 +24,8 @@ sigma(sigma),size(size){
     }
     pixels->setData(convolve(this->size,pixels,kernelSize,gaussian,true)->device,pixels->size(),gpu);
 
-    this->pixels = new Unity<float>(nullptr,pixels->size(),gpu);
-    CudaSafeCall(cudaMemcpy(this->pixels->device,pixels->device,pixels->size()*sizeof(float),cudaMemcpyDeviceToDevice));
+    this->pixels = std::make_shared<ssrlcv::Unity<float>>(nullptr,pixels->size(),gpu);
+    CudaSafeCall(cudaMemcpy(this->pixels->device.get(),pixels->device.get(),pixels->size()*sizeof(float),cudaMemcpyDeviceToDevice));
     
     if(origin != gpu){
         pixels->setMemoryState(origin);
@@ -42,10 +42,6 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::Blur::computeGradients(){
         this->gradients->setMemoryState(origin);
     } 
 }
-ssrlcv::FeatureFactory::ScaleSpace::Octave::Blur::~Blur(){
-    if(this->pixels != nullptr) delete this->pixels;
-    if(this->gradients != nullptr) delete this->gradients;
-}
 
 ssrlcv::FeatureFactory::ScaleSpace::Octave::Octave(){
     this->numBlurs = 0;
@@ -55,7 +51,7 @@ ssrlcv::FeatureFactory::ScaleSpace::Octave::Octave(){
     this->extremaBlurIndices = nullptr;
     this->id = -1;
 }
-ssrlcv::FeatureFactory::ScaleSpace::Octave::Octave(int id, unsigned int numBlurs, int2 kernelSize, float* sigmas, Unity<float>* pixels, uint2 size, float pixelWidth, int keepPixelsAfterBlur) : 
+ssrlcv::FeatureFactory::ScaleSpace::Octave::Octave(int id, unsigned int numBlurs, int2 kernelSize, std::shared_ptr<float> sigmas, std::shared_ptr<ssrlcv::Unity<float>> pixels, uint2 size, float pixelWidth, int keepPixelsAfterBlur) : 
 numBlurs(numBlurs),pixelWidth(pixelWidth),id(id){
     this->extrema = nullptr;
     this->extremaBlurIndices = nullptr;
@@ -63,85 +59,79 @@ numBlurs(numBlurs),pixelWidth(pixelWidth),id(id){
     MemoryState origin = pixels->getMemoryState();
     if(origin != gpu) pixels->setMemoryState(gpu);
 
-    this->blurs = new Blur*[this->numBlurs]();
+    this->blurs = std::shared_ptr<std::shared_ptr<Blur>>(new std::shared_ptr<Blur>[this->numBlurs], std::default_delete<std::shared_ptr<Blur>[]>());
 
     for(int i = 0; i < keepPixelsAfterBlur; ++i){
-        this->blurs[i] = new Blur(sigmas[i],kernelSize,pixels,size,pixelWidth);
+        this->blurs.get()[i] = std::make_shared<Blur>(sigmas.get()[i],kernelSize,pixels,size,pixelWidth);
     }
-    Unity<float>* blurable = new Unity<float>(nullptr,pixels->size(),gpu);
-    CudaSafeCall(cudaMemcpy(blurable->device,pixels->device,pixels->size()*sizeof(float),cudaMemcpyDeviceToDevice));
+    std::shared_ptr<ssrlcv::Unity<float>> blurable = std::make_shared<ssrlcv::Unity<float>>(nullptr,pixels->size(),gpu);
+    CudaSafeCall(cudaMemcpy(blurable->device.get(),pixels->device.get(),pixels->size()*sizeof(float),cudaMemcpyDeviceToDevice));
     if(origin != gpu) pixels->setMemoryState(origin);
     for(int i = keepPixelsAfterBlur; i < numBlurs; ++i){
-        this->blurs[i] = new Blur(sigmas[i],kernelSize,blurable,size,pixelWidth);
+        this->blurs.get()[i] = std::make_shared<Blur>(sigmas.get()[i],kernelSize,blurable,size,pixelWidth);
     }
-    delete blurable;
 }
 ssrlcv::FeatureFactory::ScaleSpace::Octave::~Octave(){
-    if(this->blurs != nullptr){
-        for(int i = 0; i < this->numBlurs; ++i){
-            delete this->blurs[i];
-        }
-        delete[] this->blurs;
-    } 
-    if(this->extrema != nullptr) delete this->extrema;
+    // Should be done automatically
 }
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
-    Unity<float>* pixelsUpper = nullptr;
-    Unity<float>* pixelsMiddle = nullptr;
-    Unity<float>* pixelsLower = nullptr;
+    std::shared_ptr<ssrlcv::Unity<float>> pixelsUpper = nullptr;
+    std::shared_ptr<ssrlcv::Unity<float>> pixelsMiddle = nullptr;
+    std::shared_ptr<ssrlcv::Unity<float>> pixelsLower = nullptr;
     dim3 grid2D = {1,1,1};
     dim3 block2D = {3,3,3};
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     MemoryState origin[3];
-    int* extremaAddresses = nullptr;
+    std::shared_ptr<int> extremaAddresses(nullptr, ssrlcv::deviceDeleter<int>());
     int totalExtrema = 0;
-    SSKeyPoint** extrema2D = new SSKeyPoint*[this->numBlurs - 2]();
+    std::shared_ptr<std::shared_ptr<SSKeyPoint>> extrema2D = std::shared_ptr<std::shared_ptr<SSKeyPoint>>(new std::shared_ptr<SSKeyPoint>[this->numBlurs - 2], std::default_delete<std::shared_ptr<SSKeyPoint>[]>());
 
-    this->extremaBlurIndices = new int[this->numBlurs]();
-    this->extremaBlurIndices[0] = 0;
+    this->extremaBlurIndices = std::shared_ptr<int>(new int[this->numBlurs], std::default_delete<int[]>());
+    this->extremaBlurIndices.get()[0] = 0;
     int extremaAtDepth = 0;
 
-    pixelsLower = this->blurs[0]->pixels;
+    pixelsLower = this->blurs.get()[0]->pixels;
     getGrid(pixelsLower->size(),grid2D);
-    int* temp = new int[pixelsLower->size()];
+    std::shared_ptr<int> temp = std::shared_ptr<int>(new int[pixelsLower->size()], std::default_delete<int[]>());
     for(int i = 0; i < pixelsLower->size(); ++i){
-        temp[i] = -1;
+        temp.get()[i] = -1;
     }
     CudaSafeCall(cudaMalloc((void**)&extremaAddresses,pixelsLower->size()*sizeof(int)));
     for(int b = 1; b < this->numBlurs - 1; ++b){
-        CudaSafeCall(cudaMemcpy(extremaAddresses,temp,pixelsLower->size()*sizeof(int),cudaMemcpyHostToDevice));
-        pixelsMiddle = this->blurs[b]->pixels;
-        pixelsUpper = this->blurs[b+1]->pixels;
+        CudaSafeCall(cudaMemcpy(extremaAddresses.get(),temp.get(),pixelsLower->size()*sizeof(int),cudaMemcpyHostToDevice));
+        pixelsMiddle = this->blurs.get()[b]->pixels;
+        pixelsUpper = this->blurs.get()[b+1]->pixels;
         origin[0] = pixelsLower->getMemoryState();
         origin[1] = pixelsMiddle->getMemoryState();
         origin[2] = pixelsUpper->getMemoryState();
         if(origin[0] != gpu) pixelsLower->setMemoryState(gpu);
         if(origin[1] != gpu) pixelsMiddle->setMemoryState(gpu);
         if(origin[2] != gpu) pixelsUpper->setMemoryState(gpu);
-        findExtrema<<<grid2D,block2D>>>(this->blurs[b]->size,pixelsUpper->device,pixelsMiddle->device,pixelsLower->device,extremaAddresses);
+        findExtrema<<<grid2D,block2D>>>(this->blurs.get()[b]->size,pixelsUpper->device.get(),pixelsMiddle->device.get(),pixelsLower->device.get(),extremaAddresses.get());
         cudaDeviceSynchronize();
         CudaCheckError();
 
-        thrust::device_ptr<int> addr(extremaAddresses);
+        thrust::device_ptr<int> addr(extremaAddresses.get());
 
         thrust::device_ptr<int> new_end = thrust::remove(addr, addr + pixelsLower->size(),-1);
         cudaDeviceSynchronize();
         CudaCheckError();
         extremaAtDepth = new_end - addr;
 
-        this->extremaBlurIndices[b] = totalExtrema;
+        this->extremaBlurIndices.get()[b] = totalExtrema;
         totalExtrema += extremaAtDepth;
 
         if(extremaAtDepth != 0){
-            CudaSafeCall(cudaMalloc((void**)&extrema2D[b-1],extremaAtDepth*sizeof(ScaleSpace::SSKeyPoint)));
+            extrema2D.get()[b-1].reset((SSKeyPoint *)nullptr, ssrlcv::deviceDeleter<SSKeyPoint>());
+            CudaSafeCall(cudaMalloc((void**)&extrema2D.get()[b-1],extremaAtDepth*sizeof(ScaleSpace::SSKeyPoint)));
             grid = {1,1,1}; block = {1,1,1};
             getFlatGridBlock(extremaAtDepth,grid,block,fillExtrema);
-            fillExtrema<<<grid,block>>>(extremaAtDepth,this->blurs[b]->size,this->pixelWidth,{this->id,b},this->blurs[b]->sigma,extremaAddresses,pixelsMiddle->device,extrema2D[b-1]);
+            fillExtrema<<<grid,block>>>(extremaAtDepth,this->blurs.get()[b]->size,this->pixelWidth,{this->id,b},this->blurs.get()[b]->sigma,extremaAddresses.get(),pixelsMiddle->device.get(),extrema2D.get()[b-1].get());
             CudaCheckError();
         }
         else{
-            extrema2D[b-1] = nullptr;
+            extrema2D.get()[b-1].reset((SSKeyPoint *)nullptr, ssrlcv::deviceDeleter<SSKeyPoint>());
         }
         
         if(origin[0] != gpu) pixelsLower->setMemoryState(origin[0]);
@@ -150,91 +140,84 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
     }
     if(origin[1] != gpu) pixelsMiddle->setMemoryState(origin[1]);
     if(origin[2] != gpu) pixelsUpper->setMemoryState(origin[2]);
-    delete[] temp;
-    CudaSafeCall(cudaFree(extremaAddresses));
+
     if(totalExtrema != 0){
-        this->extrema = new Unity<ScaleSpace::SSKeyPoint>(nullptr,totalExtrema,gpu);
-        this->extremaBlurIndices[this->numBlurs - 1] = this->extrema->size();
+        this->extrema = std::make_shared<ssrlcv::Unity<ScaleSpace::SSKeyPoint>>(nullptr,totalExtrema,gpu);
+        this->extremaBlurIndices.get()[this->numBlurs - 1] = this->extrema->size();
         for(int i = 1; i < this->numBlurs - 1 && totalExtrema != 0; ++i){
-            if(extrema2D[i-1] == nullptr) continue;
-            if(this->extremaBlurIndices[i+1] - this->extremaBlurIndices[i] != 0){
-                CudaSafeCall(cudaMemcpy(this->extrema->device + this->extremaBlurIndices[i],extrema2D[i-1],(this->extremaBlurIndices[i+1]-this->extremaBlurIndices[i])*sizeof(ScaleSpace::SSKeyPoint),cudaMemcpyDeviceToDevice));
+            if(extrema2D.get()[i-1] == nullptr) continue;
+            if(this->extremaBlurIndices.get()[i+1] - this->extremaBlurIndices.get()[i] != 0){
+                CudaSafeCall(cudaMemcpy(this->extrema->device.get() + this->extremaBlurIndices.get()[i],extrema2D.get()[i-1].get(),(this->extremaBlurIndices.get()[i+1]-this->extremaBlurIndices.get()[i])*sizeof(ScaleSpace::SSKeyPoint),cudaMemcpyDeviceToDevice));
             }
-            CudaSafeCall(cudaFree(extrema2D[i-1]));
         }  
     }
-    
-    delete[] extrema2D;
 }
+
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::discardExtrema(){
     if(this->extrema == nullptr) return;
     MemoryState origin = this->extrema->getMemoryState();
     if(origin != gpu) this->extrema->setMemoryState(gpu);
-    SSKeyPoint** temp = new SSKeyPoint*[this->numBlurs];
-    int* numExtrema = new int[this->numBlurs];
+    std::shared_ptr<std::shared_ptr<SSKeyPoint>> temp = std::shared_ptr<std::shared_ptr<SSKeyPoint>>(new std::shared_ptr<SSKeyPoint>[this->numBlurs], std::default_delete<std::shared_ptr<SSKeyPoint>[]>());
+    std::shared_ptr<int> numExtrema(new int[this->numBlurs], std::default_delete<int[]>());
     int numExtremaAtBlur = 0;
     for(int i = 0; i < this->numBlurs; ++i){
         if(i < this->numBlurs - 1){
-            numExtremaAtBlur = this->extremaBlurIndices[i+1] - this->extremaBlurIndices[i];
+            numExtremaAtBlur = this->extremaBlurIndices.get()[i+1] - this->extremaBlurIndices.get()[i];
         }
         else{
-            numExtremaAtBlur = this->extrema->size() - this->extremaBlurIndices[i];
+            numExtremaAtBlur = this->extrema->size() - this->extremaBlurIndices.get()[i];
         }
-        numExtrema[i] = numExtremaAtBlur;
+        numExtrema.get()[i] = numExtremaAtBlur;
         if(numExtremaAtBlur == 0){
-            temp[i] = nullptr;
+            temp.get()[i].reset((SSKeyPoint *)nullptr, ssrlcv::deviceDeleter<SSKeyPoint>());
             continue;
         }
-        CudaSafeCall(cudaMalloc((void**)&temp[i],numExtremaAtBlur*sizeof(SSKeyPoint)));
-        CudaSafeCall(cudaMemcpy(temp[i],this->extrema->device + this->extremaBlurIndices[i],numExtremaAtBlur*sizeof(SSKeyPoint),cudaMemcpyDeviceToDevice));
+        temp.get()[i].reset((SSKeyPoint *)nullptr, ssrlcv::deviceDeleter<SSKeyPoint>());
+        CudaSafeCall(cudaMalloc((void**)&temp.get()[i],numExtremaAtBlur*sizeof(SSKeyPoint)));
+        CudaSafeCall(cudaMemcpy(temp.get()[i].get(),this->extrema->device.get() + this->extremaBlurIndices.get()[i],numExtremaAtBlur*sizeof(SSKeyPoint),cudaMemcpyDeviceToDevice));
     }
     int totalKept = 0;
 
     for(int i = 0; i < this->numBlurs; ++i){
         numExtremaAtBlur = 0;
-        if(temp[i] != nullptr){
-            thrust::device_ptr<ScaleSpace::SSKeyPoint> kp(temp[i]);
-            thrust::device_ptr<ScaleSpace::SSKeyPoint> new_end = thrust::remove_if(kp,kp+numExtrema[i],ScaleSpace::discard());
+        if(temp.get()[i] != nullptr){
+            thrust::device_ptr<ScaleSpace::SSKeyPoint> kp(temp.get()[i].get());
+            thrust::device_ptr<ScaleSpace::SSKeyPoint> new_end = thrust::remove_if(kp,kp+numExtrema.get()[i],ScaleSpace::discard());
             cudaDeviceSynchronize();
             CudaCheckError();
             numExtremaAtBlur = new_end - kp;
         }
-        this->extremaBlurIndices[i] = totalKept;
+        this->extremaBlurIndices.get()[i] = totalKept;
         totalKept += numExtremaAtBlur;
     }
-    delete[] numExtrema;
 
     if(totalKept != 0){
         this->extrema->setData(nullptr,totalKept,gpu);
         for(int i = 0; i < this->numBlurs; ++i){
-            if(temp[i] == nullptr) continue;
+            if(temp.get()[i] == nullptr) continue;
             if(i == this->numBlurs - 1){
-                CudaSafeCall(cudaMemcpy(this->extrema->device + this->extremaBlurIndices[i],temp[i],(totalKept-this->extremaBlurIndices[i])*sizeof(SSKeyPoint),cudaMemcpyDeviceToDevice));
+                CudaSafeCall(cudaMemcpy(this->extrema->device.get() + this->extremaBlurIndices.get()[i],temp.get()[i].get(),(totalKept-this->extremaBlurIndices.get()[i])*sizeof(SSKeyPoint),cudaMemcpyDeviceToDevice));
             }
             else{
-                CudaSafeCall(cudaMemcpy(this->extrema->device + this->extremaBlurIndices[i],temp[i],(this->extremaBlurIndices[i+1]-this->extremaBlurIndices[i])*sizeof(ScaleSpace::SSKeyPoint),cudaMemcpyDeviceToDevice));
+                CudaSafeCall(cudaMemcpy(this->extrema->device.get() + this->extremaBlurIndices.get()[i],temp.get()[i].get(),(this->extremaBlurIndices.get()[i+1]-this->extremaBlurIndices.get()[i])*sizeof(ScaleSpace::SSKeyPoint),cudaMemcpyDeviceToDevice));
             }
-            CudaSafeCall(cudaFree(temp[i]));
         }
         if(origin != gpu) this->extrema->setMemoryState(origin);
     }
     else{ 
-        delete this->extrema;
-        this->extrema = nullptr;
-        delete[] this->extremaBlurIndices;
-        this->extremaBlurIndices = nullptr;
+        this->extrema.reset();
+        this->extremaBlurIndices.reset();
     }
-    delete[] temp;
 }
 
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(){
     if(this->extrema == nullptr) return;
     MemoryState origin = this->extrema->getMemoryState();
     if(origin != gpu) this->extrema->setMemoryState(gpu);
-    MemoryState* pixelsOrigin = new MemoryState[this->numBlurs];
+    std::shared_ptr<MemoryState> pixelsOrigin = std::shared_ptr<MemoryState>(new MemoryState[this->numBlurs], std::default_delete<MemoryState[]>());
     for(int i = 0; i < this->numBlurs; ++i){
-        pixelsOrigin[i] = this->blurs[i]->pixels->getMemoryState();
-        if(pixelsOrigin[i] != gpu) this->blurs[i]->pixels->setMemoryState(gpu);
+        pixelsOrigin.get()[i] = this->blurs.get()[i]->pixels->getMemoryState();
+        if(pixelsOrigin.get()[i] != gpu) this->blurs.get()[i]->pixels->setMemoryState(gpu);
     } 
 
     /*
@@ -242,41 +225,38 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(){
     2. discard extrema
     3. resort extrema
     */
-    float** allPixels_device = nullptr;
+    std::shared_ptr<float*> allPixels_device(nullptr, ssrlcv::deviceDeleter<float>());
     CudaSafeCall(cudaMalloc((void**)&allPixels_device,this->numBlurs*sizeof(float*)));
     for(int i = 0; i < this->numBlurs; ++i){
-        CudaSafeCall(cudaMemcpy(allPixels_device + i,&this->blurs[i]->pixels->device,sizeof(float*),cudaMemcpyHostToDevice));
+        CudaSafeCall(cudaMemcpy(allPixels_device.get() + i,&this->blurs.get()[i]->pixels->device,sizeof(float*),cudaMemcpyHostToDevice));
     }
 
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     getFlatGridBlock(this->extrema->size(),grid,block,refineLocation);
-    refineLocation<<<grid,block>>>(this->extrema->size(), this->blurs[0]->size, this->blurs[0]->sigma, this->blurs[1]->sigma/this->blurs[0]->sigma, this->numBlurs, allPixels_device, this->extrema->device);
+    refineLocation<<<grid,block>>>(this->extrema->size(), this->blurs.get()[0]->size, this->blurs.get()[0]->sigma, this->blurs.get()[1]->sigma/this->blurs.get()[0]->sigma, this->numBlurs, allPixels_device.get(), this->extrema->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
     
-    CudaSafeCall(cudaFree(allPixels_device));
-
     this->discardExtrema();
     if(this->extrema == nullptr) return;
 
-    thrust::device_ptr<SSKeyPoint> kp(this->extrema->device);
+    thrust::device_ptr<SSKeyPoint> kp(this->extrema->device.get());
     thrust::stable_sort(kp, kp + this->extrema->size());
     this->extrema->transferMemoryTo(cpu);
-    this->extremaBlurIndices[0] = 0;
-    this->extremaBlurIndices[1] = 0;
+    this->extremaBlurIndices.get()[0] = 0;
+    this->extremaBlurIndices.get()[1] = 0;
     for(int i = 1,blur = 2; i < this->extrema->size() && blur < this->numBlurs - 1; ++i){
-        if(this->extrema->host[i-1] < this->extrema->host[i]){
-            this->extremaBlurIndices[blur++] = i; 
+        if(this->extrema->host.get()[i-1] < this->extrema->host.get()[i]){
+            this->extremaBlurIndices.get()[blur++] = i; 
         } 
     }
-    this->extremaBlurIndices[this->numBlurs - 1] = this->extrema->size();
+    this->extremaBlurIndices.get()[this->numBlurs - 1] = this->extrema->size();
     this->extrema->setFore(cpu);//ensuring that Unity knows where most up to date memory is
     if(origin != this->extrema->getMemoryState()) this->extrema->setMemoryState(origin);
     for(int i = 0; i < this->numBlurs; ++i){
-        if(pixelsOrigin[i] != gpu) this->blurs[i]->pixels->setMemoryState(pixelsOrigin[i]);
+        if(pixelsOrigin.get()[i] != gpu) this->blurs.get()[i]->pixels->setMemoryState(pixelsOrigin.get()[i]);
     }
-    delete[] pixelsOrigin;
 }
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeNoise(float noiseThreshold){
     if(this->extrema == nullptr) return;
@@ -285,7 +265,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeNoise(float noiseThreshol
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     getFlatGridBlock(this->extrema->size(),grid,block,flagNoise);
-    flagNoise<<<grid,block>>>(this->extrema->size(),this->extrema->device,noiseThreshold);
+    flagNoise<<<grid,block>>>(this->extrema->size(),this->extrema->device.get(),noiseThreshold);
     cudaDeviceSynchronize();
     CudaCheckError();
     this->discardExtrema();
@@ -303,21 +283,21 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeEdges(float edgeThreshold
         grid = {1,1,1};
         block = {1,1,1};
         if(i < this->numBlurs - 1){
-            numExtremaAtBlur = this->extremaBlurIndices[i+1] - this->extremaBlurIndices[i];
+            numExtremaAtBlur = this->extremaBlurIndices.get()[i+1] - this->extremaBlurIndices.get()[i];
         }   
         else{
-            numExtremaAtBlur = this->extrema->size() - this->extremaBlurIndices[i];
+            numExtremaAtBlur = this->extrema->size() - this->extremaBlurIndices.get()[i];
         }
         if(numExtremaAtBlur == 0) continue;
-        pixelOrigin = this->blurs[i+1]->pixels->getMemoryState();
-        if(pixelOrigin != gpu) this->blurs[i]->pixels->setMemoryState(gpu);
+        pixelOrigin = this->blurs.get()[i+1]->pixels->getMemoryState();
+        if(pixelOrigin != gpu) this->blurs.get()[i]->pixels->setMemoryState(gpu);
         
         getFlatGridBlock(numExtremaAtBlur,grid,block,flagEdges);
-        flagEdges<<<grid,block>>>(numExtremaAtBlur, this->extremaBlurIndices[i], this->blurs[0]->size,this->extrema->device,this->blurs[i]->pixels->device,edgeThreshold);
+        flagEdges<<<grid,block>>>(numExtremaAtBlur, this->extremaBlurIndices.get()[i], this->blurs.get()[0]->size,this->extrema->device.get(),this->blurs.get()[i]->pixels->device.get(),edgeThreshold);
         cudaDeviceSynchronize();
         CudaCheckError();
 
-        if(pixelOrigin != gpu) this->blurs[i]->pixels->setMemoryState(pixelOrigin);
+        if(pixelOrigin != gpu) this->blurs.get()[i]->pixels->setMemoryState(pixelOrigin);
     }
     this->discardExtrema();
     if(this->extrema != nullptr && origin != gpu) this->extrema->setMemoryState(origin);
@@ -331,7 +311,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeBorder(float2 border){
     int numExtremaAtBlur = 0;
     
     getFlatGridBlock(numExtremaAtBlur,grid,block,flagBorder);
-    flagBorder<<<grid,block>>>(numExtremaAtBlur, this->blurs[0]->size,this->extrema->device,border);
+    flagBorder<<<grid,block>>>(numExtremaAtBlur, this->blurs.get()[0]->size,this->extrema->device.get(),border);
     cudaDeviceSynchronize();
     CudaCheckError();
        
@@ -341,7 +321,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::removeBorder(float2 border){
 
 void ssrlcv::FeatureFactory::ScaleSpace::Octave::normalize(){
     for(int i = 0; i < this->numBlurs; ++i){
-        normalizeImage(this->blurs[i]->pixels);//letting normalizeImage take care of memory here
+        normalizeImage(this->blurs.get()[i]->pixels);//letting normalizeImage take care of memory here
     }
 }
 
@@ -350,7 +330,7 @@ ssrlcv::FeatureFactory::ScaleSpace::ScaleSpace(){
     this->octaves = nullptr;
     this->isDOG = false;
 }
-ssrlcv::FeatureFactory::ScaleSpace::ScaleSpace(Image* image, int startingOctave, uint2 depth, float initialSigma, float2 sigmaMultiplier, int2 kernelSize, bool makeDOG) : 
+ssrlcv::FeatureFactory::ScaleSpace::ScaleSpace(std::shared_ptr<ssrlcv::Image> image, int startingOctave, uint2 depth, float initialSigma, float2 sigmaMultiplier, int2 kernelSize, bool makeDOG) : 
 depth(depth), isDOG(makeDOG){ 
 
     int numResize = (int)powf(2, startingOctave+depth.x);
@@ -360,15 +340,14 @@ depth(depth), isDOG(makeDOG){
     }
 
     printf("creating scalespace with depth {%d,%d}\n",this->depth.x,this->depth.y);
-    Unity<float>* pixels = nullptr;
+    std::shared_ptr<ssrlcv::Unity<float>> pixels;
     MemoryState origin = image->pixels->getMemoryState();
     if(origin != gpu) image->pixels->setMemoryState(gpu);
     if(image->colorDepth != 1){
-        Unity<unsigned char>* charPixels = new Unity<unsigned char>(nullptr,image->pixels->size(),gpu);
-        CudaSafeCall(cudaMemcpy(charPixels->device, image->pixels->device, pixels->size()*sizeof(unsigned char),cudaMemcpyDeviceToDevice));
+        std::shared_ptr<ssrlcv::Unity<unsigned char>> charPixels = std::make_shared<ssrlcv::Unity<unsigned char>>(nullptr,image->pixels->size(),gpu);
+        CudaSafeCall(cudaMemcpy(charPixels->device.get(), image->pixels->device.get(), pixels->size()*sizeof(unsigned char),cudaMemcpyDeviceToDevice));
         convertToBW(charPixels,image->colorDepth);
         pixels = convertImageToFlt(charPixels);
-        delete charPixels;
     }
     else{
         pixels = convertImageToFlt(image->pixels);
@@ -396,78 +375,67 @@ depth(depth), isDOG(makeDOG){
         pixelWidth *= 2.0f;
     }   
 
-    float* sigmas = new float[this->depth.y]();
-    sigmas[0] = initialSigma;
+    std::shared_ptr<float> sigmas = std::shared_ptr<float>(new float[this->depth.y], std::default_delete<float[]>());
+    sigmas.get()[0] = initialSigma;
     for(int i = 1; i < this->depth.y; ++i){
-        sigmas[i] = sigmas[i-1]*sigmaMultiplier.y;
+        sigmas.get()[i] = sigmas.get()[i-1] * sigmaMultiplier.y;
     }
-    this->octaves = new Octave*[this->depth.x]();
+    this->octaves = std::shared_ptr<std::shared_ptr<Octave>>(new std::shared_ptr<Octave>[this->depth.x], std::default_delete<std::shared_ptr<Octave>[]>());
     for(int i = 0; i < this->depth.x; ++i){
         std::cout<<"\t";
-        this->octaves[i] = new Octave(i,this->depth.y,kernelSize,sigmas,pixels,imageSize,pixelWidth,this->depth.y - 2);
+        this->octaves.get()[i] = std::make_shared<Octave>(i,this->depth.y,kernelSize,sigmas,pixels,imageSize,pixelWidth,this->depth.y - 2);
+
         if(i + 1 < this->depth.x){
             pixels->setData(bin(imageSize,pixels)->device,pixels->size()/4,gpu);
             imageSize = imageSize/scalar;
             pixelWidth *= 2.0f;
             for(int b = 0; b < this->depth.y; ++b){
-                sigmas[b]*=sigmaMultiplier.x;   
+                sigmas.get()[b] *= sigmaMultiplier.x;   
             }
         }
-        this->octaves[i]->normalize();
+        this->octaves.get()[i]->normalize();
     }
-    delete pixels;
-    delete[] sigmas;
     if(this->isDOG) this->convertToDOG();
 }
 void ssrlcv::FeatureFactory::ScaleSpace::convertToDOG(){
-    Unity<float>* pixelsUpper = nullptr;
-    Unity<float>* pixelsLower = nullptr;
+    std::shared_ptr<ssrlcv::Unity<float>> pixelsUpper = nullptr;
+    std::shared_ptr<ssrlcv::Unity<float>> pixelsLower = nullptr;
     MemoryState origin[2];
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     uint2 dogDepth = {this->depth.x,this->depth.y - 1};
-    Octave** dogOctaves = new Octave*[dogDepth.x]();
+    std::shared_ptr<std::shared_ptr<Octave>> dogOctaves = std::shared_ptr<std::shared_ptr<Octave>>(new std::shared_ptr<Octave>[dogDepth.x], std::default_delete<std::shared_ptr<Octave>[]>());
     for(int o = 0; o < dogDepth.x; o++){
-        dogOctaves[o] = new Octave();
-        dogOctaves[o]->blurs = new Octave::Blur*[dogDepth.y]();
-        dogOctaves[o]->numBlurs = dogDepth.y;
-        dogOctaves[o]->pixelWidth = this->octaves[o]->pixelWidth;
-        pixelsLower = this->octaves[o]->blurs[0]->pixels;
+        dogOctaves.get()[o] = std::make_shared<Octave>();
+        dogOctaves.get()[o]->blurs = std::shared_ptr<std::shared_ptr<Octave::Blur>>(new std::shared_ptr<Octave::Blur>[dogDepth.y], std::default_delete<std::shared_ptr<Octave::Blur>[]>());
+        dogOctaves.get()[o]->numBlurs = dogDepth.y;
+        dogOctaves.get()[o]->pixelWidth = this->octaves.get()[o]->pixelWidth;
+        pixelsLower = this->octaves.get()[o]->blurs.get()[0]->pixels;
         getFlatGridBlock(pixelsLower->size(),grid,block,subtractImages);
         for(int b = 0; b < dogDepth.y; ++b){
-            dogOctaves[o]->blurs[b] = new Octave::Blur();
-            dogOctaves[o]->id = o;
-            dogOctaves[o]->blurs[b]->size = this->octaves[o]->blurs[0]->size;
-            dogOctaves[o]->blurs[b]->sigma = this->octaves[o]->blurs[b]->sigma;
-            //dogOctaves[o]->blurs[b]->sigma = this->octaves[o]->blurs[0]*powf(this->octaves[o]->blurs[1]->sigma/this->octaves[o]->blurs[0]->sigma,(float)b + 0.5f);
-            dogOctaves[o]->blurs[b]->pixels = new Unity<float>(nullptr,pixelsLower->size(),gpu);
-            pixelsUpper = this->octaves[o]->blurs[b+1]->pixels;
+            dogOctaves.get()[o]->blurs.get()[b] = std::make_shared<Octave::Blur>();
+            dogOctaves.get()[o]->id = o;
+            dogOctaves.get()[o]->blurs.get()[b]->size = this->octaves.get()[o]->blurs.get()[0]->size;
+            dogOctaves.get()[o]->blurs.get()[b]->sigma = this->octaves.get()[o]->blurs.get()[b]->sigma;
+            //dogOctaves.get()[o]->blurs.get()[b]->sigma = this->octaves.get()[o]->blurs.get()[0]*powf(this->octaves.get()[o]->blurs.get()[1]->sigma/this->octaves.get()[o]->blurs.get()[0]->sigma,(float)b + 0.5f);
+            dogOctaves.get()[o]->blurs.get()[b]->pixels = std::make_shared<ssrlcv::Unity<float>>(nullptr,pixelsLower->size(),gpu);
+            pixelsUpper = this->octaves.get()[o]->blurs.get()[b+1]->pixels;
             origin[0] = pixelsLower->getMemoryState();
             origin[1] = pixelsUpper->getMemoryState();
             if(origin[0] != gpu) pixelsLower->setMemoryState(gpu);
             if(origin[1] != gpu) pixelsUpper->setMemoryState(gpu);
-            subtractImages<<<grid,block>>>(pixelsLower->size(),pixelsUpper->device,pixelsLower->device,dogOctaves[o]->blurs[b]->pixels->device);
+            subtractImages<<<grid,block>>>(pixelsLower->size(),pixelsUpper->device.get(),pixelsLower->device.get(),dogOctaves.get()[o]->blurs.get()[b]->pixels->device.get());
             cudaDeviceSynchronize();
             CudaCheckError();            
             if(origin[0] != gpu) pixelsLower->setMemoryState(origin[0]);
             pixelsLower = pixelsUpper;
         }
     }
-    for(int i = 0; i < this->depth.x; ++i){
-        delete this->octaves[i];
-    }
-    delete[] this->octaves;
     this->depth = dogDepth;
     this->octaves = dogOctaves;
 }
 ssrlcv::FeatureFactory::ScaleSpace::~ScaleSpace(){
-    if(this->octaves != nullptr){
-        for(int i = 0; i < this->depth.x; ++i){
-            delete this->octaves[i];
-        }
-        delete[] this->octaves;
-    }
- 
+    // should be done automatically
 }
 bool ssrlcv::FeatureFactory::ScaleSpace::checkIfDOG(){
     return this->isDOG;
@@ -476,14 +444,13 @@ void ssrlcv::FeatureFactory::ScaleSpace::dumpData(std::string filePath){
     MemoryState origin;
     for(int o = 0; o < this->depth.x; ++o){
         for(int b = 0; b < this->depth.y; ++b){
-            origin = this->octaves[o]->blurs[b]->pixels->getMemoryState();
-            if(origin != gpu) this->octaves[o]->blurs[b]->pixels->setMemoryState(gpu);
-            Unity<unsigned char>* writable = convertImageToChar(this->octaves[o]->blurs[b]->pixels);
+            origin = this->octaves.get()[o]->blurs.get()[b]->pixels->getMemoryState();
+            if(origin != gpu) this->octaves.get()[o]->blurs.get()[b]->pixels->setMemoryState(gpu);
+            std::shared_ptr<ssrlcv::Unity<unsigned char>> writable = convertImageToChar(this->octaves.get()[o]->blurs.get()[b]->pixels);
             writable->setMemoryState(cpu);
-            if(origin != gpu) this->octaves[o]->blurs[b]->pixels->setMemoryState(origin);
+            if(origin != gpu) this->octaves.get()[o]->blurs.get()[b]->pixels->setMemoryState(origin);
             std::string currentFile = filePath + std::to_string(o) + "_" + std::to_string(b) + ".png";
-            writePNG(currentFile.c_str(), writable->host, 1, this->octaves[o]->blurs[b]->size.x, this->octaves[o]->blurs[b]->size.y);
-            delete writable;
+            writePNG(currentFile.c_str(), writable->host.get(), 1, this->octaves.get()[o]->blurs.get()[b]->size.x, this->octaves.get()[o]->blurs.get()[b]->size.y);
         }
     }
 }
@@ -494,12 +461,12 @@ void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, flo
         exit(-1);
     }
     int temp = 0;
-    Unity<SSKeyPoint>* currentExtrema = nullptr;
+    std::shared_ptr<ssrlcv::Unity<SSKeyPoint>> currentExtrema = nullptr;
     for(int i = 0; i < this->depth.x; ++i){
-        if(i != 0 && this->octaves[i]->extrema != nullptr) std::cout<<"\n";
-        this->octaves[i]->searchForExtrema();
-        this->octaves[i]->normalize();
-        currentExtrema = this->octaves[i]->extrema;
+        if(i != 0 && this->octaves.get()[i]->extrema != nullptr) std::cout<<"\n";
+        this->octaves.get()[i]->searchForExtrema();
+        this->octaves.get()[i]->normalize();
+        currentExtrema = this->octaves.get()[i]->extrema;
         if(currentExtrema == nullptr) continue;
         temp = currentExtrema->size();
         if(currentExtrema == nullptr) continue;
@@ -509,57 +476,56 @@ void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, flo
             continue;
         }
         std::cout<<temp;
-        this->octaves[i]->removeNoise(noiseThreshold*0.8);
-        std::cout<<"-"<<temp - this->octaves[i]->extrema->size();
+        this->octaves.get()[i]->removeNoise(noiseThreshold*0.8);
+        std::cout<<"-"<<temp - this->octaves.get()[i]->extrema->size();
         if(currentExtrema == nullptr) continue;
         if(subpixel){
             temp = currentExtrema->size();
-            this->octaves[i]->refineExtremaLocation();
+            this->octaves.get()[i]->refineExtremaLocation();
             if(currentExtrema == nullptr) continue;
             std::cout<<"-"<<temp - currentExtrema->size();
             temp = currentExtrema->size();
-            this->octaves[i]->removeNoise(noiseThreshold);
+            this->octaves.get()[i]->removeNoise(noiseThreshold);
             if(currentExtrema == nullptr) continue;
             std::cout<<"-"<<temp - currentExtrema->size();
         }
         temp = currentExtrema->size();
-        this->octaves[i]->removeEdges(edgeThreshold);
+        this->octaves.get()[i]->removeEdges(edgeThreshold);
         if(currentExtrema == nullptr) continue;
         std::cout<<"-"<<temp - currentExtrema->size();
         std::cout<<"="<<currentExtrema->size()<<"\n";
     }
     for(int i = 0; i < this->depth.x; ++i){
-        if(this->octaves[i]->extrema == nullptr){
-            delete[] this->octaves[i]->extremaBlurIndices;
-            this->octaves[i]->extremaBlurIndices = nullptr;
+        if(this->octaves.get()[i]->extrema == nullptr){
+            this->octaves.get()[i]->extremaBlurIndices.reset();
         }
     }
 }
-ssrlcv::Unity<ssrlcv::FeatureFactory::ScaleSpace::SSKeyPoint>* ssrlcv::FeatureFactory::ScaleSpace::getAllKeyPoints(MemoryState destination){
+std::shared_ptr<ssrlcv::Unity<ssrlcv::FeatureFactory::ScaleSpace::SSKeyPoint>> ssrlcv::FeatureFactory::ScaleSpace::getAllKeyPoints(MemoryState destination){
     unsigned int totalKeyPoints = 0;
-    MemoryState* origin = new MemoryState[this->depth.x];
+    std::shared_ptr<MemoryState> origin = std::shared_ptr<MemoryState>(new MemoryState[this->depth.x], std::default_delete<MemoryState[]>());
     bool keepThenTransfer = destination == both; 
     for(int i = 0; i < this->depth.x; ++i){
-        origin[i] = this->octaves[i]->extrema->getMemoryState();
-        if(!keepThenTransfer &&  origin[i] != both && origin[i] != destination) this->octaves[i]->extrema->transferMemoryTo(destination);
-        else if(keepThenTransfer && origin[i] == both && this->octaves[i]->extrema->getFore() == cpu) this->octaves[i]->extrema->transferMemoryTo(gpu);
-        totalKeyPoints += this->octaves[i]->extrema->size();
+        origin.get()[i] = this->octaves.get()[i]->extrema->getMemoryState();
+        if(!keepThenTransfer &&  origin.get()[i] != both && origin.get()[i] != destination) this->octaves.get()[i]->extrema->transferMemoryTo(destination);
+        else if(keepThenTransfer && origin.get()[i] == both && this->octaves.get()[i]->extrema->getFore() == cpu) this->octaves.get()[i]->extrema->transferMemoryTo(gpu);
+        totalKeyPoints += this->octaves.get()[i]->extrema->size();
     }
     if(totalKeyPoints == 0){
         logger.err<<"scale space has no keyPoints generated within its octaves"<<"\n";
         exit(0);
     }
-    Unity<SSKeyPoint>* aggregatedKeyPoints = new Unity<SSKeyPoint>(nullptr,totalKeyPoints,keepThenTransfer ? gpu : destination);
+    std::shared_ptr<ssrlcv::Unity<SSKeyPoint>> aggregatedKeyPoints = std::make_shared<ssrlcv::Unity<SSKeyPoint>>(nullptr,totalKeyPoints,keepThenTransfer ? gpu : destination);
     int currentIndex = 0;
     for(int i = 0; i < this->depth.x; ++i){
         if(destination == cpu && !keepThenTransfer){
-            std::memcpy(aggregatedKeyPoints->host + currentIndex, this->octaves[i]->extrema->host, this->octaves[i]->extrema->size()*sizeof(SSKeyPoint));
+            std::memcpy(aggregatedKeyPoints->host.get() + currentIndex, this->octaves.get()[i]->extrema->host.get(), this->octaves.get()[i]->extrema->size()*sizeof(SSKeyPoint));
         }
         else{
-            CudaSafeCall(cudaMemcpy(aggregatedKeyPoints->device + currentIndex, this->octaves[i]->extrema->device, this->octaves[i]->extrema->size()*sizeof(SSKeyPoint),cudaMemcpyDeviceToDevice));
+            CudaSafeCall(cudaMemcpy(aggregatedKeyPoints->device.get() + currentIndex, this->octaves.get()[i]->extrema->device.get(), this->octaves.get()[i]->extrema->size()*sizeof(SSKeyPoint),cudaMemcpyDeviceToDevice));
         }
-        currentIndex += this->octaves[i]->extrema->size();
-        if(origin[i] != this->octaves[i]->extrema->getMemoryState()) this->octaves[i]->extrema->setMemoryState(origin[i]);
+        currentIndex += this->octaves.get()[i]->extrema->size();
+        if(origin.get()[i] != this->octaves.get()[i]->extrema->getMemoryState()) this->octaves.get()[i]->extrema->setMemoryState(origin.get()[i]);
     }
     if(keepThenTransfer) aggregatedKeyPoints->transferMemoryTo(cpu);
     return aggregatedKeyPoints;
@@ -567,42 +533,42 @@ ssrlcv::Unity<ssrlcv::FeatureFactory::ScaleSpace::SSKeyPoint>* ssrlcv::FeatureFa
 
 void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orientationThreshold, unsigned int maxOrientations, float contributerWindowWidth, bool keepGradients){
     std::cout<<"computing keypoint orientations..."<<"\n";
-    ScaleSpace::Octave* currentOctave = nullptr;
-    ScaleSpace::Octave::Blur* currentBlur = nullptr;
-    int* thetaAddresses_device = nullptr;
-    float* thetas_device = nullptr;
+    std::shared_ptr<ScaleSpace::Octave> currentOctave(nullptr);
+    std::shared_ptr<ScaleSpace::Octave::Blur> currentBlur(nullptr);
+    std::shared_ptr<int> thetaAddresses_device(nullptr, ssrlcv::deviceDeleter<int>());
+    std::shared_ptr<float> thetas_device(nullptr, ssrlcv::deviceDeleter<float>());
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     unsigned long numKeyPointsAtBlur = 0;
     MemoryState origin;
     unsigned int numOrientedKeyPoints = 0;
     unsigned int totalKeyPoints = 0;
-    ScaleSpace::SSKeyPoint** orientedKeyPoints2D = nullptr;
+    std::shared_ptr<std::shared_ptr<ScaleSpace::SSKeyPoint>> orientedKeyPoints2D;
     unsigned int keyPointIndex = 0;
     bool gradientsExisted = false;
     for(int o = 0; o < this->depth.x; ++o){
-        currentOctave = this->octaves[o];
+        currentOctave = this->octaves.get()[o];
         if(currentOctave->extrema == nullptr) continue;
         totalKeyPoints = 0;
-        orientedKeyPoints2D = new ScaleSpace::SSKeyPoint*[this->depth.y];
+        orientedKeyPoints2D = std::shared_ptr<std::shared_ptr<ScaleSpace::SSKeyPoint>>(new std::shared_ptr<ScaleSpace::SSKeyPoint>[this->depth.y], std::default_delete<std::shared_ptr<ScaleSpace::SSKeyPoint>[]>());
         origin = currentOctave->extrema->getMemoryState();
         if(origin == cpu || currentOctave->extrema->getFore() == cpu){
             currentOctave->extrema->setMemoryState(gpu);
         }
         for(int b = 0; b < this->depth.y; ++b){
-            orientedKeyPoints2D[b] = nullptr;
-            currentBlur = currentOctave->blurs[b];
+            orientedKeyPoints2D.get()[b].reset((ScaleSpace::SSKeyPoint *)nullptr, ssrlcv::deviceDeleter<ScaleSpace::SSKeyPoint>());
+            currentBlur = currentOctave->blurs.get()[b];
             if(b + 1 != this->depth.y){
-                numKeyPointsAtBlur = currentOctave->extremaBlurIndices[b + 1] - currentOctave->extremaBlurIndices[b];
+                numKeyPointsAtBlur = currentOctave->extremaBlurIndices.get()[b + 1] - currentOctave->extremaBlurIndices.get()[b];
             }
             else{
-                numKeyPointsAtBlur = currentOctave->extrema->size() - currentOctave->extremaBlurIndices[b];
+                numKeyPointsAtBlur = currentOctave->extrema->size() - currentOctave->extremaBlurIndices.get()[b];
             }
             if(numKeyPointsAtBlur == 0){
-                currentOctave->extremaBlurIndices[b] = totalKeyPoints;
+                currentOctave->extremaBlurIndices.get()[b] = totalKeyPoints;
                 continue;
             } 
-            keyPointIndex = currentOctave->extremaBlurIndices[b];
+            keyPointIndex = currentOctave->extremaBlurIndices.get()[b];
             grid = {1,1,1};
             block = {1,1,1}; 
             getFlatGridBlock(numKeyPointsAtBlur, grid, block,computeThetas);
@@ -615,57 +581,51 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
             if(currentBlur->gradients->getMemoryState() != gpu) currentBlur->gradients->setMemoryState(gpu);
             
             computeThetas<<<grid,block>>>(numKeyPointsAtBlur,keyPointIndex,currentBlur->size, currentOctave->pixelWidth,
-                contributerWindowWidth,currentOctave->extrema->device, currentBlur->gradients->device, thetaAddresses_device, maxOrientations, orientationThreshold, thetas_device);
+                contributerWindowWidth,currentOctave->extrema->device.get(), currentBlur->gradients->device.get(), thetaAddresses_device.get(), maxOrientations, orientationThreshold, thetas_device.get());
             cudaDeviceSynchronize();
             CudaCheckError();
 
             if(!keepGradients && !gradientsExisted){
-                delete currentBlur->gradients;
                 currentBlur->gradients = nullptr;
             } 
 
-            thrust::device_ptr<float> t(thetas_device);
+            thrust::device_ptr<float> t(thetas_device.get());
             thrust::device_ptr<float> new_end = thrust::remove(t, t + (numKeyPointsAtBlur*maxOrientations), -FLT_MAX);
-            thrust::device_ptr<int> tN(thetaAddresses_device);
+            thrust::device_ptr<int> tN(thetaAddresses_device.get());
             thrust::device_ptr<int> end = thrust::remove(tN, tN + (numKeyPointsAtBlur*maxOrientations), -1);
             numOrientedKeyPoints = end - tN;
             
-            currentOctave->extremaBlurIndices[b] = totalKeyPoints;
+            currentOctave->extremaBlurIndices.get()[b] = totalKeyPoints;
             totalKeyPoints += numOrientedKeyPoints;
 
             if(numOrientedKeyPoints != 0){
                 grid = {1,1,1};
                 block = {1,1,1};
                 getFlatGridBlock(numOrientedKeyPoints,grid,block,expandKeyPoints);
-                CudaSafeCall(cudaMalloc((void**)&orientedKeyPoints2D[b],numOrientedKeyPoints*sizeof(ScaleSpace::SSKeyPoint)));
-                expandKeyPoints<<<grid,block>>>(numOrientedKeyPoints, currentOctave->extrema->device, orientedKeyPoints2D[b], thetaAddresses_device, thetas_device);
+                CudaSafeCall(cudaMalloc((void**)&orientedKeyPoints2D.get()[b],numOrientedKeyPoints*sizeof(ScaleSpace::SSKeyPoint)));
+                expandKeyPoints<<<grid,block>>>(numOrientedKeyPoints, currentOctave->extrema->device.get(), orientedKeyPoints2D.get()[b].get(), thetaAddresses_device.get(), thetas_device.get());
                 cudaDeviceSynchronize();
                 CudaCheckError();
             }
 
-            CudaSafeCall(cudaFree(thetas_device));
-            CudaSafeCall(cudaFree(thetaAddresses_device));
         }
         printf("\tafter computing theta for each keyPoint octave[%d] has %d keyPoints\n",o,totalKeyPoints);
         if(totalKeyPoints != 0){
             currentOctave->extrema->setData(nullptr,totalKeyPoints,gpu);
             for(int i = 0; i < currentOctave->numBlurs; ++i){
-                if(orientedKeyPoints2D[i] == nullptr) continue;
-                if(i == currentOctave->numBlurs - 1 && totalKeyPoints-currentOctave->extremaBlurIndices[i] != 0){
-                    CudaSafeCall(cudaMemcpy(currentOctave->extrema->device + currentOctave->extremaBlurIndices[i],orientedKeyPoints2D[i],(totalKeyPoints-currentOctave->extremaBlurIndices[i])*sizeof(ScaleSpace::SSKeyPoint),cudaMemcpyDeviceToDevice));
+                if(orientedKeyPoints2D.get()[i] == nullptr) continue;
+                if(i == currentOctave->numBlurs - 1 && totalKeyPoints-currentOctave->extremaBlurIndices.get()[i] != 0){
+                    CudaSafeCall(cudaMemcpy(currentOctave->extrema->device.get() + currentOctave->extremaBlurIndices.get()[i],orientedKeyPoints2D.get()[i].get(),(totalKeyPoints-currentOctave->extremaBlurIndices.get()[i])*sizeof(ScaleSpace::SSKeyPoint),cudaMemcpyDeviceToDevice));
                 }
-                else if(i != currentOctave->numBlurs - 1 && currentOctave->extremaBlurIndices[i+1]-currentOctave->extremaBlurIndices[i] != 0){
-                    CudaSafeCall(cudaMemcpy(currentOctave->extrema->device + currentOctave->extremaBlurIndices[i],orientedKeyPoints2D[i],(currentOctave->extremaBlurIndices[i+1]-currentOctave->extremaBlurIndices[i])*sizeof(ScaleSpace::SSKeyPoint),cudaMemcpyDeviceToDevice));
+                else if(i != currentOctave->numBlurs - 1 && currentOctave->extremaBlurIndices.get()[i+1]-currentOctave->extremaBlurIndices.get()[i] != 0){
+                    CudaSafeCall(cudaMemcpy(currentOctave->extrema->device.get() + currentOctave->extremaBlurIndices.get()[i],orientedKeyPoints2D.get()[i].get(),(currentOctave->extremaBlurIndices.get()[i+1]-currentOctave->extremaBlurIndices.get()[i])*sizeof(ScaleSpace::SSKeyPoint),cudaMemcpyDeviceToDevice));
                 }
-                CudaSafeCall(cudaFree(orientedKeyPoints2D[i]));
             }  
             if(origin == cpu) currentOctave->extrema->setMemoryState(cpu);
         }
         else{
-            delete currentOctave->extrema;
             currentOctave->extrema = nullptr;
         } 
-        delete[] orientedKeyPoints2D;
     }
 }
 
@@ -674,7 +634,7 @@ orientationContribWidth(orientationContribWidth), descriptorContribWidth(descrip
 {}
 
 
-ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_3x3>>* ssrlcv::FeatureFactory::generate3x3Windows(Image* image){
+std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_3x3>>> ssrlcv::FeatureFactory::generate3x3Windows(Image* image){
     MemoryState origin = image->pixels->getMemoryState();
     if(origin == cpu || image->pixels->getFore() == cpu){
         image->pixels->setMemoryState(gpu);
@@ -684,8 +644,8 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_3x3>>* ssrlcv::FeatureFactory::gene
     unsigned int numWindows = (image->size.x-2)*(image->size.y-2);
     getGrid(numWindows,grid);
     checkDims(grid,block);
-    Unity<Feature<Window_3x3>>* windows = new Unity<Feature<Window_3x3>>(nullptr,numWindows,gpu);
-    fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
+    std::shared_ptr<Unity<Feature<Window_3x3>>> windows = std::make_shared<Unity<Feature<Window_3x3>>>(nullptr,numWindows,gpu);
+    fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device.get(),windows->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
     if(origin == cpu){
@@ -694,7 +654,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_3x3>>* ssrlcv::FeatureFactory::gene
     }    
     return windows;
 }
-ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_9x9>>* ssrlcv::FeatureFactory::generate9x9Windows(Image* image){
+std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_9x9>>> ssrlcv::FeatureFactory::generate9x9Windows(Image* image){
     MemoryState origin = image->pixels->getMemoryState();
     if(origin == cpu || image->pixels->getFore() == cpu){
         image->pixels->setMemoryState(gpu);
@@ -704,8 +664,8 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_9x9>>* ssrlcv::FeatureFactory::gene
     unsigned int numWindows = (image->size.x-8)*(image->size.y-8);
     getGrid(numWindows,grid);
     checkDims(grid,block);
-    Unity<Feature<Window_9x9>>* windows = new Unity<Feature<Window_9x9>>(nullptr,numWindows,gpu);
-    fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
+    std::shared_ptr<Unity<Feature<Window_9x9>>> windows = std::make_shared<Unity<Feature<Window_9x9>>>(nullptr,numWindows,gpu);
+    fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device.get(),windows->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
     if(origin == cpu){
@@ -714,7 +674,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_9x9>>* ssrlcv::FeatureFactory::gene
     }
     return windows;
 }
-ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_15x15>>* ssrlcv::FeatureFactory::generate15x15Windows(Image* image){
+std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_15x15>>> ssrlcv::FeatureFactory::generate15x15Windows(Image* image){
     MemoryState origin = image->pixels->getMemoryState();
     if(origin == cpu || image->pixels->getFore() == cpu){
         image->pixels->setMemoryState(gpu);
@@ -724,8 +684,8 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_15x15>>* ssrlcv::FeatureFactory::ge
     unsigned int numWindows = (image->size.x-14)*(image->size.y-14);
     getGrid(numWindows,grid);
     checkDims(grid,block);
-    Unity<Feature<Window_15x15>>* windows = new Unity<Feature<Window_15x15>>(nullptr,numWindows,gpu);
-    fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
+    std::shared_ptr<Unity<Feature<Window_15x15>>> windows = std::make_shared<Unity<Feature<Window_15x15>>>(nullptr,numWindows,gpu);
+    fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device.get(),windows->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
     if(origin == cpu){
@@ -734,7 +694,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_15x15>>* ssrlcv::FeatureFactory::ge
     }
     return windows;
 }
-ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_25x25>>* ssrlcv::FeatureFactory::generate25x25Windows(Image* image){
+std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_25x25>>> ssrlcv::FeatureFactory::generate25x25Windows(Image* image){
     MemoryState origin = image->pixels->getMemoryState();
     if(origin == cpu || image->pixels->getFore() == cpu){
         image->pixels->setMemoryState(gpu);
@@ -744,8 +704,8 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_25x25>>* ssrlcv::FeatureFactory::ge
     unsigned int numWindows = (image->size.x-24)*(image->size.y-24);
     getGrid(numWindows,grid);
     checkDims(grid,block);
-    Unity<Feature<Window_25x25>>* windows = new Unity<Feature<Window_25x25>>(nullptr,numWindows,gpu);
-    fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
+    std::shared_ptr<Unity<Feature<Window_25x25>>> windows = std::make_shared<Unity<Feature<Window_25x25>>>(nullptr,numWindows,gpu);
+    fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device.get(),windows->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
     if(origin == cpu){
@@ -754,7 +714,7 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_25x25>>* ssrlcv::FeatureFactory::ge
     }    
     return windows;
 }
-ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_31x31>>* ssrlcv::FeatureFactory::generate31x31Windows(Image* image){
+std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_31x31>>> ssrlcv::FeatureFactory::generate31x31Windows(Image* image){
     MemoryState origin = image->pixels->getMemoryState();
     if(origin == cpu || image->pixels->getFore() == cpu){
         image->pixels->setMemoryState(gpu);
@@ -764,8 +724,8 @@ ssrlcv::Unity<ssrlcv::Feature<ssrlcv::Window_31x31>>* ssrlcv::FeatureFactory::ge
     unsigned int numWindows = (image->size.x-30)*(image->size.y-30);
     getGrid(numWindows,grid);
     checkDims(grid,block);
-    Unity<Feature<Window_31x31>>* windows = new Unity<Feature<Window_31x31>>(nullptr,numWindows,gpu);
-    fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device,windows->device);
+    std::shared_ptr<Unity<Feature<Window_31x31>>> windows = std::make_shared<Unity<Feature<Window_31x31>>>(nullptr,numWindows,gpu);
+    fillWindows<<<grid,block>>>(image->size,image->id,image->pixels->device.get(),windows->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
     if(origin == cpu){

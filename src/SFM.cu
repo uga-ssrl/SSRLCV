@@ -41,19 +41,19 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
   logger.logState("SEED");
   if (in->seedPath.size() > 0) {
     // new image with path and ID
-    ssrlcv::Image *seed = new ssrlcv::Image(in->seedPath,-1);
+    std::shared_ptr<ssrlcv::Image> seed = std::make_shared<ssrlcv::Image>(in->seedPath,-1);
     // array of features containing sift descriptors at every point
+
     out->seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8);
-    delete seed;
   }
   logger.logState("SEED");
 
   logger.logState("FEATURES");
   for (int i = 0; i < in->numImages; i ++) {
     // new image with path and ID
-    ssrlcv::Image *image = new ssrlcv::Image(in->imagePaths[i], i);
+    std::shared_ptr<ssrlcv::Image> image = std::make_shared<ssrlcv::Image>(in->imagePaths[i], i);
     // array of features containing sift descriptors at every point
-    ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> *features =
+    std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> features =
               featureFactory.generateFeatures(image,false,2,0.8);
     features->transferMemoryTo(ssrlcv::cpu);
     out->images.push_back(image);
@@ -70,20 +70,18 @@ void ssrlcv::doFeatureMatching(ssrlcv::FeatureMatchingInput *in, ssrlcv::Feature
   // logger.logState("generating seed matches");
   if (in->seedFeatures != nullptr)
     matchFactory.setSeedFeatures(in->seedFeatures);
-  ssrlcv::Unity<float>* seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
-  ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], seedDistances);
-  if(seedDistances != nullptr) delete seedDistances;
+  std::shared_ptr<ssrlcv::Unity<float>> seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
+  std::shared_ptr<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], seedDistances);
   // logger.logState("done generating seed matches");
 
   distanceMatches->transferMemoryTo(ssrlcv::cpu);
   float maxDist = 0.0f;
   for(int i = 0; i < distanceMatches->size(); ++i){
-    if(maxDist < distanceMatches->host[i].distance) maxDist = distanceMatches->host[i].distance;
+    if(maxDist < distanceMatches->host.get()[i].distance) maxDist = distanceMatches->host.get()[i].distance;
   }
   printf("max euclidean distance between features = %f\n",maxDist);
   if(distanceMatches->getMemoryState() != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
-  ssrlcv::Unity<ssrlcv::Match>* matches = matchFactory.getRawMatches(distanceMatches);
-  delete distanceMatches;
+  std::shared_ptr<ssrlcv::Unity<ssrlcv::Match>> matches = matchFactory.getRawMatches(distanceMatches);
 
   // Need to fill into to MatchSet boi
   std::cout << "Generating MatchSet ..." << std::endl;
@@ -93,16 +91,16 @@ void ssrlcv::doFeatureMatching(ssrlcv::FeatureMatchingInput *in, ssrlcv::Feature
     // 2 View Case
     //
     logger.logState("matching images");
-    out->matchSet.keyPoints = new ssrlcv::Unity<ssrlcv::KeyPoint>(nullptr,matches->size()*2,ssrlcv::cpu);
-    out->matchSet.matches = new ssrlcv::Unity<ssrlcv::MultiMatch>(nullptr,matches->size(),ssrlcv::cpu);
+    out->matchSet.keyPoints = std::make_shared<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,matches->size()*2,ssrlcv::cpu);
+    out->matchSet.matches = std::make_shared<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,matches->size(),ssrlcv::cpu);
     matches->setMemoryState(ssrlcv::cpu);
     out->matchSet.matches->setMemoryState(ssrlcv::cpu);
     out->matchSet.keyPoints->setMemoryState(ssrlcv::cpu);
     logger.logState("done matching images");
     for(int i = 0; i < out->matchSet.matches->size(); i++){
-      out->matchSet.keyPoints->host[i*2] = matches->host[i].keyPoints[0];
-      out->matchSet.keyPoints->host[i*2 + 1] = matches->host[i].keyPoints[1];
-      out->matchSet.matches->host[i] = {2,i*2};
+      out->matchSet.keyPoints->host.get()[i*2] = matches->host.get()[i].keyPoints[0];
+      out->matchSet.keyPoints->host.get()[i*2 + 1] = matches->host.get()[i].keyPoints[1];
+      out->matchSet.matches->host.get()[i] = {2,i*2};
     }
     std::cout << "Generated MatchSet ..." << std::endl << "Total Matches: " << matches->size() << std::endl << std::endl;
   } else {
@@ -122,7 +120,6 @@ void ssrlcv::doFeatureMatching(ssrlcv::FeatureMatchingInput *in, ssrlcv::Feature
   }
   logger.logState("MATCHING");
 
-  delete matches;
 }
 
 int main(int argc, char *argv[]){
@@ -176,17 +173,17 @@ int main(int argc, char *argv[]){
     ssrlcv::FeatureMatchingOutput featureMatchOutput;
     ssrlcv::doFeatureMatching(&featureMatchInput, &featureMatchOutput);
 
-    std::vector<ssrlcv::Image *> images = featureGenOutput.images;
+    std::vector<std::shared_ptr<ssrlcv::Image>> images = featureGenOutput.images;
     ssrlcv::MatchSet matchSet = featureMatchOutput.matchSet;
-    std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> *> allFeatures = featureGenOutput.allFeatures;
+    std::vector<std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures = featureGenOutput.allFeatures;
 
 
     // the bois
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
     ssrlcv::MeshFactory meshBoi = ssrlcv::MeshFactory();
     ssrlcv::MeshFactory finalMesh = ssrlcv::MeshFactory();
-    ssrlcv::Unity<float3>* points;
-    ssrlcv::Unity<float>* errors;
+    std::shared_ptr<ssrlcv::Unity<float3>> points;
+    std::shared_ptr<ssrlcv::Unity<float>> errors;
     ssrlcv::BundleSet bundleSet;
 
     if (images.size() == 2){
@@ -218,14 +215,15 @@ int main(int argc, char *argv[]){
       demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
-      std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
+      std::cout << "Filtered " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
 
       // second time
       sigma_filter = 3.0;
       demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
-      std::cout << "Filted " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
+      std::cout << "Filtered " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
+      free(linearError);
 
       // neighbor filter
       demPoints.scalePointCloud(1000.0,points); // scales from km into meters
@@ -272,7 +270,7 @@ int main(int argc, char *argv[]){
         demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
         bundleSet = demPoints.generateBundles(&matchSet,images);
         points = demPoints.nViewTriangulate(bundleSet, angularError);
-        std::cout << "Filted " << 0.1  << " Linear Error: " << std::fixed << std::setprecision(12) << *angularError << std::endl;
+        std::cout << "Filtered " << 0.1  << " Linear Error: " << std::fixed << std::setprecision(12) << *angularError << std::endl;
       }
       finalMesh.setPoints(points);
       //finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
@@ -288,16 +286,6 @@ int main(int argc, char *argv[]){
     // cleanup
     for (ssrlcv::arg_pair p : args) {
       delete p.second; 
-    }
-    delete points;
-    delete matchSet.matches;
-    delete matchSet.keyPoints;
-    delete bundleSet.bundles;
-    delete bundleSet.lines;
-    delete featureGenOutput.seedFeatures;
-    for(int i = 0; i < imagePaths.size(); ++i){
-      delete featureGenOutput.images[i];
-      delete featureGenOutput.allFeatures[i];
     }
 
     logger.logState("end");

@@ -52,7 +52,7 @@ namespace ssrlcv {
 
   #define FWRITE(x) this->file.write(reinterpret_cast<char *>(&x), sizeof(x))
 
-  void Writer::Write(Unity<float3> * points) { 
+  void Writer::Write(std::shared_ptr<ssrlcv::Unity<float3>> points) { 
     this->header_intro();
     this->header_vertex(points->size());
     this->header_end(); 
@@ -60,9 +60,9 @@ namespace ssrlcv {
 
     if(points->getMemoryState() != cpu) points->transferMemoryTo(cpu);
     for(int i = 0; i < points->size(); i++) {
-      FWRITE(points->host[i].x);
-      FWRITE(points->host[i].y);
-      FWRITE(points->host[i].z);
+      FWRITE(points->host.get()[i].x);
+      FWRITE(points->host.get()[i].y);
+      FWRITE(points->host.get()[i].z);
     }
 
 
@@ -79,21 +79,21 @@ namespace ssrlcv {
     this->header_end(); 
 
     if(vertices) {
-      Unity<Octree::Vertex> * vertices = octree->vertices;
+      std::shared_ptr<ssrlcv::Unity<Octree::Vertex>> vertices = octree->vertices;
       if(vertices->getMemoryState() != cpu) vertices->transferMemoryTo(cpu);
       for(int i =0; i < vertices->size(); i++) {
-        FWRITE(vertices->host[i].coord.x);
-        FWRITE(vertices->host[i].coord.y);
-        FWRITE(vertices->host[i].coord.z);
+        FWRITE(vertices->host.get()[i].coord.x);
+        FWRITE(vertices->host.get()[i].coord.y);
+        FWRITE(vertices->host.get()[i].coord.z);
       }
     }
 
     if(edges) { 
-      Unity<Octree::Edge> * edges = octree->edges;
+      std::shared_ptr<ssrlcv::Unity<Octree::Edge>> edges = octree->edges;
       if(edges->getMemoryState() != cpu) edges->transferMemoryTo(cpu);
       for(int i =0; i < edges->size(); i++) {
-        FWRITE(edges->host[i].v1);
-        FWRITE(edges->host[i].v2);
+        FWRITE(edges->host.get()[i].v1);
+        FWRITE(edges->host.get()[i].v2);
       }
     }
 
@@ -107,7 +107,7 @@ namespace ssrlcv {
   // Interface methods
   // 
 
-  void write_points(const char * path, Unity<float3> * points){ 
+  void write_points(const char * path, std::shared_ptr<ssrlcv::Unity<float3>> points){ 
     Writer(path).Write(points); 
   }
 

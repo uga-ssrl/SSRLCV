@@ -64,10 +64,6 @@ ssrlcv::Quadtree<T>::~Quadtree(){
   if(this->vertices != nullptr) delete this->vertices;
   if(this->edges != nullptr) delete this->edges;
   if(this->data != nullptr) delete this->data;
-  if(this->nodeDepthIndex != nullptr) delete this->nodeDepthIndex;
-  if(this->vertexDepthIndex != nullptr) delete this->vertexDepthIndex;
-  if(this->edgeDepthIndex != nullptr) delete this->edgeDepthIndex;
-  if(this->dataNodeIndex != nullptr) delete this->dataNodeIndex;
 }
 
 
@@ -78,9 +74,9 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(){
 
   clock_t timer = clock();
   std::cout<<"generating leaf nodes for quadtree..."<<std::endl;
-  int* leafNodeKeys_device = nullptr;
-  float2* leafNodeCenters_device = nullptr;
-  unsigned int* nodeDataIndex_device = nullptr;
+  std::shared_ptr<int> leafNodeKeys_device(nullptr, ssrlcv::deviceDeleter<int>());
+  std::shared_ptr<float2> leafNodeCenters_device(nullptr, ssrlcv::deviceDeleter<float2>());
+  std::shared_ptr<unsigned int> nodeDataIndex_device(nullptr, ssrlcv::deviceDeleter<unsigned int>());
 
   unsigned long numLeafNodes = 0;
   numLeafNodes = this->data->size();
@@ -90,7 +86,7 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(){
   dim3 block = {1,1,1};
   getFlatGridBlock(numLeafNodes,grid,block,getKeys<T>);
   if(this->data->getMemoryState() != gpu) this->data->setMemoryState(gpu);
-  getKeys<T><<<grid,block>>>(numLeafNodes, this->data->device, leafNodeKeys_device,leafNodeCenters_device, this->size,this->depth);
+  getKeys<T><<<grid,block>>>(numLeafNodes, this->data->device.get(), leafNodeKeys_device.get(),leafNodeCenters_device.get(), this->size,this->depth);
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -98,53 +94,49 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(){
   thrust::device_vector<unsigned int> indices(this->data->size());
   thrust::copy(iter, iter + this->data->size(), indices.begin());
   CudaSafeCall(cudaMalloc((void**)&nodeDataIndex_device, numLeafNodes*sizeof(unsigned int)));
-  CudaSafeCall(cudaMemcpy(nodeDataIndex_device, thrust::raw_pointer_cast(indices.data()), numLeafNodes*sizeof(unsigned int),cudaMemcpyDeviceToDevice));
+  CudaSafeCall(cudaMemcpy(nodeDataIndex_device.get(), thrust::raw_pointer_cast(indices.data()), numLeafNodes*sizeof(unsigned int),cudaMemcpyDeviceToDevice));
 
-  thrust::device_ptr<int> kys(leafNodeKeys_device);
+  thrust::device_ptr<int> kys(leafNodeKeys_device.get());
   thrust::sort_by_key(kys, kys + this->data->size(), indices.begin());
 
-  thrust::device_ptr<float2> cnts(leafNodeCenters_device);
+  thrust::device_ptr<float2> cnts(leafNodeCenters_device.get());
   thrust::device_vector<float2> sortedCnts(this->data->size());
   thrust::gather(indices.begin(), indices.end(), cnts, sortedCnts.begin());
-  CudaSafeCall(cudaMemcpy(leafNodeCenters_device, thrust::raw_pointer_cast(sortedCnts.data()), this->data->size()*sizeof(float2),cudaMemcpyDeviceToDevice));
+  CudaSafeCall(cudaMemcpy(leafNodeCenters_device.get(), thrust::raw_pointer_cast(sortedCnts.data()), this->data->size()*sizeof(float2),cudaMemcpyDeviceToDevice));
 
   if(this->data->getFore() != gpu){
     this->data->transferMemoryTo(gpu);
   }
 
-  thrust::device_ptr<T> dataSorter(this->data->device);
+  thrust::device_ptr<T> dataSorter(this->data->device.get());
   thrust::device_vector<T> sortedData(this->data->size());
   thrust::gather(indices.begin(), indices.end(), dataSorter, sortedData.begin());
-  T* data_device = nullptr;
+  std::shared_ptr<T> data_device(nullptr, ssrlcv::deviceDeleter<T>());
   CudaSafeCall(cudaMalloc((void**)&data_device,this->data->size()*sizeof(T)));
-  CudaSafeCall(cudaMemcpy(data_device,thrust::raw_pointer_cast(sortedData.data()), this->data->size()*sizeof(T), cudaMemcpyDeviceToDevice));
+  CudaSafeCall(cudaMemcpy(data_device.get(),thrust::raw_pointer_cast(sortedData.data()), this->data->size()*sizeof(T), cudaMemcpyDeviceToDevice));
   this->data->setData(data_device, this->data->size(), gpu);
   this->data->transferMemoryTo(cpu);
   this->data->clear(gpu);
 
   thrust::pair<thrust::device_ptr<int>, thrust::device_ptr<unsigned int>> new_end;//the last value of these node array
-  thrust::device_ptr<unsigned int> compactNodeDataIndex(nodeDataIndex_device);
+  thrust::device_ptr<unsigned int> compactNodeDataIndex(nodeDataIndex_device.get());
   new_end = thrust::unique_by_key(kys,kys + this->data->size(), compactNodeDataIndex);
   numLeafNodes = thrust::get<0>(new_end) - kys;
 
-  Node* leafNodes_device = nullptr;
+  std::shared_ptr<Node> leafNodes_device(nullptr, ssrlcv::deviceDeleter<Node>());
   CudaSafeCall(cudaMalloc((void**)&leafNodes_device, numLeafNodes*sizeof(Node)));
 
   grid = {1,1,1};
   block = {1,1,1};
   getFlatGridBlock(numLeafNodes,grid,block,fillLeafNodes<T>);
 
-  fillLeafNodes<T><<<grid,block>>>(this->data->size(), numLeafNodes,leafNodes_device,leafNodeKeys_device,leafNodeCenters_device,nodeDataIndex_device,this->depth);
+  fillLeafNodes<T><<<grid,block>>>(this->data->size(), numLeafNodes,leafNodes_device.get(),leafNodeKeys_device.get(),leafNodeCenters_device.get(),nodeDataIndex_device.get(),this->depth);
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  this->nodes = new Unity<Node>(leafNodes_device, numLeafNodes, gpu);
+  this->nodes = std::make_shared<ssrlcv::Unity<Node>>(leafNodes_device, numLeafNodes, gpu);
 
   this->nodes->setFore(gpu);
-
-  CudaSafeCall(cudaFree(leafNodeKeys_device));
-  CudaSafeCall(cudaFree(leafNodeCenters_device));
-  CudaSafeCall(cudaFree(nodeDataIndex_device));
 
   printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
@@ -159,24 +151,24 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
     //TODO potentially develop support for bottom up growth
     throw NullUnityException("Cannot generate parent nodes before children");
   }
-  Node* uniqueNodes_device;
+  std::shared_ptr<Node> uniqueNodes_device(nullptr, ssrlcv::deviceDeleter<Node>());
   if(this->nodes->getMemoryState() == cpu){
     this->nodes->transferMemoryTo(gpu);
   }
   int numUniqueNodes = this->nodes->size();
   CudaSafeCall(cudaMalloc((void**)&uniqueNodes_device, this->nodes->size()*sizeof(Node)));
-  CudaSafeCall(cudaMemcpy(uniqueNodes_device, this->nodes->device, this->nodes->size()*sizeof(Node), cudaMemcpyDeviceToDevice));
+  CudaSafeCall(cudaMemcpy(uniqueNodes_device.get(), this->nodes->device.get(), this->nodes->size()*sizeof(Node), cudaMemcpyDeviceToDevice));
   delete this->nodes;
   this->nodes = nullptr;
   unsigned int totalNodes = 0;
 
   Node** nodes2D = new Node*[this->depth + 1];
 
-  unsigned int* nodeAddresses_device;
-  unsigned int* nodeNumbers_device;
+ std::shared_ptr<unsigned int> nodeAddresses_device(nullptr, ssrlcv::deviceDeleter<unsigned int>());
+ std::shared_ptr<unsigned int> nodeNumbers_device(nullptr, ssrlcv::deviceDeleter<unsigned int>());
 
   unsigned int* nodeDepthIndex_host = new unsigned int[this->depth + 1]();
-  this->nodeDepthIndex = new Unity<unsigned int>(nodeDepthIndex_host, this->depth + 1, cpu);
+  this->nodeDepthIndex = std::make_shared<ssrlcv::Unity<unsigned int>>(nodeDepthIndex_host, this->depth + 1, cpu);
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
@@ -188,15 +180,15 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
     CudaSafeCall(cudaMalloc((void**)&nodeAddresses_device, numUniqueNodes * sizeof(unsigned int)));
     //this is just to fill the arrays with 0s
 
-    findAllNodes<T><<<grid,block>>>(numUniqueNodes, nodeNumbers_device, uniqueNodes_device);
+    findAllNodes<T><<<grid,block>>>(numUniqueNodes, nodeNumbers_device.get(), uniqueNodes_device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
-    thrust::device_ptr<unsigned int> nN(nodeNumbers_device);
-    thrust::device_ptr<unsigned int> nA(nodeAddresses_device);
+    thrust::device_ptr<unsigned int> nN(nodeNumbers_device.get());
+    thrust::device_ptr<unsigned int> nA(nodeAddresses_device.get());
     thrust::inclusive_scan(nN, nN + numUniqueNodes, nA);
 
     unsigned int numNodesAtDepth = 0;
-    CudaSafeCall(cudaMemcpy(&numNodesAtDepth, nodeAddresses_device + (numUniqueNodes - 1), sizeof(unsigned int), cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaMemcpy(&numNodesAtDepth, nodeAddresses_device.get() + (numUniqueNodes - 1), sizeof(unsigned int), cudaMemcpyDeviceToHost));
     numNodesAtDepth = (d > 0) ? numNodesAtDepth + 4: 1;
 
     CudaSafeCall(cudaMalloc((void**)&nodes2D[this->depth - d], numNodesAtDepth*sizeof(Node)));
@@ -204,12 +196,9 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
     CudaSafeCall(cudaMemcpy(nodes2D[this->depth - d], blankNodes, numNodesAtDepth*sizeof(Node),cudaMemcpyHostToDevice));
     delete[] blankNodes;
 
-    fillNodesAtDepth<T><<<grid,block>>>(numUniqueNodes, nodeNumbers_device, nodeAddresses_device, uniqueNodes_device, nodes2D[this->depth - d], d, this->depth);
+    fillNodesAtDepth<T><<<grid,block>>>(numUniqueNodes, nodeNumbers_device.get(), nodeAddresses_device.get(), uniqueNodes_device.get(), nodes2D[this->depth - d], d, this->depth);
     cudaDeviceSynchronize();
     CudaCheckError();
-    CudaSafeCall(cudaFree(uniqueNodes_device));
-    CudaSafeCall(cudaFree(nodeAddresses_device));
-    CudaSafeCall(cudaFree(nodeNumbers_device));
 
     numUniqueNodes = numNodesAtDepth / 4;
     if(d != 0){
@@ -217,52 +206,52 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
       block = {1,1,1};
       CudaSafeCall(cudaMalloc((void**)&uniqueNodes_device, numUniqueNodes*sizeof(Node)));
       getFlatGridBlock(numUniqueNodes, grid, block,buildParentalNodes<T>);
-      buildParentalNodes<T><<<grid,block>>>(numNodesAtDepth,totalNodes,nodes2D[this->depth - d],uniqueNodes_device,this->size);
+      buildParentalNodes<T><<<grid,block>>>(numNodesAtDepth,totalNodes,nodes2D[this->depth - d],uniqueNodes_device.get(),this->size);
       cudaDeviceSynchronize();
       CudaCheckError();
     }
-    this->nodeDepthIndex->host[this->depth - d] = totalNodes;
+    this->nodeDepthIndex->host.get()[this->depth - d] = totalNodes;
     totalNodes += numNodesAtDepth;
   }
-  unsigned int numRootNodes = totalNodes - this->nodeDepthIndex->host[this->depth];
-  Node* nodes_device = nullptr;
+  unsigned int numRootNodes = totalNodes - this->nodeDepthIndex->host.get()[this->depth];
+  std::shared_ptr<Node> nodes_device(nullptr, ssrlcv::deviceDeleter<Node>());
   CudaSafeCall(cudaMalloc((void**)&nodes_device,totalNodes*sizeof(Node)));
-  this->nodes = new Unity<Node>(nodes_device, totalNodes, gpu);
+  this->nodes = std::make_shared<ssrlcv::Unity<Node>>(nodes_device, totalNodes, gpu);
   for(int i = 0; i <= this->depth; ++i){
     if(i < this->depth){
-      CudaSafeCall(cudaMemcpy(this->nodes->device + this->nodeDepthIndex->host[i], nodes2D[i],
-        (this->nodeDepthIndex->host[i+1]-this->nodeDepthIndex->host[i])*sizeof(Node), cudaMemcpyDeviceToDevice));
+      CudaSafeCall(cudaMemcpy(this->nodes->device.get() + this->nodeDepthIndex->host.get()[i], nodes2D[i],
+        (this->nodeDepthIndex->host.get()[i+1]-this->nodeDepthIndex->host.get()[i])*sizeof(Node), cudaMemcpyDeviceToDevice));
     }
     else{
-      CudaSafeCall(cudaMemcpy(this->nodes->device + this->nodeDepthIndex->host[i],
+      CudaSafeCall(cudaMemcpy(this->nodes->device.get() + this->nodeDepthIndex->host.get()[i],
         nodes2D[i], numRootNodes*sizeof(Node), cudaMemcpyDeviceToDevice));
     }
     CudaSafeCall(cudaFree(nodes2D[i]));
   }
   delete[] nodes2D;
 
-  unsigned int* dataNodeIndex_device = nullptr;
+  std::shared_ptr<unsigned int> dataNodeIndex_device(nullptr, ssrlcv::deviceDeleter<unsigned int>());
   CudaSafeCall(cudaMalloc((void**)&dataNodeIndex_device, this->data->size()*sizeof(unsigned int)));
-  this->dataNodeIndex = new Unity<unsigned int>(dataNodeIndex_device, this->data->size(), gpu);
+  this->dataNodeIndex = std::make_shared<ssrlcv::Unity<unsigned int>>(dataNodeIndex_device, this->data->size(), gpu);
 
   unsigned int numNodesAtDepth = 1;
   unsigned int depthStartingIndex = 0;
   grid = {1,1,1};
   block = {4,1,1};
   for(int i = this->depth; i >= 0; --i){
-    depthStartingIndex = this->nodeDepthIndex->host[i];
+    depthStartingIndex = this->nodeDepthIndex->host.get()[i];
     if(i != (int)this->depth){
-      numNodesAtDepth = this->nodeDepthIndex->host[i + 1] - depthStartingIndex;
+      numNodesAtDepth = this->nodeDepthIndex->host.get()[i + 1] - depthStartingIndex;
     }
     getGrid(numNodesAtDepth, grid);
-    fillParentIndex<T><<<grid, block>>>(numNodesAtDepth, depthStartingIndex, this->nodes->device);
+    fillParentIndex<T><<<grid, block>>>(numNodesAtDepth, depthStartingIndex, this->nodes->device.get());
     CudaCheckError();
   }
 
   grid = {1,1,1};
   block = {1,1,1};
-  getFlatGridBlock(this->nodeDepthIndex->host[1],grid,block,fillDataNodeIndex<T>);
-  fillDataNodeIndex<T><<<grid,block>>>(this->nodeDepthIndex->host[1],this->nodes->device, this->dataNodeIndex->device);
+  getFlatGridBlock(this->nodeDepthIndex->host.get()[1],grid,block,fillDataNodeIndex<T>);
+  fillDataNodeIndex<T><<<grid,block>>>(this->nodeDepthIndex->host.get()[1],this->nodes->device.get(), this->dataNodeIndex->device.get());
   cudaDeviceSynchronize();
   CudaCheckError();
   printf("TOTAL NODES = %d\n\n",totalNodes);
@@ -286,13 +275,13 @@ void ssrlcv::Quadtree<T>::fillNeighborhoods(){
     {1,0,1,3,2,3,1,0,1},
     {0,1,0,2,3,2,0,1,0}
   };
-  unsigned int* parentLUT_device = nullptr;
-  unsigned int* childLUT_device = nullptr;
+  std::shared_ptr<unsigned int> parentLUT_device(nullptr, ssrlcv::deviceDeleter<unsigned int>());
+  std::shared_ptr<unsigned int> childLUT_device(nullptr, ssrlcv::deviceDeleter<unsigned int>());
   CudaSafeCall(cudaMalloc((void**)&parentLUT_device, 36*sizeof(int)));
   CudaSafeCall(cudaMalloc((void**)&childLUT_device, 36*sizeof(int)));
   for(int i = 0; i < 4; ++i){
-    CudaSafeCall(cudaMemcpy(parentLUT_device + i*9, &(parentLUT[i]), 9*sizeof(int), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(childLUT_device + i*9, &(childLUT[i]), 9*sizeof(int), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(parentLUT_device.get() + i*9, &(parentLUT[i]), 9*sizeof(int), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(childLUT_device.get() + i*9, &(childLUT[i]), 9*sizeof(int), cudaMemcpyHostToDevice));
   }
 
   dim3 grid = {1,1,1};
@@ -302,18 +291,16 @@ void ssrlcv::Quadtree<T>::fillNeighborhoods(){
   unsigned int depthStartingIndex = 0;
   for(int i = this->depth; i >= 0; --i){
     numNodesAtDepth = 1;
-    depthStartingIndex = this->nodeDepthIndex->host[i];
+    depthStartingIndex = this->nodeDepthIndex->host.get()[i];
     if(i != this->depth){
-      numNodesAtDepth = this->nodeDepthIndex->host[i + 1] - depthStartingIndex;
+      numNodesAtDepth = this->nodeDepthIndex->host.get()[i + 1] - depthStartingIndex;
     }
     getGrid(numNodesAtDepth, grid);
-    computeNeighboringNodes<T><<<grid, block>>>(numNodesAtDepth, depthStartingIndex, parentLUT_device, childLUT_device, this->nodes->device);
+    computeNeighboringNodes<T><<<grid, block>>>(numNodesAtDepth, depthStartingIndex, parentLUT_device.get(), childLUT_device.get(), this->nodes->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
   }
   this->nodes->setFore(gpu);//just to ensure that it is known gpu nodes was edited last
-  CudaSafeCall(cudaFree(parentLUT_device));
-  CudaSafeCall(cudaFree(childLUT_device));
   std::cout<<"Neighborhoods filled"<<std::endl;
 }
 
@@ -323,30 +310,28 @@ void ssrlcv::Quadtree<T>::generateVertices(){
   unsigned int numNodesAtDepth = 0;
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
-  int* atomicCounter;
+  std::shared_ptr<int> atomicCounter(nullptr, ssrlcv::deviceDeleter<int>());
   int numVertices = 0;
   CudaSafeCall(cudaMalloc((void**)&atomicCounter, sizeof(int)));
-  CudaSafeCall(cudaMemcpy(atomicCounter, &numVertices, sizeof(int), cudaMemcpyHostToDevice));
-  Vertex** vertices2D_device;
-  CudaSafeCall(cudaMalloc((void**)&vertices2D_device, (this->depth + 1)*sizeof(Vertex*)));
-  Vertex** vertices2D = new Vertex*[this->depth + 1];
+  CudaSafeCall(cudaMemcpy(atomicCounter.get(), &numVertices, sizeof(int), cudaMemcpyHostToDevice));
+  std::shared_ptr<std::shared_ptr<Vertex>> vertices2D(new std::shared_ptr<Vertex>[this->depth + 1], std::default_delete<std::shared_ptr<Vertex>[]>());
 
-  unsigned int* vertexDepthIndex_host = new unsigned int[this->depth + 1];
+  std::shared_ptr<unsigned int> vertexDepthIndex_host = std::shared_ptr<unsigned int>(new unsigned int[this->depth + 1], std::default_delete<unsigned int[]>());
 
   int prevCount = 0;
-  int* ownerInidices_device;
-  int* vertexPlacement_device;
-  int* compactedOwnerArray_device;
-  int* compactedVertexPlacement_device;
+  std::shared_ptr<int> ownerInidices_device(nullptr, ssrlcv::deviceDeleter<int>());
+  std::shared_ptr<int> vertexPlacement_device(nullptr, ssrlcv::deviceDeleter<int>());
+  std::shared_ptr<int> compactedOwnerArray_device(nullptr, ssrlcv::deviceDeleter<int>());
+  std::shared_ptr<int> compactedVertexPlacement_device(nullptr, ssrlcv::deviceDeleter<int>());
   for(int i = 0; i <= this->depth; ++i){
     //reset previously allocated resources
     grid.y = 1;
     block.x = 4;
     if(i == this->depth){//WARNING MAY CAUSE ISSUE
-      numNodesAtDepth = this->nodes->size() - this->nodeDepthIndex->host[this->depth];
+      numNodesAtDepth = this->nodes->size() - this->nodeDepthIndex->host.get()[this->depth];
     }
     else{
-      numNodesAtDepth = this->nodeDepthIndex->host[i + 1] - this->nodeDepthIndex->host[i];
+      numNodesAtDepth = this->nodeDepthIndex->host.get()[i + 1] - this->nodeDepthIndex->host.get()[i];
     }
 
     getGrid(numNodesAtDepth,grid);
@@ -357,29 +342,29 @@ void ssrlcv::Quadtree<T>::generateVertices(){
     }
     CudaSafeCall(cudaMalloc((void**)&ownerInidices_device,numNodesAtDepth*4*sizeof(int)));
     CudaSafeCall(cudaMalloc((void**)&vertexPlacement_device,numNodesAtDepth*4*sizeof(int)));
-    CudaSafeCall(cudaMemcpy(ownerInidices_device, ownerInidices, numNodesAtDepth*4*sizeof(int), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(vertexPlacement_device, ownerInidices, numNodesAtDepth*4*sizeof(int), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(ownerInidices_device.get(), ownerInidices, numNodesAtDepth*4*sizeof(int), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(vertexPlacement_device.get(), ownerInidices, numNodesAtDepth*4*sizeof(int), cudaMemcpyHostToDevice));
     delete[] ownerInidices;
 
     prevCount = numVertices;
-    vertexDepthIndex_host[i] = numVertices;
+    vertexDepthIndex_host.get()[i] = numVertices;
 
-    findVertexOwners<T><<<grid, block>>>(numNodesAtDepth, this->nodeDepthIndex->host[i], this->nodes->device, atomicCounter, ownerInidices_device, vertexPlacement_device);
+    findVertexOwners<T><<<grid, block>>>(numNodesAtDepth, this->nodeDepthIndex->host.get()[i], this->nodes->device.get(), atomicCounter.get(), ownerInidices_device.get(), vertexPlacement_device.get());
     CudaCheckError();
-    CudaSafeCall(cudaMemcpy(&numVertices, atomicCounter, sizeof(int), cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaMemcpy(&numVertices, atomicCounter.get(), sizeof(int), cudaMemcpyDeviceToHost));
     if(i == this->depth  && numVertices - prevCount != 4){
       std::cout<<"ERROR GENERATING VERTICES, vertices at depth 0 != 4 -> "<<numVertices - prevCount<<std::endl;
       exit(-1);
     }
-
-    CudaSafeCall(cudaMalloc((void**)&vertices2D[i], (numVertices - prevCount)*sizeof(Vertex)));
+    vertices2D.get()[i].reset(nullptr, ssrlcv::deviceDeleter<Vertex>());
+    CudaSafeCall(cudaMalloc((void**)&vertices2D.get()[i], (numVertices - prevCount)*sizeof(Vertex)));
     CudaSafeCall(cudaMalloc((void**)&compactedOwnerArray_device,(numVertices - prevCount)*sizeof(int)));
     CudaSafeCall(cudaMalloc((void**)&compactedVertexPlacement_device,(numVertices - prevCount)*sizeof(int)));
 
-    thrust::device_ptr<int> arrayToCompact(ownerInidices_device);
-    thrust::device_ptr<int> arrayOut(compactedOwnerArray_device);
-    thrust::device_ptr<int> placementToCompact(vertexPlacement_device);
-    thrust::device_ptr<int> placementOut(compactedVertexPlacement_device);
+    thrust::device_ptr<int> arrayToCompact(ownerInidices_device.get());
+    thrust::device_ptr<int> arrayOut(compactedOwnerArray_device.get());
+    thrust::device_ptr<int> placementToCompact(vertexPlacement_device.get());
+    thrust::device_ptr<int> placementOut(compactedVertexPlacement_device.get());
 
     //TODO change to just remove
     thrust::copy_if(arrayToCompact, arrayToCompact + (numNodesAtDepth*4), arrayOut, is_not_neg());
@@ -387,35 +372,28 @@ void ssrlcv::Quadtree<T>::generateVertices(){
     thrust::copy_if(placementToCompact, placementToCompact + (numNodesAtDepth*4), placementOut, is_not_neg());
     CudaCheckError();
 
-    CudaSafeCall(cudaFree(ownerInidices_device));
-    CudaSafeCall(cudaFree(vertexPlacement_device));
-
     grid = {1,1,1};
     block = {1,1,1};
     getGrid(numVertices - prevCount, grid);
 
-    fillUniqueVertexArray<T><<<grid, block>>>(this->nodeDepthIndex->host[i], this->nodes->device, numVertices - prevCount,
-      vertexDepthIndex_host[i], vertices2D[i], this->depth - i, compactedOwnerArray_device, compactedVertexPlacement_device,this->size);
+    fillUniqueVertexArray<T><<<grid, block>>>(this->nodeDepthIndex->host.get()[i], this->nodes->device.get(), numVertices - prevCount,
+      vertexDepthIndex_host.get()[i], vertices2D.get()[i], this->depth - i, compactedOwnerArray_device.get(), compactedVertexPlacement_device.get(),this->size);
     CudaCheckError();
-    CudaSafeCall(cudaFree(compactedOwnerArray_device));
-    CudaSafeCall(cudaFree(compactedVertexPlacement_device));
 
   }
-  Vertex* vertices_device;
+  std::shared_ptr<Vertex> vertices_device(nullptr, ssrlcv::deviceDeleter<Vertex>());
   CudaSafeCall(cudaMalloc((void**)&vertices_device, numVertices*sizeof(Vertex)));
   for(int i = 0; i <= this->depth; ++i){
     if(i < this->depth){
-      CudaSafeCall(cudaMemcpy(vertices_device + vertexDepthIndex_host[i], vertices2D[i], (vertexDepthIndex_host[i+1] - vertexDepthIndex_host[i])*sizeof(Vertex), cudaMemcpyDeviceToDevice));
+      CudaSafeCall(cudaMemcpy(vertices_device.get() + vertexDepthIndex_host.get()[i], vertices2D.get()[i], (vertexDepthIndex_host.get()[i+1] - vertexDepthIndex_host.get()[i])*sizeof(Vertex), cudaMemcpyDeviceToDevice));
     }
     else{
-      CudaSafeCall(cudaMemcpy(vertices_device + vertexDepthIndex_host[i], vertices2D[i], 4*sizeof(Vertex), cudaMemcpyDeviceToDevice));
+      CudaSafeCall(cudaMemcpy(vertices_device.get() + vertexDepthIndex_host.get()[i], vertices2D.get()[i].get(), 4*sizeof(Vertex), cudaMemcpyDeviceToDevice));
     }
-    CudaSafeCall(cudaFree(vertices2D[i]));
   }
-  CudaSafeCall(cudaFree(vertices2D_device));
 
-  this->vertices = new Unity<Vertex>(vertices_device, numVertices, gpu);
-  this->vertexDepthIndex = new Unity<unsigned int>(vertexDepthIndex_host, this->depth + 1, cpu);
+  this->vertices = std::make_shared<ssrlcv::Unity<Vertex>>(vertices_device, numVertices, gpu);
+  this->vertexDepthIndex = std::make_shared<ssrlcv::Unity<unsigned int>>(vertexDepthIndex_host, this->depth + 1, cpu);
 
 }
 
@@ -435,10 +413,10 @@ void ssrlcv::Quadtree<T>::generateEdges(){
   unsigned int* edgeDepthIndex_host = new unsigned int[this->depth + 1];
 
   int prevCount = 0;
-  int* ownerInidices_device;
-  int* edgePlacement_device;
-  int* compactedOwnerArray_device;
-  int* compactedEdgePlacement_device;
+ std::shared_ptr<int> ownerInidices_device(nullptr, ssrlcv::deviceDeleter<int>());
+ std::shared_ptr<int> edgePlacement_device(nullptr, ssrlcv::deviceDeleter<int>());
+ std::shared_ptr<int> compactedOwnerArray_device(nullptr, ssrlcv::deviceDeleter<int>());
+ std::shared_ptr<int> compactedEdgePlacement_device(nullptr, ssrlcv::deviceDeleter<int>());
   for(int i = 0; i <= this->depth; ++i){
     //reset previously allocated resources
     grid.y = 1;
@@ -447,7 +425,7 @@ void ssrlcv::Quadtree<T>::generateEdges(){
       numNodesAtDepth = 1;
     }
     else{
-      numNodesAtDepth = this->nodeDepthIndex->host[i + 1] - this->nodeDepthIndex->host[i];
+      numNodesAtDepth = this->nodeDepthIndex->host.get()[i + 1] - this->nodeDepthIndex->host.get()[i];
     }
 
     getGrid(numNodesAtDepth,grid);
@@ -458,14 +436,14 @@ void ssrlcv::Quadtree<T>::generateEdges(){
     }
     CudaSafeCall(cudaMalloc((void**)&ownerInidices_device,numNodesAtDepth*4*sizeof(int)));
     CudaSafeCall(cudaMalloc((void**)&edgePlacement_device,numNodesAtDepth*4*sizeof(int)));
-    CudaSafeCall(cudaMemcpy(ownerInidices_device, ownerInidices, numNodesAtDepth*4*sizeof(int), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(edgePlacement_device, ownerInidices, numNodesAtDepth*4*sizeof(int), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(ownerInidices_device.get(), ownerInidices, numNodesAtDepth*4*sizeof(int), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(edgePlacement_device.get(), ownerInidices, numNodesAtDepth*4*sizeof(int), cudaMemcpyHostToDevice));
     delete[] ownerInidices;
 
     prevCount = numEdges;
     edgeDepthIndex_host[i] = numEdges;
 
-    findEdgeOwners<T><<<grid, block>>>(numNodesAtDepth, this->nodeDepthIndex->host[i], this->nodes->device, atomicCounter, ownerInidices_device, edgePlacement_device);
+    findEdgeOwners<T><<<grid, block>>>(numNodesAtDepth, this->nodeDepthIndex->host.get()[i], this->nodes->device.get(), atomicCounter, ownerInidices_device.get(), edgePlacement_device.get());
     CudaCheckError();
     CudaSafeCall(cudaMemcpy(&numEdges, atomicCounter, sizeof(int), cudaMemcpyDeviceToHost));
     if(i == this->depth  && numEdges - prevCount != 4){
@@ -477,18 +455,15 @@ void ssrlcv::Quadtree<T>::generateEdges(){
     CudaSafeCall(cudaMalloc((void**)&compactedOwnerArray_device,(numEdges - prevCount)*sizeof(int)));
     CudaSafeCall(cudaMalloc((void**)&compactedEdgePlacement_device,(numEdges - prevCount)*sizeof(int)));
 
-    thrust::device_ptr<int> arrayToCompact(ownerInidices_device);
-    thrust::device_ptr<int> arrayOut(compactedOwnerArray_device);
-    thrust::device_ptr<int> placementToCompact(edgePlacement_device);
-    thrust::device_ptr<int> placementOut(compactedEdgePlacement_device);
+    thrust::device_ptr<int> arrayToCompact(ownerInidices_device.get());
+    thrust::device_ptr<int> arrayOut(compactedOwnerArray_device.get());
+    thrust::device_ptr<int> placementToCompact(edgePlacement_device.get());
+    thrust::device_ptr<int> placementOut(compactedEdgePlacement_device.get());
 
     thrust::copy_if(arrayToCompact, arrayToCompact + (numNodesAtDepth*4), arrayOut, is_not_neg());
     CudaCheckError();
     thrust::copy_if(placementToCompact, placementToCompact + (numNodesAtDepth*4), placementOut, is_not_neg());
     CudaCheckError();
-
-    CudaSafeCall(cudaFree(ownerInidices_device));
-    CudaSafeCall(cudaFree(edgePlacement_device));
 
     //reset and allocated resources
     grid = {1,1,1};
@@ -496,28 +471,26 @@ void ssrlcv::Quadtree<T>::generateEdges(){
     getGrid(numEdges - prevCount, grid);
 
 
-    fillUniqueEdgeArray<T><<<grid, block>>>(this->nodeDepthIndex->host[i], this->nodes->device, numEdges - prevCount,
+    fillUniqueEdgeArray<T><<<grid, block>>>(this->nodeDepthIndex->host.get()[i], this->nodes->device.get(), numEdges - prevCount,
       edgeDepthIndex_host[i], edges2D[i], this->depth - i, compactedOwnerArray_device, compactedEdgePlacement_device);
     CudaCheckError();
-    CudaSafeCall(cudaFree(compactedOwnerArray_device));
-    CudaSafeCall(cudaFree(compactedEdgePlacement_device));
 
   }
-  Edge* edges_device;
+ std::shared_ptr<Edge> edges_device(nullptr, ssrlcv::deviceDeleter<Edge>());
   CudaSafeCall(cudaMalloc((void**)&edges_device, numEdges*sizeof(Edge)));
   for(int i = 0; i <= this->depth; ++i){
     if(i < this->depth){
-      CudaSafeCall(cudaMemcpy(edges_device + edgeDepthIndex_host[i], edges2D[i], (edgeDepthIndex_host[i+1] - edgeDepthIndex_host[i])*sizeof(Edge), cudaMemcpyDeviceToDevice));
+      CudaSafeCall(cudaMemcpy(edges_device.get() + edgeDepthIndex_host[i], edges2D[i], (edgeDepthIndex_host[i+1] - edgeDepthIndex_host[i])*sizeof(Edge), cudaMemcpyDeviceToDevice));
     }
     else{
-      CudaSafeCall(cudaMemcpy(edges_device + edgeDepthIndex_host[i], edges2D[i], 4*sizeof(Edge), cudaMemcpyDeviceToDevice));
+      CudaSafeCall(cudaMemcpy(edges_device.get() + edgeDepthIndex_host[i], edges2D[i], 4*sizeof(Edge), cudaMemcpyDeviceToDevice));
     }
     CudaSafeCall(cudaFree(edges2D[i]));
   }
   CudaSafeCall(cudaFree(edges2D_device));
 
-  this->edges = new Unity<Edge>(edges_device, numEdges, gpu);
-  this->edgeDepthIndex = new Unity<unsigned int>(edgeDepthIndex_host, this->depth + 1, cpu);
+  this->edges = std::make_shared<ssrlcv::Unity<Edge>>(edges_device, numEdges, gpu);
+  this->edgeDepthIndex = std::make_shared<ssrlcv::Unity<unsigned int>>(edgeDepthIndex_host, this->depth + 1, cpu);
 
 }
 
@@ -528,7 +501,7 @@ void ssrlcv::Quadtree<T>::generateVerticesAndEdges(){
 }
 
 template<typename T>
-void ssrlcv::Quadtree<T>::setNodeFlags(ssrlcv::Unity<bool>* hashMap, bool requireFullNeighbors, uint2 depthRange){
+void ssrlcv::Quadtree<T>::setNodeFlags(std::shared_ptr<ssrlcv::Unity<bool>> hashMap, bool requireFullNeighbors, uint2 depthRange){
   if(hashMap == nullptr || hashMap->getMemoryState() == null){
     throw NullUnityException("hashMap must be filled before setFlags is called");
   }
@@ -543,24 +516,24 @@ void ssrlcv::Quadtree<T>::setNodeFlags(ssrlcv::Unity<bool>* hashMap, bool requir
 
   unsigned int nodeDepthIndex = 0;
   if(depthRange.y == 0){
-    nodeDepthIndex = this->nodeDepthIndex->host[0];
+    nodeDepthIndex = this->nodeDepthIndex->host.get()[0];
   }
   else{
-    nodeDepthIndex = this->nodeDepthIndex->host[this->depth - depthRange.y];
+    nodeDepthIndex = this->nodeDepthIndex->host.get()[this->depth - depthRange.y];
   }
   unsigned int numNodes = 0;
   if(depthRange.x == 0){
     numNodes = this->nodes->size() - nodeDepthIndex;
   }
   else{
-    numNodes = this->nodeDepthIndex->host[this->depth - (depthRange.x - 1)] - nodeDepthIndex;
+    numNodes = this->nodeDepthIndex->host.get()[this->depth - (depthRange.x - 1)] - nodeDepthIndex;
   }
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(unsigned int, unsigned int, typename Quadtree<T>::Node*, bool*, bool) = &applyNodeFlags<T>;
   getFlatGridBlock(numNodes, grid, block,fp);
-  applyNodeFlags<T><<<grid,block>>>(numNodes,nodeDepthIndex,this->nodes->device,hashMap->device,requireFullNeighbors);
+  applyNodeFlags<T><<<grid,block>>>(numNodes,nodeDepthIndex,this->nodes->device.get(),hashMap->device.get(),requireFullNeighbors);
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -588,17 +561,17 @@ void ssrlcv::Quadtree<T>::setNodeFlags(float2 flagBorder, bool requireFullNeighb
 
   unsigned int nodeDepthIndex = 0;
   if(depthRange.y == 0){
-    nodeDepthIndex = this->nodeDepthIndex->host[0];
+    nodeDepthIndex = this->nodeDepthIndex->host.get()[0];
   }
   else{
-    nodeDepthIndex = this->nodeDepthIndex->host[this->depth - depthRange.y];
+    nodeDepthIndex = this->nodeDepthIndex->host.get()[this->depth - depthRange.y];
   }
   unsigned int numNodes = 0;
   if(depthRange.x == 0){
     numNodes = this->nodes->size() - nodeDepthIndex;
   }
   else{
-    numNodes = this->nodeDepthIndex->host[this->depth - (depthRange.x - 1)] - nodeDepthIndex;
+    numNodes = this->nodeDepthIndex->host.get()[this->depth - (depthRange.x - 1)] - nodeDepthIndex;
   }
 
   dim3 grid = {1,1,1};
@@ -611,7 +584,7 @@ void ssrlcv::Quadtree<T>::setNodeFlags(float2 flagBorder, bool requireFullNeighb
   printf("\n");
   float4 bounds = {flagBorder.x, flagBorder.y, ((float)this->size.x) - flagBorder.x, ((float)this->size.y) - flagBorder.y};
 
-  applyNodeFlags<T><<<grid,block>>>(numNodes,nodeDepthIndex,this->nodes->device,bounds,requireFullNeighbors);
+  applyNodeFlags<T><<<grid,block>>>(numNodes,nodeDepthIndex,this->nodes->device.get(),bounds,requireFullNeighbors);
   cudaDeviceSynchronize();
   CudaCheckError();
 
@@ -642,11 +615,11 @@ void ssrlcv::Quadtree<T>::writePLY(){
     plystream << stringBuffer.str();
     for(int i = 0; i < verticesToWrite; ++i){
       stringBuffer = std::ostringstream("");
-      stringBuffer << this->nodes->host[i].center.x;
+      stringBuffer << this->nodes->host.get()[i].center.x;
       stringBuffer << " ";
-      stringBuffer << this->nodes->host[i].center.y;
+      stringBuffer << this->nodes->host.get()[i].center.y;
       stringBuffer << " 0 ";
-      if(this->nodes->host[i].flag){
+      if(this->nodes->host.get()[i].flag){
         stringBuffer << " 0 0 0\n";
       }
       else{

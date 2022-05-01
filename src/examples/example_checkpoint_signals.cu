@@ -20,7 +20,7 @@ UTILITY
 */
 
 template<typename T>
-bool printTest(ssrlcv::Unity<T>* original, ssrlcv::Unity<T>* checkpoint){
+bool printTest(std::shared_ptr<ssrlcv::Unity<T>> original, std::shared_ptr<ssrlcv::Unity<T>> checkpoint){
     bool passed = true;
     ssrlcv::MemoryState origin[2] = {original->getMemoryState(), checkpoint->getMemoryState()};
     if(origin[0] != origin[1]){
@@ -40,7 +40,7 @@ bool printTest(ssrlcv::Unity<T>* original, ssrlcv::Unity<T>* checkpoint){
     }
     int numdiff = 0;
     for(int i = 0; i < size[0]; ++i){
-        if(original->host[i] != checkpoint->host[i]) numdiff++;
+        if(original->host.get()[i] != checkpoint->host.get()[i]) numdiff++;
     }
     if(!numdiff){
         std::cout<<"data is equivalent"<<std::endl;
@@ -66,8 +66,8 @@ SIGNAL HANDLING
     used here - test will pass though
 */
 
-ssrlcv::Unity<int>* i_nums;
-ssrlcv::Unity<int>* i_nums_cpt;
+std::shared_ptr<ssrlcv::Unity<int>> i_nums;
+std::shared_ptr<ssrlcv::Unity<int>> i_nums_cpt;
 
 
 void sigintHandler(int signal){
@@ -75,7 +75,7 @@ void sigintHandler(int signal){
     i_nums->checkpoint(0,"./");//will write i_nums data and state information
 
     std::cout<<"reading checkpoint"<<std::endl;
-    ssrlcv::Unity<int>* i_nums_cpt = new ssrlcv::Unity<int>("0_i.uty");
+    std::shared_ptr<ssrlcv::Unity<int>> i_nums_cpt = std::make_shared<ssrlcv::Unity<int>>("0_i.uty");
 
     std::cout<<"equating checkpoint data"<<std::endl;
     if(printTest(i_nums,i_nums_cpt)){
@@ -94,9 +94,9 @@ int main(int argc, char *argv[]){
   try{
     signal(SIGINT,sigintHandler);
 
-    i_nums = new ssrlcv::Unity<int>(nullptr,100,ssrlcv::cpu);
+    i_nums = std::make_shared<ssrlcv::Unity<int>>(nullptr,100,ssrlcv::cpu);
     for(int i = 0; i < 100; ++i){
-      i_nums->host[i] = i;
+      i_nums->host.get()[i] = i;
     } 
     i_nums->transferMemoryTo(ssrlcv::gpu);//check if checkpointing can handle reoriginating to both cpu and gpu with data
     
