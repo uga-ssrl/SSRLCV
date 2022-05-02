@@ -18,5 +18,6 @@ done < log/build.$j.out 3< log/build.$j.err
 if [ $(sacct -j $j -X | tail -n1 | awk '{print $6}') != 'COMPLETED' ]; then
     echo "$(sacct -j $j -X | tail -n1 | awk '{print $6}')";
     exit 1;
+fi;
 
 echo "DONE"
