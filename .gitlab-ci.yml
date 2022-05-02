@@ -28,10 +28,10 @@ build-job-ssh:
   script:
     - export j=$(sbatch scripts/sub-build.sh | awk '{print $4}')
     - echo "PENDING ${j}"
-    - echo "$(sacct -j $j -X | tail -n1 | awk '{print $6}')"
+    - "while [ $(sacct -j $j -X | tail -n1 | awk '{print $6}') == '----------' ]; do :; done"
     - "while [ $(sacct -j $j -X | tail -n1 | awk '{print $6}') == 'PENDING' ]; do :; done"
     - echo "RUNNING"
-    - "while [ $(sacct -j $j -X | tail -n2 | awk '{print $6}') == 'RUNNING' ]; do :; done"
+    - "while [ $(sacct -j $j -X | tail -n1 | awk '{print $6}') == 'RUNNING' ]; do :; done"
     - echo "DONE"
   tags:
     - gacrc
