@@ -83,7 +83,6 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     MemoryState origin[3];
-    std::shared_ptr<int> extremaAddresses(nullptr, ssrlcv::deviceDeleter<int>());
     int totalExtrema = 0;
     std::shared_ptr<std::shared_ptr<SSKeyPoint>> extrema2D = std::shared_ptr<std::shared_ptr<SSKeyPoint>>(new std::shared_ptr<SSKeyPoint>[this->numBlurs - 2], std::default_delete<std::shared_ptr<SSKeyPoint>[]>());
 
@@ -97,7 +96,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
     for(int i = 0; i < pixelsLower->size(); ++i){
         temp.get()[i] = -1;
     }
-    CudaSafeCall(cudaMalloc((void**)&extremaAddresses,pixelsLower->size()*sizeof(int)));
+    ssrlcv::ptr::device<int> extremaAddresses(pixelsLower->size()*sizeof(int));
     for(int b = 1; b < this->numBlurs - 1; ++b){
         CudaSafeCall(cudaMemcpy(extremaAddresses.get(),temp.get(),pixelsLower->size()*sizeof(int),cudaMemcpyHostToDevice));
         pixelsMiddle = this->blurs.get()[b]->pixels;
@@ -123,7 +122,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
         totalExtrema += extremaAtDepth;
 
         if(extremaAtDepth != 0){
-            extrema2D.get()[b-1].reset((SSKeyPoint *)nullptr, ssrlcv::deviceDeleter<SSKeyPoint>());
+            extrema2D.get()[b-1].reset((SSKeyPoint *)nullptr, ssrlcv::device_delete<SSKeyPoint>());
             CudaSafeCall(cudaMalloc((void**)&extrema2D.get()[b-1],extremaAtDepth*sizeof(ScaleSpace::SSKeyPoint)));
             grid = {1,1,1}; block = {1,1,1};
             getFlatGridBlock(extremaAtDepth,grid,block,fillExtrema);
@@ -131,7 +130,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
             CudaCheckError();
         }
         else{
-            extrema2D.get()[b-1].reset((SSKeyPoint *)nullptr, ssrlcv::deviceDeleter<SSKeyPoint>());
+            extrema2D.get()[b-1].reset((SSKeyPoint *)nullptr, ssrlcv::device_delete<SSKeyPoint>());
         }
         
         if(origin[0] != gpu) pixelsLower->setMemoryState(origin[0]);
@@ -169,10 +168,10 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::discardExtrema(){
         }
         numExtrema.get()[i] = numExtremaAtBlur;
         if(numExtremaAtBlur == 0){
-            temp.get()[i].reset((SSKeyPoint *)nullptr, ssrlcv::deviceDeleter<SSKeyPoint>());
+            temp.get()[i].reset((SSKeyPoint *)nullptr, ssrlcv::device_delete<SSKeyPoint>());
             continue;
         }
-        temp.get()[i].reset((SSKeyPoint *)nullptr, ssrlcv::deviceDeleter<SSKeyPoint>());
+        temp.get()[i].reset((SSKeyPoint *)nullptr, ssrlcv::device_delete<SSKeyPoint>());
         CudaSafeCall(cudaMalloc((void**)&temp.get()[i],numExtremaAtBlur*sizeof(SSKeyPoint)));
         CudaSafeCall(cudaMemcpy(temp.get()[i].get(),this->extrema->device.get() + this->extremaBlurIndices.get()[i],numExtremaAtBlur*sizeof(SSKeyPoint),cudaMemcpyDeviceToDevice));
     }
@@ -225,8 +224,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::refineExtremaLocation(){
     2. discard extrema
     3. resort extrema
     */
-    std::shared_ptr<float*> allPixels_device(nullptr, ssrlcv::deviceDeleter<float>());
-    CudaSafeCall(cudaMalloc((void**)&allPixels_device,this->numBlurs*sizeof(float*)));
+    ssrlcv::ptr::device<float*> allPixels_device(this->numBlurs*sizeof(float*));
     for(int i = 0; i < this->numBlurs; ++i){
         CudaSafeCall(cudaMemcpy(allPixels_device.get() + i,&this->blurs.get()[i]->pixels->device,sizeof(float*),cudaMemcpyHostToDevice));
     }
@@ -535,8 +533,6 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
     std::cout<<"computing keypoint orientations..."<<"\n";
     std::shared_ptr<ScaleSpace::Octave> currentOctave(nullptr);
     std::shared_ptr<ScaleSpace::Octave::Blur> currentBlur(nullptr);
-    std::shared_ptr<int> thetaAddresses_device(nullptr, ssrlcv::deviceDeleter<int>());
-    std::shared_ptr<float> thetas_device(nullptr, ssrlcv::deviceDeleter<float>());
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     unsigned long numKeyPointsAtBlur = 0;
@@ -556,7 +552,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
             currentOctave->extrema->setMemoryState(gpu);
         }
         for(int b = 0; b < this->depth.y; ++b){
-            orientedKeyPoints2D.get()[b].reset((ScaleSpace::SSKeyPoint *)nullptr, ssrlcv::deviceDeleter<ScaleSpace::SSKeyPoint>());
+            orientedKeyPoints2D.get()[b].reset((ScaleSpace::SSKeyPoint *)nullptr, ssrlcv::device_delete<ScaleSpace::SSKeyPoint>());
             currentBlur = currentOctave->blurs.get()[b];
             if(b + 1 != this->depth.y){
                 numKeyPointsAtBlur = currentOctave->extremaBlurIndices.get()[b + 1] - currentOctave->extremaBlurIndices.get()[b];
@@ -573,8 +569,8 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
             block = {1,1,1}; 
             getFlatGridBlock(numKeyPointsAtBlur, grid, block,computeThetas);
                         
-            CudaSafeCall(cudaMalloc((void**)&thetas_device, numKeyPointsAtBlur*maxOrientations*sizeof(float)));
-            CudaSafeCall(cudaMalloc((void**)&thetaAddresses_device, numKeyPointsAtBlur*maxOrientations*sizeof(int)));
+            ssrlcv::ptr::device<float> thetas_device( numKeyPointsAtBlur*maxOrientations*sizeof(float));
+            ssrlcv::ptr::device<int> thetaAddresses_device( numKeyPointsAtBlur*maxOrientations*sizeof(int));
 
             gradientsExisted = currentBlur->gradients != nullptr;
             if(!gradientsExisted) currentBlur->computeGradients();

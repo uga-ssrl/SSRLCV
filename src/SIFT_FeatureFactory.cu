@@ -172,10 +172,8 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrlcv:
 
   clock_t timer = clock();
 
-  std::shared_ptr<int> thetaNumbers_device(nullptr, ssrlcv::deviceDeleter<int>());
-  CudaSafeCall(cudaMalloc((void**)&thetaNumbers_device,keyPoints->size()*maxOrientations*sizeof(int)));
-  std::shared_ptr<float> thetas_device(nullptr, ssrlcv::deviceDeleter<float>());
-  CudaSafeCall(cudaMalloc((void**)&thetas_device,keyPoints->size()*maxOrientations*sizeof(float)));
+  ssrlcv::ptr::device<int> thetaNumbers_device(keyPoints->size()*maxOrientations*sizeof(int));
+  ssrlcv::ptr::device<float> thetas_device(keyPoints->size()*maxOrientations*sizeof(float));
   std::shared_ptr<float> thetas_host(new float[keyPoints->size()*maxOrientations], std::default_delete<float[]>());
   for(int i = 0; i < keyPoints->size()*maxOrientations; ++i){
     thetas_host.get()[i] = -1.0f;
@@ -216,8 +214,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrlcv:
   block = {4,4,8};
   getGrid(numFeatures,grid);
 
-  std::shared_ptr<Feature<SIFT_Descriptor>> features_device(nullptr, ssrlcv::deviceDeleter<Feature<SIFT_Descriptor>>());
-  CudaSafeCall(cudaMalloc((void**)&features_device,numFeatures*sizeof(Feature<SIFT_Descriptor>)));
+  ssrlcv::ptr::device<Feature<SIFT_Descriptor>> features_device(numFeatures*sizeof(Feature<SIFT_Descriptor>));
   fillDescriptors<<<grid,block>>>(numFeatures,imageSize.x,features_device.get(),pixelWidth,
     this->descriptorContribWidth,ceil(this->descriptorContribWidth/pixelWidth),
     thetas_device.get(),thetaNumbers_device.get(),keyPoints->device.get(),gradients->device.get());

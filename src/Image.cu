@@ -569,8 +569,7 @@ void ssrlcv::convertToBW(std::shared_ptr<ssrlcv::Unity<unsigned char>> pixels, u
 
   unsigned int numPixels = (pixels->size()/colorDepth);
 
-  std::shared_ptr<unsigned char> bwPixels_device(nullptr, ssrlcv::deviceDeleter<unsigned char>());
-  CudaSafeCall(cudaMalloc((void**)&bwPixels_device, numPixels*sizeof(unsigned char)));
+  ssrlcv::ptr::device<unsigned char> bwPixels_device( numPixels*sizeof(unsigned char));
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
@@ -594,8 +593,7 @@ void ssrlcv::convertToRGB(std::shared_ptr<ssrlcv::Unity<unsigned char>> pixels, 
 
   unsigned int numPixels = (pixels->size()/colorDepth);
 
-  std::shared_ptr<unsigned char> rgbPixels_device(nullptr, ssrlcv::deviceDeleter<unsigned char>());
-  CudaSafeCall(cudaMalloc((void**)&rgbPixels_device, numPixels*3*sizeof(unsigned char)));
+  ssrlcv::ptr::device<unsigned char> rgbPixels_device( numPixels*3*sizeof(unsigned char));
 
   dim3 grid;
   dim3 block;
@@ -804,8 +802,7 @@ std::shared_ptr<ssrlcv::Unity<int2>> ssrlcv::generatePixelGradients(uint2 imageS
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
 
-  std::shared_ptr<int2> gradients_device(nullptr, ssrlcv::deviceDeleter<int2>());
-  CudaSafeCall(cudaMalloc((void**)&gradients_device,pixels->size()*sizeof(int2)));
+  ssrlcv::ptr::device<int2> gradients_device(pixels->size()*sizeof(int2));
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2,unsigned char*,int2*) = &calculatePixelGradients;
@@ -821,8 +818,7 @@ std::shared_ptr<ssrlcv::Unity<float2>> ssrlcv::generatePixelGradients(uint2 imag
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
 
-  std::shared_ptr<float2> gradients_device(nullptr, ssrlcv::deviceDeleter<float2>());
-  CudaSafeCall(cudaMalloc((void**)&gradients_device,pixels->size()*sizeof(float2)));
+  ssrlcv::ptr::device<float2> gradients_device(pixels->size()*sizeof(float2));
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2,float*,float2*) = &calculatePixelGradients;
@@ -979,14 +975,13 @@ std::shared_ptr<ssrlcv::Unity<unsigned char>> ssrlcv::scaleImage(uint2 imageSize
 
   if(origin != gpu) pixels->setMemoryState(gpu);
 
-  std::shared_ptr<unsigned char> sampledImage_device(nullptr, ssrlcv::deviceDeleter<unsigned char>());
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2, unsigned int, unsigned char*, unsigned char*, float) = &bilinearInterpolation;
   get2DGridBlock((imageSize/outputPixelWidth) + 1, grid,block,fp);
   int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
-  CudaSafeCall(cudaMalloc((void**)&sampledImage_device,pixels->size()*4*sizeof(unsigned char)));
+  ssrlcv::ptr::device<unsigned char> sampledImage_device(pixels->size()*4*sizeof(unsigned char));
   bilinearInterpolation<<<grid,block>>>(imageSize,colorDepth,pixels->device.get(),sampledImage_device.get(),outputPixelWidth);
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -1004,14 +999,13 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::scaleImage(uint2 imageSize, std::s
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
 
-  std::shared_ptr<float> sampledImage_device(nullptr, ssrlcv::deviceDeleter<float>());
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2, unsigned int, float*, float*, float) = &bilinearInterpolation;
   get2DGridBlock((imageSize/outputPixelWidth) + 1, grid,block,fp);
   int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
-  CudaSafeCall(cudaMalloc((void**)&sampledImage_device,pixels->size()*4*sizeof(float)));
+  ssrlcv::ptr::device<float> sampledImage_device(pixels->size()*4*sizeof(float));
   bilinearInterpolation<<<grid,block>>>(imageSize,colorDepth,pixels->device.get(),sampledImage_device.get(),outputPixelWidth);
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -1036,8 +1030,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::convolve(uint2 imageSize, std::sha
   if(origin != gpu) pixels->setMemoryState(gpu);
   int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
   std::shared_ptr<ssrlcv::Unity<float>> convolvedImage = std::make_shared<ssrlcv::Unity<float>>(nullptr,pixels->size(),gpu);
-  std::shared_ptr<float> kernel_device(nullptr, ssrlcv::deviceDeleter<float>());
-  CudaSafeCall(cudaMalloc((void**)&kernel_device,kernelSize.x*kernelSize.y*sizeof(float)));
+  ssrlcv::ptr::device<float> kernel_device(kernelSize.x*kernelSize.y*sizeof(float));
   CudaSafeCall(cudaMemcpy(kernel_device.get(),kernel,kernelSize.x*kernelSize.y*sizeof(float),cudaMemcpyHostToDevice));
 
   dim3 grid = {1,1,1};
@@ -1071,8 +1064,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::convolve(uint2 imageSize, std::sha
   if(origin != gpu) pixels->setMemoryState(gpu);
   int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
   std::shared_ptr<ssrlcv::Unity<float>> convolvedImage = std::make_shared<ssrlcv::Unity<float>>(nullptr,pixels->size(),gpu);
-  std::shared_ptr<float> kernel_device(nullptr, ssrlcv::deviceDeleter<float>());
-  CudaSafeCall(cudaMalloc((void**)&kernel_device,kernelSize.x*kernelSize.y*sizeof(float)));
+  ssrlcv::ptr::device<float> kernel_device(kernelSize.x*kernelSize.y*sizeof(float));
   CudaSafeCall(cudaMemcpy(kernel_device.get(),kernel,kernelSize.x*kernelSize.y*sizeof(float),cudaMemcpyHostToDevice));
 
   dim3 grid = {1,1,1};

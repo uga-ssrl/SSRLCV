@@ -302,17 +302,14 @@ float ssrlcv::MeshFactory::calculateAverageDifference(std::shared_ptr<ssrlcv::Un
 
   // error cacluation is stored in this guy
   float averageError = 0.0f;
-  std::shared_ptr<float> d_averageError(nullptr, ssrlcv::deviceDeleter<float>());
-  CudaSafeCall(cudaMalloc((void**) &d_averageError,sizeof(float)));
+  ssrlcv::ptr::device<float> d_averageError(sizeof(float));
   CudaSafeCall(cudaMemcpy(d_averageError.get(),&averageError,sizeof(float),cudaMemcpyHostToDevice));
 
-  std::shared_ptr<int> d_encoding(nullptr, ssrlcv::deviceDeleter<int>());
-  CudaSafeCall(cudaMalloc((void**) &d_encoding,sizeof(int)));
+  ssrlcv::ptr::device<int> d_encoding(sizeof(int));
   CudaSafeCall(cudaMemcpy(d_encoding.get(),&this->faceEncoding,sizeof(int),cudaMemcpyHostToDevice));
 
   int misses = 0;
-  std::shared_ptr<int> d_misses(nullptr, ssrlcv::deviceDeleter<int>());
-  CudaSafeCall(cudaMalloc((void**) &d_misses,sizeof(int)));
+  ssrlcv::ptr::device<int> d_misses(sizeof(int));
   CudaSafeCall(cudaMemcpy(d_misses.get(),&misses,sizeof(int),cudaMemcpyHostToDevice));
 
   pointCloud->transferMemoryTo(gpu);
@@ -718,8 +715,7 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   if(origin[2] != cpu && this->octree->nodeDepthIndex->getFore() != cpu){
     this->octree->nodeDepthIndex->transferMemoryTo(cpu);
   }
-  std::shared_ptr<int> vertexNumbersDevice(nullptr, ssrlcv::deviceDeleter<int>());
-  CudaSafeCall(cudaMalloc((void**)&vertexNumbersDevice, this->octree->edges->size()*sizeof(int)));
+  ssrlcv::ptr::device<int> vertexNumbersDevice( this->octree->edges->size()*sizeof(int));
   dim3 gridEdge = {1,1,1};
   dim3 blockEdge = {1,1,1};
   if(this->octree->edges->size() < 65535) gridEdge.x = (unsigned int) this->octree->edges->size();
@@ -743,10 +739,8 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   /*Triangles*/
   //surround vertices with values less than 0
 
-  std::shared_ptr<int> triangleNumbersDevice(nullptr, ssrlcv::deviceDeleter<int>());
-  std::shared_ptr<int> cubeCategoryDevice(nullptr, ssrlcv::deviceDeleter<int>());
-  CudaSafeCall(cudaMalloc((void**)&triangleNumbersDevice, this->octree->nodes->size()*sizeof(int)));
-  CudaSafeCall(cudaMalloc((void**)&cubeCategoryDevice, this->octree->nodes->size()*sizeof(int)));
+  ssrlcv::ptr::device<int> triangleNumbersDevice( this->octree->nodes->size()*sizeof(int));
+  ssrlcv::ptr::device<int> cubeCategoryDevice( this->octree->nodes->size()*sizeof(int));
 
   categorizeCubesRecursively<<<1,8>>>(this->octree->nodeDepthIndex->host.get()[this->octree->depth - 1], this->octree->edges->device.get(), this->octree->nodes->device.get(), vertexNumbersDevice.get(), cubeCategoryDevice.get(), triangleNumbersDevice.get());
   cudaDeviceSynchronize();
@@ -777,15 +771,13 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  std::shared_ptr<int> vertexAddressesDevice(nullptr, ssrlcv::deviceDeleter<int>());
-  CudaSafeCall(cudaMalloc((void**)&vertexAddressesDevice, this->octree->edges->size()*sizeof(int)));
+  ssrlcv::ptr::device<int> vertexAddressesDevice( this->octree->edges->size()*sizeof(int));
   thrust::device_ptr<int> vN(vertexNumbersDevice.get());
   thrust::device_ptr<int> vA(vertexAddressesDevice.get());
   thrust::inclusive_scan(vN, vN + this->octree->edges->size(), vA);
   cudaDeviceSynchronize();
 
-  std::shared_ptr<int> triangleAddressesDevice(nullptr, ssrlcv::deviceDeleter<int>());
-  CudaSafeCall(cudaMalloc((void**)&triangleAddressesDevice, this->octree->nodes->size()*sizeof(int)));
+  ssrlcv::ptr::device<int> triangleAddressesDevice( this->octree->nodes->size()*sizeof(int));
   thrust::device_ptr<int> tN(triangleNumbersDevice.get());
   thrust::device_ptr<int> tA(triangleAddressesDevice.get());
   thrust::inclusive_scan(tN, tN + this->octree->nodes->size(), tA);
@@ -799,8 +791,7 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
 
   printf("%d vertices and %d triangles from %lu finestNodes\n",this->numSurfaceVertices, this->numSurfaceTriangles, this->octree->nodes->size());
 
-  std::shared_ptr<float3> surfaceVerticesDevice(nullptr, ssrlcv::deviceDeleter<float3>());
-  CudaSafeCall(cudaMalloc((void**)&surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3)));
+  ssrlcv::ptr::device<float3> surfaceVerticesDevice( this->numSurfaceVertices*sizeof(float3));
 
   if(origin[3] != gpu && this->octree->vertices->getFore() != gpu){
     this->octree->vertices->transferMemoryTo(gpu);
@@ -819,9 +810,8 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   if(origin[3] == cpu){
     this->octree->vertices->clear(gpu);
   }
-  std::shared_ptr<int3> surfaceTrianglesDevice(nullptr, ssrlcv::deviceDeleter<int3>());
 
-  CudaSafeCall(cudaMalloc((void**)&surfaceTrianglesDevice, this->numSurfaceTriangles*sizeof(int3)));
+  ssrlcv::ptr::device<int3> surfaceTrianglesDevice( this->numSurfaceTriangles*sizeof(int3));
 
   /* generate triangles */
   //grid is already numFinestNodes
@@ -878,8 +868,7 @@ void ssrlcv::MeshFactory::marchingCubes(){
   if(origin[4] == gpu){
     this->octree->edgeDepthIndex->clear(cpu);
   }
-  std::shared_ptr<int> vertexNumbersDevice(nullptr, ssrlcv::deviceDeleter<int>());
-  CudaSafeCall(cudaMalloc((void**)&vertexNumbersDevice, numFinestEdges*sizeof(int)));
+  ssrlcv::ptr::device<int> vertexNumbersDevice( numFinestEdges*sizeof(int));
   dim3 gridEdge = {1,1,1};
   dim3 blockEdge = {1,1,1};
   if(numFinestEdges < 65535) gridEdge.x = (unsigned int) numFinestEdges;
@@ -898,8 +887,7 @@ void ssrlcv::MeshFactory::marchingCubes(){
   calcVertexNumbers<<<gridEdge,blockEdge>>>(numFinestEdges, 0, this->octree->edges->device.get(), this->vertexImplicitDevice.get(), vertexNumbersDevice.get());
   cudaDeviceSynchronize();
   CudaCheckError();
-  std::shared_ptr<int> vertexAddressesDevice(nullptr, ssrlcv::deviceDeleter<int>());
-  CudaSafeCall(cudaMalloc((void**)&vertexAddressesDevice, numFinestEdges*sizeof(int)));
+  ssrlcv::ptr::device<int> vertexAddressesDevice( numFinestEdges*sizeof(int));
   thrust::device_ptr<int> vN(vertexNumbersDevice.get());
   thrust::device_ptr<int> vA(vertexAddressesDevice.get());
   thrust::inclusive_scan(vN, vN + numFinestEdges, vA);
@@ -913,10 +901,8 @@ void ssrlcv::MeshFactory::marchingCubes(){
   if(origin[2] == gpu){
     this->octree->nodeDepthIndex->clear(cpu);
   }
-  std::shared_ptr<int> triangleNumbersDevice(nullptr, ssrlcv::deviceDeleter<int>());
-  std::shared_ptr<int> cubeCategoryDevice(nullptr, ssrlcv::deviceDeleter<int>());
-  CudaSafeCall(cudaMalloc((void**)&triangleNumbersDevice, numFinestNodes*sizeof(int)));
-  CudaSafeCall(cudaMalloc((void**)&cubeCategoryDevice, numFinestNodes*sizeof(int)));
+  ssrlcv::ptr::device<int> triangleNumbersDevice( numFinestNodes*sizeof(int));
+  ssrlcv::ptr::device<int> cubeCategoryDevice( numFinestNodes*sizeof(int));
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
@@ -937,8 +923,7 @@ void ssrlcv::MeshFactory::marchingCubes(){
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  std::shared_ptr<int> triangleAddressesDevice(nullptr, ssrlcv::deviceDeleter<int>());
-  CudaSafeCall(cudaMalloc((void**)&triangleAddressesDevice, numFinestNodes*sizeof(int)));
+  ssrlcv::ptr::device<int> triangleAddressesDevice( numFinestNodes*sizeof(int));
   thrust::device_ptr<int> tN(triangleNumbersDevice.get());
   thrust::device_ptr<int> tA(triangleAddressesDevice.get());
   thrust::inclusive_scan(tN, tN + numFinestNodes, tA);
@@ -952,8 +937,7 @@ void ssrlcv::MeshFactory::marchingCubes(){
 
   printf("%d vertices and %d triangles from %d finestNodes\n",this->numSurfaceVertices, this->numSurfaceTriangles, numFinestNodes);
 
-  std::shared_ptr<float3> surfaceVerticesDevice(nullptr, ssrlcv::deviceDeleter<float3>());
-  CudaSafeCall(cudaMalloc((void**)&surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3)));
+  ssrlcv::ptr::device<float3> surfaceVerticesDevice( this->numSurfaceVertices*sizeof(float3));
 
 
   if(origin[3] != gpu && this->octree->vertices->getFore() != gpu){
@@ -974,9 +958,8 @@ void ssrlcv::MeshFactory::marchingCubes(){
     this->octree->vertices->clear(gpu);
   }
 
-  std::shared_ptr<int3> surfaceTrianglesDevice(nullptr, ssrlcv::deviceDeleter<int3>());
 
-  CudaSafeCall(cudaMalloc((void**)&surfaceTrianglesDevice, this->numSurfaceTriangles*sizeof(int3)));
+  ssrlcv::ptr::device<int3> surfaceTrianglesDevice( this->numSurfaceTriangles*sizeof(int3));
 
   /* generate triangles */
   //grid is already numFinestNodes
@@ -1078,8 +1061,7 @@ void ssrlcv::MeshFactory::jaxMeshing(){
   //MARCHING CUBES ON
 
   int numMarchingEdges = this->octree->edgeDepthIndex->host.get()[surfaceDepth + 1] - this->octree->edgeDepthIndex->host.get()[surfaceDepth];
-  std::shared_ptr<int> vertexNumbersDevice(nullptr, ssrlcv::deviceDeleter<int>());
-  CudaSafeCall(cudaMalloc((void**)&vertexNumbersDevice, numMarchingEdges*sizeof(int)));
+  ssrlcv::ptr::device<int> vertexNumbersDevice( numMarchingEdges*sizeof(int));
   dim3 gridEdge = {1,1,1};
   dim3 blockEdge = {1,1,1};
   if(numMarchingEdges < 65535) gridEdge.x = (unsigned int) numMarchingEdges;
@@ -1098,8 +1080,7 @@ void ssrlcv::MeshFactory::jaxMeshing(){
   calcVertexNumbers<<<gridEdge,blockEdge>>>(numMarchingEdges, this->octree->edgeDepthIndex->host.get()[surfaceDepth], this->octree->edges->device.get(), this->vertexImplicitDevice.get(), vertexNumbersDevice.get());
   cudaDeviceSynchronize();
   CudaCheckError();
-  std::shared_ptr<int> vertexAddressesDevice(nullptr, ssrlcv::deviceDeleter<int>());
-  CudaSafeCall(cudaMalloc((void**)&vertexAddressesDevice, numMarchingEdges*sizeof(int)));
+  ssrlcv::ptr::device<int> vertexAddressesDevice( numMarchingEdges*sizeof(int));
   thrust::device_ptr<int> vN(vertexNumbersDevice.get());
   thrust::device_ptr<int> vA(vertexAddressesDevice.get());
   thrust::inclusive_scan(vN, vN + numMarchingEdges, vA);
@@ -1109,10 +1090,8 @@ void ssrlcv::MeshFactory::jaxMeshing(){
   //surround vertices with values less than 0
 
   int numMarchingNodes = this->octree->nodeDepthIndex->host.get()[surfaceDepth + 1] - this->octree->nodeDepthIndex->host.get()[surfaceDepth];
-  std::shared_ptr<int> triangleNumbersDevice(nullptr, ssrlcv::deviceDeleter<int>());
-  std::shared_ptr<int> cubeCategoryDevice(nullptr, ssrlcv::deviceDeleter<int>());
-  CudaSafeCall(cudaMalloc((void**)&triangleNumbersDevice, numMarchingNodes*sizeof(int)));
-  CudaSafeCall(cudaMalloc((void**)&cubeCategoryDevice, numMarchingNodes*sizeof(int)));
+  ssrlcv::ptr::device<int> triangleNumbersDevice( numMarchingNodes*sizeof(int));
+  ssrlcv::ptr::device<int> cubeCategoryDevice( numMarchingNodes*sizeof(int));
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
@@ -1135,8 +1114,7 @@ void ssrlcv::MeshFactory::jaxMeshing(){
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  std::shared_ptr<int> triangleAddressesDevice(nullptr, ssrlcv::deviceDeleter<int>());
-  CudaSafeCall(cudaMalloc((void**)&triangleAddressesDevice, numMarchingNodes*sizeof(int)));
+  ssrlcv::ptr::device<int> triangleAddressesDevice( numMarchingNodes*sizeof(int));
   thrust::device_ptr<int> tN(triangleNumbersDevice.get());
   thrust::device_ptr<int> tA(triangleAddressesDevice.get());
   thrust::inclusive_scan(tN, tN + numMarchingNodes, tA);
@@ -1150,8 +1128,7 @@ void ssrlcv::MeshFactory::jaxMeshing(){
 
   printf("%d vertices and %d triangles from %d finestNodes\n",this->numSurfaceVertices, this->numSurfaceTriangles, numMarchingNodes);
 
-  std::shared_ptr<float3> surfaceVerticesDevice(nullptr, ssrlcv::deviceDeleter<float3>());
-  CudaSafeCall(cudaMalloc((void**)&surfaceVerticesDevice, this->numSurfaceVertices*sizeof(float3)));
+  ssrlcv::ptr::device<float3> surfaceVerticesDevice( this->numSurfaceVertices*sizeof(float3));
 
 
   if(origin[4] != gpu && this->octree->vertices->getFore() != gpu){
@@ -1172,9 +1149,8 @@ void ssrlcv::MeshFactory::jaxMeshing(){
     this->octree->vertices->clear(gpu);
   }
 
-  std::shared_ptr<int3> surfaceTrianglesDevice(nullptr, ssrlcv::deviceDeleter<int3>());
 
-  CudaSafeCall(cudaMalloc((void**)&surfaceTrianglesDevice, this->numSurfaceTriangles*sizeof(int3)));
+  ssrlcv::ptr::device<int3> surfaceTrianglesDevice( this->numSurfaceTriangles*sizeof(int3));
 
   /* generate triangles */
   //grid is already numMarchingNodes

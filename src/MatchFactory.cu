@@ -47,8 +47,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(std::shared_ptr<ssrlcv::Unity<uint
 
   printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
 
-  std::shared_ptr<uint2_pair> validatedMatches_device(nullptr, ssrlcv::deviceDeleter<uint2_pair>());
-  CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(uint2_pair)));
+  ssrlcv::ptr::device<uint2_pair> validatedMatches_device(numMatchesLeft*sizeof(uint2_pair));
   CudaSafeCall(cudaMemcpy(validatedMatches_device.get(),matches->device.get(),numMatchesLeft*sizeof(uint2_pair),cudaMemcpyDeviceToDevice));
 
   matches->setData(validatedMatches_device,numMatchesLeft,gpu);
@@ -74,8 +73,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(std::shared_ptr<ssrlcv::Unity<ssrl
 
   printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
 
-  std::shared_ptr<Match> validatedMatches_device(nullptr, ssrlcv::deviceDeleter<Match>());
-  CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(Match)));
+  ssrlcv::ptr::device<Match> validatedMatches_device(numMatchesLeft*sizeof(Match));
   CudaSafeCall(cudaMemcpy(validatedMatches_device.get(),matches->device.get(),numMatchesLeft*sizeof(Match),cudaMemcpyDeviceToDevice));
 
   matches->setData(validatedMatches_device,numMatchesLeft,gpu);
@@ -101,8 +99,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(std::shared_ptr<ssrlcv::Unity<ssrl
 
   printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
 
-  std::shared_ptr<DMatch> validatedMatches_device(nullptr, ssrlcv::deviceDeleter<DMatch>());
-  CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(DMatch)));
+  ssrlcv::ptr::device<DMatch> validatedMatches_device(numMatchesLeft*sizeof(DMatch));
   CudaSafeCall(cudaMemcpy(validatedMatches_device.get(),matches->device.get(),numMatchesLeft*sizeof(DMatch),cudaMemcpyDeviceToDevice));
 
   matches->setData(validatedMatches_device,numMatchesLeft,gpu);
@@ -128,8 +125,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::FeatureMatch
 
   printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
 
-  std::shared_ptr<FeatureMatch<T>> validatedMatches_device(nullptr, ssrlcv::deviceDeleter<FeatureMatch<T>>());
-  CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(FeatureMatch<T>)));
+  ssrlcv::ptr::device<FeatureMatch<T>> validatedMatches_device(numMatchesLeft*sizeof(FeatureMatch<T>));
   CudaSafeCall(cudaMemcpy(validatedMatches_device.get(),matches->device.get(),numMatchesLeft*sizeof(FeatureMatch<T>),cudaMemcpyDeviceToDevice));
 
   matches->setData(validatedMatches_device,numMatchesLeft,gpu);
@@ -157,8 +153,7 @@ void ssrlcv::MatchFactory<T>::refineMatches(std::shared_ptr<ssrlcv::Unity<ssrlcv
 
   printf("%lu matches have been refined to %u matches using a cutoff of %f\n",matches->size(),numElementsBelowThreshold,threshold);
 
-  std::shared_ptr<DMatch> compactedMatches_device(nullptr, ssrlcv::deviceDeleter<DMatch>());
-  CudaSafeCall(cudaMalloc((void**)&compactedMatches_device,numElementsBelowThreshold*sizeof(DMatch)));
+  ssrlcv::ptr::device<DMatch> compactedMatches_device(numElementsBelowThreshold*sizeof(DMatch));
   CudaSafeCall(cudaMemcpy(compactedMatches_device.get(),matches->device.get(),numElementsBelowThreshold*sizeof(DMatch),cudaMemcpyDeviceToDevice));
 
   matches->setData(compactedMatches_device,numElementsBelowThreshold,gpu);
@@ -185,8 +180,7 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T
 
   printf("%lu matches have been refined to %u matches using a cutoff of %f\n",matches->size(),numElementsBelowThreshold,threshold);
 
-  std::shared_ptr<FeatureMatch<T>> compactedMatches_device(nullptr, ssrlcv::deviceDeleter<FeatureMatch<T>>());
-  CudaSafeCall(cudaMalloc((void**)&compactedMatches_device,numElementsBelowThreshold*sizeof(FeatureMatch<T>)));
+  ssrlcv::ptr::device<FeatureMatch<T>> compactedMatches_device(numElementsBelowThreshold*sizeof(FeatureMatch<T>));
   CudaSafeCall(cudaMemcpy(compactedMatches_device.get(),matches->device.get(),numElementsBelowThreshold*sizeof(FeatureMatch<T>),cudaMemcpyDeviceToDevice));
 
   matches->setData(compactedMatches_device,numElementsBelowThreshold,gpu);
@@ -260,8 +254,7 @@ void ssrlcv::MatchFactory<T>::sortMatches(Unity<FeatureMatch<T>>* matches){
 template<typename T>
 std::shared_ptr<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::getRawMatches(std::shared_ptr<ssrlcv::Unity<DMatch>> matches){
   if(matches->getMemoryState() == gpu || matches->getFore() == gpu){
-    std::shared_ptr<Match> rawMatches_device(nullptr, ssrlcv::deviceDeleter<Match>());
-    CudaSafeCall(cudaMalloc((void**)&rawMatches_device, matches->size()*sizeof(Match)));
+    ssrlcv::ptr::device<Match> rawMatches_device( matches->size()*sizeof(Match));
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     void (*fp)(unsigned long, Match*, DMatch*) = &convertMatchToRaw;
@@ -284,8 +277,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::getRawMat
 template<typename T>
 std::shared_ptr<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::getRawMatches(Unity<FeatureMatch<T>>* matches){
   if(matches->getMemoryState() == gpu || matches->getFore() == gpu){
-    std::shared_ptr<Match> rawMatches_device(nullptr, ssrlcv::deviceDeleter<Match>());
-    CudaSafeCall(cudaMalloc((void**)&rawMatches_device, matches->size()*sizeof(Match)));
+    ssrlcv::ptr::device<Match> rawMatches_device( matches->size()*sizeof(Match));
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     void (*fp)(unsigned long, Match*, FeatureMatch<T>*) = &convertMatchToRaw;
@@ -356,8 +348,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::generateM
 
   unsigned int numPossibleMatches = queryFeatures->size();
 
-  std::shared_ptr<Match> matches_device(nullptr, ssrlcv::deviceDeleter<Match>());
-  CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(Match)));
+  ssrlcv::ptr::device<Match> matches_device( numPossibleMatches*sizeof(Match));
   std::shared_ptr<ssrlcv::Unity<Match>> matches = std::make_shared<ssrlcv::Unity<Match>>(matches_device, numPossibleMatches, gpu);
 
   dim3 grid = {1,1,1};
@@ -404,8 +395,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::generateM
 
   unsigned int numPossibleMatches = queryFeatures->size();
 
-  std::shared_ptr<Match> matches_device(nullptr, ssrlcv::deviceDeleter<Match>());
-  CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(Match)));
+  ssrlcv::ptr::device<Match> matches_device( numPossibleMatches*sizeof(Match));
 
   std::shared_ptr<ssrlcv::Unity<Match>> matches = std::make_shared<ssrlcv::Unity<Match>>(matches_device, numPossibleMatches, gpu);
 
@@ -413,8 +403,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::generateM
   dim3 block = {32,1,1};//IMPROVE
   getGrid(matches->size(),grid);
 
-  std::shared_ptr<float> fundamental_device(nullptr, ssrlcv::deviceDeleter<float>());
-  CudaSafeCall(cudaMalloc((void**)&fundamental_device,9*sizeof(float)));
+  ssrlcv::ptr::device<float> fundamental_device(9*sizeof(float));
   CudaSafeCall(cudaMemcpy(fundamental_device.get(),fundamental,9*sizeof(float),cudaMemcpyHostToDevice));
 
   clock_t timer = clock();
@@ -504,8 +493,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::DMatch>>ssrlcv::MatchFactory<T>:: generate
 
   unsigned int numPossibleMatches = queryFeatures->size();
 
-  std::shared_ptr<DMatch> matches_device(nullptr, ssrlcv::deviceDeleter<DMatch>());
-  CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(DMatch)));
+  ssrlcv::ptr::device<DMatch> matches_device( numPossibleMatches*sizeof(DMatch));
 
   std::shared_ptr<ssrlcv::Unity<DMatch>> matches = std::make_shared<ssrlcv::Unity<DMatch>>(matches_device, numPossibleMatches, gpu);
 
@@ -513,8 +501,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::DMatch>>ssrlcv::MatchFactory<T>:: generate
   dim3 block = {32,1,1};//IMPROVE
   getGrid(matches->size(),grid);
 
-  std::shared_ptr<float> fundamental_device(nullptr, ssrlcv::deviceDeleter<float>());
-  CudaSafeCall(cudaMalloc((void**)&fundamental_device,9*sizeof(float)));
+  ssrlcv::ptr::device<float> fundamental_device(9*sizeof(float));
   CudaSafeCall(cudaMemcpy(fundamental_device.get(),fundamental,9*sizeof(float),cudaMemcpyHostToDevice));
 
   clock_t timer = clock();
@@ -560,8 +547,7 @@ std::shared_ptr<ssrlcv::Image> target, std::shared_ptr<ssrlcv::Unity<ssrlcv::Fea
 
   unsigned int numPossibleMatches = queryFeatures->size();
 
-  std::shared_ptr<FeatureMatch<T>> matches_device(nullptr, ssrlcv::deviceDeleter<FeatureMatch<T>>());
-  CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(FeatureMatch<T>)));
+  ssrlcv::ptr::device<FeatureMatch<T>> matches_device( numPossibleMatches*sizeof(FeatureMatch<T>));
 
   Unity<FeatureMatch<T>>* matches = new Unity<FeatureMatch<T>>(matches_device, numPossibleMatches, gpu);
 
@@ -606,8 +592,7 @@ std::shared_ptr<ssrlcv::Image> target, std::shared_ptr<ssrlcv::Unity<ssrlcv::Fea
 
   unsigned int numPossibleMatches = queryFeatures->size();
 
-  std::shared_ptr<FeatureMatch<T>> matches_device(nullptr, ssrlcv::deviceDeleter<FeatureMatch<T>>());
-  CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(FeatureMatch<T>)));
+  ssrlcv::ptr::device<FeatureMatch<T>> matches_device( numPossibleMatches*sizeof(FeatureMatch<T>));
 
   Unity<FeatureMatch<T>>* matches = new Unity<FeatureMatch<T>>(matches_device, numPossibleMatches, gpu);
 
@@ -615,8 +600,7 @@ std::shared_ptr<ssrlcv::Image> target, std::shared_ptr<ssrlcv::Unity<ssrlcv::Fea
   dim3 block = {32,1,1};//IMPROVE
   getGrid(matches->size(),grid);
 
-  std::shared_ptr<float> fundamental_device(nullptr, ssrlcv::deviceDeleter<float>());
-  CudaSafeCall(cudaMalloc((void**)&fundamental_device,9*sizeof(float)));
+  ssrlcv::ptr::device<float> fundamental_device(9*sizeof(float));
   CudaSafeCall(cudaMemcpy(fundamental_device.get(),fundamental,9*sizeof(float),cudaMemcpyHostToDevice));
 
   clock_t timer = clock();
@@ -662,8 +646,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::uint2_pair>> ssrlcv::MatchFactory<T>::gene
 
   unsigned int numPossibleMatches = queryFeatures->size();
 
-  std::shared_ptr<uint2_pair> matches_device(nullptr, ssrlcv::deviceDeleter<uint2_pair>());
-  CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(uint2_pair)));
+  ssrlcv::ptr::device<uint2_pair> matches_device( numPossibleMatches*sizeof(uint2_pair));
   std::shared_ptr<ssrlcv::Unity<uint2_pair>> matches = std::make_shared<ssrlcv::Unity<uint2_pair>>(matches_device, numPossibleMatches, gpu);
 
   dim3 grid = {1,1,1};
@@ -710,8 +693,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::uint2_pair>> ssrlcv::MatchFactory<T>::gene
 
   unsigned int numPossibleMatches = queryFeatures->size();
 
-  std::shared_ptr<uint2_pair> matches_device(nullptr, ssrlcv::deviceDeleter<uint2_pair>());
-  CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(uint2_pair)));
+  ssrlcv::ptr::device<uint2_pair> matches_device( numPossibleMatches*sizeof(uint2_pair));
 
   std::shared_ptr<ssrlcv::Unity<uint2_pair>> matches = std::make_shared<ssrlcv::Unity<uint2_pair>>(matches_device, numPossibleMatches, gpu);
 
@@ -719,8 +701,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::uint2_pair>> ssrlcv::MatchFactory<T>::gene
   dim3 block = {32,1,1};//IMPROVE
   getGrid(matches->size(),grid);
 
-  std::shared_ptr<float> fundamental_device(nullptr, ssrlcv::deviceDeleter<float>());
-  CudaSafeCall(cudaMalloc((void**)&fundamental_device,9*sizeof(float)));
+  ssrlcv::ptr::device<float> fundamental_device(9*sizeof(float));
   CudaSafeCall(cudaMemcpy(fundamental_device.get(),fundamental,9*sizeof(float),cudaMemcpyHostToDevice));
 
   clock_t timer = clock();
@@ -903,8 +884,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::generateDiparityMatches(ui
 
   unsigned int numPossibleMatches = minimizedSize.x*minimizedSize.y;
 
-  std::shared_ptr<Match> matches_device(nullptr, ssrlcv::deviceDeleter<Match>());
-  CudaSafeCall(cudaMalloc((void**)&matches_device, numPossibleMatches*sizeof(Match)));
+  ssrlcv::ptr::device<Match> matches_device( numPossibleMatches*sizeof(Match));
 
   std::shared_ptr<ssrlcv::Unity<Match>> matches = std::make_shared<ssrlcv::Unity<Match>>(matches_device, numPossibleMatches, gpu);
 
@@ -927,8 +907,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::generateDiparityMatches(ui
   clock_t timer = clock();
 
   if(!parallel){
-    std::shared_ptr<float> fundamental_device(nullptr, ssrlcv::deviceDeleter<float>());
-    CudaSafeCall(cudaMalloc((void**)&fundamental_device,9*sizeof(float)));
+    ssrlcv::ptr::device<float> fundamental_device(9*sizeof(float));
     CudaSafeCall(cudaMemcpy(fundamental_device.get(),fundamental,9*sizeof(float),cudaMemcpyHostToDevice));
     disparityMatching<<<grid, block>>>(querySize,queryPixels->device.get(),targetSize,targetPixels->device.get(),fundamental_device.get(),matches->device.get(),maxDisparity,direction);
   }
@@ -954,8 +933,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::generateDiparityMatches(ui
   }
   else{
     printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
-    std::shared_ptr<Match> validatedMatches_device(nullptr, ssrlcv::deviceDeleter<Match>());
-    CudaSafeCall(cudaMalloc((void**)&validatedMatches_device,numMatchesLeft*sizeof(Match)));
+    ssrlcv::ptr::device<Match> validatedMatches_device(numMatchesLeft*sizeof(Match));
     CudaSafeCall(cudaMemcpy(validatedMatches_device.get(),matches->device.get(),numMatchesLeft*sizeof(Match),cudaMemcpyDeviceToDevice));
     matches->setData(validatedMatches_device,numMatchesLeft,gpu);
   }

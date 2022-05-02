@@ -34,9 +34,7 @@ std::shared_ptr<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::stereo_dispari
   if(origin == cpu) matches->transferMemoryTo(gpu);
 
   // depth points
-  std::shared_ptr<float3> points_device(nullptr, ssrlcv::deviceDeleter<float3>());
-
-  cudaMalloc((void**) &points_device, matches->size()*sizeof(float3));
+  ssrlcv::ptr::device<float3> points_device(matches->size()*sizeof(float3));
 
   //
   dim3 grid = {1,1,1};
@@ -70,9 +68,7 @@ std::shared_ptr<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::stereo_dispari
   if(origin == cpu) matches->transferMemoryTo(gpu);
 
   // depth points
-  std::shared_ptr<float3> points_device(nullptr, ssrlcv::deviceDeleter<float3>());
-
-  cudaMalloc((void**) &points_device, matches->size()*sizeof(float3));
+  ssrlcv::ptr::device<float3> points_device(matches->size()*sizeof(float3));
 
   //
   dim3 grid = {1,1,1};
@@ -188,8 +184,7 @@ void ssrlcv::writeDisparityImage(std::shared_ptr<ssrlcv::Unity<float3>> points, 
   */
   if(interpolationRadius != 0){
     colors->setMemoryState(gpu);
-    std::shared_ptr<float> interpolated(nullptr, ssrlcv::deviceDeleter<float>());
-    CudaSafeCall(cudaMalloc((void**)&interpolated,imageDim.x*imageDim.y*sizeof(float)));
+    ssrlcv::ptr::device<float> interpolated(imageDim.x*imageDim.y*sizeof(float));
     dim3 block = {1,1,1};
     dim3 grid = {1,1,1};
     getFlatGridBlock(imageDim.x*imageDim.y,grid,block,interpolateDepth);

@@ -318,8 +318,7 @@ void remove(std::shared_ptr<ssrlcv::Unity<T>> array, bool (*validate)(const T&))
     return;
   }
   else if(numElements != array->size()){
-    std::shared_ptr<T> array_device(nullptr, ssrlcv::deviceDeleter<T>());
-    CudaSafeCall(cudaMalloc((void**)&array_device,numElements));
+    ssrlcv::ptr::device<T> array_device(numElements);
     CudaSafeCall(cudaMemcpy(array_device.get(),array->device.get(),numElements*sizeof(T),cudaMemcpyDeviceToDevice));
     array->setData(array_device,numElements,ssrlcv::gpu);
   }
