@@ -1,6 +1,6 @@
 stages:
   - documentation
-
+  - build
 
 pages:
   stage: documentation
@@ -13,3 +13,11 @@ pages:
     - ./doc/doxygen/public
   only:
   - master
+
+build-job:
+  stage: build
+  script:
+    - echo "Hello world"
+  only:
+    - merge_requests
+
