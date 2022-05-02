@@ -18,6 +18,8 @@ build-job:
   stage: build
   script:
     - echo "Hello world"
+  tags:
+    - test-sfm
   only:
     - merge_requests
 
