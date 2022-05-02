@@ -1,6 +1,6 @@
 stages:
   - documentation
-
+  - build
 
 pages:
   stage: documentation
@@ -13,3 +13,21 @@ pages:
     - ./doc/doxygen/public
   only:
   - master
+
+build-job-ruby:
+  stage: build
+  script:
+    - echo "Hello world"
+  tags:
+    - ruby
+  only:
+    - merge_requests
+
+build-job-ssh:
+  stage: build
+  script:
+    - scripts/run-script.sh scripts/sub-build.sh
+  tags:
+    - gacrc
+  only:
+    - merge_requests
