@@ -26,7 +26,12 @@ build-job-ruby:
 build-job-ssh:
   stage: build
   script:
-    - j=$(sbatch scripts/sub-build.sh | awk '{print $4}'); echo "PENDING"; while [ $(sacct -j $j -X | tail -n1 | awk '{print $6}') == "PENDING" ]; do :; done; echo "RUNNING"; while [ $(sacct -j $j -X | tail -n1 | awk '{print $6}') == "RUNNING" ]; do :; done; echo "DONE"
+    - j=$(sbatch scripts/sub-build.sh | awk '{print $4}')
+    - echo "PENDING"
+    - while [ $(sacct -j $j -X | tail -n1 | awk '{print $6}') == "PENDING" ]; do :; done
+    - echo "RUNNING"
+    - while [ $(sacct -j $j -X | tail -n2 | awk '{print $6}') == "RUNNING" ]; do :; done
+    - echo "DONE"
   tags:
     - gacrc
   only:

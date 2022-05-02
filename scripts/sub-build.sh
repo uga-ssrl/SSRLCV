@@ -6,8 +6,8 @@
 #SBATCH --cpus-per-task=2             # Number of CPU cores per task
 #SBATCH --mem=4gb                    # Job memory request
 #SBATCH --time=00:30:00                # Time limit hrs:min:sec
-#SBATCH --output=/scratch/%U/log/build.%j.out       # Standard output log
-#SBATCH --error=/scratch/%u/log/build.%j.err        # Standard error log
+#SBATCH --output=log/build.%j.out       # Standard output log
+#SBATCH --error=log/build.%j.err        # Standard error log
 
 #SBATCH --mail-type=BEGIN,END,FAIL      # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=%u@uga.edu  # Where to send mail    
