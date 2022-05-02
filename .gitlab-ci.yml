@@ -14,12 +14,20 @@ pages:
   only:
   - master
 
-build-job:
+build-job-ruby:
   stage: build
   script:
     - echo "Hello world"
   tags:
-    - test-sfm
+    - ruby
   only:
     - merge_requests
 
+build-job-ssh:
+  stage: build
+  script:
+    - ls /work/demlab
+  tags:
+    - gacrc
+  only:
+    - merge_requests
