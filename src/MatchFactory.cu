@@ -1281,9 +1281,9 @@ Feature<T>* seedFeatures, float* matchDistances){
   if(blockId < numFeaturesQuery){ 
     // assign the image feature to feature
     Feature<T> feature = featuresQuery[blockId];
-    // initilize array to hold local distances
+    // array to hold distances between image feature and seed feature 
     __shared__ float localDist[32]; 
-    // store FLT_MAX at position indicated by current thread id  
+    // set each distance to max float value   
     localDist[threadIdx.x] = FLT_MAX; 
     __syncthreads();
 
@@ -1293,13 +1293,17 @@ Feature<T>* seedFeatures, float* matchDistances){
     for(int f = threadIdx.x; f < numSeedFeatures_reg; f += 32){
       // calculate the distance from image feature to seed feature
       currentDist = feature.descriptor.distProtocol(seedFeatures[f].descriptor,localDist[threadIdx.x]);
+      // the shortest distance is stored back in the array
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
       }
     } // for
     __syncthreads();
+    
+    // if it is NOT the first thread
     if(threadIdx.x != 0) return;
     currentDist = FLT_MAX;
+    // find the lowest distance 
     for(int i = 0; i < 32; ++i){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
