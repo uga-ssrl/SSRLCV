@@ -33,10 +33,20 @@ __device__ __host__ void ssrlcv::SIFT_Descriptor::print(){
   }
   printf("\n\n");
 }
+
+/**
+ * @brief This GPU function calculates the distance from seed feature to image feature. 
+ * 
+ * @param b A reference to the SIFT Descriptors for the seed image.
+ * @param bestMatch The maximum acceptable distance between seed feature and image feature.
+ * @return __device__ 
+ */
 __device__ float ssrlcv::SIFT_Descriptor::distProtocol(const SIFT_Descriptor& b, const float &bestMatch){
   float dist = 0.0f;
+  // loop terminates when all feature descriptors have been
+  // checked OR when the distance exceeds the max acceptable distance
   for(int i = 0; i < 128 && dist < bestMatch; ++i){
-    dist += ((float)this->values[i]-b.values[i])*((float)this->values[i]-b.values[i]);
+    dist += ((float)this->values[i]-b.values[i]) * ((float)this->values[i]-b.values[i]);
   }
   return dist;
 } 

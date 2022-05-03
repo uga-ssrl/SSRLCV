@@ -1279,7 +1279,7 @@ Feature<T>* seedFeatures, float* matchDistances){
   
   // validate the block is sufficiently large
   if(blockId < numFeaturesQuery){ 
-    // assign the image feature at position blockID to feature
+    // assign the image feature to feature
     Feature<T> feature = featuresQuery[blockId];
     // initilize array to hold local distances
     __shared__ float localDist[32]; 
