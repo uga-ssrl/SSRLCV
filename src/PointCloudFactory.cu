@@ -1072,7 +1072,8 @@ void ssrlcv::PointCloudFactory::calculateImageGradient(ssrlcv::MatchSet* matchSe
   // this containts the gradient
   std::vector<ssrlcv::ptr::value<ssrlcv::Image>> gradient;
   for (int i = 0; i < images.size(); i++){
-    ssrlcv::ptr::value<ssrlcv::Image> grad = ssrlcv::ptr::value<ssrlcv::Image>();
+    ssrlcv::ptr::value<ssrlcv::Image> grad;
+    grad.construct();
     gradient.push_back(grad);
     // initially, set all of the gradients to 0
     gradient[i]->id = i;
@@ -1797,8 +1798,8 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
 
   // allocate memory
   int num_params = 6; // 3 is just (x,y,z) and 6 incldue rotations in (x,y,z)
-  ssrlcv::value<float> localError();   // this stays constant per iteration
-  ssrlcv::value<float> initialError(); // this is just used once to see if we're going down a bad path or not
+  float localError;   // this stays constant per iteration
+  float initialError; // this is just used once to see if we're going down a bad path or not
   gradient = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,(num_params * images.size()),ssrlcv::cpu);
   hessian  = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,((num_params * images.size())*(num_params * images.size())),ssrlcv::cpu);
   update   = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,(num_params * images.size()),ssrlcv::gpu); // used in state update
@@ -1824,13 +1825,15 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
   // used to store the best params found in the optimization
   std::vector<ssrlcv::ptr::value<ssrlcv::Image>> bestParams;
   for (int i = 0; i < images.size(); i++){
-    ssrlcv::ptr::value<ssrlcv::Image> t = ssrlcv::ptr::value<ssrlcv::Image>();
+    ssrlcv::ptr::value<ssrlcv::Image> t;
+    t.construct();
     t->camera = images[i]->camera;
     bestParams.push_back(t); // fill in the initial images
   }
   std::vector<ssrlcv::ptr::value<ssrlcv::Image>> secondBestParams;
   for (int i = 0; i < images.size(); i++){
-    ssrlcv::ptr::value<ssrlcv::Image> t = ssrlcv::ptr::value<ssrlcv::Image>();
+    ssrlcv::ptr::value<ssrlcv::Image> t;
+    t.construct();
     t->camera = images[i]->camera;
     secondBestParams.push_back(t); // fill in the initial images
   }
@@ -1855,10 +1858,10 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
   // does an initial computation of the starting error
   // NOTE print off new error
   bundleTemp = generateBundles(matchSet,images);
-  voidTwoViewTriangulate(bundleTemp, initialError);
-  if (local_debug || local_verbose) std::cout << "[initial] \terror: " << *initialError << std::endl;
-  errorTracker.push_back(*initialError); // saves the initial error
-  bestError = *initialError; // we want our future best erros to be less than the initial error
+  voidTwoViewTriangulate(bundleTemp, &initialError);
+  if (local_debug || local_verbose) std::cout << "[initial] \terror: " << initialError << std::endl;
+  errorTracker.push_back(initialError); // saves the initial error
+  bestError = initialError; // we want our future best erros to be less than the initial error
 
   // the Hessian is always square, N is one side of the hessian
   const unsigned int N = (const unsigned int) sqrt(hessian->size());
@@ -2102,18 +2105,18 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
 
     // NOTE print off new error
     bundleTemp = generateBundles(matchSet,images);
-    voidTwoViewTriangulate(bundleTemp, localError);
-    if (local_debug || local_verbose) std::cout << "[" << std::fixed << std::setprecision(12) << (i + 1) << "] \terror: " << *localError << std::endl;
+    voidTwoViewTriangulate(bundleTemp, &localError);
+    if (local_debug || local_verbose) std::cout << "[" << std::fixed << std::setprecision(12) << (i + 1) << "] \terror: " << localError << std::endl;
 
     // is this step better than the best?
-    if (*localError < bestError) {
+    if (localError < bestError) {
 
       //
       // New best params found
       //
 
       secondBestError = bestError;
-      bestError = *localError;
+      bestError = localError;
       // the step improved the measured error
       for (int j = 0; j < bestParams.size(); j++){
         secondBestParams[j]->camera = bestParams[j]->camera;
@@ -2123,7 +2126,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
 
       // NOTE perhaps only scale down only after the frist step is taken?? maybe do it every time?
       if (i){
-        float scale_down = errorTracker.back() / *localError;
+        float scale_down = errorTracker.back() / localError;
         // scale_down *= scale_down; // squared ratio
         // or
         // scale_down = pow(2.0f, scale_down);
@@ -2135,7 +2138,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
       }
 
       // add the newest error!
-      errorTracker.push_back(*localError);
+      errorTracker.push_back(localError);
 
     } else {
 
@@ -2181,7 +2184,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
   }
 
   bundleTemp = generateBundles(matchSet,images);
-  points = twoViewTriangulate(bundleTemp, localError);
+  points = twoViewTriangulate(bundleTemp, &localError);
 
   cublasDestroy(cublasH);
 
@@ -2831,7 +2834,8 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::testBundleA
   // used to store the best params found in the optimization
   std::vector<ssrlcv::ptr::value<ssrlcv::Image>> noisey;
   for (int i = 0; i < images.size(); i++){
-    ssrlcv::ptr::value<ssrlcv::Image> t = ssrlcv::ptr::value<ssrlcv::Image>();
+    ssrlcv::ptr::value<ssrlcv::Image> t;
+    t.construct();
     t->camera = images[i]->camera;
     noisey.push_back(t); // fill in the initial images
   }
@@ -2900,7 +2904,8 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, 
   // used to store the best params found in the optimization
   std::vector<ssrlcv::ptr::value<ssrlcv::Image>> noisey;
   for (int i = 0; i < images.size(); i++){
-    ssrlcv::ptr::value<ssrlcv::Image> t = ssrlcv::ptr::value<ssrlcv::Image>();
+    ssrlcv::ptr::value<ssrlcv::Image> t;
+    t.construct();
     t->camera = images[i]->camera;
     noisey.push_back(t); // fill in the initial images
   }

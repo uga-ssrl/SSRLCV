@@ -197,11 +197,11 @@ int main(int argc, char *argv[]){
 
       logger.logState("TRIANGULATE");
 
-      ssrlcv::ptr::value<float> linearError();
+      float linearError;
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
-      points = demPoints.twoViewTriangulate(bundleSet, linearError);
-      std::cout << "\tUnfiltered Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
+      points = demPoints.twoViewTriangulate(bundleSet, &linearError);
+      std::cout << "\tUnfiltered Linear Error: " << std::fixed << std::setprecision(12) << linearError << std::endl;
       logger.logState("TRIANGULATE");
 
       // ============= Filtering
@@ -214,16 +214,15 @@ int main(int argc, char *argv[]){
       float sigma_filter = 1.0;
       demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
-      points = demPoints.twoViewTriangulate(bundleSet, linearError);
-      std::cout << "Filtered " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
+      points = demPoints.twoViewTriangulate(bundleSet, &linearError);
+      std::cout << "Filtered " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << linearError << std::endl;
 
       // second time
       sigma_filter = 3.0;
       demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = demPoints.generateBundles(&matchSet,images);
-      points = demPoints.twoViewTriangulate(bundleSet, linearError);
-      std::cout << "Filtered " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << *linearError << std::endl;
-      free(linearError);
+      points = demPoints.twoViewTriangulate(bundleSet, &linearError);
+      std::cout << "Filtered " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << linearError << std::endl;
 
       // neighbor filter
       demPoints.scalePointCloud(1000.0,points); // scales from km into meters
@@ -256,9 +255,9 @@ int main(int argc, char *argv[]){
 
       logger.logState("TRIANGULATE");
 
-      ssrlcv::ptr::value<float> angularError;
+      float angularError;
       bundleSet = demPoints.generateBundles(&matchSet,images);
-      points = demPoints.nViewTriangulate(bundleSet, angularError);
+      points = demPoints.nViewTriangulate(bundleSet, &angularError);
 
       logger.logState("TRIANGULATE");
 
@@ -269,8 +268,8 @@ int main(int argc, char *argv[]){
       for (int i = 0; i < 10; i++) {
         demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
         bundleSet = demPoints.generateBundles(&matchSet,images);
-        points = demPoints.nViewTriangulate(bundleSet, angularError);
-        std::cout << "Filtered " << 0.1  << " Linear Error: " << std::fixed << std::setprecision(12) << *angularError << std::endl;
+        points = demPoints.nViewTriangulate(bundleSet, &angularError);
+        std::cout << "Filtered " << 0.1  << " Linear Error: " << std::fixed << std::setprecision(12) << angularError << std::endl;
       }
       finalMesh.setPoints(points);
       //finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good

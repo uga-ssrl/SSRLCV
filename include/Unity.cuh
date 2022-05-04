@@ -319,8 +319,15 @@ namespace ssrlcv{
 
       value(std::nullptr_t) noexcept { }
 
+      value() {}
+
       value( const value& r ) {
         this->ptr = r.ptr;
+      }
+
+      template <typename... Args>
+      void construct(Args&&... args) {
+        ptr = std::make_shared<T>(std::forward<Args>(args)...);
       }
 
       template <typename... Args>

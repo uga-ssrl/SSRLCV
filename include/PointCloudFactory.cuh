@@ -119,6 +119,7 @@ namespace ssrlcv{
     /**
     * The CPU method that sets up the GPU enabled two view tringulation.
     * This method uses the extra bit in the float3 data structure as a "filter" bit which can be used to remove bad points
+    * TODO: Find a better name
     * @param bundleSet a set of lines and bundles that should be triangulated
     * @param the individual linear errors (for use in debugging and histogram)
     * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
@@ -128,6 +129,7 @@ namespace ssrlcv{
 
     /**
      * Same method as two view triangulation, but all that is desired fro this method is a calculation of the linearError
+     * TODO: name this something better
      * @param bundleSet a set of lines and bundles that should be triangulated
      * @param the individual linear errors (for use in debugging and histogram)
      * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error
@@ -136,6 +138,7 @@ namespace ssrlcv{
 
     /**
      * Same method as two view triangulation, but all that is desired fro this method is a calculation of the linearError
+     * TODO: Fix name
      * @param bundleSet a set of lines and bundles that should be triangulated
      * @param the individual linear errors (for use in debugging and histogram)
      * @param linearError is the total linear error of the triangulation, it is an analog for reprojection error

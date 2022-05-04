@@ -401,14 +401,14 @@ void ssrlcv::FeatureFactory::ScaleSpace::convertToDOG(){
     uint2 dogDepth = {this->depth.x,this->depth.y - 1};
     ssrlcv::ptr::host<ssrlcv::ptr::value<Octave>> dogOctaves(dogDepth.x);
     for(int o = 0; o < dogDepth.x; o++){
-        dogOctaves.get()[o] = ssrlcv::ptr::value<Octave>();
+        dogOctaves.get()[o].construct();
         dogOctaves.get()[o]->blurs = ssrlcv::ptr::host<ssrlcv::ptr::value<Octave::Blur>>(dogDepth.y);
         dogOctaves.get()[o]->numBlurs = dogDepth.y;
         dogOctaves.get()[o]->pixelWidth = this->octaves.get()[o]->pixelWidth;
         pixelsLower = this->octaves.get()[o]->blurs.get()[0]->pixels;
         getFlatGridBlock(pixelsLower->size(),grid,block,subtractImages);
         for(int b = 0; b < dogDepth.y; ++b){
-            dogOctaves.get()[o]->blurs.get()[b] = ssrlcv::ptr::value<Octave::Blur>();
+            dogOctaves.get()[o]->blurs.get()[b].construct();
             dogOctaves.get()[o]->id = o;
             dogOctaves.get()[o]->blurs.get()[b]->size = this->octaves.get()[o]->blurs.get()[0]->size;
             dogOctaves.get()[o]->blurs.get()[b]->sigma = this->octaves.get()[o]->blurs.get()[b]->sigma;
