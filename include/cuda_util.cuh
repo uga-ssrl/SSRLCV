@@ -258,9 +258,9 @@ void printDeviceProperties();
 * \todo add option for > or < operator usage
 */
 template<typename T>
-void sort(std::shared_ptr<ssrlcv::Unity<T>> array){
+void sort(ssrlcv::ptr::value<ssrlcv::Unity<T>> array){
   if(array == nullptr){
-    throw ssrlcv::UnityException("passed array == nullptr in sort(std::shared_ptr<ssrlcv::Unity<T>> array)");
+    throw ssrlcv::UnityException("passed array == nullptr in sort(ssrlcv::ptr::value<ssrlcv::Unity<T>> array)");
   }
   ssrlcv::MemoryState origin = array->getMemoryState();
   ssrlcv::MemoryState fore = array->getFore();
@@ -277,9 +277,9 @@ void sort(std::shared_ptr<ssrlcv::Unity<T>> array){
 * \brief universal sort method for unity if < operator is overloader
 */
 template<typename T>
-void sort(std::shared_ptr<ssrlcv::Unity<T>> array, bool (*compare)(const T&,const T&)){
+void sort(ssrlcv::ptr::value<ssrlcv::Unity<T>> array, bool (*compare)(const T&,const T&)){
   if(array == nullptr){
-    throw ssrlcv::UnityException("passed array == nullptr in sort(std::shared_ptr<ssrlcv::Unity<T>> array)");
+    throw ssrlcv::UnityException("passed array == nullptr in sort(ssrlcv::ptr::value<ssrlcv::Unity<T>> array)");
   }
   ssrlcv::MemoryState origin = array->getMemoryState();
   ssrlcv::MemoryState fore = array->getFore();
@@ -302,9 +302,9 @@ namespace{
 * \brief remove elements of a unity
 */
 template<typename T>
-void remove(std::shared_ptr<ssrlcv::Unity<T>> array, bool (*validate)(const T&)){
+void remove(ssrlcv::ptr::value<ssrlcv::Unity<T>> array, bool (*validate)(const T&)){
   if(array == nullptr){
-    throw ssrlcv::UnityException("passed array == nullptr in remove(std::shared_ptr<ssrlcv::Unity<T>> array)");
+    throw ssrlcv::UnityException("passed array == nullptr in remove(ssrlcv::ptr::value<ssrlcv::Unity<T>> array)");
   }
   ssrlcv::MemoryState origin = array->getMemoryState();
   ssrlcv::MemoryState fore = array->getFore();

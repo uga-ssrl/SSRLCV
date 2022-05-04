@@ -16,10 +16,10 @@ ssrlcv::MeshFactory::MeshFactory(){
 }
 
 // constructor given existing points and faces
-ssrlcv::MeshFactory::MeshFactory(std::shared_ptr<ssrlcv::Unity<float3>> in_points, std::shared_ptr<ssrlcv::Unity<int>> in_faces, int in_faceEncoding){
+ssrlcv::MeshFactory::MeshFactory(ssrlcv::ptr::value<ssrlcv::Unity<float3>> in_points, ssrlcv::ptr::value<ssrlcv::Unity<int>> in_faces, int in_faceEncoding){
   this->faceEncoding = in_faceEncoding;
-  this->points       = std::make_shared<ssrlcv::Unity<float3>>(nullptr,in_points->size(),cpu);
-  this->faces        = std::make_shared<ssrlcv::Unity<int>>(nullptr,in_faces->size(),cpu);
+  this->points       = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,in_points->size(),cpu);
+  this->faces        = ssrlcv::ptr::value<ssrlcv::Unity<int>>(nullptr,in_faces->size(),cpu);
   for (int i = 0; i < this->points->size(); i++) {
     this->points->host.get()[i] = in_points->host.get()[i];
   }
@@ -27,7 +27,7 @@ ssrlcv::MeshFactory::MeshFactory(std::shared_ptr<ssrlcv::Unity<float3>> in_point
     this->faces->host.get()[i] = in_faces->host.get()[i];
   }
   // Octree oct = Octree(this->points, 8, false);
-  this->octree = std::make_shared<Octree>(this->points, 8, false);
+  this->octree = ssrlcv::ptr::value<Octree>(this->points, 8, false);
   this->pointsSet = true;
   this->octreeSet = true;
 }
@@ -36,7 +36,7 @@ ssrlcv::MeshFactory::~MeshFactory(){
 
 }
 
-ssrlcv::MeshFactory::MeshFactory(std::shared_ptr<Octree> octree){
+ssrlcv::MeshFactory::MeshFactory(ssrlcv::ptr::value<Octree> octree){
   this->pointsSet = false;
   this->octreeSet = true;
   this->faceEncoding = 0;
@@ -58,18 +58,18 @@ ssrlcv::MeshFactory::MeshFactory(std::shared_ptr<Octree> octree){
  * and should be used sparingly
  * @param pointcloud a unity of float3 that represents a point cloud to be set to internal points
  */
-void ssrlcv::MeshFactory::setPoints(std::shared_ptr<ssrlcv::Unity<float3>> pointcloud){
+void ssrlcv::MeshFactory::setPoints(ssrlcv::ptr::value<ssrlcv::Unity<float3>> pointcloud){
   this->pointsSet =  true;
-  this->points = std::make_shared<ssrlcv::Unity<float3>>(nullptr,pointcloud->size(),cpu);
+  this->points = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,pointcloud->size(),cpu);
   // set
   for (int i = 0; i < this->points->size(); i++) {
     this->points->host.get()[i] = pointcloud->host.get()[i];
   }
   if (this->octree == nullptr || octreeSet) {
-    octree.reset();
+    octree.clear();
   }
   this->octreeSet = true;
-  this->octree = std::make_shared<Octree>(this->points, 8, false);
+  this->octree = ssrlcv::ptr::value<Octree>(this->points, 8, false);
 }
 
 /**
@@ -78,9 +78,9 @@ void ssrlcv::MeshFactory::setPoints(std::shared_ptr<ssrlcv::Unity<float3>> point
  * @param faces a unity of int that represents the indexes of points which make faces
  * @param faceEncoding the face encoding scheme 3 or 4
  */
-void ssrlcv::MeshFactory::setFaces(std::shared_ptr<ssrlcv::Unity<int>> faces, int faceEncoding){
+void ssrlcv::MeshFactory::setFaces(ssrlcv::ptr::value<ssrlcv::Unity<int>> faces, int faceEncoding){
   this->faceEncoding = faceEncoding;
-  this->faces = std::make_shared<ssrlcv::Unity<int>>(nullptr,faces->size(),cpu);
+  this->faces = ssrlcv::ptr::value<ssrlcv::Unity<int>>(nullptr,faces->size(),cpu);
   // set
   for (int i = 0; i < this->faces->size(); i++) {
     this->faces->host.get()[i] = faces->host.get()[i];
@@ -210,8 +210,8 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
   input.close(); // close the stream
 
   // save the values to the mesh
-  this->points = std::make_shared<ssrlcv::Unity<float3>>(nullptr,tempPoints.size(),ssrlcv::cpu);
-  this->faces = std::make_shared<ssrlcv::Unity<int>>(nullptr,tempFaces.size(),ssrlcv::cpu);
+  this->points = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,tempPoints.size(),ssrlcv::cpu);
+  this->faces = ssrlcv::ptr::value<ssrlcv::Unity<int>>(nullptr,tempFaces.size(),ssrlcv::cpu);
   for (int i = 0; i < this->points->size(); i++) {
     this->points->host.get()[i] = tempPoints[i];
   }
@@ -234,7 +234,7 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
 * @param filePath the filepath, relative to the install location
 */
 void ssrlcv::MeshFactory::loadPoints(const char* filePath){
-  std::shared_ptr<ssrlcv::Unity<float3>> newBoi = readPLY(filePath);
+  ssrlcv::ptr::value<ssrlcv::Unity<float3>> newBoi = readPLY(filePath);
   setPoints(newBoi);
 }
 
@@ -275,7 +275,7 @@ void ssrlcv::MeshFactory::savePoints(const char* filename){
  * @param planeNormal a float3 representing a vector normal to the shared plane of the point cloud and mesh
  * @return averageError this is number is a float that is always positive or 0.0f, it is -1.0f if an error has occured
  */
-float ssrlcv::MeshFactory::calculateAverageDifference(std::shared_ptr<ssrlcv::Unity<float3>> pointCloud, float3 planeNormal){
+float ssrlcv::MeshFactory::calculateAverageDifference(ssrlcv::ptr::value<ssrlcv::Unity<float3>> pointCloud, float3 planeNormal){
 
   // disable these for no print statements
   bool local_debug   = false;
@@ -289,7 +289,7 @@ float ssrlcv::MeshFactory::calculateAverageDifference(std::shared_ptr<ssrlcv::Un
   }
 
   // prepare the memory
-  std::shared_ptr<ssrlcv::Unity<float3>> normal = std::make_shared<ssrlcv::Unity<float3>>(nullptr,1,ssrlcv::cpu);
+  ssrlcv::ptr::value<ssrlcv::Unity<float3>> normal = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,1,ssrlcv::cpu);
   normal->host.get()[0].x = planeNormal.x;
   normal->host.get()[0].y = planeNormal.y;
   normal->host.get()[0].z = planeNormal.z;
@@ -302,14 +302,14 @@ float ssrlcv::MeshFactory::calculateAverageDifference(std::shared_ptr<ssrlcv::Un
 
   // error cacluation is stored in this guy
   float averageError = 0.0f;
-  ssrlcv::ptr::device<float> d_averageError(sizeof(float));
+  ssrlcv::ptr::device<float> d_averageError(1);
   CudaSafeCall(cudaMemcpy(d_averageError.get(),&averageError,sizeof(float),cudaMemcpyHostToDevice));
 
-  ssrlcv::ptr::device<int> d_encoding(sizeof(int));
+  ssrlcv::ptr::device<int> d_encoding(1);
   CudaSafeCall(cudaMemcpy(d_encoding.get(),&this->faceEncoding,sizeof(int),cudaMemcpyHostToDevice));
 
   int misses = 0;
-  ssrlcv::ptr::device<int> d_misses(sizeof(int));
+  ssrlcv::ptr::device<int> d_misses(1);
   CudaSafeCall(cudaMemcpy(d_misses.get(),&misses,sizeof(int),cudaMemcpyHostToDevice));
 
   pointCloud->transferMemoryTo(gpu);
@@ -361,7 +361,7 @@ float ssrlcv::MeshFactory::calculateAverageDifference(std::shared_ptr<ssrlcv::Un
  * @param planeNormal a float3 representing a vector normal to the shared plane of the point cloud and mesh
  * @return errorList a unity array of floats that contain errors
  */
-std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculatePerPointDifference(std::shared_ptr<ssrlcv::Unity<float3>> pointCloud, float3 planeNormal){
+ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculatePerPointDifference(ssrlcv::ptr::value<ssrlcv::Unity<float3>> pointCloud, float3 planeNormal){
 
   // disable these for no print statements
   bool local_debug   = false;
@@ -375,7 +375,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculatePerPointDiff
   }
 
   // prepare the memory
-  std::shared_ptr<ssrlcv::Unity<float3>> normal = std::make_shared<ssrlcv::Unity<float3>>(nullptr,1,ssrlcv::cpu);
+  ssrlcv::ptr::value<ssrlcv::Unity<float3>> normal = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,1,ssrlcv::cpu);
   normal->host.get()[0].x = planeNormal.x;
   normal->host.get()[0].y = planeNormal.y;
   normal->host.get()[0].z = planeNormal.z;
@@ -386,16 +386,14 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculatePerPointDiff
   normal->host.get()[0].y /= mag;
   normal->host.get()[0].z /= mag;
 
-  int* d_encoding;
-  CudaSafeCall(cudaMalloc((void**) &d_encoding,sizeof(int)));
-  CudaSafeCall(cudaMemcpy(d_encoding,&this->faceEncoding,sizeof(int),cudaMemcpyHostToDevice));
+  ssrlcv::ptr::device<int> d_encoding(1);
+  CudaSafeCall(cudaMemcpy(d_encoding.get(),&this->faceEncoding,sizeof(int),cudaMemcpyHostToDevice));
 
   int misses = 0;
-  int* d_misses;
-  CudaSafeCall(cudaMalloc((void**) &d_misses,sizeof(int)));
-  CudaSafeCall(cudaMemcpy(d_misses,&misses,sizeof(int),cudaMemcpyHostToDevice));
+  ssrlcv::ptr::device<int> d_misses(1);
+  CudaSafeCall(cudaMemcpy(d_misses.get(),&misses,sizeof(int),cudaMemcpyHostToDevice));
 
-  std::shared_ptr<ssrlcv::Unity<float>> errors = std::make_shared<ssrlcv::Unity<float>>(nullptr,pointCloud->size(),ssrlcv::gpu);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> errors = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,pointCloud->size(),ssrlcv::gpu);
 
   pointCloud->transferMemoryTo(gpu);
   normal->transferMemoryTo(gpu);
@@ -408,7 +406,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculatePerPointDiff
   getFlatGridBlock(pointCloud->size(),grid,block,fp);
 
   //                    (float* errors, int* misses, unsigned long pointnum, float3* pointcloud, float3* vector, float3* vertices, unsigned long facenum, int* faces, int* faceEncoding)
-  generateCollisionDistances<<<grid,block>>>(errors->device.get(),d_misses,pointCloud->size(),pointCloud->device.get(),normal->device.get(),this->points->device.get(),this->faces->size(),this->faces->device.get(),d_encoding);
+  generateCollisionDistances<<<grid,block>>>(errors->device.get(),d_misses.get(),pointCloud->size(),pointCloud->device.get(),normal->device.get(),this->points->device.get(),this->faces->size(),this->faces->device.get(),d_encoding.get());
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -423,9 +421,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculatePerPointDiff
   pointCloud->clear(gpu);
   normal->clear(gpu);
 
-  CudaSafeCall(cudaMemcpy(&misses,d_misses,sizeof(int),cudaMemcpyDeviceToHost));
-  cudaFree(d_encoding);
-  cudaFree(d_misses);
+  CudaSafeCall(cudaMemcpy(&misses,d_misses.get(),sizeof(int),cudaMemcpyDeviceToHost));
 
   return errors;
 }
@@ -441,7 +437,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculatePerPointDiff
  * @param n the number of neignbors to calculate an average distance to
  * @return float a unity of floats representing the average distance to N neighbors
  */
-std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculateAverageDistancesToOctreeNeighbors(int n){
+ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculateAverageDistancesToOctreeNeighbors(int n){
   return this->octree->averageNeighboorDistances(n); // basically a pass through to octree
 }
 
@@ -465,7 +461,7 @@ void ssrlcv::MeshFactory::filterByOctreeNeighborDistance(float sigma){
   bool local_verbose = true;
 
   // TODO verify that the at last the points and the octree have been made
-  std::shared_ptr<ssrlcv::Unity<float>> samples = calculateAverageDistancesToOctreeNeighbors(6);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> samples = calculateAverageDistancesToOctreeNeighbors(6);
   float average = calculateAverageDistanceToOctreeNeighbors(6);
   // now calculate the variance
   float sum = 0.0f;
@@ -484,7 +480,7 @@ void ssrlcv::MeshFactory::filterByOctreeNeighborDistance(float sigma){
   cutoff = sigma * sqrtf(variance);
 
   // now remove the points that are not good!
-  std::shared_ptr<ssrlcv::Unity<float3>> newPoints = this->octree->removeLowDensityPoints(cutoff, 6);
+  ssrlcv::ptr::value<ssrlcv::Unity<float3>> newPoints = this->octree->removeLowDensityPoints(cutoff, 6);
   int bad_points = 0;
   for (int i = 0; i < newPoints->size(); i++){
     if (isnan(newPoints->host.get()[i].x)) bad_points++;
@@ -493,7 +489,7 @@ void ssrlcv::MeshFactory::filterByOctreeNeighborDistance(float sigma){
   if (local_debug || local_verbose) std::cout << "Detected " << bad_points << " points in low density regions to remove ..." << "\n";
 
   // allocate new space and fill the points
-  this->points = std::make_shared<ssrlcv::Unity<float3>>(nullptr,(newPoints->size() - bad_points),cpu);
+  this->points = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,(newPoints->size() - bad_points),cpu);
   int index = 0;
   for (int i = 0; i < this->points->size(); i++){
     if (!isnan(newPoints->host.get()[i].x)) {
@@ -509,7 +505,7 @@ void ssrlcv::MeshFactory::filterByOctreeNeighborDistance(float sigma){
  * @param n the number of neignbors to calculate an average distance to
  * @return float a unity of floats representing the average distance to N neighbors
  */
-std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculateAverageDistancesToNeighbors(int n){
+ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculateAverageDistancesToNeighbors(int n){
 
   bool local_verbose = true;
 
@@ -517,11 +513,10 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculateAverageDista
     logger.warn << "WARNING: values larger than N = 6 neighbors are not nesseary, chaning N from " << std::to_string(n) << " to 6 ..." << "\n";
   }
 
-  int* d_num;
-  CudaSafeCall(cudaMalloc((void**) &d_num,sizeof(int)));
-  CudaSafeCall(cudaMemcpy(d_num,&n,sizeof(int),cudaMemcpyHostToDevice));
+  ssrlcv::ptr::device<int> d_num(1);
+  CudaSafeCall(cudaMemcpy(d_num.get(),&n,sizeof(int),cudaMemcpyHostToDevice));
 
-  std::shared_ptr<ssrlcv::Unity<float>> averages = std::make_shared<ssrlcv::Unity<float>>(nullptr,this->points->size(),ssrlcv::gpu);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> averages = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,this->points->size(),ssrlcv::gpu);
 
   this->points->transferMemoryTo(gpu);
 
@@ -532,7 +527,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculateAverageDista
 
   if (local_verbose) std::cout << "calulating nearest neighbors via exaustive kernel search ..." << "\n";
 
-  averageDistToNeighbors<<<grid,block>>>(d_num,this->points->size(),this->points->device.get(),averages->device.get());
+  averageDistToNeighbors<<<grid,block>>>(d_num.get(),this->points->size(),this->points->device.get(),averages->device.get());
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -540,7 +535,6 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculateAverageDista
   averages->setFore(gpu);
   averages->transferMemoryTo(cpu);
   this->points->transferMemoryTo(cpu);
-  cudaFree(d_num);
 
   return averages;
 }
@@ -551,7 +545,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculateAverageDista
  * @return float which is the average distance to n neighbors
  */
 float ssrlcv::MeshFactory::calculateAverageDistanceToNeighbors(int n){
-    std::shared_ptr<ssrlcv::Unity<float>> averages = calculateAverageDistancesToNeighbors(n);
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> averages = calculateAverageDistancesToNeighbors(n);
     float sum = 0.0f;
     for (int i = 0; i < averages->size(); i++) {
       sum += averages->host.get()[i];
@@ -572,7 +566,7 @@ void ssrlcv::MeshFactory::filterByNeighborDistance(float sigma){
   bool local_verbose = true;
 
   // TODO verify that the at last the points and the octree have been made
-  std::shared_ptr<ssrlcv::Unity<float>> samples = calculateAverageDistancesToNeighbors(6);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> samples = calculateAverageDistancesToNeighbors(6);
   float average = calculateAverageDistanceToNeighbors(6);
   // now calculate the variance
   float sum = 0.0f;
@@ -599,7 +593,7 @@ void ssrlcv::MeshFactory::filterByNeighborDistance(float sigma){
   if (local_debug || local_verbose) std::cout << "Detected " << bad_points << " points in low density regions to remove ..." << "\n";
 
   // allocate new space and fill the points
-  std::shared_ptr<ssrlcv::Unity<float3>> temp = std::make_shared<ssrlcv::Unity<float3>>(nullptr,(this->points->size() - bad_points),cpu);
+  ssrlcv::ptr::value<ssrlcv::Unity<float3>> temp = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,(this->points->size() - bad_points),cpu);
   int index = 0;
   for (int i = 0; i < temp->size(); i++) {
     if (samples->host.get()[i] < cutoff) {
@@ -607,7 +601,7 @@ void ssrlcv::MeshFactory::filterByNeighborDistance(float sigma){
       index++;
     }
   }
-  this->points = std::make_shared<ssrlcv::Unity<float3>>(nullptr,(this->points->size() - bad_points),cpu);
+  this->points = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,(this->points->size() - bad_points),cpu);
   for (int i = 0; i < this->points->size(); i++){
     this->points->host.get()[i] = temp->host.get()[i];
   }
@@ -655,7 +649,7 @@ void ssrlcv::MeshFactory::computeVertexImplicitJAX(int focusDepth){
   if(origin[4] != gpu && this->octree->nodes->getFore() != gpu){
     this->octree->nodes->transferMemoryTo(gpu);
   }
-  CudaSafeCall(cudaMalloc((void**)&this->vertexImplicitDevice, numConsideredVertices*sizeof(float)));
+  this->vertexImplicitDevice.set(numConsideredVertices);
 
   dim3 grid = {1,1,1};
   dim3 block = {8,1,1};
@@ -715,7 +709,7 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   if(origin[2] != cpu && this->octree->nodeDepthIndex->getFore() != cpu){
     this->octree->nodeDepthIndex->transferMemoryTo(cpu);
   }
-  ssrlcv::ptr::device<int> vertexNumbersDevice( this->octree->edges->size()*sizeof(int));
+  ssrlcv::ptr::device<int> vertexNumbersDevice( this->octree->edges->size());
   dim3 gridEdge = {1,1,1};
   dim3 blockEdge = {1,1,1};
   if(this->octree->edges->size() < 65535) gridEdge.x = (unsigned int) this->octree->edges->size();
@@ -739,8 +733,8 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   /*Triangles*/
   //surround vertices with values less than 0
 
-  ssrlcv::ptr::device<int> triangleNumbersDevice( this->octree->nodes->size()*sizeof(int));
-  ssrlcv::ptr::device<int> cubeCategoryDevice( this->octree->nodes->size()*sizeof(int));
+  ssrlcv::ptr::device<int> triangleNumbersDevice( this->octree->nodes->size());
+  ssrlcv::ptr::device<int> cubeCategoryDevice( this->octree->nodes->size());
 
   categorizeCubesRecursively<<<1,8>>>(this->octree->nodeDepthIndex->host.get()[this->octree->depth - 1], this->octree->edges->device.get(), this->octree->nodes->device.get(), vertexNumbersDevice.get(), cubeCategoryDevice.get(), triangleNumbersDevice.get());
   cudaDeviceSynchronize();
@@ -771,13 +765,13 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  ssrlcv::ptr::device<int> vertexAddressesDevice( this->octree->edges->size()*sizeof(int));
+  ssrlcv::ptr::device<int> vertexAddressesDevice( this->octree->edges->size());
   thrust::device_ptr<int> vN(vertexNumbersDevice.get());
   thrust::device_ptr<int> vA(vertexAddressesDevice.get());
   thrust::inclusive_scan(vN, vN + this->octree->edges->size(), vA);
   cudaDeviceSynchronize();
 
-  ssrlcv::ptr::device<int> triangleAddressesDevice( this->octree->nodes->size()*sizeof(int));
+  ssrlcv::ptr::device<int> triangleAddressesDevice( this->octree->nodes->size());
   thrust::device_ptr<int> tN(triangleNumbersDevice.get());
   thrust::device_ptr<int> tA(triangleAddressesDevice.get());
   thrust::inclusive_scan(tN, tN + this->octree->nodes->size(), tA);
@@ -791,7 +785,7 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
 
   printf("%d vertices and %d triangles from %lu finestNodes\n",this->numSurfaceVertices, this->numSurfaceTriangles, this->octree->nodes->size());
 
-  ssrlcv::ptr::device<float3> surfaceVerticesDevice( this->numSurfaceVertices*sizeof(float3));
+  ssrlcv::ptr::device<float3> surfaceVerticesDevice( this->numSurfaceVertices);
 
   if(origin[3] != gpu && this->octree->vertices->getFore() != gpu){
     this->octree->vertices->transferMemoryTo(gpu);
@@ -800,7 +794,7 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   /* generate vertices */
   generateSurfaceVertices<<<gridEdge,blockEdge>>>(this->octree->edges->size(), 0, this->octree->edges->device.get(), this->octree->vertices->device.get(), vertexNumbersDevice.get(), vertexAddressesDevice.get(), surfaceVerticesDevice.get());
   CudaCheckError();
-  this->surfaceVertices = std::shared_ptr<float3>(new float3[this->numSurfaceVertices], std::default_delete<float3[]>());
+  this->surfaceVertices = ssrlcv::ptr::host<float3>(this->numSurfaceVertices);
   CudaSafeCall(cudaMemcpy(this->surfaceVertices.get(), surfaceVerticesDevice.get(), this->numSurfaceVertices*sizeof(float3),cudaMemcpyDeviceToHost));
   this->octree->edges->transferMemoryTo(origin[0]);
   if(origin[0] == cpu){
@@ -811,7 +805,7 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
     this->octree->vertices->clear(gpu);
   }
 
-  ssrlcv::ptr::device<int3> surfaceTrianglesDevice( this->numSurfaceTriangles*sizeof(int3));
+  ssrlcv::ptr::device<int3> surfaceTrianglesDevice( this->numSurfaceTriangles);
 
   /* generate triangles */
   //grid is already numFinestNodes
@@ -833,7 +827,7 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   generateSurfaceTriangles<<<grid,block>>>(this->octree->nodes->size(), 0, 0, this->octree->nodes->device.get(), vertexAddressesDevice.get(), triangleAddressesDevice.get(), cubeCategoryDevice.get(), surfaceTrianglesDevice.get());
   CudaCheckError();
 
-  this->surfaceTriangles = std::shared_ptr<int3>(new int3[this->numSurfaceTriangles], std::default_delete<int3[]>());
+  this->surfaceTriangles = ssrlcv::ptr::host<int3>(this->numSurfaceTriangles);
   CudaSafeCall(cudaMemcpy(this->surfaceTriangles.get(), surfaceTrianglesDevice.get(), this->numSurfaceTriangles*sizeof(int3),cudaMemcpyDeviceToHost));
   this->octree->nodes->transferMemoryTo(origin[1]);
   if(origin[1] == cpu){
@@ -868,7 +862,7 @@ void ssrlcv::MeshFactory::marchingCubes(){
   if(origin[4] == gpu){
     this->octree->edgeDepthIndex->clear(cpu);
   }
-  ssrlcv::ptr::device<int> vertexNumbersDevice( numFinestEdges*sizeof(int));
+  ssrlcv::ptr::device<int> vertexNumbersDevice( numFinestEdges);
   dim3 gridEdge = {1,1,1};
   dim3 blockEdge = {1,1,1};
   if(numFinestEdges < 65535) gridEdge.x = (unsigned int) numFinestEdges;
@@ -887,7 +881,7 @@ void ssrlcv::MeshFactory::marchingCubes(){
   calcVertexNumbers<<<gridEdge,blockEdge>>>(numFinestEdges, 0, this->octree->edges->device.get(), this->vertexImplicitDevice.get(), vertexNumbersDevice.get());
   cudaDeviceSynchronize();
   CudaCheckError();
-  ssrlcv::ptr::device<int> vertexAddressesDevice( numFinestEdges*sizeof(int));
+  ssrlcv::ptr::device<int> vertexAddressesDevice( numFinestEdges);
   thrust::device_ptr<int> vN(vertexNumbersDevice.get());
   thrust::device_ptr<int> vA(vertexAddressesDevice.get());
   thrust::inclusive_scan(vN, vN + numFinestEdges, vA);
@@ -901,8 +895,8 @@ void ssrlcv::MeshFactory::marchingCubes(){
   if(origin[2] == gpu){
     this->octree->nodeDepthIndex->clear(cpu);
   }
-  ssrlcv::ptr::device<int> triangleNumbersDevice( numFinestNodes*sizeof(int));
-  ssrlcv::ptr::device<int> cubeCategoryDevice( numFinestNodes*sizeof(int));
+  ssrlcv::ptr::device<int> triangleNumbersDevice( numFinestNodes);
+  ssrlcv::ptr::device<int> cubeCategoryDevice( numFinestNodes);
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
@@ -923,7 +917,7 @@ void ssrlcv::MeshFactory::marchingCubes(){
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  ssrlcv::ptr::device<int> triangleAddressesDevice( numFinestNodes*sizeof(int));
+  ssrlcv::ptr::device<int> triangleAddressesDevice( numFinestNodes);
   thrust::device_ptr<int> tN(triangleNumbersDevice.get());
   thrust::device_ptr<int> tA(triangleAddressesDevice.get());
   thrust::inclusive_scan(tN, tN + numFinestNodes, tA);
@@ -937,7 +931,7 @@ void ssrlcv::MeshFactory::marchingCubes(){
 
   printf("%d vertices and %d triangles from %d finestNodes\n",this->numSurfaceVertices, this->numSurfaceTriangles, numFinestNodes);
 
-  ssrlcv::ptr::device<float3> surfaceVerticesDevice( this->numSurfaceVertices*sizeof(float3));
+  ssrlcv::ptr::device<float3> surfaceVerticesDevice( this->numSurfaceVertices);
 
 
   if(origin[3] != gpu && this->octree->vertices->getFore() != gpu){
@@ -947,7 +941,7 @@ void ssrlcv::MeshFactory::marchingCubes(){
   /* generate vertices */
   generateSurfaceVertices<<<gridEdge,blockEdge>>>(numFinestEdges, 0, this->octree->edges->device.get(), this->octree->vertices->device.get(), vertexNumbersDevice.get(), vertexAddressesDevice.get(), surfaceVerticesDevice.get());
   CudaCheckError();
-  this->surfaceVertices = std::shared_ptr<float3>(new float3[this->numSurfaceVertices], std::default_delete<float3[]>());
+  this->surfaceVertices = ssrlcv::ptr::host<float3>(this->numSurfaceVertices);
   CudaSafeCall(cudaMemcpy(this->surfaceVertices.get(), surfaceVerticesDevice.get(), this->numSurfaceVertices*sizeof(float3),cudaMemcpyDeviceToHost));
   this->octree->edges->transferMemoryTo(origin[0]);
   if(origin[0] == cpu){
@@ -959,7 +953,7 @@ void ssrlcv::MeshFactory::marchingCubes(){
   }
 
 
-  ssrlcv::ptr::device<int3> surfaceTrianglesDevice( this->numSurfaceTriangles*sizeof(int3));
+  ssrlcv::ptr::device<int3> surfaceTrianglesDevice( this->numSurfaceTriangles);
 
   /* generate triangles */
   //grid is already numFinestNodes
@@ -980,7 +974,7 @@ void ssrlcv::MeshFactory::marchingCubes(){
   generateSurfaceTriangles<<<grid,block>>>(numFinestNodes, 0, 0, this->octree->nodes->device.get(), vertexAddressesDevice.get(), triangleAddressesDevice.get(), cubeCategoryDevice.get(), surfaceTrianglesDevice.get());
   CudaCheckError();
 
-  this->surfaceTriangles = std::shared_ptr<int3>(new int3[this->numSurfaceTriangles], std::default_delete<int3[]>());
+  this->surfaceTriangles = ssrlcv::ptr::host<int3>(this->numSurfaceTriangles);
   CudaSafeCall(cudaMemcpy(this->surfaceTriangles.get(), surfaceTrianglesDevice.get(), this->numSurfaceTriangles*sizeof(int3),cudaMemcpyDeviceToHost));
   this->octree->nodes->transferMemoryTo(origin[1]);
   if(origin[1] == cpu){
@@ -1061,7 +1055,7 @@ void ssrlcv::MeshFactory::jaxMeshing(){
   //MARCHING CUBES ON
 
   int numMarchingEdges = this->octree->edgeDepthIndex->host.get()[surfaceDepth + 1] - this->octree->edgeDepthIndex->host.get()[surfaceDepth];
-  ssrlcv::ptr::device<int> vertexNumbersDevice( numMarchingEdges*sizeof(int));
+  ssrlcv::ptr::device<int> vertexNumbersDevice( numMarchingEdges);
   dim3 gridEdge = {1,1,1};
   dim3 blockEdge = {1,1,1};
   if(numMarchingEdges < 65535) gridEdge.x = (unsigned int) numMarchingEdges;
@@ -1080,7 +1074,7 @@ void ssrlcv::MeshFactory::jaxMeshing(){
   calcVertexNumbers<<<gridEdge,blockEdge>>>(numMarchingEdges, this->octree->edgeDepthIndex->host.get()[surfaceDepth], this->octree->edges->device.get(), this->vertexImplicitDevice.get(), vertexNumbersDevice.get());
   cudaDeviceSynchronize();
   CudaCheckError();
-  ssrlcv::ptr::device<int> vertexAddressesDevice( numMarchingEdges*sizeof(int));
+  ssrlcv::ptr::device<int> vertexAddressesDevice( numMarchingEdges);
   thrust::device_ptr<int> vN(vertexNumbersDevice.get());
   thrust::device_ptr<int> vA(vertexAddressesDevice.get());
   thrust::inclusive_scan(vN, vN + numMarchingEdges, vA);
@@ -1090,8 +1084,8 @@ void ssrlcv::MeshFactory::jaxMeshing(){
   //surround vertices with values less than 0
 
   int numMarchingNodes = this->octree->nodeDepthIndex->host.get()[surfaceDepth + 1] - this->octree->nodeDepthIndex->host.get()[surfaceDepth];
-  ssrlcv::ptr::device<int> triangleNumbersDevice( numMarchingNodes*sizeof(int));
-  ssrlcv::ptr::device<int> cubeCategoryDevice( numMarchingNodes*sizeof(int));
+  ssrlcv::ptr::device<int> triangleNumbersDevice( numMarchingNodes);
+  ssrlcv::ptr::device<int> cubeCategoryDevice( numMarchingNodes);
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
@@ -1114,7 +1108,7 @@ void ssrlcv::MeshFactory::jaxMeshing(){
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  ssrlcv::ptr::device<int> triangleAddressesDevice( numMarchingNodes*sizeof(int));
+  ssrlcv::ptr::device<int> triangleAddressesDevice( numMarchingNodes);
   thrust::device_ptr<int> tN(triangleNumbersDevice.get());
   thrust::device_ptr<int> tA(triangleAddressesDevice.get());
   thrust::inclusive_scan(tN, tN + numMarchingNodes, tA);
@@ -1128,7 +1122,7 @@ void ssrlcv::MeshFactory::jaxMeshing(){
 
   printf("%d vertices and %d triangles from %d finestNodes\n",this->numSurfaceVertices, this->numSurfaceTriangles, numMarchingNodes);
 
-  ssrlcv::ptr::device<float3> surfaceVerticesDevice( this->numSurfaceVertices*sizeof(float3));
+  ssrlcv::ptr::device<float3> surfaceVerticesDevice( this->numSurfaceVertices);
 
 
   if(origin[4] != gpu && this->octree->vertices->getFore() != gpu){
@@ -1138,7 +1132,7 @@ void ssrlcv::MeshFactory::jaxMeshing(){
   generateSurfaceVertices<<<gridEdge,blockEdge>>>(numMarchingEdges, this->octree->edgeDepthIndex->host.get()[surfaceDepth],
     this->octree->edges->device.get(), this->octree->vertices->device.get(), vertexNumbersDevice.get(), vertexAddressesDevice.get(), surfaceVerticesDevice.get());
   CudaCheckError();
-  this->surfaceVertices = std::shared_ptr<float3>(new float3[this->numSurfaceVertices], std::default_delete<float3[]>());
+  this->surfaceVertices = ssrlcv::ptr::host<float3>(this->numSurfaceVertices);
   CudaSafeCall(cudaMemcpy(this->surfaceVertices.get(), surfaceVerticesDevice.get(), this->numSurfaceVertices*sizeof(float3),cudaMemcpyDeviceToHost));
   this->octree->edges->transferMemoryTo(origin[0]);
   if(origin[0] == cpu){
@@ -1150,7 +1144,7 @@ void ssrlcv::MeshFactory::jaxMeshing(){
   }
 
 
-  ssrlcv::ptr::device<int3> surfaceTrianglesDevice( this->numSurfaceTriangles*sizeof(int3));
+  ssrlcv::ptr::device<int3> surfaceTrianglesDevice( this->numSurfaceTriangles);
 
   /* generate triangles */
   //grid is already numMarchingNodes
@@ -1173,7 +1167,7 @@ void ssrlcv::MeshFactory::jaxMeshing(){
     triangleAddressesDevice.get(), cubeCategoryDevice.get(), surfaceTrianglesDevice.get());
   CudaCheckError();
 
-  this->surfaceTriangles = std::shared_ptr<int3>(new int3[this->numSurfaceTriangles], std::default_delete<int3[]>());
+  this->surfaceTriangles = ssrlcv::ptr::host<int3>(this->numSurfaceTriangles);
   CudaSafeCall(cudaMemcpy(this->surfaceTriangles.get(), surfaceTrianglesDevice.get(), this->numSurfaceTriangles*sizeof(int3),cudaMemcpyDeviceToHost));
   this->octree->edgeDepthIndex->transferMemoryTo(origin[1]);
   if(origin[1] == gpu){

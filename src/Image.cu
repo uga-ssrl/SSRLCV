@@ -36,7 +36,7 @@ ssrlcv::Image::Image(){
   this->filePath = "n/a";
 }
 
-ssrlcv::Image::Image(uint2 size, unsigned int colorDepth, std::shared_ptr<ssrlcv::Unity<unsigned char>> pixels){
+ssrlcv::Image::Image(uint2 size, unsigned int colorDepth, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels){
   this->filePath = "n/a";
   this->id = -1;
   this->colorDepth = colorDepth;
@@ -51,13 +51,13 @@ ssrlcv::Image::Image(std::string filePath, int id) {
   this->id = id;
   this->colorDepth = 1;
   // find the image extension
-  std::shared_ptr<unsigned char> pixels_host = readImage(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  ssrlcv::ptr::host<unsigned char> pixels_host = readImage(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
 
   // set some initial params
   this->camera.size = this->size;
   this->size = size;
 
-  this->pixels = std::make_shared<ssrlcv::Unity<unsigned char>>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
+  this->pixels = ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
 
   // this check is just in case Middleburry data is input
   std::string file_no_digits = filename;
@@ -253,11 +253,11 @@ ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int
   this->filePath = filePath;
   this->id = id;
   this->colorDepth = 1;
-  std::shared_ptr<unsigned char> pixels_host = readImage(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
+  ssrlcv::ptr::host<unsigned char> pixels_host = readImage(filePath.c_str(), this->size.y, this->size.x, this->colorDepth);
 
   this->camera.size = this->size;
   this->size = size;
-  this->pixels = std::make_shared<ssrlcv::Unity<unsigned char>>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
+  this->pixels = ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
   for(int i = 0; i < this->pixels->size(); ++i){
     std::cout<<this->pixels->host.get()[i]<<"\n";
   }
@@ -292,7 +292,7 @@ void ssrlcv::Image::convertColorDepthTo(unsigned int colorDepth){
     exit(-1);
   }
 }
-std::shared_ptr<ssrlcv::Unity<int2>> ssrlcv::Image::getPixelGradients(){
+ssrlcv::ptr::value<ssrlcv::Unity<int2>> ssrlcv::Image::getPixelGradients(){
   return generatePixelGradients(this->size,this->pixels);
 }
 void ssrlcv::Image::alterSize(int scalingFactor){
@@ -328,8 +328,8 @@ void ssrlcv::Image::alterSize(int scalingFactor){
 * removes the unix time stamp
 * @returns array of floats representing the camera parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
 */
-std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::Image::getFloatVector(){
-  std::shared_ptr<ssrlcv::Unity<float>> params = std::make_shared<ssrlcv::Unity<float>>(nullptr,11,ssrlcv::cpu);
+ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::Image::getFloatVector(){
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> params = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,11,ssrlcv::cpu);
   params->host.get()[0 ] = this->camera.cam_pos.x;
   params->host.get()[1 ] = this->camera.cam_pos.y;
   params->host.get()[2 ] = this->camera.cam_pos.z;
@@ -350,8 +350,8 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::Image::getFloatVector(){
 * @param len the desired lentgth of the vector, has the effect of extracting less parameters
 * @returns array of floats representing the camera parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
 */
-std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::Image::getFloatVector(int len){
-  std::shared_ptr<ssrlcv::Unity<float>> params = std::make_shared<ssrlcv::Unity<float>>(nullptr,len,ssrlcv::cpu);
+ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::Image::getFloatVector(int len){
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> params = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,len,ssrlcv::cpu);
   switch(len){
     case 11:
       params->host.get()[10] = this->camera.dpix.y    ;
@@ -388,7 +388,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::Image::getFloatVector(int len){
 * if there are less than 11 params the camera will still be updated, retaining values for params not included
 * @param array of floats which should update the current parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
 */
-void ssrlcv::Image::setFloatVector(std::shared_ptr<ssrlcv::Unity<float>> params){
+void ssrlcv::Image::setFloatVector(ssrlcv::ptr::value<ssrlcv::Unity<float>> params){
   switch(params->size()){
     case 11:
       this->camera.dpix.y    = params->host.get()[10];
@@ -423,8 +423,8 @@ void ssrlcv::Image::setFloatVector(std::shared_ptr<ssrlcv::Unity<float>> params)
 * @param other the other camera's extrinsic parameters
 * @returns difference the difference between the extinsic camera params
 */
-std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::Image::getExtrinsicDifference(Camera other){
-  std::shared_ptr<ssrlcv::Unity<float>> diff = std::make_shared<ssrlcv::Unity<float>>(nullptr,6,ssrlcv::cpu);
+ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::Image::getExtrinsicDifference(Camera other){
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> diff = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,6,ssrlcv::cpu);
   diff->host.get()[0] = camera.cam_pos.x - other.cam_pos.x;
   diff->host.get()[1] = camera.cam_pos.y - other.cam_pos.y;
   diff->host.get()[2] = camera.cam_pos.z - other.cam_pos.z;
@@ -440,7 +440,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::Image::getExtrinsicDifference(Came
 //
 // =============================================================================================================
 
-std::shared_ptr<ssrlcv::Unity<unsigned char>> ssrlcv::addBufferBorder(uint2 size, std::shared_ptr<ssrlcv::Unity<unsigned char>> pixels, int2 border){
+ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> ssrlcv::addBufferBorder(uint2 size, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, int2 border){
   if(border.x == 0 && border.y == 0){
     logger.err<<"ERROR border cannot be 0"<<"\n";
     exit(-1);
@@ -456,7 +456,7 @@ std::shared_ptr<ssrlcv::Unity<unsigned char>> ssrlcv::addBufferBorder(uint2 size
   if(origin != gpu) pixels->setMemoryState(gpu);
   uint2 newSize = {size.x + (border.x*2),size.y + (border.y*2)};
   int colorDepth = pixels->size()/((int)size.x*size.y);
-  std::shared_ptr<ssrlcv::Unity<unsigned char>> bufferedPixels = std::make_shared<ssrlcv::Unity<unsigned char>>(nullptr,newSize.x*newSize.y*colorDepth,gpu);
+  ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> bufferedPixels = ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>>(nullptr,newSize.x*newSize.y*colorDepth,gpu);
   for(int y = border.y; y < (int)size.y + border.y; ++y){
     CudaSafeCall(cudaMemcpy(bufferedPixels->device.get() + (y*newSize.x) + border.x,pixels->device.get() + (y*size.x),size.x*sizeof(unsigned char),cudaMemcpyDeviceToDevice));
   }
@@ -466,7 +466,7 @@ std::shared_ptr<ssrlcv::Unity<unsigned char>> ssrlcv::addBufferBorder(uint2 size
   }
   return bufferedPixels;
 }
-std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::addBufferBorder(uint2 size, std::shared_ptr<ssrlcv::Unity<float>> pixels, int2 border){
+ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::addBufferBorder(uint2 size, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, int2 border){
   if(border.x == 0 && border.y == 0){
     logger.err<<"ERROR border cannot be 0"<<"\n";
     exit(-1);
@@ -483,7 +483,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::addBufferBorder(uint2 size, std::s
 
   uint2 newSize = {size.x + (border.x*2),size.y + (border.y*2)};
   int colorDepth = pixels->size()/((int)size.x*size.y);
-  std::shared_ptr<ssrlcv::Unity<float>> bufferedPixels = std::make_shared<ssrlcv::Unity<float>>(nullptr,newSize.x*newSize.y*colorDepth,gpu);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> bufferedPixels = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,newSize.x*newSize.y*colorDepth,gpu);
   for(int y = 0; y < (int)size.y; ++y){
     CudaSafeCall(cudaMemcpy(bufferedPixels->device.get() + ((y+border.y)*newSize.x) + border.x,pixels->device.get() + (y*size.x),size.x*sizeof(float),cudaMemcpyDeviceToDevice));
   }
@@ -494,25 +494,25 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::addBufferBorder(uint2 size, std::s
   return bufferedPixels;
 }
 
-std::shared_ptr<ssrlcv::Unity<unsigned char>> ssrlcv::convertImageToChar(std::shared_ptr<ssrlcv::Unity<float>> pixels){
-  std::shared_ptr<ssrlcv::Unity<float>> pixels_cpy = std::make_shared<ssrlcv::Unity<float>>(pixels);
+ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> ssrlcv::convertImageToChar(ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels){
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels_cpy = ssrlcv::ptr::value<ssrlcv::Unity<float>>(pixels);
   normalizeImage(pixels_cpy);
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   getFlatGridBlock(pixels_cpy->size(),grid,block,convertToCharImage);
-  std::shared_ptr<ssrlcv::Unity<unsigned char>> castPixels = std::make_shared<ssrlcv::Unity<unsigned char>>(nullptr,pixels_cpy->size(),gpu);
+  ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> castPixels = ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>>(nullptr,pixels_cpy->size(),gpu);
   convertToCharImage<<<grid,block>>>(pixels_cpy->size(),castPixels->device.get(),pixels_cpy->device.get());
   cudaDeviceSynchronize();
   CudaCheckError();
   return castPixels;
 }
-std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::convertImageToFlt(std::shared_ptr<ssrlcv::Unity<unsigned char>> pixels){
+ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::convertImageToFlt(ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels){
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   getFlatGridBlock(pixels->size(),grid,block,convertToFltImage);
-  std::shared_ptr<ssrlcv::Unity<float>> castPixels = std::make_shared<ssrlcv::Unity<float>>(nullptr,pixels->size(),gpu);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> castPixels = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,pixels->size(),gpu);
   convertToFltImage<<<grid,block>>>(pixels->size(),pixels->device.get(),castPixels->device.get());
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -525,7 +525,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::convertImageToFlt(std::shared_ptr<
 
 //todo use cuda reduction instead of cpu loop for min max finding
 //todo add support for color depth
-void ssrlcv::normalizeImage(std::shared_ptr<ssrlcv::Unity<float>> pixels){
+void ssrlcv::normalizeImage(ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels){
   MemoryState origin = pixels->getMemoryState();
   float2 minMax = {FLT_MAX,-FLT_MAX};
   if(pixels->getFore() != both) pixels->setMemoryState(both);
@@ -543,7 +543,7 @@ void ssrlcv::normalizeImage(std::shared_ptr<ssrlcv::Unity<float>> pixels){
   pixels->setFore(gpu);
   if(origin != pixels->getMemoryState()) pixels->setMemoryState(origin);
 }
-void ssrlcv::normalizeImage(std::shared_ptr<ssrlcv::Unity<float>> pixels, float2 minMax){
+void ssrlcv::normalizeImage(ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, float2 minMax){
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
   dim3 grid = {1,1,1};
@@ -558,7 +558,7 @@ void ssrlcv::normalizeImage(std::shared_ptr<ssrlcv::Unity<float>> pixels, float2
   if(origin != gpu) pixels->setMemoryState(origin);
 }
 
-void ssrlcv::convertToBW(std::shared_ptr<ssrlcv::Unity<unsigned char>> pixels, unsigned int colorDepth){
+void ssrlcv::convertToBW(ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, unsigned int colorDepth){
   if(colorDepth == 1){
     std::cout<<"Pixels are already bw"<<"\n";
     return;
@@ -569,7 +569,7 @@ void ssrlcv::convertToBW(std::shared_ptr<ssrlcv::Unity<unsigned char>> pixels, u
 
   unsigned int numPixels = (pixels->size()/colorDepth);
 
-  ssrlcv::ptr::device<unsigned char> bwPixels_device( numPixels*sizeof(unsigned char));
+  ssrlcv::ptr::device<unsigned char> bwPixels_device( numPixels);
 
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
@@ -582,7 +582,7 @@ void ssrlcv::convertToBW(std::shared_ptr<ssrlcv::Unity<unsigned char>> pixels, u
   pixels->setData(bwPixels_device, numPixels, gpu);
   if(origin != gpu) pixels->setMemoryState(origin);
 }
-void ssrlcv::convertToRGB(std::shared_ptr<ssrlcv::Unity<unsigned char>> pixels, unsigned int colorDepth){
+void ssrlcv::convertToRGB(ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, unsigned int colorDepth){
   if(colorDepth == 3){
     std::cout<<"Pixels are already rgb"<<"\n";
     return;
@@ -593,7 +593,7 @@ void ssrlcv::convertToRGB(std::shared_ptr<ssrlcv::Unity<unsigned char>> pixels, 
 
   unsigned int numPixels = (pixels->size()/colorDepth);
 
-  ssrlcv::ptr::device<unsigned char> rgbPixels_device( numPixels*3*sizeof(unsigned char));
+  ssrlcv::ptr::device<unsigned char> rgbPixels_device( numPixels*3);
 
   dim3 grid;
   dim3 block;
@@ -798,11 +798,11 @@ void ssrlcv::get_cam_params2view(Image* cam1, Image* cam2, std::string infile){
     cam2->camera.foc*tan(cam2->camera.fov.y/2)/(cam2->size.y/2)};
 }
 
-std::shared_ptr<ssrlcv::Unity<int2>> ssrlcv::generatePixelGradients(uint2 imageSize, std::shared_ptr<ssrlcv::Unity<unsigned char>> pixels){
+ssrlcv::ptr::value<ssrlcv::Unity<int2>> ssrlcv::generatePixelGradients(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels){
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
 
-  ssrlcv::ptr::device<int2> gradients_device(pixels->size()*sizeof(int2));
+  ssrlcv::ptr::device<int2> gradients_device(pixels->size());
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2,unsigned char*,int2*) = &calculatePixelGradients;
@@ -812,13 +812,13 @@ std::shared_ptr<ssrlcv::Unity<int2>> ssrlcv::generatePixelGradients(uint2 imageS
 
   if(origin != gpu) pixels->setMemoryState(origin);
 
-  return std::make_shared<Unity<int2>>(gradients_device,pixels->size(),gpu);
+  return ssrlcv::ptr::value<Unity<int2>>(gradients_device,pixels->size(),gpu);
 }
-std::shared_ptr<ssrlcv::Unity<float2>> ssrlcv::generatePixelGradients(uint2 imageSize, std::shared_ptr<ssrlcv::Unity<float>> pixels){
+ssrlcv::ptr::value<ssrlcv::Unity<float2>> ssrlcv::generatePixelGradients(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels){
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
 
-  ssrlcv::ptr::device<float2> gradients_device(pixels->size()*sizeof(float2));
+  ssrlcv::ptr::device<float2> gradients_device(pixels->size());
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2,float*,float2*) = &calculatePixelGradients;
@@ -828,10 +828,10 @@ std::shared_ptr<ssrlcv::Unity<float2>> ssrlcv::generatePixelGradients(uint2 imag
 
   if(origin == cpu) pixels->setMemoryState(cpu);
 
-  return std::make_shared<Unity<float2>>(gradients_device,pixels->size(),gpu);
+  return ssrlcv::ptr::value<Unity<float2>>(gradients_device,pixels->size(),gpu);
 }
 
-void ssrlcv::makeBinnable(uint2 &size, std::shared_ptr<ssrlcv::Unity<unsigned char>> pixels, int plannedDepth){
+void ssrlcv::makeBinnable(uint2 &size, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, int plannedDepth){
   MemoryState origin = pixels->getMemoryState();
   int numResize = (int)pow(2, plannedDepth);
   int dimOffset[2] = {(int)size.x%numResize,(int)size.y%numResize};
@@ -859,7 +859,7 @@ void ssrlcv::makeBinnable(uint2 &size, std::shared_ptr<ssrlcv::Unity<unsigned ch
     std::cout<<"no resize necessary for binning to depth "<<plannedDepth<<"\n";//TODO turn to verbose debug
   }
 }
-void ssrlcv::makeBinnable(uint2 &size, std::shared_ptr<ssrlcv::Unity<float>> pixels, int plannedDepth){
+void ssrlcv::makeBinnable(uint2 &size, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, int plannedDepth){
   MemoryState origin = pixels->getMemoryState();
   int numResize = (int)pow(2, plannedDepth);
   int dimOffset[2] = {(int)size.x%numResize,(int)size.y%numResize};
@@ -890,10 +890,10 @@ void ssrlcv::makeBinnable(uint2 &size, std::shared_ptr<ssrlcv::Unity<float>> pix
   }
 }
 
-std::shared_ptr<ssrlcv::Unity<unsigned char>> ssrlcv::bin(uint2 imageSize, std::shared_ptr<ssrlcv::Unity<unsigned char>> pixels){
+ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> ssrlcv::bin(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels){
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
-  std::shared_ptr<ssrlcv::Unity<unsigned char>> binnedImage = std::make_shared<ssrlcv::Unity<unsigned char>>(nullptr, pixels->size()/4, gpu);
+  ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> binnedImage = ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>>(nullptr, pixels->size()/4, gpu);
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2, unsigned int, unsigned char*, unsigned char*) = &binImage;
@@ -909,11 +909,11 @@ std::shared_ptr<ssrlcv::Unity<unsigned char>> ssrlcv::bin(uint2 imageSize, std::
   }
   return binnedImage;
 }
-std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::bin(uint2 imageSize, std::shared_ptr<ssrlcv::Unity<float>> pixels){
+ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::bin(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels){
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
 
-  std::shared_ptr<ssrlcv::Unity<float>> binnedImage = std::make_shared<ssrlcv::Unity<float>>(nullptr, pixels->size()/4, gpu);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> binnedImage = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr, pixels->size()/4, gpu);
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
   void (*fp)(uint2, unsigned int, float*, float*) = &binImage;
@@ -929,7 +929,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::bin(uint2 imageSize, std::shared_p
   }
   return binnedImage;
 }
-std::shared_ptr<ssrlcv::Unity<unsigned char>> ssrlcv::upsample(uint2 imageSize, std::shared_ptr<ssrlcv::Unity<unsigned char>> pixels){
+ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> ssrlcv::upsample(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels){
   MemoryState origin = pixels->getMemoryState();
 
   if(origin != gpu) pixels->setMemoryState(gpu);
@@ -937,7 +937,7 @@ std::shared_ptr<ssrlcv::Unity<unsigned char>> ssrlcv::upsample(uint2 imageSize, 
   dim3 block = {1,1,1};
   void (*fp)(uint2, unsigned int, unsigned char*, unsigned char*) = &upsampleImage;
   get2DGridBlock(imageSize*2,grid,block,fp);
-  std::shared_ptr<ssrlcv::Unity<unsigned char>> upsampledImage = std::make_shared<ssrlcv::Unity<unsigned char>>(nullptr, pixels->size()*4, gpu);
+  ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> upsampledImage = ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>>(nullptr, pixels->size()*4, gpu);
   int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
   upsampleImage<<<grid,block>>>(imageSize,colorDepth,pixels->device.get(),upsampledImage->device.get());
   cudaDeviceSynchronize();
@@ -950,7 +950,7 @@ std::shared_ptr<ssrlcv::Unity<unsigned char>> ssrlcv::upsample(uint2 imageSize, 
   return upsampledImage;
 
 }
-std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::upsample(uint2 imageSize, std::shared_ptr<ssrlcv::Unity<float>> pixels){
+ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::upsample(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels){
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
 
@@ -959,7 +959,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::upsample(uint2 imageSize, std::sha
   void (*fp)(uint2, unsigned int, float*, float*) = &upsampleImage;
   get2DGridBlock(imageSize*2,grid,block,fp);
   int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
-  std::shared_ptr<ssrlcv::Unity<float>> upsampledImage = std::make_shared<ssrlcv::Unity<float>>(nullptr, pixels->size()*4, gpu);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> upsampledImage = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr, pixels->size()*4, gpu);
   upsampleImage<<<grid,block>>>(imageSize,colorDepth,pixels->device.get(),upsampledImage->device.get());
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -970,7 +970,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::upsample(uint2 imageSize, std::sha
   }
   return upsampledImage;
 }
-std::shared_ptr<ssrlcv::Unity<unsigned char>> ssrlcv::scaleImage(uint2 imageSize, std::shared_ptr<ssrlcv::Unity<unsigned char>> pixels, float outputPixelWidth){
+ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> ssrlcv::scaleImage(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, float outputPixelWidth){
   MemoryState origin = pixels->getMemoryState();
 
   if(origin != gpu) pixels->setMemoryState(gpu);
@@ -981,12 +981,12 @@ std::shared_ptr<ssrlcv::Unity<unsigned char>> ssrlcv::scaleImage(uint2 imageSize
   void (*fp)(uint2, unsigned int, unsigned char*, unsigned char*, float) = &bilinearInterpolation;
   get2DGridBlock((imageSize/outputPixelWidth) + 1, grid,block,fp);
   int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
-  ssrlcv::ptr::device<unsigned char> sampledImage_device(pixels->size()*4*sizeof(unsigned char));
+  ssrlcv::ptr::device<unsigned char> sampledImage_device(pixels->size()*4);
   bilinearInterpolation<<<grid,block>>>(imageSize,colorDepth,pixels->device.get(),sampledImage_device.get(),outputPixelWidth);
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  std::shared_ptr<ssrlcv::Unity<unsigned char>> sampledImage = std::make_shared<ssrlcv::Unity<unsigned char>>(sampledImage_device, (unsigned long) (pixels->size()/(outputPixelWidth*outputPixelWidth)), gpu);
+  ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> sampledImage = ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>>(sampledImage_device, (unsigned long) (pixels->size()/(outputPixelWidth*outputPixelWidth)), gpu);
 
   if(origin != gpu){
     pixels->setMemoryState(origin);
@@ -995,7 +995,7 @@ std::shared_ptr<ssrlcv::Unity<unsigned char>> ssrlcv::scaleImage(uint2 imageSize
 
   return sampledImage;
 }
-std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::scaleImage(uint2 imageSize, std::shared_ptr<ssrlcv::Unity<float>> pixels, float outputPixelWidth){
+ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::scaleImage(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, float outputPixelWidth){
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
 
@@ -1005,12 +1005,12 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::scaleImage(uint2 imageSize, std::s
   void (*fp)(uint2, unsigned int, float*, float*, float) = &bilinearInterpolation;
   get2DGridBlock((imageSize/outputPixelWidth) + 1, grid,block,fp);
   int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
-  ssrlcv::ptr::device<float> sampledImage_device(pixels->size()*4*sizeof(float));
+  ssrlcv::ptr::device<float> sampledImage_device(pixels->size()*4);
   bilinearInterpolation<<<grid,block>>>(imageSize,colorDepth,pixels->device.get(),sampledImage_device.get(),outputPixelWidth);
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  std::shared_ptr<ssrlcv::Unity<float>> sampledImage = std::make_shared<ssrlcv::Unity<float>>(sampledImage_device, (unsigned long) (pixels->size()/(outputPixelWidth*outputPixelWidth)), gpu);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> sampledImage = ssrlcv::ptr::value<ssrlcv::Unity<float>>(sampledImage_device, (unsigned long) (pixels->size()/(outputPixelWidth*outputPixelWidth)), gpu);
 
   if(origin != gpu){
     pixels->setMemoryState(origin);
@@ -1021,7 +1021,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::scaleImage(uint2 imageSize, std::s
 }
 
 
-std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::convolve(uint2 imageSize, std::shared_ptr<ssrlcv::Unity<unsigned char>> pixels, int2 kernelSize, float* kernel, bool symmetric){
+ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::convolve(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, int2 kernelSize, float* kernel, bool symmetric){
   if(kernelSize.x%2 == 0 || kernelSize.y%2 == 0){
     logger.err<<"ERROR kernel for image convolution must have an odd dimension"<<"\n";
     exit(-1);
@@ -1029,8 +1029,8 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::convolve(uint2 imageSize, std::sha
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
   int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
-  std::shared_ptr<ssrlcv::Unity<float>> convolvedImage = std::make_shared<ssrlcv::Unity<float>>(nullptr,pixels->size(),gpu);
-  ssrlcv::ptr::device<float> kernel_device(kernelSize.x*kernelSize.y*sizeof(float));
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> convolvedImage = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,pixels->size(),gpu);
+  ssrlcv::ptr::device<float> kernel_device(kernelSize.x*kernelSize.y);
   CudaSafeCall(cudaMemcpy(kernel_device.get(),kernel,kernelSize.x*kernelSize.y*sizeof(float),cudaMemcpyHostToDevice));
 
   dim3 grid = {1,1,1};
@@ -1055,7 +1055,7 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::convolve(uint2 imageSize, std::sha
   }
   return convolvedImage;
 }
-std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::convolve(uint2 imageSize, std::shared_ptr<ssrlcv::Unity<float>> pixels, int2 kernelSize, float* kernel, bool symmetric){
+ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::convolve(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, int2 kernelSize, float* kernel, bool symmetric){
   if(kernelSize.x%2 == 0 || kernelSize.y%2 == 0){
     logger.err<<"ERROR kernel for image convolution must have an odd dimension"<<"\n";
     exit(-1);
@@ -1063,8 +1063,8 @@ std::shared_ptr<ssrlcv::Unity<float>> ssrlcv::convolve(uint2 imageSize, std::sha
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
   int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
-  std::shared_ptr<ssrlcv::Unity<float>> convolvedImage = std::make_shared<ssrlcv::Unity<float>>(nullptr,pixels->size(),gpu);
-  ssrlcv::ptr::device<float> kernel_device(kernelSize.x*kernelSize.y*sizeof(float));
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> convolvedImage = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,pixels->size(),gpu);
+  ssrlcv::ptr::device<float> kernel_device(kernelSize.x*kernelSize.y);
   CudaSafeCall(cudaMemcpy(kernel_device.get(),kernel,kernelSize.x*kernelSize.y*sizeof(float),cudaMemcpyHostToDevice));
 
   dim3 grid = {1,1,1};

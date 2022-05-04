@@ -12,8 +12,8 @@ namespace ssrlcv{
     public:
         unsigned int dim;
         unsigned int depth;
-        std::shared_ptr<ssrlcv::Unity<uint8_t>> keyBytes;//depth/8 = number of keySegments per object
-        std::shared_ptr<ssrlcv::Unity<T>> data;
+        ssrlcv::ptr::value<ssrlcv::Unity<uint8_t>> keyBytes;//depth/8 = number of keySegments per object
+        ssrlcv::ptr::value<ssrlcv::Unity<T>> data;
 
         KDTree();
         KDTree(unsigned int dim, unsigned int depth);

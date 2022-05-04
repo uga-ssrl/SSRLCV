@@ -9,7 +9,7 @@ namespace ssrlcv {
 
     typedef ssrlcv::Feature<ssrlcv::SIFT_Descriptor> SiftFeature;
 
-    std::shared_ptr<ssrlcv::Unity<SiftFeature>> readFeatures(std::istream & stream) { 
+    ssrlcv::ptr::value<ssrlcv::Unity<SiftFeature>> readFeatures(std::istream & stream) { 
         const int LINE_SIZE = 1024; // It seems to me that most lines are about 350 chars
         const int DESC_SIZE = 128; // This is standard,,,, riiiiiiight?
 
@@ -51,12 +51,12 @@ namespace ssrlcv {
         delete[] line; 
 
         size_t size = datboi.size(); 
-        std::shared_ptr<ssrlcv::Unity<SiftFeature>> ret = std::make_shared<ssrlcv::Unity<SiftFeature>>(nullptr, size, cpu); 
+        ssrlcv::ptr::value<ssrlcv::Unity<SiftFeature>> ret = ssrlcv::ptr::value<ssrlcv::Unity<SiftFeature>>(nullptr, size, cpu); 
         std::memcpy(ret->host.get(), datboi.data(), sizeof(SiftFeature) * size); 
         return ret; 
     }
 
-    std::shared_ptr<ssrlcv::Unity<Match>> readMatches(std::istream & stream) { 
+    ssrlcv::ptr::value<ssrlcv::Unity<Match>> readMatches(std::istream & stream) { 
         stream.exceptions(std::ios::failbit);
         const int LINE_SIZE = 1024;
         char * line = new char[LINE_SIZE];   
@@ -81,7 +81,7 @@ namespace ssrlcv {
         delete[] line; 
 
         size_t size = datboi.size(); 
-        std::shared_ptr<ssrlcv::Unity<Match>> ret = std::make_shared<ssrlcv::Unity<Match>>(nullptr, size, cpu); 
+        ssrlcv::ptr::value<ssrlcv::Unity<Match>> ret = ssrlcv::ptr::value<ssrlcv::Unity<Match>>(nullptr, size, cpu); 
         std::memcpy(ret->host.get(), datboi.data(), sizeof(Match) * size); 
         return ret; 
 

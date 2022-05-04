@@ -92,23 +92,23 @@ namespace ssrlcv{
         struct Blur{
           uint2 size;
           float sigma;
-          std::shared_ptr<ssrlcv::Unity<float>> pixels;/**\brief vector of Unity structs holding pixel values*/
-          std::shared_ptr<ssrlcv::Unity<float2>> gradients;
+          ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels;/**\brief vector of Unity structs holding pixel values*/
+          ssrlcv::ptr::value<ssrlcv::Unity<float2>> gradients;
           Blur();
-          Blur(float sigma, int2 kernelSize, std::shared_ptr<ssrlcv::Unity<float>> pixels, uint2 size, float pixelWidth);
+          Blur(float sigma, int2 kernelSize, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, uint2 size, float pixelWidth);
           void computeGradients();
         };
 
 
         int id;
         unsigned int numBlurs;
-        std::shared_ptr<std::shared_ptr<Blur>> blurs;/**\brief array of blur pointers*/
+        ssrlcv::ptr::host<ssrlcv::ptr::value<Blur>> blurs;/**\brief array of blur pointers*/
         float pixelWidth;
-        std::shared_ptr<ssrlcv::Unity<SSKeyPoint>> extrema;
-        std::shared_ptr<int> extremaBlurIndices;
+        ssrlcv::ptr::value<ssrlcv::Unity<SSKeyPoint>> extrema;
+        ssrlcv::ptr::host<int> extremaBlurIndices;
 
         Octave();
-        Octave(int id, unsigned int numBlurs, int2 kernelSize, std::shared_ptr<float> sigmas, std::shared_ptr<ssrlcv::Unity<float>> pixels, uint2 size, float pixelWidth, int keepPixelsAfterBlur);      
+        Octave(int id, unsigned int numBlurs, int2 kernelSize, ssrlcv::ptr::host<float> sigmas, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, uint2 size, float pixelWidth, int keepPixelsAfterBlur);      
         void searchForExtrema();
         void discardExtrema();
         void refineExtremaLocation();
@@ -122,10 +122,10 @@ namespace ssrlcv{
       };
 
       uint2 depth;///< depth of ScaleSpace {numOctaves, numBlurs}
-      std::shared_ptr<std::shared_ptr<Octave>> octaves;
+      ssrlcv::ptr::host<ssrlcv::ptr::value<Octave>> octaves;
 
       ScaleSpace();
-      ScaleSpace(std::shared_ptr<ssrlcv::Image> image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize, bool makeDOG = false);
+      ScaleSpace(ssrlcv::ptr::value<ssrlcv::Image> image, int startingOctave, uint2 scaleSpaceDim, float initialSigma, float2 sigmaMultiplier, int2 kernelSize, bool makeDOG = false);
       
       bool checkIfDOG();
     
@@ -141,7 +141,7 @@ namespace ssrlcv{
       /**
       * \brief will return all key points in octaves of scalespace
       */
-      std::shared_ptr<ssrlcv::Unity<SSKeyPoint>> getAllKeyPoints(MemoryState destination = gpu);
+      ssrlcv::ptr::value<ssrlcv::Unity<SSKeyPoint>> getAllKeyPoints(MemoryState destination = gpu);
 
       /**
       * \brief compute orientations for key points - will generate more features based on orientations above threshold
@@ -181,27 +181,27 @@ namespace ssrlcv{
     * \brief feature generators for 3x3 pixel window
     * \details 
     */
-    std::shared_ptr<Unity<Feature<Window_3x3>>> generate3x3Windows(Image* image);
+    ssrlcv::ptr::value<Unity<Feature<Window_3x3>>> generate3x3Windows(Image* image);
     /**
     * \brief feature generators for 9x9 pixel window
     * \details 
     */
-    std::shared_ptr<Unity<Feature<Window_9x9>>> generate9x9Windows(Image* image);
+    ssrlcv::ptr::value<Unity<Feature<Window_9x9>>> generate9x9Windows(Image* image);
     /**
     * \brief feature generators for 15x15 pixel window
     * \details 
     */
-    std::shared_ptr<Unity<Feature<Window_15x15>>> generate15x15Windows(Image* image);
+    ssrlcv::ptr::value<Unity<Feature<Window_15x15>>> generate15x15Windows(Image* image);
     /**
     * \brief feature generators for 25x25 pixel window
     * \details 
     */
-    std::shared_ptr<Unity<Feature<Window_25x25>>> generate25x25Windows(Image* image);
+    ssrlcv::ptr::value<Unity<Feature<Window_25x25>>> generate25x25Windows(Image* image);
     /**
     * \brief feature generators for 31x31 pixel window
     * \details 
     */
-    std::shared_ptr<Unity<Feature<Window_31x31>>> generate31x31Windows(Image* image);
+    ssrlcv::ptr::value<Unity<Feature<Window_31x31>>> generate31x31Windows(Image* image);
 
     ~FeatureFactory();  
 

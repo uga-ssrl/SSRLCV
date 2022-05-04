@@ -14,9 +14,9 @@ ssrlcv::SIFT_FeatureFactory::SIFT_FeatureFactory(float orientationContribWidth, 
  * @param orientationThreshold orientation threshold
  * @return a vector of SIFT feature descriptors
  */
-std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrlcv::SIFT_FeatureFactory::generateFeatures(std::shared_ptr<ssrlcv::Image> image, bool dense, unsigned int maxOrientations, float orientationThreshold){
+ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrlcv::SIFT_FeatureFactory::generateFeatures(ssrlcv::ptr::value<ssrlcv::Image> image, bool dense, unsigned int maxOrientations, float orientationThreshold){
   std::cout<<"Generating SIFT features for image "<<image->id<<std::endl<<"\t";
-  std::shared_ptr<Unity<Feature<SIFT_Descriptor>>> features(nullptr);
+  ssrlcv::ptr::value<Unity<Feature<SIFT_Descriptor>>> features;
   
   // make sure we are operating in GPU memory
   MemoryState origin = image->pixels->getMemoryState();
@@ -32,12 +32,12 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrlcv:
   if(dense){
 
     clock_t timer = clock();
-    std::shared_ptr<ssrlcv::Unity<float>> pixelsFLT = convertImageToFlt(image->pixels);
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> pixelsFLT = convertImageToFlt(image->pixels);
     if(origin != gpu) image->pixels->setMemoryState(origin);//no longer need to force pixels on gpu
     normalizeImage(pixelsFLT);
-    std::shared_ptr<ssrlcv::Unity<float2>> gradients = generatePixelGradients(image->size, pixelsFLT);
+    ssrlcv::ptr::value<ssrlcv::Unity<float2>> gradients = generatePixelGradients(image->size, pixelsFLT);
     //12x12 border
-    std::shared_ptr<ssrlcv::Unity<float2>> keyPoints = std::make_shared<ssrlcv::Unity<float2>>(nullptr,(image->size.x-24)*(image->size.y-24),cpu);
+    ssrlcv::ptr::value<ssrlcv::Unity<float2>> keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<float2>>(nullptr,(image->size.x-24)*(image->size.y-24),cpu);
     for(int y = 0; y < image->size.y-24; ++y){
       for(int x = 0; x < image->size.x-24; ++x){
         keyPoints->host.get()[y*(image->size.x-24) + x] = {(float)x + 12.0f, (float)y + 12.0f};
@@ -60,7 +60,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrlcv:
     // instantiate a pointer to a DOG object with the image
     int2 kernelSize = {8,8};
     float2 sigmaMultiplier = {2,sqrtf(2.0f)};
-    std::shared_ptr<DOG> dog = std::make_shared<DOG>(image,-1,scaleSpaceDim,sqrtf(2.0f)/2.0f,sigmaMultiplier,kernelSize,true);//last true specifies dog conversion
+    ssrlcv::ptr::value<DOG> dog = ssrlcv::ptr::value<DOG>(image,-1,scaleSpaceDim,sqrtf(2.0f)/2.0f,sigmaMultiplier,kernelSize,true);//last true specifies dog conversion
     std::cout<<"\tdog created"<<std::endl;
 
     // set memory back to CPU
@@ -69,10 +69,10 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrlcv:
     // dog->dumpData(dump);
     dog->findKeyPoints(noiseThreshold,edgeThreshold,true); 
 
-    std::shared_ptr<ScaleSpace::Octave> currentOctave(nullptr);
-    std::shared_ptr<ScaleSpace::Octave::Blur> currentBlur = nullptr;
+    ssrlcv::ptr::value<ScaleSpace::Octave> currentOctave(nullptr);
+    ssrlcv::ptr::value<ScaleSpace::Octave::Blur> currentBlur;
     int numFeaturesProduced = 0;
-    std::shared_ptr<MemoryState> extremaOrigin = std::shared_ptr<MemoryState>(new MemoryState[dog->depth.x], std::default_delete<MemoryState[]>());
+    ssrlcv::ptr::host<MemoryState> extremaOrigin(dog->depth.x);
     unsigned int numKeyPointsInBlur = 0;
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
@@ -121,7 +121,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrlcv:
     std::cout<<"total keypoints found = "<<numKeyPoints<<std::endl;
     std::cout<<"creating features from keypoints..."<<std::endl;
     // here, a feature vector containing SIFT feature descriptors is generated for each key point
-    features = std::make_shared<Unity<Feature<SIFT_Descriptor>>>(nullptr,numKeyPoints,gpu);
+    features = ssrlcv::ptr::value<Unity<Feature<SIFT_Descriptor>>>(nullptr,numKeyPoints,gpu);
     // fill descriptors based on SSKeyPoint information
     block = {4,4,8};
 
@@ -168,13 +168,13 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrlcv:
   return features; 
 } // generateFeatures
 
-std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrlcv::SIFT_FeatureFactory::createFeatures(uint2 imageSize,float orientationThreshold, unsigned int maxOrientations, float pixelWidth, std::shared_ptr<ssrlcv::Unity<float2>> gradients, std::shared_ptr<ssrlcv::Unity<float2>> keyPoints){
+ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrlcv::SIFT_FeatureFactory::createFeatures(uint2 imageSize,float orientationThreshold, unsigned int maxOrientations, float pixelWidth, ssrlcv::ptr::value<ssrlcv::Unity<float2>> gradients, ssrlcv::ptr::value<ssrlcv::Unity<float2>> keyPoints){
 
   clock_t timer = clock();
 
-  ssrlcv::ptr::device<int> thetaNumbers_device(keyPoints->size()*maxOrientations*sizeof(int));
-  ssrlcv::ptr::device<float> thetas_device(keyPoints->size()*maxOrientations*sizeof(float));
-  std::shared_ptr<float> thetas_host(new float[keyPoints->size()*maxOrientations], std::default_delete<float[]>());
+  ssrlcv::ptr::device<int> thetaNumbers_device(keyPoints->size()*maxOrientations);
+  ssrlcv::ptr::device<float> thetas_device(keyPoints->size()*maxOrientations);
+  ssrlcv::ptr::host<float> thetas_host(keyPoints->size()*maxOrientations);
   for(int i = 0; i < keyPoints->size()*maxOrientations; ++i){
     thetas_host.get()[i] = -1.0f;
   }
@@ -214,7 +214,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrlcv:
   block = {4,4,8};
   getGrid(numFeatures,grid);
 
-  ssrlcv::ptr::device<Feature<SIFT_Descriptor>> features_device(numFeatures*sizeof(Feature<SIFT_Descriptor>));
+  ssrlcv::ptr::device<Feature<SIFT_Descriptor>> features_device(numFeatures);
   fillDescriptors<<<grid,block>>>(numFeatures,imageSize.x,features_device.get(),pixelWidth,
     this->descriptorContribWidth,ceil(this->descriptorContribWidth/pixelWidth),
     thetas_device.get(),thetaNumbers_device.get(),keyPoints->device.get(),gradients->device.get());
@@ -223,7 +223,7 @@ std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrlcv:
 
   printf("fill descriptors done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
-  return std::make_shared<Unity<Feature<SIFT_Descriptor>>>(features_device,numFeatures,gpu);
+  return ssrlcv::ptr::value<Unity<Feature<SIFT_Descriptor>>>(features_device,numFeatures,gpu);
 }
 
 

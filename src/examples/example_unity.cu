@@ -36,7 +36,7 @@ __device__ bool greq70(const int& a){
 }
 __device__ ssrlcv::Unity<int>::pred_ptr greq70_device = greq70;
 
-void add_100(std::shared_ptr<ssrlcv::Unity<int>> i_nums){
+void add_100(ssrlcv::ptr::value<ssrlcv::Unity<int>> i_nums){
   //check where the data is 
   ssrlcv::MemoryState origin = i_nums->getMemoryState();
   //make sure i_nums.device has the most up to date memory

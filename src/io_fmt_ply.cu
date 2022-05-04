@@ -52,7 +52,7 @@ namespace ssrlcv {
 
   #define FWRITE(x) this->file.write(reinterpret_cast<char *>(&x), sizeof(x))
 
-  void Writer::Write(std::shared_ptr<ssrlcv::Unity<float3>> points) { 
+  void Writer::Write(ssrlcv::ptr::value<ssrlcv::Unity<float3>> points) { 
     this->header_intro();
     this->header_vertex(points->size());
     this->header_end(); 
@@ -79,7 +79,7 @@ namespace ssrlcv {
     this->header_end(); 
 
     if(vertices) {
-      std::shared_ptr<ssrlcv::Unity<Octree::Vertex>> vertices = octree->vertices;
+      ssrlcv::ptr::value<ssrlcv::Unity<Octree::Vertex>> vertices = octree->vertices;
       if(vertices->getMemoryState() != cpu) vertices->transferMemoryTo(cpu);
       for(int i =0; i < vertices->size(); i++) {
         FWRITE(vertices->host.get()[i].coord.x);
@@ -89,7 +89,7 @@ namespace ssrlcv {
     }
 
     if(edges) { 
-      std::shared_ptr<ssrlcv::Unity<Octree::Edge>> edges = octree->edges;
+      ssrlcv::ptr::value<ssrlcv::Unity<Octree::Edge>> edges = octree->edges;
       if(edges->getMemoryState() != cpu) edges->transferMemoryTo(cpu);
       for(int i =0; i < edges->size(); i++) {
         FWRITE(edges->host.get()[i].v1);
@@ -107,7 +107,7 @@ namespace ssrlcv {
   // Interface methods
   // 
 
-  void write_points(const char * path, std::shared_ptr<ssrlcv::Unity<float3>> points){ 
+  void write_points(const char * path, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points){ 
     Writer(path).Write(points); 
   }
 

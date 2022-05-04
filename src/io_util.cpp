@@ -188,12 +188,12 @@ std::map<std::string, ssrlcv::arg*> ssrlcv::parseArgs(int numArgs, char* args[])
 
 
 
-std::shared_ptr<unsigned char> ssrlcv::getPixelArray(unsigned char** &row_pointers, const unsigned int &width, const unsigned int &height, const int numValues){
+ssrlcv::ptr::host<unsigned char> ssrlcv::getPixelArray(unsigned char** &row_pointers, const unsigned int &width, const unsigned int &height, const int numValues){
   if(numValues == 0){
     std::cout<<"ERROR: png color type not supported in parallel DSIFT"<<"\n";
     exit(-1);
   }
-  std::shared_ptr<unsigned char> imageMatrix(new unsigned char[height*width*numValues], std::default_delete<unsigned char[]>());
+  ssrlcv::ptr::host<unsigned char> imageMatrix(height*width*numValues);
   for (unsigned int r=0; r < height; ++r){
     for(unsigned int c=0; c < width; ++c){
       for(int p=0; p < numValues; ++p){
@@ -207,7 +207,7 @@ std::shared_ptr<unsigned char> ssrlcv::getPixelArray(unsigned char** &row_pointe
   return imageMatrix;
 }
 
-std::shared_ptr<unsigned char> ssrlcv::readPNG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int& colorDepth){
+ssrlcv::ptr::host<unsigned char> ssrlcv::readPNG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int& colorDepth){
   /* open file and test for it being a png */
   FILE* fp = fopen(filePath, "rb");
   std::cout<<"READING "<<filePath<<"\n";
@@ -341,7 +341,7 @@ void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned
   std::cout<<filePath<<" has been written"<<"\n";
 }
 
-std::shared_ptr<unsigned char> ssrlcv::readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth){
+ssrlcv::ptr::host<unsigned char> ssrlcv::readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth){
   struct jpeg_decompress_struct cinfo;
   struct jpeg_error_mgr jerr;
   std::cout<<"attempting to read "<<filePath<<"\n";
@@ -361,7 +361,7 @@ std::shared_ptr<unsigned char> ssrlcv::readJPEG(const char* filePath, unsigned i
   colorDepth = cinfo.output_components;
 
   int scanlineSize = width * colorDepth;
-  std::shared_ptr<unsigned char> pixels(new unsigned char[height * scanlineSize], std::default_delete<unsigned char[]>());
+  ssrlcv::ptr::host<unsigned char> pixels(height * scanlineSize);
   unsigned char **buffer = new unsigned char*[1];
   buffer[0] = new unsigned char[scanlineSize];
 
@@ -419,10 +419,10 @@ void ssrlcv::writeJPEG(const char* filePath, unsigned char* image, const unsigne
   std::cout<<filePath<<" has been written"<<"\n";
 }
 
-std::shared_ptr<unsigned char> ssrlcv::readImage(const char *filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth){
+ssrlcv::ptr::host<unsigned char> ssrlcv::readImage(const char *filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth){
   std::string str_filePath = filePath;
   std::string fileType = getFileExtension(str_filePath);
-  std::shared_ptr<unsigned char> pixels(nullptr);
+  ssrlcv::ptr::host<unsigned char> pixels(nullptr);
 
   if (fileType == "png"){
     pixels = readPNG(filePath,height,width,colorDepth);
@@ -552,7 +552,7 @@ bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out)
  * @param filePath the relative path to the input file
  * @return points the points of the point cloud in a float3 unity
  */
-std::shared_ptr<ssrlcv::Unity<float3>> ssrlcv::readPLY(const char* filePath){
+ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::readPLY(const char* filePath){
   // disable both of these to remove print statements
   bool local_debug   = false;
   bool local_verbose = true;
@@ -633,7 +633,7 @@ std::shared_ptr<ssrlcv::Unity<float3>> ssrlcv::readPLY(const char* filePath){
   input.close(); // close the stream
 
   // save the values to the mesh
-  std::shared_ptr<ssrlcv::Unity<float3>> points = std::make_shared<ssrlcv::Unity<float3>>(nullptr,tempPoints.size(),ssrlcv::cpu);
+  ssrlcv::ptr::value<ssrlcv::Unity<float3>> points = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,tempPoints.size(),ssrlcv::cpu);
   for (unsigned int i = 0; i < points->size(); i++) {
     points->host.get()[i] = tempPoints[i];
   }
@@ -646,7 +646,7 @@ std::shared_ptr<ssrlcv::Unity<float3>> ssrlcv::readPLY(const char* filePath){
   return points;
 }
 
-void ssrlcv::writePLY(const char* filePath, std::shared_ptr<ssrlcv::Unity<float3>> points, bool binary){
+void ssrlcv::writePLY(const char* filePath, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, bool binary){
   std::cout << "saving " << points->size() << " points ..." << "\n";
   MemoryState origin = points->getMemoryState();
   if(origin == gpu) points->transferMemoryTo(cpu);
@@ -673,7 +673,7 @@ void ssrlcv::writePLY(const char* filePath, std::shared_ptr<ssrlcv::Unity<float3
   if(origin == gpu) points->setMemoryState(gpu);
 }
 
-void ssrlcv::writePLY(std::string filename, std::shared_ptr<ssrlcv::Unity<float3>> points, bool binary){
+void ssrlcv::writePLY(std::string filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, bool binary){
   std::cout << "saving " << points->size() << " points ..." << "\n";
   MemoryState origin = points->getMemoryState();
   if(origin == gpu) points->transferMemoryTo(cpu);
@@ -705,7 +705,7 @@ void ssrlcv::writePLY(std::string filename, std::shared_ptr<ssrlcv::Unity<float3
  * @param filename the name of the file to be saved in the /out directory
  * @param points the points to save as a PLY
  */
-void ssrlcv::writePLY(const char* filename, std::shared_ptr<ssrlcv::Unity<float3>> points){
+void ssrlcv::writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points){
   std::ofstream of;
   std::string fname = filename;
   of.open ("out/" + fname + ".ply");
@@ -727,7 +727,7 @@ void ssrlcv::writePLY(const char* filename, std::shared_ptr<ssrlcv::Unity<float3
  * @param filename the name of the file to be saved in the /out directory
  * @param points the points to save as a PLY
  */
-void ssrlcv::writePLY(std::string filename, std::shared_ptr<ssrlcv::Unity<float3>> points){
+void ssrlcv::writePLY(std::string filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points){
   std::ofstream of;
   of.open ("out/" + filename + ".ply");
   of << "ply\nformat ascii 1.0\n";
@@ -778,7 +778,7 @@ void ssrlcv::writePLY(const char* filePath, colorPoint* cpoint, int size){
   of.close(); // done with the file building
 }
 
-void ssrlcv::writePLY(const char* filePath, std::shared_ptr<ssrlcv::Unity<colorPoint>> cpoint){
+void ssrlcv::writePLY(const char* filePath, ssrlcv::ptr::value<ssrlcv::Unity<colorPoint>> cpoint){
   std::string filename = filePath;
   std::ofstream of;
   of.open ("out/" + filename + ".ply");
@@ -803,7 +803,7 @@ void ssrlcv::writePLY(const char* filePath, std::shared_ptr<ssrlcv::Unity<colorP
 * @param faceEncoding the face encoding
 * @param colors the colors of the points
 */
-void ssrlcv::writePLY(const char* filename, std::shared_ptr<ssrlcv::Unity<float3>> points, std::shared_ptr<ssrlcv::Unity<int>> faceList, int faceEncoding, std::shared_ptr<ssrlcv::Unity<uchar3>> colors){
+void ssrlcv::writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, ssrlcv::ptr::value<ssrlcv::Unity<int>> faceList, int faceEncoding, ssrlcv::ptr::value<ssrlcv::Unity<uchar3>> colors){
   // TODO
 
 }
@@ -816,7 +816,7 @@ void ssrlcv::writePLY(const char* filename, std::shared_ptr<ssrlcv::Unity<float3
  * @param faceList a list of "faces" which are indices for point location
  * @param faceEncoding an int where 3 means trianglar and 4 mean quadrilateral
  */
-void ssrlcv::writePLY(const char* filename, std::shared_ptr<ssrlcv::Unity<float3>> points, std::shared_ptr<ssrlcv::Unity<int>> faceList, int faceEncoding){
+void ssrlcv::writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, ssrlcv::ptr::value<ssrlcv::Unity<int>> faceList, int faceEncoding){
   std::string fname = filename;
   // we need triangles or quadrilaterals
   if (!(faceEncoding == 3 || faceEncoding == 4)){
@@ -855,7 +855,7 @@ void ssrlcv::writePLY(const char* filename, std::shared_ptr<ssrlcv::Unity<float3
  * @param points is the collection of points to color with the gradient
  * @param gradient the values that represent the "variance" of values to be colored with a gradient
  */
-void ssrlcv::writePLY(const char* filename, std::shared_ptr<ssrlcv::Unity<float3>> points, std::shared_ptr<ssrlcv::Unity<float>> gradient){
+void ssrlcv::writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, ssrlcv::ptr::value<ssrlcv::Unity<float>> gradient){
 
    // build the helpers to make the colors
   uchar3 colors[2000];
@@ -912,7 +912,7 @@ void ssrlcv::writePLY(const char* filename, std::shared_ptr<ssrlcv::Unity<float3
  * @param gradient the values that represent the "variance" of values to be colored with a gradient
  * @param cutoff the max gradient value, where the gradient should end. all points after this will be the same color
  */
-void ssrlcv::writePLY(const char* filename, std::shared_ptr<ssrlcv::Unity<float3>> points, std::shared_ptr<ssrlcv::Unity<float>> gradient, float cutoff){
+void ssrlcv::writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, ssrlcv::ptr::value<ssrlcv::Unity<float>> gradient, float cutoff){
 
   // build the helpers to make the colors
  uchar3 colors[2000];
@@ -964,7 +964,7 @@ void ssrlcv::writePLY(const char* filename, std::shared_ptr<ssrlcv::Unity<float3
  * @param points is the collection of points
  * @param normals are the normal vectors (assumed to have been normalized) for each of the point cloud's points
  */
-void ssrlcv::writePLY(const char* filename, std::shared_ptr<ssrlcv::Unity<float3>> points, std::shared_ptr<ssrlcv::Unity<float3>> normals){
+void ssrlcv::writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, ssrlcv::ptr::value<ssrlcv::Unity<float3>> normals){
   std::ofstream of;
   std::string fname = filename;
   of.open ("out/" + fname + ".ply");
@@ -1056,7 +1056,7 @@ void ssrlcv::writeCSV(std::vector<float3> v, const char* filename){
  * @param values a unity float input
  * @param filename the desired filename
  */
-void ssrlcv::writeCSV(std::shared_ptr<ssrlcv::Unity<float>> values, const char* filename){
+void ssrlcv::writeCSV(ssrlcv::ptr::value<ssrlcv::Unity<float>> values, const char* filename){
   std::ofstream outfile;
   std::string fname = filename;
   outfile.open("out/" + fname + ".csv");
@@ -1070,7 +1070,7 @@ void ssrlcv::writeCSV(std::shared_ptr<ssrlcv::Unity<float>> values, const char* 
  * all pairs are on a new line. Assumes the vectors are the same size
  * @param v a unity float3 that is used to save `x,y,z`
  */
-void ssrlcv::writeCSV(std::shared_ptr<ssrlcv::Unity<float3>> v, const char* filename){
+void ssrlcv::writeCSV(ssrlcv::ptr::value<ssrlcv::Unity<float3>> v, const char* filename){
   std::ofstream outfile;
   std::string fname = filename;
   outfile.open("out/" + fname + ".csv");

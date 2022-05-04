@@ -18,7 +18,7 @@ namespace ssrlcv {
   {
   public:
     Writer(const char * path);
-    void Write(std::shared_ptr<ssrlcv::Unity<float3>> points); 
+    void Write(ssrlcv::ptr::value<ssrlcv::Unity<float3>> points); 
     void Write(Octree * octree, bool verts = true, bool edges = true);
 
   private:
@@ -33,7 +33,7 @@ namespace ssrlcv {
   };
 
 
-  void write_points(const char * path, std::shared_ptr<ssrlcv::Unity<float3>> points); 
+  void write_points(const char * path, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points); 
   void write_octree(const char * path, Octree * octree, bool verts = true, bool edges = true);
 
 

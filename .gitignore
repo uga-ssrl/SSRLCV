@@ -52,4 +52,5 @@ data/*/*/*/*/matches.txt
 data/temp/*
 
 sub.sh
-log/*
+log/*.out
+log/*.err

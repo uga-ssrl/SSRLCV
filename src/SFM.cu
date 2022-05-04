@@ -41,7 +41,7 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
   logger.logState("SEED");
   if (in->seedPath.size() > 0) {
     // new image with path and ID
-    std::shared_ptr<ssrlcv::Image> seed = std::make_shared<ssrlcv::Image>(in->seedPath,-1);
+    ssrlcv::ptr::value<ssrlcv::Image> seed = ssrlcv::ptr::value<ssrlcv::Image>(in->seedPath,-1);
     // array of features containing sift descriptors at every point
 
     out->seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8);
@@ -51,9 +51,9 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
   logger.logState("FEATURES");
   for (int i = 0; i < in->numImages; i ++) {
     // new image with path and ID
-    std::shared_ptr<ssrlcv::Image> image = std::make_shared<ssrlcv::Image>(in->imagePaths[i], i);
+    ssrlcv::ptr::value<ssrlcv::Image> image = ssrlcv::ptr::value<ssrlcv::Image>(in->imagePaths[i], i);
     // array of features containing sift descriptors at every point
-    std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> features =
+    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> features =
               featureFactory.generateFeatures(image,false,2,0.8);
     features->transferMemoryTo(ssrlcv::cpu);
     out->images.push_back(image);
@@ -70,8 +70,8 @@ void ssrlcv::doFeatureMatching(ssrlcv::FeatureMatchingInput *in, ssrlcv::Feature
   // logger.logState("generating seed matches");
   if (in->seedFeatures != nullptr)
     matchFactory.setSeedFeatures(in->seedFeatures);
-  std::shared_ptr<ssrlcv::Unity<float>> seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
-  std::shared_ptr<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], seedDistances);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
+  ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], seedDistances);
   // logger.logState("done generating seed matches");
 
   distanceMatches->transferMemoryTo(ssrlcv::cpu);
@@ -81,7 +81,7 @@ void ssrlcv::doFeatureMatching(ssrlcv::FeatureMatchingInput *in, ssrlcv::Feature
   }
   printf("max euclidean distance between features = %f\n",maxDist);
   if(distanceMatches->getMemoryState() != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
-  std::shared_ptr<ssrlcv::Unity<ssrlcv::Match>> matches = matchFactory.getRawMatches(distanceMatches);
+  ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches = matchFactory.getRawMatches(distanceMatches);
 
   // Need to fill into to MatchSet boi
   std::cout << "Generating MatchSet ..." << std::endl;
@@ -91,8 +91,8 @@ void ssrlcv::doFeatureMatching(ssrlcv::FeatureMatchingInput *in, ssrlcv::Feature
     // 2 View Case
     //
     logger.logState("matching images");
-    out->matchSet.keyPoints = std::make_shared<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,matches->size()*2,ssrlcv::cpu);
-    out->matchSet.matches = std::make_shared<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,matches->size(),ssrlcv::cpu);
+    out->matchSet.keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,matches->size()*2,ssrlcv::cpu);
+    out->matchSet.matches = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,matches->size(),ssrlcv::cpu);
     matches->setMemoryState(ssrlcv::cpu);
     out->matchSet.matches->setMemoryState(ssrlcv::cpu);
     out->matchSet.keyPoints->setMemoryState(ssrlcv::cpu);
@@ -173,17 +173,17 @@ int main(int argc, char *argv[]){
     ssrlcv::FeatureMatchingOutput featureMatchOutput;
     ssrlcv::doFeatureMatching(&featureMatchInput, &featureMatchOutput);
 
-    std::vector<std::shared_ptr<ssrlcv::Image>> images = featureGenOutput.images;
+    std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images = featureGenOutput.images;
     ssrlcv::MatchSet matchSet = featureMatchOutput.matchSet;
-    std::vector<std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures = featureGenOutput.allFeatures;
+    std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures = featureGenOutput.allFeatures;
 
 
     // the bois
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
     ssrlcv::MeshFactory meshBoi = ssrlcv::MeshFactory();
     ssrlcv::MeshFactory finalMesh = ssrlcv::MeshFactory();
-    std::shared_ptr<ssrlcv::Unity<float3>> points;
-    std::shared_ptr<ssrlcv::Unity<float>> errors;
+    ssrlcv::ptr::value<ssrlcv::Unity<float3>> points;
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> errors;
     ssrlcv::BundleSet bundleSet;
 
     if (images.size() == 2){
@@ -197,7 +197,7 @@ int main(int argc, char *argv[]){
 
       logger.logState("TRIANGULATE");
 
-      float* linearError = (float*)malloc(sizeof(float));
+      ssrlcv::ptr::value<float> linearError();
       bundleSet = demPoints.generateBundles(&matchSet,images);
 
       points = demPoints.twoViewTriangulate(bundleSet, linearError);
@@ -256,7 +256,7 @@ int main(int argc, char *argv[]){
 
       logger.logState("TRIANGULATE");
 
-      float* angularError = (float*)malloc(sizeof(float));
+      ssrlcv::ptr::value<float> angularError;
       bundleSet = demPoints.generateBundles(&matchSet,images);
       points = demPoints.nViewTriangulate(bundleSet, angularError);
 

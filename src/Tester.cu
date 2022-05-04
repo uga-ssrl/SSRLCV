@@ -101,8 +101,8 @@ int main(int argc, char *argv[]){
 
     std::cout << "Starting matching..." << std::endl;
 
-    std::shared_ptr<ssrlcv::Unity<float>> seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
-    std::shared_ptr<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
+    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
     if(seedDistances != nullptr) delete seedDistances;
 
     distanceMatches->transferMemoryTo(ssrlcv::cpu);
@@ -112,7 +112,7 @@ int main(int argc, char *argv[]){
     }
     printf("max euclidean distance between features = %f\n",maxDist);
     if(distanceMatches->getMemoryState() != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
-    std::shared_ptr<ssrlcv::Unity<ssrlcv::Match>> matches = matchFactory.getRawMatches(distanceMatches);
+    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches = matchFactory.getRawMatches(distanceMatches);
     delete distanceMatches;
 
     std::string delimiter = "/";
@@ -126,8 +126,8 @@ int main(int argc, char *argv[]){
     //
     // 2 View Case
     //
-    matchSet.keyPoints = std::make_shared<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,matches->size()*2,ssrlcv::cpu);
-    matchSet.matches = std::make_shared<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,matches->size(),ssrlcv::cpu);
+    matchSet.keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,matches->size()*2,ssrlcv::cpu);
+    matchSet.matches = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,matches->size(),ssrlcv::cpu);
     matches->setMemoryState(ssrlcv::cpu);
     matchSet.matches->setMemoryState(ssrlcv::cpu);
     matchSet.keyPoints->setMemoryState(ssrlcv::cpu);
@@ -140,7 +140,7 @@ int main(int argc, char *argv[]){
 
     // the bois
     ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
-    std::shared_ptr<ssrlcv::Unity<float3>> points;
+    ssrlcv::ptr::value<ssrlcv::Unity<float3>> points;
     ssrlcv::BundleSet bundleSet;
 
 
@@ -153,8 +153,8 @@ int main(int argc, char *argv[]){
     bundleSet = demPoints.generateBundles(&matchSet,images);
 
     // just to print stuff and see it
-    std::shared_ptr<ssrlcv::Unity<float3>> pnts = std::make_shared<ssrlcv::Unity<float3>>(nullptr,bundleSet.lines->size(),ssrlcv::cpu);
-    std::shared_ptr<ssrlcv::Unity<float3>> vcts = std::make_shared<ssrlcv::Unity<float3>>(nullptr,bundleSet.lines->size(),ssrlcv::cpu);
+    ssrlcv::ptr::value<ssrlcv::Unity<float3>> pnts = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,bundleSet.lines->size(),ssrlcv::cpu);
+    ssrlcv::ptr::value<ssrlcv::Unity<float3>> vcts = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,bundleSet.lines->size(),ssrlcv::cpu);
     for (int i = 0; i < bundleSet.lines->size(); i++) {
       pnts->host.get()[i] = bundleSet.lines->host.get()[i].pnt;
       vcts->host.get()[i] = bundleSet.lines->host.get()[i].vec;

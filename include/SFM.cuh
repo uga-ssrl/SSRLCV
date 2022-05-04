@@ -22,22 +22,22 @@ namespace ssrlcv {
     };
 
     struct FeatureGenerationOutput {
-        std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures;
-        std::vector<std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
-        std::vector<std::shared_ptr<ssrlcv::Image>> images;
+        ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures;
+        std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
+        std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
     };
 
     void doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::FeatureGenerationOutput *out);
 
     struct FeatureMatchingInput {
-        std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures;
-        const std::vector<std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
-        const std::vector<std::shared_ptr<ssrlcv::Image>> images;
+        ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures;
+        const std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
+        const std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
 
         FeatureMatchingInput(
-            std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures,
-            const std::vector<std::shared_ptr<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures,
-            const std::vector<std::shared_ptr<ssrlcv::Image>> images):
+            ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures,
+            const std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures,
+            const std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images):
                 seedFeatures(seedFeatures),
                 allFeatures(allFeatures),
                 images(images)
