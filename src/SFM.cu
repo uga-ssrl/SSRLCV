@@ -122,6 +122,87 @@ void ssrlcv::doFeatureMatching(ssrlcv::FeatureMatchingInput *in, ssrlcv::Feature
 
 }
 
+void ssrlcv::doTriangulation(ssrlcv::TriangulationInput *in, ssrlcv::TriangulationOutput *out) {
+  ssrlcv::PointCloudFactory pointCloudFactory = ssrlcv::PointCloudFactory();
+  typedef ssrlcv::ptr::value<ssrlcv::Unity<float3>> (ssrlcv::PointCloudFactory::*TriFunc)(ssrlcv::BundleSet, float*);
+  TriFunc triangulate = (in->images.size() == 2) ? TriFunc(&ssrlcv::PointCloudFactory::twoViewTriangulate) : TriFunc(&ssrlcv::PointCloudFactory::nViewTriangulate);
+
+  std::cout << "Attempting Triangulation" << std::endl;
+
+  logger.logState("TRIANGULATE");
+
+  float error; // linear for 2-view, angular for N-view
+  ssrlcv::BundleSet bundleSet = pointCloudFactory.generateBundles(&in->matchSet,in->images);
+  out->points = (pointCloudFactory.*triangulate)(bundleSet, &error);
+  std::cout << "\tUnfiltered Error: " << std::fixed << std::setprecision(12) << error << std::endl;
+
+  logger.logState("TRIANGULATE");
+}
+
+void ssrlcv::doFiltering(ssrlcv::FilteringInput *in, ssrlcv::FilteringOutput *out) {
+  ssrlcv::PointCloudFactory pointCloudFactory;
+  ssrlcv::MeshFactory meshFactory;
+
+  logger.logState("FILTER");
+
+  if (in->images.size() == 2) {
+    float linearError;
+
+    pointCloudFactory.linearCutoffFilter(&in->matchSet,in->images, 100.0); // <--- removes linear errors over 100 km
+
+    // first time
+    float sigma_filter = 1.0;
+    pointCloudFactory.deterministicStatisticalFilter(&in->matchSet,in->images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+    ssrlcv::BundleSet bundleSet = pointCloudFactory.generateBundles(&in->matchSet,in->images);
+    out->points = pointCloudFactory.twoViewTriangulate(bundleSet, &linearError);
+    std::cout << "Filtered " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << linearError << std::endl;
+
+    // second time
+    sigma_filter = 3.0;
+    pointCloudFactory.deterministicStatisticalFilter(&in->matchSet,in->images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
+    bundleSet = pointCloudFactory.generateBundles(&in->matchSet,in->images);
+    out->points = pointCloudFactory.twoViewTriangulate(bundleSet, &linearError);
+    std::cout << "Filtered " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << linearError << std::endl;
+
+    // neighbor filter
+    pointCloudFactory.scalePointCloud(1000.0,out->points); // scales from km into meters
+    float3 rotation = {0.0f, PI, 0.0f};
+    pointCloudFactory.rotatePointCloud(rotation, out->points);
+  } else {
+    float angularError;
+
+    for (int i = 0; i < 10; i++) {
+      pointCloudFactory.deterministicStatisticalFilter(&in->matchSet,in->images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
+      ssrlcv::BundleSet bundleSet = pointCloudFactory.generateBundles(&in->matchSet,in->images);
+      out->points = pointCloudFactory.nViewTriangulate(bundleSet, &angularError);
+      std::cout << "Filtered " << 0.1  << " Linear Error: " << std::fixed << std::setprecision(12) << angularError << std::endl;
+    }
+  }
+
+  // set the mesh points
+  meshFactory.setPoints(out->points);
+  //finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
+  meshFactory.savePoints("ssrlcv-filtered");
+
+  logger.logState("FILTER");
+
+}
+
+void ssrlcv::doBundleAdjust(ssrlcv::BundleAdjustInput *in, ssrlcv::BundleAdjustOutput *out) {
+  if (in->images.size() != 2)
+    return; // not yet implemented for N-View
+
+  ssrlcv::PointCloudFactory pointCloudFactory;
+  ssrlcv::MeshFactory meshFactory;
+
+  logger.logState("BA");
+  out->points = pointCloudFactory.BundleAdjustTwoView(&in->matchSet,in->images, 10, "");
+  meshFactory.setPoints(out->points);
+  //finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
+  meshFactory.savePoints("ssrlcv-BA-final");
+  logger.logState("BA");
+}
+
 int main(int argc, char *argv[]){
   try{
 
@@ -158,10 +239,10 @@ int main(int argc, char *argv[]){
     logger.logState("SEED");
 
     //
-    //
+    // FEATURE GENERATION
     //
 
-    ssrlcv::FeatureGenerationInput featureGenInput(seedPath, imagePaths, numImages);
+    ssrlcv::FeatureGenerationInput featureGenInput = {seedPath, imagePaths, numImages};
     ssrlcv::FeatureGenerationOutput featureGenOutput;
     ssrlcv::doFeatureGeneration(&featureGenInput, &featureGenOutput);
     
@@ -169,118 +250,34 @@ int main(int argc, char *argv[]){
     // FEATURE MATCHING
     //
 
-    ssrlcv::FeatureMatchingInput featureMatchInput(featureGenOutput.seedFeatures, featureGenOutput.allFeatures, featureGenOutput.images);
+    ssrlcv::FeatureMatchingInput featureMatchInput = {featureGenOutput.seedFeatures, featureGenOutput.allFeatures, featureGenOutput.images};
     ssrlcv::FeatureMatchingOutput featureMatchOutput;
     ssrlcv::doFeatureMatching(&featureMatchInput, &featureMatchOutput);
 
-    std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images = featureGenOutput.images;
-    ssrlcv::MatchSet matchSet = featureMatchOutput.matchSet;
-    std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures = featureGenOutput.allFeatures;
+    //
+    // TRIANGULATION
+    //
 
+    ssrlcv::TriangulationInput triangulationInput = {featureMatchOutput.matchSet, featureGenOutput.images};
+    ssrlcv::TriangulationOutput triangulationOutput;
+    ssrlcv::doTriangulation(&triangulationInput, &triangulationOutput);
 
-    // the bois
-    ssrlcv::PointCloudFactory demPoints = ssrlcv::PointCloudFactory();
-    ssrlcv::MeshFactory meshBoi = ssrlcv::MeshFactory();
-    ssrlcv::MeshFactory finalMesh = ssrlcv::MeshFactory();
-    ssrlcv::ptr::value<ssrlcv::Unity<float3>> points;
-    ssrlcv::ptr::value<ssrlcv::Unity<float>> errors;
-    ssrlcv::BundleSet bundleSet;
+    //
+    // FILTERING
+    //
 
-    if (images.size() == 2){
-      //
-      // 2 View Case
-      //
+    ssrlcv::FilteringInput filteringInput = {triangulationInput.matchSet, featureGenOutput.images};
+    ssrlcv::FilteringOutput filteringOutput;
+    ssrlcv::doFiltering(&filteringInput, &filteringOutput);
 
-      // ============= Initial Triangulation
+    //
+    // BUNDLE ADJUSTMENT
+    //
 
-      std::cout << "Attempting 2-view Triangulation" << std::endl;
+    ssrlcv::BundleAdjustInput bundleAdjustInput = {filteringInput.matchSet, featureGenOutput.images};
+    ssrlcv::BundleAdjustOutput bundleAdjustOutput;
+    ssrlcv::doBundleAdjust(&bundleAdjustInput, &bundleAdjustOutput);
 
-      logger.logState("TRIANGULATE");
-
-      float linearError;
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-
-      points = demPoints.twoViewTriangulate(bundleSet, &linearError);
-      std::cout << "\tUnfiltered Linear Error: " << std::fixed << std::setprecision(12) << linearError << std::endl;
-      logger.logState("TRIANGULATE");
-
-      // ============= Filtering
-
-      logger.logState("FILTER");
-
-      demPoints.linearCutoffFilter(&matchSet,images, 100.0); // <--- removes linear errors over 100 km
-
-      // first time
-      float sigma_filter = 1.0;
-      demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-      points = demPoints.twoViewTriangulate(bundleSet, &linearError);
-      std::cout << "Filtered " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << linearError << std::endl;
-
-      // second time
-      sigma_filter = 3.0;
-      demPoints.deterministicStatisticalFilter(&matchSet,images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-      points = demPoints.twoViewTriangulate(bundleSet, &linearError);
-      std::cout << "Filtered " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << linearError << std::endl;
-
-      // neighbor filter
-      demPoints.scalePointCloud(1000.0,points); // scales from km into meters
-      float3 rotation = {0.0f, PI, 0.0f};
-      demPoints.rotatePointCloud(rotation, points);
-      // set the mesh points
-      finalMesh.setPoints(points);
-      //finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
-      finalMesh.savePoints("ssrlcv-filtered");
-
-      logger.logState("FILTER");
-
-      // ============= Bundle Adjustment
-
-      logger.logState("BA");
-      points = demPoints.BundleAdjustTwoView(&matchSet,images, 10, "");
-      finalMesh.setPoints(points);
-      //finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
-      finalMesh.savePoints("ssrlcv-BA-final");
-      logger.logState("BA");
-
-    } else {
-      //
-      // N View Case
-      //
-
-      // ============= Initial Triangulation
-
-      std::cout << "Attempting N-view Triangulation" << std::endl;
-
-      logger.logState("TRIANGULATE");
-
-      float angularError;
-      bundleSet = demPoints.generateBundles(&matchSet,images);
-      points = demPoints.nViewTriangulate(bundleSet, &angularError);
-
-      logger.logState("TRIANGULATE");
-
-      // ============= Filtering
-
-      logger.logState("FILTER");
-
-      for (int i = 0; i < 10; i++) {
-        demPoints.deterministicStatisticalFilter(&matchSet,images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
-        bundleSet = demPoints.generateBundles(&matchSet,images);
-        points = demPoints.nViewTriangulate(bundleSet, &angularError);
-        std::cout << "Filtered " << 0.1  << " Linear Error: " << std::fixed << std::setprecision(12) << angularError << std::endl;
-      }
-      finalMesh.setPoints(points);
-      //finalMesh.filterByNeighborDistance(3.0); // <--- filter bois past 3.0 sigma (about 99.5% of points) if 2 view is good then this is usually good
-      finalMesh.savePoints("ssrlcv-filtered");
-
-      logger.logState("FILTER");
-
-      logger.logState("BA");
-      logger.logState("BA");
-
-    }
 
     // cleanup
     for (ssrlcv::arg_pair p : args) {

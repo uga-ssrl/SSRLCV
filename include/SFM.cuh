@@ -6,19 +6,15 @@
 #include "MatchFactory.cuh"
 
 namespace ssrlcv {
+
+    //
+    // FEATURE GENERATION
+    //
+
     struct FeatureGenerationInput {
         const std::string seedPath;
         const std::vector<std::string> imagePaths;
         const int numImages;
-
-        FeatureGenerationInput(
-            const std::string seedPath,
-            const std::vector<std::string> imagePaths,
-            const int numImages):
-                seedPath(seedPath),
-                imagePaths(imagePaths),
-                numImages(numImages)
-            {}
     };
 
     struct FeatureGenerationOutput {
@@ -29,19 +25,14 @@ namespace ssrlcv {
 
     void doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::FeatureGenerationOutput *out);
 
+    //
+    // FEATURE MATCHING
+    //
+
     struct FeatureMatchingInput {
         ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures;
         const std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
         const std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
-
-        FeatureMatchingInput(
-            ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures,
-            const std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures,
-            const std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images):
-                seedFeatures(seedFeatures),
-                allFeatures(allFeatures),
-                images(images)
-            {}
     };
 
     struct FeatureMatchingOutput {
@@ -49,6 +40,51 @@ namespace ssrlcv {
     };
 
     void doFeatureMatching(ssrlcv::FeatureMatchingInput *in, ssrlcv::FeatureMatchingOutput *out);
+
+    //
+    // TRIANGULATION
+    //
+
+    struct TriangulationInput {
+        ssrlcv::MatchSet matchSet;
+        const std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
+    };
+
+    struct TriangulationOutput {
+        ssrlcv::ptr::value<ssrlcv::Unity<float3>> points;
+    };
+
+    void doTriangulation(ssrlcv::TriangulationInput *in, ssrlcv::TriangulationOutput *out);
+
+    //
+    // FILTERING
+    //
+
+    struct FilteringInput {
+        ssrlcv::MatchSet matchSet;
+        const std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
+    };
+
+    struct FilteringOutput {
+        ssrlcv::ptr::value<ssrlcv::Unity<float3>> points;
+    };
+
+    void doFiltering(ssrlcv::FilteringInput *in, ssrlcv::FilteringOutput *out);
+
+    //
+    // BUNDLE ADJUSTMENT
+    //
+
+    struct BundleAdjustInput {
+        ssrlcv::MatchSet matchSet;
+        const std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
+    };
+
+    struct BundleAdjustOutput {
+        ssrlcv::ptr::value<ssrlcv::Unity<float3>> points;
+    };
+
+    void doBundleAdjust(ssrlcv::BundleAdjustInput *in, ssrlcv::BundleAdjustOutput *out);
 }
 
 #endif
