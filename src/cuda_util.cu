@@ -3,10 +3,22 @@
 /*
 NVIDIA GPU COMPATIBILITY
 */
+
+/**
+ * @brief Calculate the grid dimensions. 
+ * 
+ * @param numElements number of possible matches
+ * @param grid a reference to a grid
+ * @param device either cpu or gpu
+ */
 void getGrid(unsigned long numElements, dim3 &grid, int device){
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
+
+  // initilize grid
   grid = {(unsigned int)prop.maxGridSize[0],(unsigned int)prop.maxGridSize[1],(unsigned int)prop.maxGridSize[2]};
+  
+  // compute appropriate dimensions
   if(numElements < grid.x){
     grid.x = numElements;
     grid.y = 1;
@@ -22,9 +34,10 @@ void getGrid(unsigned long numElements, dim3 &grid, int device){
     else if(numElements < grid.x*grid.y*grid.z){
       grid.z = numElements/(grid.x*grid.y);
       grid.z++;
-    }
-  }
-}
+    } 
+  } // if-else
+} // getGrid
+
 void checkDims(dim3 grid, dim3 block, int device){
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
@@ -56,7 +69,7 @@ void checkDims(dim3 grid, dim3 block, int device){
     //TODO replace with exception and make more specific
     //maybe make macro like CudaSafeCall()
   }
-}
+} 
 __host__ void cusolverCheckError(cusolverStatus_t cusolver_status){
   switch (cusolver_status){
       case CUSOLVER_STATUS_SUCCESS:

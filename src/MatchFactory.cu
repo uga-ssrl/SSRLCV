@@ -345,9 +345,10 @@ ssrlcv::Unity<float>* ssrlcv::MatchFactory<T>::getSeedDistances(Unity<Feature<T>
   if(this->seedFeatures->getMemoryState() != gpu) this->seedFeatures->setMemoryState(gpu);
   if(origin != gpu) features->setMemoryState(gpu);
 
-  // the size of the feature vector is assigned to numPossibleMatches 
+  // the number of features is the same as the number of possible matches 
   unsigned int numPossibleMatches = features->size();
 
+  // matchDistances will have a length of numPossibleMatches
   Unity<float>* matchDistances = new Unity<float>(nullptr, numPossibleMatches, gpu);
 
   // initilize grid and block dimensions for GPU
@@ -1255,13 +1256,12 @@ __global__ void ssrlcv::disparityScanMatching(uint2 querySize, unsigned char* pi
   }
 }
 
-
 /*
   Matching kernels
 */
 
 /**
- * @brief A kernel function which computes the distance between a seed and its best match.
+ * @brief A kernel function which finds the distance between a seed feature and its best match.
  * 
  * @tparam T 
  * @param numFeaturesQuery the number of features to query 
@@ -1279,9 +1279,9 @@ Feature<T>* seedFeatures, float* matchDistances){
   
   // validate the block is sufficiently large
   if(blockId < numFeaturesQuery){ 
-    // assign the image feature to feature
+    // each block will correspond to a single feature in the image
     Feature<T> feature = featuresQuery[blockId];
-    // array to hold distances between image feature and seed feature 
+    // hold the local distances between image feature and seed features 
     __shared__ float localDist[32]; 
     // set each distance to max float value   
     localDist[threadIdx.x] = FLT_MAX; 
@@ -1289,21 +1289,20 @@ Feature<T>* seedFeatures, float* matchDistances){
 
     float currentDist = 0.0f;
     unsigned long numSeedFeatures_reg = numSeedFeatures;
-    // for each thread, find the best match 
+    // this loop splits up the seed features between threads
     for(int f = threadIdx.x; f < numSeedFeatures_reg; f += 32){
       // calculate the distance from image feature to seed feature
       currentDist = feature.descriptor.distProtocol(seedFeatures[f].descriptor,localDist[threadIdx.x]);
-      // the shortest distance is stored back in the array
+      // the shortest distance out of all the seed features (for this thread) is stored in the array
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
       }
     } // for
     __syncthreads();
     
-    // if it is NOT the first thread
     if(threadIdx.x != 0) return;
     currentDist = FLT_MAX;
-    // find the lowest distance 
+    // find the best match to the image feature, out of all the seed features
     for(int i = 0; i < 32; ++i){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];
