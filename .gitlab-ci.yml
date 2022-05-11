@@ -43,6 +43,8 @@ google-test:
     - gacrc
   only:
     - merge_requests
+  variables:
+    GIT_CLEAN_FLAGS: none
 
 valgrind-test-2-view:
   stage: test
@@ -52,6 +54,8 @@ valgrind-test-2-view:
     - gacrc
   only:
     - merge_requests
+  variables:
+    GIT_CLEAN_FLAGS: none
 
 valgrind-test-3-view:
   stage: test
@@ -61,3 +65,5 @@ valgrind-test-3-view:
     - gacrc
   only:
     - merge_requests
+  variables:
+    GIT_CLEAN_FLAGS: none
