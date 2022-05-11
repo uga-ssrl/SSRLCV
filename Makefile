@@ -1,3 +1,4 @@
+
 CUDA_INSTALL_PATH := /usr/local/cuda
 
 # CUDA stuff
@@ -19,6 +20,8 @@ CXXFLAGS += -Wall -std=c++11
 # if this is not done you will receive a no kernel image is availabe error
 NVCCFLAGS += $(COMMONFLAGS)
 NVCCFLAGS += -std=c++11
+
+TESTLINKFLAGS += -lgtest -lgtest_main
 
 # Gencode arguments
 SM ?= 35 37 50 52 60 61 70
@@ -46,6 +49,9 @@ SRCDIR 		= ./src
 OBJDIR 		= ./obj
 BINDIR 		= ./bin
 OUTDIR 		= ./out
+TESTDIR     = ./test
+TESTOBJDIR  = ./test_obj
+GTEST_DIR   = 
 
 _BASE_OBJS = Logger.cpp.o
 _BASE_OBJS += io_util.cpp.o
@@ -64,21 +70,24 @@ _BASE_OBJS += matrix_util.cu.o
 _BASE_OBJS += Octree.cu.o
 _BASE_OBJS += PointCloudFactory.cu.o
 _BASE_OBJS += MeshFactory.cu.o
+_BASE_OBJS += Pipeline.cu.o
 _SFM_OBJS = SFM.cu.o
+_TEST_OBJS += Pipeline.cu.o
 _T_OBJS += Tester.cu.o
 
 BASE_OBJS = $(patsubst %, $(OBJDIR)/%, $(_BASE_OBJS))
 SFM_OBJS = $(patsubst %, $(OBJDIR)/%, $(_SFM_OBJS))
 T_OBJS = $(patsubst %, $(OBJDIR)/%, $(_T_OBJS))
-
-TEST_OBJS = $(patsubst %, $(OBJDIR)/%, $(_BASE_OBJS))
+TEST_OBJS = $(patsubst %, $(TESTOBJDIR)/%, $(_TEST_OBJS))
 
 TARGET_SFM = SFM
 TARGET_T = Tester
+TARGET_TEST = test
 
 NVCCFLAGS += $(GENCODEFLAGS)
 LINKLINE_SFM = $(LINK) $(GENCODEFLAGS) $(BASE_OBJS) $(SFM_OBJS) $(LIB) -o $(BINDIR)/$(TARGET_SFM)
 LINKLINE_T = $(LINK) $(GENCODEFLAGS) $(BASE_OBJS) $(T_OBJS) $(LIB) -o $(BINDIR)/$(TARGET_T)
+LINKLINE_TEST = $(LINK) $(GENCODEFLAGS) $(BASE_OBJS) $(TEST_OBJS) $(LIB) $(TESTLINKFLAGS) -o $(BINDIR)/$(TARGET_TEST)
 
 .SUFFIXES: .cpp .cu .o
 .PHONY: all clean test
@@ -91,6 +100,8 @@ sfm: base $(BINDIR)/$(TARGET_SFM)
 
 misc: base $(BINDIR)/$(TARGET_T)
 
+test: base $(BINDIR)/$(TARGET_TEST)
+
 $(OBJDIR):
 	    -mkdir -p $(OBJDIR)
 
@@ -100,6 +111,9 @@ $(BINDIR):
 $(OUTDIR):
 			-mkdir -p $(OUTDIR)
 
+$(TESTOBJDIR):
+	    -mkdir -p $(TESTOBJDIR)
+
 # Compiling
 
 $(OBJDIR)/%.cu.o: $(SRCDIR)/%.cu
@@ -108,12 +122,18 @@ $(OBJDIR)/%.cu.o: $(SRCDIR)/%.cu
 $(OBJDIR)/%.cpp.o: $(SRCDIR)/%.cpp
 	$(CXX) $(INCLUDES) $(CXXFLAGS) -c $< -o $@
 
+$(TESTOBJDIR)/%.cu.o: $(TESTDIR)/%.cu
+	$(NVCC) $(INCLUDES) $(NVCCFLAGS) -dc $< -o $@
+
 # Linking targets
 $(BINDIR)/$(TARGET_SFM): $(BASE_OBJS) $(SFM_OBJS) Makefile
 	$(LINKLINE_SFM)
 
 $(BINDIR)/$(TARGET_T): $(BASE_OBJS) $(T_OBJS) Makefile
 	$(LINKLINE_T)
+
+$(BINDIR)/$(TARGET_TEST): $(BASE_OBJS) $(TEST_OBJS) Makefile
+	$(LINKLINE_TEST)
 
 #
 # Docs
@@ -126,12 +146,13 @@ docs:
 #
 
 clean:
-	rm -f out/*
 	rm -f bin/*
-	rm -f out/*
+	rm -f out/*.log
+	rm -f out/tests/*/*.log
 	rm -f src/*~
 	rm -f util/*~
 	rm -f obj/*
+	rm -f testobj/*
 	rm -f util/*.o
 	rm -f util/io/*~
 	rm -f util/examples/*~

@@ -1,11 +1,11 @@
 *.o
 *.exe
 src/*.txt
-out/*
 
 bin/*
 .csv
 out/*.ply
+out/*.csv
 
 .DS_Store
 */.DS_Store
