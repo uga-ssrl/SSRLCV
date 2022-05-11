@@ -12,6 +12,8 @@ pages:
   artifacts:
     paths:
     - ./doc/doxygen/public
+  tags:
+  - ruby
   only:
   - master
 
