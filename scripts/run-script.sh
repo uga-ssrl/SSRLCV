@@ -8,7 +8,8 @@ while [ $(sacct -j $j -X --format='State' | tail -n1 | awk '{print $1}') == 'PEN
 
 echo "RUNNING"
 unset count
-while IFS= read -r line1 || IFS= read -r line2 <&3 || [[ $(sacct -j $j -X --format='State' | tail -n1 | awk '{print $1}') == 'RUNNING' || "$count" -lt "5" ]]; do
+sleep 5;
+while IFS= read -r line1 || IFS= read -r line2 <&3 || [[ $(sacct -j $j -X --format='State' | tail -n1 | awk '{print $1}') == 'RUNNING' || "$count" -lt "30" ]]; do
     if [ ${#line1} != 0 ]; then
         printf '\033[0;34mSTDOUT:\033[0m %s\n' "${line1}";
     elif [ ${#line2} != 0 ]; then
