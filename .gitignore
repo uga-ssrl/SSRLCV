@@ -1,11 +1,11 @@
 *.o
 *.exe
 src/*.txt
-out/*
 
 bin/*
 .csv
 out/*.ply
+out/*.csv
 
 .DS_Store
 */.DS_Store
@@ -50,3 +50,7 @@ data/*/*/matches.txt
 data/*/*/*/matches.txt
 data/*/*/*/*/matches.txt
 data/temp/*
+
+sub.sh
+log/*.out
+log/*.err

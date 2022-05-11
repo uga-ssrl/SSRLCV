@@ -79,7 +79,7 @@ namespace ssrlcv{
     Camera camera; ///<\brief Camera struct holding all camera parameters
     PushbroomCamera pushbroom; ///<\brief Camera struct holding all camera parameters
     bool isPushbroom; ///<\brief variable is true if the image was generated with a pushbroom camera
-    Unity<unsigned char>* pixels;///<\brief pixels of image flattened row-wise
+    ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels;///<\brief pixels of image flattened row-wise
 
     // =============================================================================================================
     //
@@ -100,7 +100,7 @@ namespace ssrlcv{
     * \see Unity
     */
 
-    Image(uint2 size, unsigned int colorDepth, Unity<unsigned char>* pixels);
+    Image(uint2 size, unsigned int colorDepth, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels);
     /**
     * \brief Primary constructor utilizing ssrlcv image io.
     * \details This constructor uses a file path to a jpg/jpeg, png or tif/tiff
@@ -123,8 +123,6 @@ namespace ssrlcv{
     */
     Image(std::string filePath, unsigned int convertColorDepthTo, int id = -1);
 
-    ~Image(); ///< destructor
-
     // =============================================================================================================
     //
     // Image Host Methods
@@ -144,11 +142,11 @@ namespace ssrlcv{
     * \brief Generate pixel gradients from this->pixels.
     * \details This method calls generatePixelGradients() to generate int2s
     * that signify {x,y} gradients.
-    * \returns Unity<int2>* gradients in the form of {x,y}
+    * \returns ssrlcv::ptr::value<ssrlcv::Unity<int2>> gradients in the form of {x,y}
     * \see generatePixelGradients
     * \see Unity
     */
-    Unity<int2>* getPixelGradients();
+    ssrlcv::ptr::value<ssrlcv::Unity<int2>> getPixelGradients();
     /**
     * \brief Scale an image by factors of 2.
     * \details This method will scale an image by a set factor of 2. Scaling will occur
@@ -164,7 +162,7 @@ namespace ssrlcv{
     * removes the unix time stamp
     * @returns array of floats representing the camera parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
     */
-    Unity<float>* getFloatVector();
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> getFloatVector();
 
     /**
     * retuns the camera paramters as a float vector of length len, where all data types are cast to floats
@@ -172,14 +170,14 @@ namespace ssrlcv{
     * @param len the desired lentgth of the vector, has the effect of extracting less parameters
     * @returns array of floats representing the camera parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
     */
-    Unity<float>* getFloatVector(int len);
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> getFloatVector(int len);
 
     /**
     * updates the camera parameters from a float vector representing camera parameters
     * if there are less than 11 params the camera will still be updated, retaining values for params not included
     * @param array of floats which should update the current parameters in the order X pos, Y pos, Z pos, X rot, Y rot, Z rot, fov X, fov Y, foc, dpix x, dpix y
     */
-    void setFloatVector(Unity<float>* params);
+    void setFloatVector(ssrlcv::ptr::value<ssrlcv::Unity<float>> params);
 
     /**
     * calculates a vector represnting the difference between the input extinsic camera parameters and the local extinsic camera paramters
@@ -187,7 +185,7 @@ namespace ssrlcv{
     * @param other the other camera's extrinsic parameters
     * @returns difference the difference between the extinsic camera params
     */
-    Unity<float>* getExtrinsicDifference(Camera other);
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> getExtrinsicDifference(Camera other);
 
     /*
     // Binary camera params [Gitlab #58]
@@ -225,10 +223,10 @@ namespace ssrlcv{
   * \param size - size of image {width,height}
   * \param pixels - pixels flattened row-wise
   * \param border - border to apply to pixels {x,y}
-  * \returns Unity<unsigned char>* of pixels with border applied flattened row-wise
+  * \returns ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> of pixels with border applied flattened row-wise
   * \see Unity
   */
-  Unity<unsigned char>* addBufferBorder(uint2 size, ssrlcv::Unity<unsigned char>* pixels, int2 border);
+  ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> addBufferBorder(uint2 size, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, int2 border);
   /**
   * \brief Generate a new image with a border.
   * \details This method takes in a Unity<unsigned char> pixel array and will add
@@ -238,12 +236,12 @@ namespace ssrlcv{
   * \param size - size of image {width,height}
   * \param pixels - pixels flattened row-wise
   * \param border - border to apply to pixels {x,y}
-  * \returns Unity<unsigned char>* of pixels with border applied flattened row-wise
+  * \returns ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> of pixels with border applied flattened row-wise
   * \see Unity
   */
-  Unity<float>* addBufferBorder(uint2 size, ssrlcv::Unity<float>* pixels, int2 border);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> addBufferBorder(uint2 size, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, int2 border);
   /**
-  * \brief Convert Unity<float>* to Unity<unsigned char>*
+  * \brief Convert ssrlcv::ptr::value<ssrlcv::Unity<float>> to ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>>
   * \details This method will determine min and max pixel values
   * and use those to convert the float set to unsigned char values
   * between 0-255, where 0 is min and 255 is max.
@@ -252,9 +250,9 @@ namespace ssrlcv{
   * \see Unity
   * \see convertToCharImage
   */
-  Unity<unsigned char>* convertImageToChar(Unity<float>* pixels);
+  ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> convertImageToChar(ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels);
   /**
-  * \brief Convert Unity<unsigned char>* to Unity<float>*
+  * \brief Convert ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> to ssrlcv::ptr::value<ssrlcv::Unity<float>>
   * \details This method will simply convert unsigned char values to
   * floats without changing the information at all.
   * \param pixels - pixels in unsigned char representation
@@ -262,21 +260,21 @@ namespace ssrlcv{
   * \see Unity
   * \see convertToFltImage
   */
-  Unity<float>* convertImageToFlt(Unity<unsigned char>* pixels);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> convertImageToFlt(ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels);
   /**
   * \brief Normalize float values in Unity from 0-1.
   * \details This method will determine min and max for the values
-  * in the Unity<float>* and then normalize between 0 and 1.
+  * in the ssrlcv::ptr::value<ssrlcv::Unity<float>> and then normalize between 0 and 1.
   * \param pixels - float values
   * \see Unity
   * \see normalize(unsigned long, float*, float2)
   * \todo add option to normalize between two numbers
   */
-  void normalizeImage(Unity<float>* pixels);
+  void normalizeImage(ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels);
   /**
   * \brief Normalize float values in Unity from 0-1.
   * \details This method will use the provided min and max for the values
-  * in the Unity<float>* and then normalize between 0 and 1.
+  * in the ssrlcv::ptr::value<ssrlcv::Unity<float>> and then normalize between 0 and 1.
   * \param pixels - float values
   * \param minMax - minimum and maximum float values {min,max}
   * \see Unity
@@ -285,7 +283,7 @@ namespace ssrlcv{
   * \warning if the minMax values here are incorrect then normalization will
   * be incorrect
   */
-  void normalizeImage(Unity<float>* pixels, float2 minMax);
+  void normalizeImage(ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, float2 minMax);
   /**
   * \brief Convert pixel values to grayscale.
   * \details This method will take pixels of a higher colorDepth and
@@ -295,7 +293,7 @@ namespace ssrlcv{
   * \see Unity
   * \see generateBW
   */
-  void convertToBW(Unity<unsigned char>* pixels, unsigned int colorDepth);
+  void convertToBW(ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, unsigned int colorDepth);
   /**
   * \brief Convert pixel values to RGB.
   * \details This method will take pixels and
@@ -307,7 +305,7 @@ namespace ssrlcv{
   * \note going from a colorDepth of 1 or 2 is permitted but will not be perfect.
   * \todo improve colorDepth upsample procedur
   */
-  void convertToRGB(Unity<unsigned char>* pixels, unsigned int colorDepth);
+  void convertToRGB(ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, unsigned int colorDepth);
 
   /**
   * \brief Generate 3x3 fundamental matrix from 2 camera matrices.
@@ -345,13 +343,13 @@ namespace ssrlcv{
   * difference and gradient approximation methods for images.
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise
-  * \returns Unity<int2>* that has gradients {x,y} stored in same order as pixel
+  * \returns ssrlcv::ptr::value<ssrlcv::Unity<int2>> that has gradients {x,y} stored in same order as pixel
   * \see Unity
   * \see calculatePixelGradients(uint2,unsigned char*,int2*)
   * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
-  Unity<int2>* generatePixelGradients(uint2 imageSize, Unity<unsigned char>* pixels);
+  ssrlcv::ptr::value<ssrlcv::Unity<int2>> generatePixelGradients(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels);
   /**
   * \brief Generate gradients for float image.
   * \details This method generates float2 gradients {x,y} for every pixel with borders
@@ -359,13 +357,13 @@ namespace ssrlcv{
   * difference and gradient approximation methods for images.
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise.
-  * \returns Unity<float2>* that has gradients {x,y} stored in same order as pixel
+  * \returns ssrlcv::ptr::value<ssrlcv::Unity<float2>> that has gradients {x,y} stored in same order as pixel
   * \see Unity
   * \see calculatePixelGradients(uint2,float*,int2*)
   * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
-  Unity<float2>* generatePixelGradients(uint2 imageSize, Unity<float>* pixels);
+  ssrlcv::ptr::value<ssrlcv::Unity<float2>> generatePixelGradients(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels);
 
   /**
   * \brief Ensure that an unsigned char image can be binned to a certain depth.
@@ -378,11 +376,11 @@ namespace ssrlcv{
   * \param pixels - pixels of image flattened row-wise
   * \param plannedDepth - the number of times the image will be binned
   * \see Unity
-  * \see addBufferBorder(uint2,ssrlcv::Unity<unsigned char>*,int2)
+  * \see addBufferBorder(uint2,ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>>,int2)
   * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
-  void makeBinnable(uint2 &size, Unity<unsigned char>* pixels, int plannedDepth);
+  void makeBinnable(uint2 &size, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, int plannedDepth);
   /**
   * \brief Ensure that a float image can be binned to a certain depth.
   * \details This method is used to ensure that the an image can be
@@ -394,11 +392,11 @@ namespace ssrlcv{
   * \param pixels - pixels of image flattened row-wise
   * \param plannedDepth - the number of times the image will be binned
   * \see Unity
-  * \see addBufferBorder(uint2,ssrlcv::Unity<float>*,int2)
+  * \see addBufferBorder(uint2,ssrlcv::ptr::value<ssrlcv::Unity<float>>,int2)
   * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
-  void makeBinnable(uint2 &size, Unity<float>* pixels, int plannedDepth);
+  void makeBinnable(uint2 &size, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, int plannedDepth);
 
   /**
   * \brief Downsample an unsigned char image by a factor of 2.
@@ -406,26 +404,26 @@ namespace ssrlcv{
   * is half the width and half height of the original image.
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise
-  * \returns - Unity<unsigned char>* holding the binned version of the provided image
+  * \returns - ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> holding the binned version of the provided image
   * \see Unity
   * \see binImage(uint2,unsigned int,unsigned char*,unsigned char*)
   * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
-  Unity<unsigned char>* bin(uint2 imageSize, Unity<unsigned char>* pixels);
+  ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> bin(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels);
   /**
   * \brief Downsample an float image by a factor of 2.
   * \details This method will generate an image from a provided image that
   * is half the width and half height of the original image.
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise
-  * \returns - Unity<float>* holding the binned version of the provided image
+  * \returns - ssrlcv::ptr::value<ssrlcv::Unity<float>> holding the binned version of the provided image
   * \see Unity
   * \see binImage(uint2,unsigned int,float*,float*)
   * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
-  Unity<float>* bin(uint2 imageSize, Unity<float>* pixels);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> bin(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels);
 
   /**
   * \brief Upsample an unsigned char image by a factor of 2.
@@ -433,25 +431,25 @@ namespace ssrlcv{
   * is double the width and half height of the original image.
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise
-  * \returns - Unity<unsigned char>* holding the upsampled version of the provided image
+  * \returns - ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> holding the upsampled version of the provided image
   * \see Unity
   * \see upsampleImage(uint2,unsigned int,unsigned char*,unsigned char*)
   * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
-  Unity<unsigned char>* upsample(uint2 imageSize, Unity<unsigned char>* pixels);  /**
+  ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> upsample(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels);  /**
   * \brief Upsample an float image by a factor of 2.
   * \details This method will generate an image from a provided image that
   * is double the width and half height of the original image.
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise
-  * \returns - Unity<float>* holding the upsampled version of the provided image
+  * \returns - ssrlcv::ptr::value<ssrlcv::Unity<float>> holding the upsampled version of the provided image
   * \see Unity
   * \see upsampleImage(uint2,unsigned int,float*,float*)
   * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
-  Unity<float>* upsample(uint2 imageSize, Unity<float>* pixels);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> upsample(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels);
 
   /**
   * \brief Scale an unsigned char image by a specified factor.
@@ -461,13 +459,13 @@ namespace ssrlcv{
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise
   * \param outputPixelWidth - the desired size of a pixel in the returned Unity
-  * \returns - Unity<unsigned char>* holding the scaled version of the provided image
+  * \returns - ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> holding the scaled version of the provided image
   * \see Unity
   * \see bilinearInterpolation(uint2,unsigned int,unsigned char*,unsigned char*,float)
   * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
-  Unity<unsigned char>* scaleImage(uint2 imageSize, Unity<unsigned char>* pixels, float outputPixelWidth);
+  ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> scaleImage(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, float outputPixelWidth);
   /**
   * \brief Scale an float image by a specified factor.
   * \details This method will generate an image from a provided image that
@@ -476,19 +474,19 @@ namespace ssrlcv{
   * \param imageSize - {width,height} of image
   * \param pixels - pixels of image flattened row-wise
   * \param outputPixelWidth - the desired size of a pixel in the returned Unity
-  * \returns - Unity<float>* holding the scaled version of the provided image
+  * \returns - ssrlcv::ptr::value<ssrlcv::Unity<float>> holding the scaled version of the provided image
   * \see Unity
   * \see bilinearInterpolation(uint2,unsigned int,float*,float*,float)
   * \note No need to pass in colorDepth as that can be determined by
   * looking at numElements of pixels and size of image.
   */
-  Unity<float>* scaleImage(uint2 imageSize, Unity<float>* pixels, float outputPixelWidth);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> scaleImage(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, float outputPixelWidth);
 
 
   /**
   * \brief Convolve an unsigned char image with a specified kernel.
   * \details This method will convolve and image with a provided
-  * kernel and return a Unity<float>* containing the convolved image. There
+  * kernel and return a ssrlcv::ptr::value<ssrlcv::Unity<float>> containing the convolved image. There
   * is an optional argument to specify that the convolution should or should not be
   * symmetric. It is assumed that it should be, meaning that border pixels will
   * still be convolved by symmetrizing coordinate references based on getSymmetrizedCoord.
@@ -503,11 +501,11 @@ namespace ssrlcv{
   * \see getSymmetrizedCoord
   * \see Unity
   */
-  Unity<float>* convolve(uint2 imageSize, Unity<unsigned char>* pixels, int2 kernelSize, float* kernel, bool symmetric = true);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> convolve(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, int2 kernelSize, float* kernel, bool symmetric = true);
   /**
   * \brief Convolve an float image with a specified kernel.
   * \details This method will convolve and image with a provided
-  * kernel and return a Unity<float>* containing the convolved image. There
+  * kernel and return a ssrlcv::ptr::value<ssrlcv::Unity<float>> containing the convolved image. There
   * is an optional argument to specify that the convolution should or should not be
   * symmetric. It is assumed that it should be, meaning that border pixels will
   * still be convolved by symmetrizing coordinate references based on getSymmetrizedCoord.
@@ -522,7 +520,7 @@ namespace ssrlcv{
   * \see getSymmetrizedCoord
   * \see Unity
   */
-  Unity<float>* convolve(uint2 imageSize, Unity<float>* pixels, int2 kernelSize, float* kernel, bool symmetric = true);
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> convolve(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, int2 kernelSize, float* kernel, bool symmetric = true);
 
   // =============================================================================================================
   //

@@ -32,13 +32,13 @@ namespace ssrlcv{
 
   public:
     // Octree is used for reconstructon, minimal meshes need not use this
-    Octree* octree;
+    ssrlcv::ptr::value<Octree> octree;
 
-    float3* surfaceVertices;
+    ssrlcv::ptr::host<float3> surfaceVertices;
     int numSurfaceVertices;
-    int3* surfaceTriangles;
+    ssrlcv::ptr::host<int3> surfaceTriangles;
     int numSurfaceTriangles;
-    float* vertexImplicitDevice;
+    ssrlcv::ptr::device<float> vertexImplicitDevice;
 
     /**
      * the face encoding is used to defined if the mesh is encoded with triangles or
@@ -47,13 +47,13 @@ namespace ssrlcv{
      */
     int faceEncoding;
     // faces stored where ever (N = faceEncoding) are grouped
-    Unity<int>* faces;
+    ssrlcv::ptr::value<ssrlcv::Unity<int>> faces;
 
     // The points within the mesh
-    Unity<float3>* points;
+    ssrlcv::ptr::value<ssrlcv::Unity<float3>> points;
 
     // RBG colors for the point cloud
-    Unity<uchar3>* colors;
+    ssrlcv::ptr::value<ssrlcv::Unity<uchar3>> colors;
 
     bool pointsSet = false;
     bool octreeSet = false;
@@ -68,7 +68,7 @@ namespace ssrlcv{
     MeshFactory();
 
     // constructor given existing points and faces
-    MeshFactory(Unity<float3>* in_points, Unity<int>* in_faces, int in_faceEncoding);
+    MeshFactory(ssrlcv::ptr::value<ssrlcv::Unity<float3>> in_points, ssrlcv::ptr::value<ssrlcv::Unity<int>> in_faces, int in_faceEncoding);
 
     // default destructor
     ~MeshFactory();
@@ -77,7 +77,7 @@ namespace ssrlcv{
      * An octree based constructor
      * @param octree an SSRLCV octree data structure storing a point cloud
      */
-    MeshFactory(Octree* octree);
+    MeshFactory(ssrlcv::ptr::value<Octree> octree);
 
     // =============================================================================================================
     //
@@ -90,7 +90,7 @@ namespace ssrlcv{
      * and should be used sparingly
      * @param pointcloud a unity of float3 that represents a point cloud to be set to internal points
      */
-    void setPoints(Unity<float3>* pointcloud);
+    void setPoints(ssrlcv::ptr::value<ssrlcv::Unity<float3>> pointcloud);
 
     /**
      * Loads faces into the mesh, this will override any existing face data
@@ -98,7 +98,7 @@ namespace ssrlcv{
      * @param faces a unity of int that represents the indexes of points which make faces
      * @param faceEncoding the face encoding scheme 3 or 4
      */
-    void setFaces(Unity<int>* faces, int faceEncoding);
+    void setFaces(ssrlcv::ptr::value<ssrlcv::Unity<int>> faces, int faceEncoding);
 
     /**
      * loads a mesh from a file into
@@ -141,7 +141,7 @@ namespace ssrlcv{
      * @param planeNormal a float3 representing a vector normal to the shared plane of the point cloud and mesh
      * @return averageError this is number is a float that is always positive or 0.0f, it is -1.0f if an error has occured
      */
-    float calculateAverageDifference(Unity<float3>* pointCloud, float3 planeNormal);
+    float calculateAverageDifference(ssrlcv::ptr::value<ssrlcv::Unity<float3>> pointCloud, float3 planeNormal);
 
     /**
      * Assuming that a point cloud and the mesh are alligned in the same plane, this method takes each point of the
@@ -152,7 +152,7 @@ namespace ssrlcv{
      * @param planeNormal a float3 representing a vector normal to the shared plane of the point cloud and mesh
      * @return errorList a unity array of floats that contain errors
      */
-    ssrlcv::Unity<float>* calculatePerPointDifference(Unity<float3>* pointCloud, float3 planeNormal);
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> calculatePerPointDifference(ssrlcv::ptr::value<ssrlcv::Unity<float3>> pointCloud, float3 planeNormal);
 
     // =============================================================================================================
     //
@@ -165,7 +165,7 @@ namespace ssrlcv{
      * @param n the number of neignbors to calculate an average distance to
      * @return float a unity of floats representing the average distance to N neighbors
      */
-    ssrlcv::Unity<float>* calculateAverageDistancesToOctreeNeighbors(int n);
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> calculateAverageDistancesToOctreeNeighbors(int n);
 
     /**
      * caclualtes the average distance to N neightbors for each point on average
@@ -186,7 +186,7 @@ namespace ssrlcv{
      * @param n the number of neignbors to calculate an average distance to
      * @return float a unity of floats representing the average distance to N neighbors
      */
-    ssrlcv::Unity<float>* calculateAverageDistancesToNeighbors(int n);
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> calculateAverageDistancesToNeighbors(int n);
 
     /**
      * caclualtes the average distance to N neightbors for each point on average

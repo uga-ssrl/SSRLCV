@@ -24,7 +24,7 @@ namespace ssrlcv{
     * \brief Method for generating features with a set of key points and gradients. 
     * \details This method is primarily used for dense Feature<SIFT_Descriptor> generation. 
     */
-    Unity<Feature<SIFT_Descriptor>>* createFeatures(uint2 imageSize, float orientationThreshold, unsigned int maxOrientations, float pixelWidth, Unity<float2>* gradients, Unity<float2>* keyPoints);
+    ssrlcv::ptr::value<Unity<Feature<SIFT_Descriptor>>> createFeatures(uint2 imageSize, float orientationThreshold, unsigned int maxOrientations, float pixelWidth, ssrlcv::ptr::value<ssrlcv::Unity<float2>> gradients, ssrlcv::ptr::value<ssrlcv::Unity<float2>> keyPoints);
 
   public:
     /**
@@ -69,7 +69,7 @@ namespace ssrlcv{
     * \see SIFT_Descriptor
     * \see FeatureFactory::ScaleSpace
     */
-    Unity<Feature<SIFT_Descriptor>>* generateFeatures(Image* image, bool dense, unsigned int maxOrientations, float orientationThreshold = 0.8);
+    ssrlcv::ptr::value<Unity<Feature<SIFT_Descriptor>>> generateFeatures(ssrlcv::ptr::value<Image> image, bool dense, unsigned int maxOrientations, float orientationThreshold = 0.8);
   };
 
   __device__ __forceinline__ unsigned long getGlobalIdx_2D_1D();

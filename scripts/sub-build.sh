@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=sfm                # Job name
+#SBATCH --job-name=build                # Job name
 #SBATCH --partition=gpu_p             # Partition (queue) name, i.e., gpu_p 
 #SBATCH --gres=gpu:K40:1                  # Requests one GPU device 
 #SBATCH --ntasks=1                    # Run a single task       
@@ -14,13 +14,10 @@
 
 cd $SLURM_SUBMIT_DIR
 
+ml gtest
 ml CUDA/10.0.130
 ml GCCcore/6.4.0
 
 make clean
 make sfm -j8 SM=35
-
-#bin/SFM -d /work/demlab/sfm/SSRLCV-Sample-Data/everest1024/2view -s /work/demlab/sfm/SSRLCV-Sample-Data/seeds/seed_spongebob.png
-
-#cp log/sfm.$SLURM_JOB_ID.out log/last.out
-#cp log/sfm.$SLURM_JOB_ID.err log/last.err
+make test -j8 SM=35

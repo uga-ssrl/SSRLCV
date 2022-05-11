@@ -1,6 +1,7 @@
 stages:
   - documentation
   - build
+  - test
 
 pages:
   stage: documentation
@@ -11,23 +12,58 @@ pages:
   artifacts:
     paths:
     - ./doc/doxygen/public
+  tags:
+  - ruby
   only:
   - master
 
-build-job-ruby:
-  stage: build
-  script:
-    - echo "Hello world"
-  tags:
-    - ruby
-  only:
-    - merge_requests
+# build-job-ruby:
+#   stage: build
+#   script:
+#     - echo "Hello world"
+#   tags:
+#     - ruby
+#   only:
+#     - merge_requests
 
-build-job-ssh:
+build-sfm:
   stage: build
   script:
-    - scripts/run-script.sh scripts/sub-build.sh
+    - scripts/run-script.sh build
   tags:
     - gacrc
   only:
     - merge_requests
+
+google-test:
+  stage: test
+  script:
+    - scripts/run-script.sh gtest
+  tags:
+    - gacrc
+  only:
+    - merge_requests
+  variables:
+    GIT_CLEAN_FLAGS: none
+
+valgrind-test-2-view:
+  stage: test
+  script:
+    - scripts/run-script.sh valgrind2
+  tags:
+    - gacrc
+  only:
+    - merge_requests
+  variables:
+    GIT_CLEAN_FLAGS: none
+
+valgrind-test-3-view:
+  stage: test
+  script:
+    - scripts/run-script.sh valgrind3
+  tags:
+    - gacrc
+  only:
+    - merge_requests
+  variables:
+    GIT_CLEAN_FLAGS: none

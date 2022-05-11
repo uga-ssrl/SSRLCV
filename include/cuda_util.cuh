@@ -258,14 +258,14 @@ void printDeviceProperties();
 * \todo add option for > or < operator usage
 */
 template<typename T>
-void sort(ssrlcv::Unity<T>* array){
+void sort(ssrlcv::ptr::value<ssrlcv::Unity<T>> array){
   if(array == nullptr){
-    throw ssrlcv::UnityException("passed array == nullptr in sort(Unity<T>* array)");
+    throw ssrlcv::UnityException("passed array == nullptr in sort(ssrlcv::ptr::value<ssrlcv::Unity<T>> array)");
   }
   ssrlcv::MemoryState origin = array->getMemoryState();
   ssrlcv::MemoryState fore = array->getFore();
   if(origin == ssrlcv::cpu || fore == ssrlcv::cpu) array->transferMemoryTo(ssrlcv::gpu);
-  thrust::device_ptr<T> array_ptr(array->device);
+  thrust::device_ptr<T> array_ptr(array->device.get());
   thrust::device_ptr<T> new_end = thrust::sort(array_ptr,array_ptr+array->size());
   CudaCheckError();
   array->setFore(ssrlcv::gpu);
@@ -277,14 +277,14 @@ void sort(ssrlcv::Unity<T>* array){
 * \brief universal sort method for unity if < operator is overloader
 */
 template<typename T>
-void sort(ssrlcv::Unity<T>* array, bool (*compare)(const T&,const T&)){
+void sort(ssrlcv::ptr::value<ssrlcv::Unity<T>> array, bool (*compare)(const T&,const T&)){
   if(array == nullptr){
-    throw ssrlcv::UnityException("passed array == nullptr in sort(Unity<T>* array)");
+    throw ssrlcv::UnityException("passed array == nullptr in sort(ssrlcv::ptr::value<ssrlcv::Unity<T>> array)");
   }
   ssrlcv::MemoryState origin = array->getMemoryState();
   ssrlcv::MemoryState fore = array->getFore();
   if(origin == ssrlcv::cpu || fore == ssrlcv::cpu) array->transferMemoryTo(ssrlcv::gpu);
-  thrust::device_ptr<T> array_ptr(array->device);
+  thrust::device_ptr<T> array_ptr(array->device.get());
   thrust::device_ptr<T> new_end = thrust::sort(array_ptr,array_ptr+array->size(),compare);
   CudaCheckError();
   array->setFore(ssrlcv::gpu);
@@ -302,26 +302,24 @@ namespace{
 * \brief remove elements of a unity
 */
 template<typename T>
-void remove(ssrlcv::Unity<T>* array, bool (*validate)(const T&)){
+void remove(ssrlcv::ptr::value<ssrlcv::Unity<T>> array, bool (*validate)(const T&)){
   if(array == nullptr){
-    throw ssrlcv::UnityException("passed array == nullptr in remove(Unity<T>* array)");
+    throw ssrlcv::UnityException("passed array == nullptr in remove(ssrlcv::ptr::value<ssrlcv::Unity<T>> array)");
   }
   ssrlcv::MemoryState origin = array->getMemoryState();
   ssrlcv::MemoryState fore = array->getFore();
   if(origin == ssrlcv::cpu || fore == ssrlcv::cpu) array->transferMemoryTo(ssrlcv::gpu);
-  thrust::device_ptr<T> array_ptr(array->device);
+  thrust::device_ptr<T> array_ptr(array->device.get());
   thrust::device_ptr<T> new_end = thrust::remove_if(array_ptr,array_ptr+array->size(),validate);
   CudaCheckError();
   unsigned long numElements = new_end - array_ptr;
   if(numElements == 0){
     std::clog<<"remove(Unity<T>, bool(*validate)(const T&)) led to all elements being removed (array deleted)"<<std::endl;
-    delete array;
     return;
   }
   else if(numElements != array->size()){
-    T* array_device = nullptr;
-    CudaSafeCall(cudaMalloc((void**)&array_device,numElements));
-    CudaSafeCall(cudaMemcpy(array_device,array->device,numElements*sizeof(T),cudaMemcpyDeviceToDevice));
+    ssrlcv::ptr::device<T> array_device(numElements);
+    CudaSafeCall(cudaMemcpy(array_device.get(),array->device.get(),numElements*sizeof(T),cudaMemcpyDeviceToDevice));
     array->setData(array_device,numElements,ssrlcv::gpu);
   }
   if(origin != ssrlcv::gpu) array->setMemoryState(origin);
