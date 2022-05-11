@@ -81,7 +81,9 @@ void getFilePaths(std::string dirPath, std::vector<std::string> &paths, std::str
    * \brief Base arg struct for arg parsing purposes.
    */
 struct arg
-{};
+{
+  virtual ~arg(){};
+};
 
   /**
    * \brief arg containing an image path
@@ -89,6 +91,7 @@ struct arg
   struct img_arg : public arg{
     std::string path;
     img_arg(char* path);
+    ~img_arg(){};
   };
   /**
    * \brief arg containing a vector of image paths
@@ -96,6 +99,7 @@ struct arg
   struct img_dir_arg : public arg{
     std::vector<std::string> paths;
     img_dir_arg(char* path);
+    ~img_dir_arg(){};
   };
   /**
    * \brief arg containing a floating point value
@@ -103,6 +107,7 @@ struct arg
   struct flt_arg : public arg{
     float val;
     flt_arg(char* val);
+    ~flt_arg(){};
   };
   /**
    * \brief arg containing an integer value
@@ -110,6 +115,7 @@ struct arg
   struct int_arg : public arg{
     int val;
     int_arg(char* val);
+    ~int_arg(){};
   };
 
   typedef std::pair<std::string, arg*> arg_pair;
@@ -137,7 +143,7 @@ struct arg
   * \param numValues - value to help with colorDepth determination
   * \returns a row-wise flattened pixel array
   */
-  unsigned char* getPixelArray(unsigned char** &row_pointers, const unsigned int &width, const unsigned int &height, const int numValues);
+  ssrlcv::ptr::host<unsigned char> getPixelArray(unsigned char** &row_pointers, const unsigned int &width, const unsigned int &height, const int numValues);
 
   /**
   * \brief Reads a png image and generates a pixel array.
@@ -149,7 +155,7 @@ struct arg
   * \param colorDepth - number of unsigned char values per pixel (reference argument that will be filled in during reading of image)
   * \returns a pixel array flattened row-wise with dimensions filled out in width, height, and colorDepth reference arguments
   */
-  unsigned char* readPNG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
+  ssrlcv::ptr::host<unsigned char> readPNG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
 
   /**
   * \brief Writes a png image from a pixel array.
@@ -171,7 +177,7 @@ struct arg
   * \param colorDepth - number of unsigned char values per pixel (reference argument that will be filled in during reading of image)
   * \returns a pixel array flattened row-wise with dimensions filled out in width, height, and colorDepth reference arguments
   */
-  unsigned char* readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
+  ssrlcv::ptr::host<unsigned char> readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
   /**
   * \brief Writes a jpeg image from a pixel array.
   * \details This method will write a TIF/TIFF image from a row-wise flattened pixel array using libtiff.
@@ -193,7 +199,7 @@ struct arg
   * \param colorDepth - number of unsigned char values per pixel (reference argument that will be filled in during reading of image)
   * \returns a pixel array flattened row-wise with dimensions filled out in width, height, and colorDepth reference arguments
   */
-  unsigned char* readImage(const char *filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
+  ssrlcv::ptr::host<unsigned char> readImage(const char *filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth);
 
   /**
   * \brief Writes an image from a pixel array.
@@ -224,43 +230,43 @@ struct arg
    * @param filePath the relative path to the input file
    * @return points the points of the point cloud in a float3 unity
    */
-  ssrlcv::Unity<float3>* readPLY(const char* filePath);
+  ssrlcv::ptr::value<ssrlcv::Unity<float3>> readPLY(const char* filePath);
 
   /**
   * \brief Will write a ply file based on a set of float3 values.
   * \details This method will write a ply in the specified location and can
   * be written in binary or ASCII format.
   * \param filePath - path where image will be written (<string>.c_str() is easiest way to use a string path)
-  * \param points - a Unity<float3>* where the points are listed
+  * \param points - a ssrlcv::ptr::value<ssrlcv::Unity<float3>> where the points are listed
   * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
   * \see Unity
   */
-  void writePLY(const char* filePath, Unity<float3>* points, bool binary);
+  void writePLY(const char* filePath, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, bool binary);
 
   /**
   * \brief Will write a ply file based on a set of float3 values.
   * \details This method will write a ply in the specified location and can
   * be written in binary or ASCII format.
   * \param filePath - path where image will be written (<string>.c_str() is easiest way to use a string path)
-  * \param points - a Unity<float3>* where the points are listed
+  * \param points - a ssrlcv::ptr::value<ssrlcv::Unity<float3>> where the points are listed
   * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
   * \see Unity
   */
-  void writePLY(std::string filename, Unity<float3>* points, bool binary);
+  void writePLY(std::string filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, bool binary);
 
   /**
    * @brief a simple ASCII PLY writing method that does not require the tinyPLY external lib
    * @param filename the name of the file to be saved in the /out directory
    * @param points the points to save as a PLY
    */
-  void writePLY(const char* filename, Unity<float3>* points);
+  void writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points);
 
   /**
    * @brief a simple ASCII PLY writing method that does not require the tinyPLY external lib
    * @param filename the name of the file to be saved in the /out directory
    * @param points the points to save as a PLY
    */
-  void writePLY(std::string filename, Unity<float3>* points);
+  void writePLY(std::string filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points);
 
   /**
   * \brief Will write a ply file based on a set of float3 values with rgb color
@@ -293,7 +299,7 @@ struct arg
   * \param binary - bool signifying if ply should be written in binary or ASCII format. (optional, default is ASCII)
   * \see Unity
   */
-  void writePLY(const char* filePath, Unity<colorPoint>* cpoint);
+  void writePLY(const char* filePath, ssrlcv::ptr::value<ssrlcv::Unity<colorPoint>> cpoint);
 
   /**
   * writes a mesh with colors
@@ -303,7 +309,7 @@ struct arg
   * @param faceEncoding the face encoding
   * @param colors the colors of the points
   */
-  void writePLY(const char* filename, Unity<float3>* points, Unity<int>* faceList, int faceEncoding, Unity<uchar3>* colors);
+  void writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, ssrlcv::ptr::value<ssrlcv::Unity<int>> faceList, int faceEncoding, ssrlcv::ptr::value<ssrlcv::Unity<uchar3>> colors);
 
   /**
    * @brief writes a Mesh PLY file that also contains a surface
@@ -313,7 +319,7 @@ struct arg
    * @param faceList a list of "faces" which are indices for point location
    * @param faceEncoding an int where 3 means trianglar and 4 mean quadrilateral
    */
-  void writePLY(const char* filename, Unity<float3>* points, Unity<int>* faceList, int faceEncoding);
+  void writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, ssrlcv::ptr::value<ssrlcv::Unity<int>> faceList, int faceEncoding);
 
   /**
    * @brief write a PLY that is color coded along the associated gradient points passed in
@@ -321,7 +327,7 @@ struct arg
    * @param points is the collection of points to color with the gradient
    * @param gradient the values that represent the "variance" of values to be colored with a gradient
    */
-  void writePLY(const char* filename, Unity<float3>* points, Unity<float>* gradient);
+  void writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, ssrlcv::ptr::value<ssrlcv::Unity<float>> gradient);
 
   /**
    * @brief write a PLY that is color coded along the associated gradient points passed in
@@ -330,7 +336,7 @@ struct arg
    * @param gradient the values that represent the "variance" of values to be colored with a gradient
    * @param cutoff the max gradient value, where the gradient should end. all points after this will be the same color
    */
-  void writePLY(const char* filename, Unity<float3>* points, Unity<float>* gradient, float cutoff);
+  void writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, ssrlcv::ptr::value<ssrlcv::Unity<float>> gradient, float cutoff);
 
   /**
    * @brief write a PLY that is a point cloud including normals
@@ -338,7 +344,7 @@ struct arg
    * @param points is the collection of points
    * @param normals are the normal vectors (assumed to have been normalized) for each of the point cloud's points
    */
-  void writePLY(const char* filename, Unity<float3>* points, Unity<float3>* normals);
+  void writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, ssrlcv::ptr::value<ssrlcv::Unity<float3>> normals);
 
   // =============================================================================================================
   //
@@ -384,7 +390,7 @@ struct arg
    * @param values a unity float input
    * @param filename the desired filename
    */
-  void writeCSV(Unity<float>* values, const char* filename);
+  void writeCSV(ssrlcv::ptr::value<ssrlcv::Unity<float>> values, const char* filename);
 
   /*
    * Takes in two c++ vectors and writes their values as:
@@ -392,7 +398,7 @@ struct arg
    * all pairs are on a new line. Assumes the vectors are the same size
    * @param v a unity float3 that is used to save `x,y,z`
    */
-  void writeCSV(Unity<float3>* v, const char* filename);
+  void writeCSV(ssrlcv::ptr::value<ssrlcv::Unity<float3>> v, const char* filename);
 
   //
   // Binary files - Gitlab #58

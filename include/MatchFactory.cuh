@@ -44,8 +44,8 @@ namespace ssrlcv{
   * \brief struct to pass around MultiMatches and KeyPoint sets
   */
   struct MatchSet{
-    Unity<KeyPoint>* keyPoints;
-    Unity<MultiMatch>* matches;
+    ssrlcv::ptr::value<Unity<KeyPoint>> keyPoints;
+    ssrlcv::ptr::value<Unity<MultiMatch>> matches;
   };
 
   /**
@@ -130,7 +130,7 @@ namespace ssrlcv{
   template<typename T>
   class MatchFactory{
   private:
-    Unity<Feature<T>>* seedFeatures;///<\brief Features generated from false seed image
+    ssrlcv::ptr::value<Unity<Feature<T>>> seedFeatures;///<\brief Features generated from false seed image
   public:
     float absoluteThreshold;///<\brief Absolute distance threshold relative to the return of Descrpitor type T's distProtocol()
     float relativeThreshold;///<\brief Relative threshold based on closest descriptor neighbor/closest seed descriptor (fraction)
@@ -153,7 +153,7 @@ namespace ssrlcv{
      * \param seedFeatures Unity of Features from a nonoverlapping image. 
      * \see Unity
      */
-    void setSeedFeatures(Unity<Feature<T>>* seedFeatures);
+    void setSeedFeatures(ssrlcv::ptr::value<Unity<Feature<T>>> seedFeatures);
 
     /**
      * \brief Discards matches flagged as invalid
@@ -162,7 +162,7 @@ namespace ssrlcv{
      * \param matches Unity with matches
      * \see Unity
      */
-    void validateMatches(Unity<Match>* matches);
+    void validateMatches(ssrlcv::ptr::value<ssrlcv::Unity<Match>> matches);
     /**
      * \brief Discards matches flagged as invalid
      * \details This will discard any DMatch with the 
@@ -170,7 +170,7 @@ namespace ssrlcv{
      * \param matches Unity with matches
      * \see Unity
      */
-    void validateMatches(Unity<DMatch>* matches);
+    void validateMatches(ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> matches);
     /**
      * \brief Discards matches flagged as invalid
      * \details This will discard any FeatureMatch<T> with the 
@@ -186,7 +186,7 @@ namespace ssrlcv{
      * \param matches Unity with matches
      * \see Unity
      */
-    void validateMatches(Unity<uint2_pair>* matches);
+    void validateMatches(ssrlcv::ptr::value<ssrlcv::Unity<uint2_pair>> matches);
 
     /**
      * \brief Discards matches with distance over an absolute threshold.
@@ -197,7 +197,7 @@ namespace ssrlcv{
      * \param threshold absolute threshold for checking distance
      * \see Unity
      */
-    void refineMatches(Unity<DMatch>* matches, float threshold);
+    void refineMatches(ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> matches, float threshold);
     /**
      * \brief Discards matches with distance over an absolute threshold.
      * \details Depending on the descriptor that the FeatureMatch<T> came from,
@@ -214,7 +214,7 @@ namespace ssrlcv{
      * \param matches Unity of DMatches to be sorted by mismatch distance
      * \see Unity 
      */
-    void sortMatches(Unity<DMatch>* matches);
+    void sortMatches(ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> matches);
     /**
      * \brief sorts all FeatureMatch<T> by mismatch distance
      * \param matches Unity of FeatureMatches to be sorted by mismatch distance
@@ -226,19 +226,19 @@ namespace ssrlcv{
      * \details This simply converts every element in the Unity 
      * to the base Match struct, removing distance as a parameter.
      * \param matches Unity of DMatches to be converted to Matches
-     * \returns Unity<Match>* an array of simplified matches
+     * \returns ssrlcv::ptr::value<ssrlcv::Unity<Match>> an array of simplified matches
      * \see Unity
      */
-    Unity<Match>* getRawMatches(Unity<DMatch>* matches);
+    ssrlcv::ptr::value<ssrlcv::Unity<Match>> getRawMatches(ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> matches);
     /**
      * \brief Returns Unity of simplified Match structs.
      * \details This simply converts every element in the Unity 
      * to the base Match struct, removing distance and the matched descriptors.
      * \param matches Unity of FeatureMatches to be converted to Matches
-     * \returns Unity<Match>* an array of simplified matches
+     * \returns ssrlcv::ptr::value<ssrlcv::Unity<Match>> an array of simplified matches
      * \see Unity
      */
-    Unity<Match>* getRawMatches(Unity<FeatureMatch<T>>* matches);
+    ssrlcv::ptr::value<ssrlcv::Unity<Match>> getRawMatches(Unity<FeatureMatch<T>>* matches);
 
     /**
      * \brief Generates distances between a set of features and the closest seedFeatures.
@@ -246,44 +246,44 @@ namespace ssrlcv{
      * and returns the distance of the closest seedFeature based on the distProtocol method 
      * of the descriptor. 
      * \param features features to be matches against this->seedFeatures
-     * \returns Unity<float>* an array same length as features with distances associated 
+     * \returns ssrlcv::ptr::value<ssrlcv::Unity<float>> an array same length as features with distances associated 
      */
-    Unity<float>* getSeedDistances(Unity<Feature<T>>* features);
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> getSeedDistances(ssrlcv::ptr::value<Unity<Feature<T>>> features);
 
     /**
      * \brief Generates Matches between Feature<Descriptor> when Descriptor::distProtocol() is implemented
      */
-    Unity<Match>* generateMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances = nullptr);
+    ssrlcv::ptr::value<ssrlcv::Unity<Match>> generateMatches(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
     /**
      * \brief Generates Matches between Feature<Descriptor> when Descriptor::distProtocol() is implemented with epipolar constaints
      * \param fundamental fundamental matrix generated from the query and target image camera parameters
      * \warning If bad fundamental matrix between two images, matches will be very bad. 
      */
-    Unity<Match>* generateMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
+    ssrlcv::ptr::value<ssrlcv::Unity<Match>> generateMatchesConstrained(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, float fundamental[3][3], ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
 
     /**
      * \brief Generates DMatches between Feature<Descriptor> when Descriptor::distProtocol() is implemented
      */
-    Unity<DMatch>* generateDistanceMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances = nullptr);
+    ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> generateDistanceMatches(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
     /**
      * \brief Generates DMatches between Feature<Descriptor> when Descriptor::distProtocol() is implemented with epipolar constaints
      * \warning If bad fundamental matrix between two images, matches will be very bad. 
      */
-    Unity<DMatch>* generateDistanceMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
+    ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> generateDistanceMatchesConstrained(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, float fundamental[3][3], ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
     
     /**
      * \brief Generates FeatureMatch<Descriptor>s between Feature<Descriptor> when Descriptor::distProtocol() is implemented
      */
-    Unity<FeatureMatch<T>>* generateFeatureMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances = nullptr);
+    Unity<FeatureMatch<T>>* generateFeatureMatches(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
     /**
      * \brief Generates FeatureMatch<Descriptor>s between Feature<Descriptor> when Descriptor::distProtocol() is implemented with epipolar constraints
      * \warning This method requires Images to have filled out Camera variables
      */
-    Unity<FeatureMatch<T>>* generateFeatureMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
+    Unity<FeatureMatch<T>>* generateFeatureMatchesConstrained(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, float fundamental[3][3], ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
 
 
-    Unity<uint2_pair>* generateMatchesIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances = nullptr);
-    Unity<uint2_pair>* generateMatchesConstrainedIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances = nullptr);
+    ssrlcv::ptr::value<ssrlcv::Unity<uint2_pair>> generateMatchesIndexOnly(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
+    ssrlcv::ptr::value<ssrlcv::Unity<uint2_pair>> generateMatchesConstrainedIndexOnly(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, float fundamental[3][3], ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
 
     /**
     * \brief Match a set of images 
@@ -292,20 +292,20 @@ namespace ssrlcv{
     * \param ordered is the image set ordered or not
     * \param estimatedOverlap fraction of overlap from one image to the next
     */
-    MatchSet generateMatchesExaustive(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
+    MatchSet generateMatchesExaustive(std::vector<ssrlcv::ptr::value<Image>> images, std::vector<ssrlcv::ptr::value<Unity<Feature<T>>>> features, bool ordered = true, float estimatedOverlap = 0.0f);
   
   };
 
-  Unity<Match>* generateDiparityMatches(uint2 querySize, Unity<unsigned char>* queryPixels, uint2 targetSize, Unity<unsigned char>* targetPixels, 
+  ssrlcv::ptr::value<ssrlcv::Unity<Match>> generateDiparityMatches(uint2 querySize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> queryPixels, uint2 targetSize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> targetPixels, 
     float fundamental[3][3], unsigned int maxDisparity, unsigned int windowSize = 3, Direction direction = undefined);
 
   /**
   * \defgroup match_io
   * \{
   */
-  void writeMatchFile(Unity<Match>* matches, std::string pathToFile, bool binary = false);
+  void writeMatchFile(ssrlcv::ptr::value<ssrlcv::Unity<Match>> matches, std::string pathToFile, bool binary = false);
   void writeMatchFile(MatchSet multiview_matches, std::string pathToFile, bool binary = false);
-  Unity<Match>* readMatchFile(std::string pathToFile);
+  ssrlcv::ptr::value<ssrlcv::Unity<Match>> readMatchFile(std::string pathToFile);
   /** \} */
 
   /* CUDA variable, method and kernel defintions */
