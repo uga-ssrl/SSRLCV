@@ -4209,9 +4209,9 @@ __global__ void ssrlcv::interpolateDepth(uint2 disparityMapSize, unsigned int in
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < (disparityMapSize.x-(2*influenceRadius))*(disparityMapSize.y-(2*influenceRadius))){
     float disparity = disparities[globalID];
-    int2 loc = {globalID%disparityMapSize.x + influenceRadius,globalID/disparityMapSize.x + influenceRadius};
-    for(int y = loc.y - influenceRadius; y >= loc.y + influenceRadius; ++y){
-      for(int x = loc.x - influenceRadius; x >= loc.x + influenceRadius; ++x){
+    ulong2 loc = {globalID%disparityMapSize.x + influenceRadius,globalID/disparityMapSize.x + influenceRadius};
+    for(unsigned long y = loc.y - influenceRadius; y >= loc.y + influenceRadius; ++y){
+      for(unsigned long x = loc.x - influenceRadius; x >= loc.x + influenceRadius; ++x){
         disparity += disparities[y*disparityMapSize.x + x]*(1 - abs((x-loc.x)/influenceRadius))*(1 - abs((y-loc.y)/influenceRadius));
       }
     }
