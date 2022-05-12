@@ -479,7 +479,7 @@ namespace ssrlcv{
 
   __global__ void computeStereo(unsigned int numMatches, Match* matches, float3* points, float scale);
 
-  __global__ void interpolateDepth(uint2 disparityMapSize, int influenceRadius, float* disparities, float* interpolated);
+  __global__ void interpolateDepth(uint2 disparityMapSize, unsigned int influenceRadius, float* disparities, float* interpolated);
 
   // =============================================================================================================
   //

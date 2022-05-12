@@ -4205,7 +4205,7 @@ __global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, f
   }
 }
 
-__global__ void ssrlcv::interpolateDepth(uint2 disparityMapSize, int influenceRadius, float* disparities, float* interpolated){
+__global__ void ssrlcv::interpolateDepth(uint2 disparityMapSize, unsigned int influenceRadius, float* disparities, float* interpolated){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < (disparityMapSize.x-(2*influenceRadius))*(disparityMapSize.y-(2*influenceRadius))){
     float disparity = disparities[globalID];
