@@ -367,6 +367,7 @@ ssrlcv::Unity<float>* ssrlcv::MatchFactory<T>::getSeedDistances(Unity<Feature<T>
 
   printf("seed match distances computed in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
+  // move the features array back to CPU
   if(origin != gpu) features->setMemoryState(origin);
   
   return matchDistances;
@@ -521,7 +522,8 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatches(
   if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
 
   return matches;
-}
+} // generateDistanceMatches
+
 template<typename T>
 ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatchesConstrained(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances){
   MemoryState origin[2] = {queryFeatures->getMemoryState(), targetFeatures->getMemoryState()};
@@ -575,7 +577,7 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatchesC
   if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
 
   return matches;
-}
+} // generateDistanceMatches
 
 
 template<typename T>
@@ -1302,7 +1304,7 @@ Feature<T>* seedFeatures, float* matchDistances){
     
     if(threadIdx.x != 0) return;
     currentDist = FLT_MAX;
-    // find the best match to the image feature, out of all the seed features
+    // find the best match for the image feature, out of the 32 best seed features
     for(int i = 0; i < 32; ++i){
       if(currentDist > localDist[i]){
         currentDist = localDist[i];

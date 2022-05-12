@@ -114,7 +114,6 @@ int main(int argc, char *argv[]){
     std::cout << "Starting matching..." << std::endl;
 
     logger.logState("MATCHING");
-    // seedDistances is a pointer to a Unity data structure containing floats
     // if a seed is provided, call the getSeedDistances function and assign the results to seedDistances
     // else, assign seedDistances to nullptr
     ssrlcv::Unity<float>* seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
