@@ -1864,7 +1864,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
   bestError = initialError; // we want our future best erros to be less than the initial error
 
   // the Hessian is always square, N is one side of the hessian
-  const unsigned int N = (const unsigned int) sqrt(hessian->size());
+  const unsigned int N = (unsigned int) sqrt(hessian->size());
 
   // cuBLAS housekeeping
   cublasHandle_t cublasH       = NULL;
