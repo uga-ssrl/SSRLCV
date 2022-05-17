@@ -1,4 +1,3 @@
-
 #include "PointCloudFactory.cuh"
 
 ssrlcv::PointCloudFactory::PointCloudFactory(){
@@ -3165,8 +3164,8 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     matchSet->keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,new_kp_size,ssrlcv::cpu);
     matchSet->matches   = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,new_mt_size,ssrlcv::cpu);
     // this is harder to do with the N-view case
-    int k_adjust = 0;
-    int k_lines  = 0;
+    unsigned int k_adjust = 0;
+    unsigned int k_lines  = 0;
     int k_bundle = 0;
     int k_keypnt = 0;
     for (int k = 0; k < bundleSet.bundles->size(); k++){
@@ -3372,8 +3371,8 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
     matchSet->keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,new_kp_size,ssrlcv::cpu);
     matchSet->matches   = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,new_mt_size,ssrlcv::cpu);
     // this is harder to do with the N-view case
-    int k_adjust = 0;
-    int k_lines  = 0;
+    unsigned int k_adjust = 0;
+    unsigned int k_lines  = 0;
     int k_bundle = 0;
     int k_keypnt = 0;
     for (int k = 0; k < bundleSet.bundles->size(); k++){
@@ -3524,8 +3523,8 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     matchSet->keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,new_kp_size,ssrlcv::cpu);
     matchSet->matches   = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,new_mt_size,ssrlcv::cpu);
     // this is harder to do with the N-view case
-    int k_adjust = 0;
-    int k_lines  = 0;
+    unsigned int k_adjust = 0;
+    unsigned int k_lines  = 0;
     int k_bundle = 0;
     int k_keypnt = 0;
     for (int k = 0; k < bundleSet.bundles->size(); k++){
@@ -3696,8 +3695,8 @@ void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, s
   matchSet->keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,new_kp_size,ssrlcv::cpu);
   matchSet->matches   = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,new_mt_size,ssrlcv::cpu);
   // this is harder to do with the N-view case
-  int k_adjust = 0;
-  int k_lines  = 0;
+  unsigned int k_adjust = 0;
+  unsigned int k_lines  = 0;
   int k_bundle = 0;
   int k_keypnt = 0;
   for (int k = 0; k < bundleSet.bundles->size(); k++){
