@@ -1853,7 +1853,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
   // each time the error is cut in half, so is the stepsize
   // float error_comp;
   float bestError;
-  float secondBestError;
+
 
   // does an initial computation of the starting error
   // NOTE print off new error
@@ -2115,7 +2115,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
       // New best params found
       //
 
-      secondBestError = bestError;
+
       bestError = localError;
       // the step improved the measured error
       for (int j = 0; j < bestParams.size(); j++){
