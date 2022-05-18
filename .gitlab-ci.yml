@@ -13,7 +13,7 @@ pages:
     paths:
     - ./doc/doxygen/public
   tags:
-  - ruby
+  - shell
   only:
   - master
 
