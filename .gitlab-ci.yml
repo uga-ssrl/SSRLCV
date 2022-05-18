@@ -7,11 +7,11 @@ pages:
   stage: documentation
   script:
   - doxygen ./doc/doxygen/Doxyfile
-  - mkdir ./doc/doxygen/public
-  - mv ./doc/doxygen/documentation/html/ ./doc/doxygen/public
+  - mkdir ./public
+  - mv ./doc/doxygen/documentation/html/ ./public
   artifacts:
     paths:
-    - ./doc/doxygen/public
+    - ./public
   tags:
   - shell
   only:
