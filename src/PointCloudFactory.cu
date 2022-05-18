@@ -2787,10 +2787,10 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(ssrlcv::ptr::value<ssrl
   int bounds = (int) ( (int) scale - ( (int) scale % step)); // does +/- at these bounds in x and y, needs to be divisible by step
   int index  = 0;
   ssrlcv::ptr::value<ssrlcv::Unity<float3>> vertices = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr, (size_t) (2 * bounds / step)*(2 * bounds / step),ssrlcv::cpu);
-  for (int x = - 1 * bounds; x < bounds; x += step){
-    for (int y = - 1 * bounds; y < bounds; y += step){
+  for (float x = - 1 * bounds; x < bounds; x += step){
+    for (float y = - 1 * bounds; y < bounds; y += step){
       float z  = point->host.get()[0].z - ((normal->host.get()[0].x * ( (float) x - point->host.get()[0].x)) + (normal->host.get()[0].y * ( (float) y - point->host.get()[0].y))) / normal->host.get()[0].z;
-      vertices->host.get()[index] = {x, y, (int) z};
+      vertices->host.get()[index] = {x, y, z};
       index++;
     }
   }
