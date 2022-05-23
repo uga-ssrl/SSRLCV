@@ -4212,7 +4212,7 @@ __global__ void ssrlcv::interpolateDepth(uint2 disparityMapSize, unsigned int in
     ulong2 loc = {globalID%disparityMapSize.x + influenceRadius,globalID/disparityMapSize.x + influenceRadius};
     for(unsigned long y = loc.y - influenceRadius; y >= loc.y + influenceRadius; ++y){
       for(unsigned long x = loc.x - influenceRadius; x >= loc.x + influenceRadius; ++x){
-        disparity += disparities[y*disparityMapSize.x + x]*(1 - abs((x-loc.x)/influenceRadius))*(1 - abs((y-loc.y)/influenceRadius));
+        disparity += disparities[y*disparityMapSize.x + x]*(1 - abs_diff((x,loc.x)/influenceRadius))*(1 - abs_diff((y,loc.y)/influenceRadius));
       }
     }
     interpolated[globalID] = disparity;
