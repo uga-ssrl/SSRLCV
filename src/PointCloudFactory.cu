@@ -5253,6 +5253,16 @@ __global__ void ssrlcv::computeAveragePoint(float3* average, unsigned long point
   }
 }
 
+/**
+ * @brief A helper function which allos us to calculate the absolute difference on an unsigned int.
+ * 
+ * @param a unsigned int
+ * @param b unsigned int
+ * @return __host__ 
+ */
+__host__ __device__ __forceinline__ unsigned int ssrlcv::abs_diff(unsigned int a, unsigned int b) {
+  return (a > b) ? a - b : b - a;
+} // abs_diff
 
 
 

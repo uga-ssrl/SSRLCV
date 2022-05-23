@@ -572,10 +572,11 @@ namespace ssrlcv{
    */
   __global__ void computeAveragePoint(float3* average, unsigned long pointnum, float3* points);
 
+  /**
+   * a helper function which allows us to calculate the absolute difference on unsigned int
+   */
+  __host__ __device__ __forceinline__ unsigned int abs_diff(unsigned int a, unsigned int b);
 }
-
-
-
 
 #endif /* POINTCLOUDFACTORY_CUH */
 
