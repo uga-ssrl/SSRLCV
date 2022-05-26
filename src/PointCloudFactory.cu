@@ -4204,14 +4204,14 @@ __global__ void ssrlcv::computeStereo(unsigned int numMatches, Match* matches, f
   }
 }
 
-__global__ void ssrlcv::interpolateDepth(uint2 disparityMapSize, int influenceRadius, float* disparities, float* interpolated){
+__global__ void ssrlcv::interpolateDepth(uint2 disparityMapSize, unsigned int influenceRadius, float* disparities, float* interpolated){
   unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
   if(globalID < (disparityMapSize.x-(2*influenceRadius))*(disparityMapSize.y-(2*influenceRadius))){
     float disparity = disparities[globalID];
-    int2 loc = {globalID%disparityMapSize.x + influenceRadius,globalID/disparityMapSize.x + influenceRadius};
-    for(int y = loc.y - influenceRadius; y >= loc.y + influenceRadius; ++y){
-      for(int x = loc.x - influenceRadius; x >= loc.x + influenceRadius; ++x){
-        disparity += disparities[y*disparityMapSize.x + x]*(1 - abs((x-loc.x)/influenceRadius))*(1 - abs((y-loc.y)/influenceRadius));
+    ulong2 loc = {globalID%disparityMapSize.x + influenceRadius,globalID/disparityMapSize.x + influenceRadius};
+    for(unsigned long y = loc.y - influenceRadius; y >= loc.y + influenceRadius; ++y){
+      for(unsigned long x = loc.x - influenceRadius; x >= loc.x + influenceRadius; ++x){
+        disparity += disparities[y*disparityMapSize.x + x]*(1 - abs_diff(x,loc.x)/influenceRadius)*(1 - abs_diff(y,loc.y)/influenceRadius);
       }
     }
     interpolated[globalID] = disparity;
@@ -5252,6 +5252,16 @@ __global__ void ssrlcv::computeAveragePoint(float3* average, unsigned long point
   }
 }
 
+/**
+ * @brief A helper function which allows us to calculate the absolute difference on an unsigned int.
+ * 
+ * @param a unsigned int
+ * @param b unsigned int
+ * @return __host__ 
+ */
+__host__ __device__ __forceinline__ unsigned int ssrlcv::abs_diff(unsigned int a, unsigned int b) {
+  return (a > b) ? a - b : b - a;
+} // abs_diff
 
 
 
