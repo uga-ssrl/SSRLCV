@@ -96,7 +96,7 @@ int main(int argc, char *argv[]){
 
       // features var contains a vector of SIFT feature descriptors
       ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
-      // transfer the feacture fector data to CPU
+      // transfer the feacture vector data to CPU
       features->transferMemoryTo(ssrlcv::cpu);
       // add the image to the images vector
       images.push_back(image);
@@ -118,7 +118,7 @@ int main(int argc, char *argv[]){
     // else, assign seedDistances to nullptr
     ssrlcv::Unity<float>* seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
     
-    // distanceMatches is a pointer to a Unity data structure containing floats
+    // distanceMatches is a pointer to a Unity data structure containing floats AKA distances
     ssrlcv::Unity<ssrlcv::DMatch>* distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
     if(seedDistances != nullptr) delete seedDistances;
 

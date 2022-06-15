@@ -143,7 +143,7 @@ namespace ssrlcv{
     /**
      * \brief Primary constructor
      * \param relativeThreshold seed distance threshold
-     * \param absoluteThreshold distProtocol returm threshold
+     * \param absoluteThreshold distProtocol return threshold
      */
     MatchFactory(float relativeThreshold, float absoluteThreshold);
     /**
@@ -294,7 +294,7 @@ namespace ssrlcv{
     */
     MatchSet generateMatchesExaustive(std::vector<Image*> images, std::vector<Unity<Feature<T>>*> features, bool ordered = true, float estimatedOverlap = 0.0f);
   
-  };
+  }; // MatchFactory class
 
   Unity<Match>* generateDiparityMatches(uint2 querySize, Unity<unsigned char>* queryPixels, uint2 targetSize, Unity<unsigned char>* targetPixels, 
     float fundamental[3][3], unsigned int maxDisparity, unsigned int windowSize = 3, Direction direction = undefined);

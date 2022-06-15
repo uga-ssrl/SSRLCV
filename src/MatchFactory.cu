@@ -479,7 +479,7 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::MatchFactory<T>::generateMatchesConstraine
 
 
 template<typename T>
-ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances){
+ssrlcv::Unity<ssrlcv::DMatch>* ssrlcv::MatchFactory<T>::generateDistanceMatches(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances){
   MemoryState origin[2] = {queryFeatures->getMemoryState(), targetFeatures->getMemoryState()};
 
   if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
@@ -577,8 +577,7 @@ ssrlcv::Unity<ssrlcv::DMatch>*ssrlcv::MatchFactory<T>:: generateDistanceMatchesC
   if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
 
   return matches;
-} // generateDistanceMatches
-
+} // generateDistanceMatchesConstrained
 
 template<typename T>
 ssrlcv::Unity<ssrlcv::FeatureMatch<T>>* ssrlcv::MatchFactory<T>::generateFeatureMatches(ssrlcv::Image* query, ssrlcv::Unity<ssrlcv::Feature<T>>* queryFeatures,
@@ -625,7 +624,8 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, Unity<
   if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
 
   return matches;
-}
+} // generateFeatureMatches
+
 template<typename T>
 ssrlcv::Unity<ssrlcv::FeatureMatch<T>>* ssrlcv::MatchFactory<T>::generateFeatureMatchesConstrained(ssrlcv::Image* query, ssrlcv::Unity<ssrlcv::Feature<T>>* queryFeatures,
 ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances){
@@ -682,9 +682,7 @@ ssrlcv::Image* target, ssrlcv::Unity<ssrlcv::Feature<T>>* targetFeatures, float 
 
   return matches;
 
-}
-
-
+} // generateFeatureMatchesConstrained
 
 template<typename T>
 ssrlcv::Unity<ssrlcv::uint2_pair>* ssrlcv::MatchFactory<T>::generateMatchesIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, Unity<float>* seedDistances){
@@ -734,6 +732,7 @@ ssrlcv::Unity<ssrlcv::uint2_pair>* ssrlcv::MatchFactory<T>::generateMatchesIndex
 
   return matches;
 }
+
 template<typename T>
 ssrlcv::Unity<ssrlcv::uint2_pair>* ssrlcv::MatchFactory<T>::generateMatchesConstrainedIndexOnly(Image* query, Unity<Feature<T>>* queryFeatures, Image* target, Unity<Feature<T>>* targetFeatures, float epsilon, float fundamental[3][3], Unity<float>* seedDistances){
   MemoryState origin[2] = {queryFeatures->getMemoryState(), targetFeatures->getMemoryState()};
@@ -789,7 +788,6 @@ ssrlcv::Unity<ssrlcv::uint2_pair>* ssrlcv::MatchFactory<T>::generateMatchesConst
 
   return matches;
 }
-
 
 template<typename T>
 ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<ssrlcv::Image*> images, std::vector<ssrlcv::Unity<ssrlcv::Feature<T>>*> features, bool ordered, float estimatedOverlap){
@@ -907,9 +905,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
   delete[] origin;
   //1:2,1:3,1:4,1:5,2:3,2:4,2:5,3:4,3:5,4:5
   return matchSet;
-
 }
-
 
 ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, Unity<unsigned char>* queryPixels, uint2 targetSize, Unity<unsigned char>* targetPixels, 
   float fundamental[3][3], unsigned int maxDisparity,unsigned int windowSize, Direction direction){
@@ -1002,7 +998,6 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::generateDiparityMatches(uint2 querySize, U
   if(origin[0] != gpu) matches->setMemoryState(origin[0]);
   return matches;
 }
-
 
 void ssrlcv::writeMatchFile(Unity<Match>* matches, std::string pathToFile, bool binary){
   MemoryState origin = matches->getMemoryState();
@@ -1102,7 +1097,6 @@ ssrlcv::Unity<ssrlcv::Match>* ssrlcv::readMatchFile(std::string pathToFile){
   std::memcpy(matches->host,&match_vec[0],match_vec.size()*sizeof(Match));
   return matches;
 }
-
 
 /*
 CUDA implementations
@@ -1334,7 +1328,7 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float absoluteThreshold){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
       }
-    }
+    } // for
     __syncthreads();
     if(threadIdx.x != 0) return;
     currentDist = absoluteThreshold;
@@ -1358,7 +1352,8 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float absoluteThreshold){
     }
     matches[blockId] = match;
   }
-}
+} // matchFeaturesBruteForce
+
 template<typename T>
 __global__ void ssrlcv::matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
@@ -1470,6 +1465,7 @@ ssrlcv::Feature<T>* featuresTarget, Match* matches, float* seedDistances, float 
     matches[blockId] = match;
   }
 }
+
 template<typename T>
 __global__ void ssrlcv::matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
@@ -1584,6 +1580,7 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float absoluteThreshold){
     matches[blockId] = match;
   }
 }
+
 template<typename T>
 __global__ void ssrlcv::matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
@@ -1645,6 +1642,7 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, float* funda
     matches[blockId] = match;
   }
 }
+
 template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
@@ -1698,6 +1696,7 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
     matches[blockId] = match;
   }
 }
+
 template<typename T>
 __global__ void ssrlcv::matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
