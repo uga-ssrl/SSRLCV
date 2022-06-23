@@ -1,4 +1,3 @@
-
 #include "PointCloudFactory.cuh"
 
 ssrlcv::PointCloudFactory::PointCloudFactory(){
@@ -1853,7 +1852,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
   // each time the error is cut in half, so is the stepsize
   // float error_comp;
   float bestError;
-  float secondBestError;
+
 
   // does an initial computation of the starting error
   // NOTE print off new error
@@ -1864,7 +1863,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
   bestError = initialError; // we want our future best erros to be less than the initial error
 
   // the Hessian is always square, N is one side of the hessian
-  const unsigned int N = (const unsigned int) sqrt(hessian->size());
+  const unsigned int N = (unsigned int) sqrt(hessian->size());
 
   // cuBLAS housekeeping
   cublasHandle_t cublasH       = NULL;
@@ -2115,7 +2114,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
       // New best params found
       //
 
-      secondBestError = bestError;
+
       bestError = localError;
       // the step improved the measured error
       for (int j = 0; j < bestParams.size(); j++){
@@ -2787,10 +2786,10 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(ssrlcv::ptr::value<ssrl
   int bounds = (int) ( (int) scale - ( (int) scale % step)); // does +/- at these bounds in x and y, needs to be divisible by step
   int index  = 0;
   ssrlcv::ptr::value<ssrlcv::Unity<float3>> vertices = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr, (size_t) (2 * bounds / step)*(2 * bounds / step),ssrlcv::cpu);
-  for (int x = - 1 * bounds; x < bounds; x += step){
-    for (int y = - 1 * bounds; y < bounds; y += step){
+  for (float x = - 1 * bounds; x < bounds; x += step){
+    for (float y = - 1 * bounds; y < bounds; y += step){
       float z  = point->host.get()[0].z - ((normal->host.get()[0].x * ( (float) x - point->host.get()[0].x)) + (normal->host.get()[0].y * ( (float) y - point->host.get()[0].y))) / normal->host.get()[0].z;
-      vertices->host.get()[index] = {x, y, (int) z};
+      vertices->host.get()[index] = {x, y, z};
       index++;
     }
   }
@@ -3165,8 +3164,8 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     matchSet->keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,new_kp_size,ssrlcv::cpu);
     matchSet->matches   = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,new_mt_size,ssrlcv::cpu);
     // this is harder to do with the N-view case
-    int k_adjust = 0;
-    int k_lines  = 0;
+    unsigned int k_adjust = 0;
+    unsigned int k_lines  = 0;
     int k_bundle = 0;
     int k_keypnt = 0;
     for (int k = 0; k < bundleSet.bundles->size(); k++){
@@ -3372,8 +3371,8 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
     matchSet->keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,new_kp_size,ssrlcv::cpu);
     matchSet->matches   = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,new_mt_size,ssrlcv::cpu);
     // this is harder to do with the N-view case
-    int k_adjust = 0;
-    int k_lines  = 0;
+    unsigned int k_adjust = 0;
+    unsigned int k_lines  = 0;
     int k_bundle = 0;
     int k_keypnt = 0;
     for (int k = 0; k < bundleSet.bundles->size(); k++){
@@ -3524,8 +3523,8 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     matchSet->keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,new_kp_size,ssrlcv::cpu);
     matchSet->matches   = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,new_mt_size,ssrlcv::cpu);
     // this is harder to do with the N-view case
-    int k_adjust = 0;
-    int k_lines  = 0;
+    unsigned int k_adjust = 0;
+    unsigned int k_lines  = 0;
     int k_bundle = 0;
     int k_keypnt = 0;
     for (int k = 0; k < bundleSet.bundles->size(); k++){
@@ -3696,8 +3695,8 @@ void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, s
   matchSet->keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,new_kp_size,ssrlcv::cpu);
   matchSet->matches   = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,new_mt_size,ssrlcv::cpu);
   // this is harder to do with the N-view case
-  int k_adjust = 0;
-  int k_lines  = 0;
+  unsigned int k_adjust = 0;
+  unsigned int k_lines  = 0;
   int k_bundle = 0;
   int k_keypnt = 0;
   for (int k = 0; k < bundleSet.bundles->size(); k++){
@@ -4212,7 +4211,7 @@ __global__ void ssrlcv::interpolateDepth(uint2 disparityMapSize, unsigned int in
     ulong2 loc = {globalID%disparityMapSize.x + influenceRadius,globalID/disparityMapSize.x + influenceRadius};
     for(unsigned long y = loc.y - influenceRadius; y >= loc.y + influenceRadius; ++y){
       for(unsigned long x = loc.x - influenceRadius; x >= loc.x + influenceRadius; ++x){
-        disparity += disparities[y*disparityMapSize.x + x]*(1 - abs_diff((x,loc.x)/influenceRadius))*(1 - abs_diff((y,loc.y)/influenceRadius));
+        disparity += disparities[y*disparityMapSize.x + x]*(1 - abs_diff(x,loc.x)/influenceRadius)*(1 - abs_diff(y,loc.y)/influenceRadius);
       }
     }
     interpolated[globalID] = disparity;
