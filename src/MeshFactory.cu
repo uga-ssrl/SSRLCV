@@ -691,7 +691,7 @@ void ssrlcv::MeshFactory::computeVertexImplicitJAX(int focusDepth){
   }
 
   timer = clock() - timer;
-  printf("Computing Vertex Implicit Values with normals took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
+  logger.info.printf("Computing Vertex Implicit Values with normals took a total of %f seconds.",((float) timer)/CLOCKS_PER_SEC);
 }
 void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   this->computeVertexImplicitJAX(0);
@@ -783,7 +783,7 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
   CudaSafeCall(cudaMemcpy(&this->numSurfaceVertices, vertexAddressesDevice.get() + (this->octree->edges->size() - 1), sizeof(int), cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaMemcpy(&this->numSurfaceTriangles, triangleAddressesDevice.get() + (this->octree->nodes->size() - 1), sizeof(int), cudaMemcpyDeviceToHost));
 
-  printf("%d vertices and %d triangles from %lu finestNodes\n",this->numSurfaceVertices, this->numSurfaceTriangles, this->octree->nodes->size());
+  logger.info.printf("%d vertices and %d triangles from %lu finestNodes",this->numSurfaceVertices, this->numSurfaceTriangles, this->octree->nodes->size());
 
   ssrlcv::ptr::device<float3> surfaceVerticesDevice( this->numSurfaceVertices);
 
@@ -834,7 +834,7 @@ void ssrlcv::MeshFactory::adaptiveMarchingCubes(){
     this->octree->nodes->clear(gpu);
   }
   timer = clock() - timer;
-  printf("Marching cubes took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
+  logger.info.printf("Marching cubes took a total of %f seconds.",((float) timer)/CLOCKS_PER_SEC);
   this->generateMesh();
 }
 void ssrlcv::MeshFactory::marchingCubes(){
@@ -929,7 +929,7 @@ void ssrlcv::MeshFactory::marchingCubes(){
   CudaSafeCall(cudaMemcpy(&this->numSurfaceVertices, vertexAddressesDevice.get() + (numFinestEdges - 1), sizeof(int), cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaMemcpy(&this->numSurfaceTriangles, triangleAddressesDevice.get() + (numFinestNodes - 1), sizeof(int), cudaMemcpyDeviceToHost));
 
-  printf("%d vertices and %d triangles from %d finestNodes\n",this->numSurfaceVertices, this->numSurfaceTriangles, numFinestNodes);
+  logger.info.printf("%d vertices and %d triangles from %d finestNodes",this->numSurfaceVertices, this->numSurfaceTriangles, numFinestNodes);
 
   ssrlcv::ptr::device<float3> surfaceVerticesDevice( this->numSurfaceVertices);
 
@@ -981,7 +981,7 @@ void ssrlcv::MeshFactory::marchingCubes(){
     this->octree->nodes->clear(gpu);
   }
   timer = clock() - timer;
-  printf("Marching cubes took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
+  logger.info.printf("Marching cubes took a total of %f seconds.",((float) timer)/CLOCKS_PER_SEC);
   this->generateMesh(true);
 
 }
@@ -1049,7 +1049,7 @@ void ssrlcv::MeshFactory::jaxMeshing(){
     }
   }
   //this->octree->writeDepthPLY(this->octree->depth - surfaceDepth);
-  printf("%d is the depth at which the surface is surrounded by nodes without holes\n",this->octree->depth - surfaceDepth);
+  logger.info.printf("%d is the depth at which the surface is surrounded by nodes without holes",this->octree->depth - surfaceDepth);
   this->computeVertexImplicitJAX(this->octree->depth - surfaceDepth);
 
   //MARCHING CUBES ON
@@ -1120,7 +1120,7 @@ void ssrlcv::MeshFactory::jaxMeshing(){
   CudaSafeCall(cudaMemcpy(&this->numSurfaceVertices, vertexAddressesDevice.get() + (numMarchingEdges - 1), sizeof(int), cudaMemcpyDeviceToHost));
   CudaSafeCall(cudaMemcpy(&this->numSurfaceTriangles, triangleAddressesDevice.get() + (numMarchingNodes - 1), sizeof(int), cudaMemcpyDeviceToHost));
 
-  printf("%d vertices and %d triangles from %d finestNodes\n",this->numSurfaceVertices, this->numSurfaceTriangles, numMarchingNodes);
+  logger.info.printf("%d vertices and %d triangles from %d finestNodes",this->numSurfaceVertices, this->numSurfaceTriangles, numMarchingNodes);
 
   ssrlcv::ptr::device<float3> surfaceVerticesDevice( this->numSurfaceVertices);
 
@@ -1183,7 +1183,7 @@ void ssrlcv::MeshFactory::jaxMeshing(){
   }
 
   timer = clock() - timer;
-  printf("Jax meshing took a total of %f seconds.\n\n",((float) timer)/CLOCKS_PER_SEC);
+  logger.info.printf("Jax meshing took a total of %f seconds.",((float) timer)/CLOCKS_PER_SEC);
   this->generateMesh();
 
 }

@@ -51,8 +51,10 @@ ssrlcv::Quadtree<T>::Quadtree(uint2 size, unsigned int depth, ssrlcv::Unity<Loca
   this->border = border;
   this->size = {size.x + (border.x*2),size.y + (border.y*2)};
   this->depth = depth;
-  printf("Building Quadtree with following characteristics:\ndepth = %d",this->depth);
-  printf("\nsize = {%d,%d}\nborder = {%d,%d}\n",this->size.x,this->size.y,this->border.x,this->border.y);
+  logger.info.printf("Building Quadtree with following characteristics:");
+  logger.info.printf("depth = %d",this->depth);
+  logger.info.printf("size = {%d,%d}",this->size.x,this->size.y);
+  logger.info.printf("boirder = {%d,%d}",this->border.x,this->border.y);
   this->generateLeafNodes();
   this->generateParentNodes();
   this->fillNeighborhoods();
@@ -133,7 +135,7 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(){
 
   this->nodes->setFore(gpu);
 
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
 }
 
@@ -244,8 +246,8 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
   fillDataNodeIndex<T><<<grid,block>>>(this->nodeDepthIndex->host.get()[1],this->nodes->device.get(), this->dataNodeIndex->device.get());
   cudaDeviceSynchronize();
   CudaCheckError();
-  printf("TOTAL NODES = %d\n\n",totalNodes);
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("TOTAL NODES = %d",totalNodes);
+  logger.info.printf("done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
   this->nodes->setFore(gpu);
   this->dataNodeIndex->setFore(gpu);
@@ -555,9 +557,11 @@ void ssrlcv::Quadtree<T>::setNodeFlags(float2 flagBorder, bool requireFullNeighb
   void (*fp)(unsigned int, unsigned int, typename Quadtree<T>::Node*, float4, bool) = &applyNodeFlags<T>;
   getFlatGridBlock(numNodes, grid, block,fp);
 
-  printf("Setting node flags based on distance from edge = {%f,%f} ",flagBorder.x,flagBorder.y);
-  if(requireFullNeighbors)printf("while also requiring full neighbors");
-  printf("\n");
+  if(requireFullNeighbors) {
+    logger.info.printf("Setting node flags based on distance from edge = {%f,%f} while also requiring full neighbors",flagBorder.x,flagBorder.y);
+  } else {
+    logger.info.printf("Setting node flags based on distance from edge = {%f,%f}",flagBorder.x,flagBorder.y);
+  }
   float4 bounds = {flagBorder.x, flagBorder.y, ((float)this->size.x) - flagBorder.x, ((float)this->size.y) - flagBorder.y};
 
   applyNodeFlags<T><<<grid,block>>>(numNodes,nodeDepthIndex,this->nodes->device.get(),bounds,requireFullNeighbors);

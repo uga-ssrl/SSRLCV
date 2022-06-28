@@ -55,7 +55,7 @@ ssrlcv::FeatureFactory::ScaleSpace::Octave::Octave(int id, unsigned int numBlurs
 numBlurs(numBlurs),pixelWidth(pixelWidth),id(id){
     this->extrema = nullptr;
     this->extremaBlurIndices = nullptr;
-    printf("creating octave[%d] with %d blurs of size {%d,%d}\n",this->id,this->numBlurs,size.x,size.y);
+    logger.info.printf("creating octave[%d] with %d blurs of size {%d,%d}",this->id,this->numBlurs,size.x,size.y);
     MemoryState origin = pixels->getMemoryState();
     if(origin != gpu) pixels->setMemoryState(gpu);
 
@@ -334,7 +334,7 @@ depth(depth), isDOG(makeDOG){
         exit(-1);
     }
 
-    printf("creating scalespace with depth {%d,%d}\n",this->depth.x,this->depth.y);
+    logger.info.printf("creating scalespace with depth {%d,%d}",this->depth.x,this->depth.y);
     ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels;
     MemoryState origin = image->pixels->getMemoryState();
     if(origin != gpu) image->pixels->setMemoryState(gpu);
@@ -600,7 +600,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orien
             }
 
         }
-        printf("\tafter computing theta for each keyPoint octave[%d] has %d keyPoints\n",o,totalKeyPoints);
+        logger.info.printf("\tafter computing theta for each keyPoint octave[%d] has %d keyPoints",o,totalKeyPoints);
         if(totalKeyPoints != 0){
             currentOctave->extrema->setData(nullptr,totalKeyPoints,gpu);
             for(int i = 0; i < currentOctave->numBlurs; ++i){

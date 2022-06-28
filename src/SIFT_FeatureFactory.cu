@@ -47,7 +47,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrl
     // will free CPU memory and instantiate GPU memory
     keyPoints->setMemoryState(gpu);
 
-    printf("\nDense SIFT prep done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+    logger.info.printf("\nDense SIFT prep done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
     features = this->createFeatures(image->size,orientationThreshold,maxOrientations,1.0f,gradients,keyPoints);
   }
@@ -197,7 +197,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrl
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  printf("compute thetas done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("compute thetas done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
   timer = clock();
 
   thrust::device_ptr<int> tN(thetaNumbers_device.get());
@@ -207,7 +207,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrl
   thrust::device_ptr<float> t(thetas_device.get());
   thrust::device_ptr<float> new_end = thrust::remove(t, t + keyPoints->size()*maxOrientations, -FLT_MAX);
 
-  printf("theta compaction done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("theta compaction done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
   timer = clock();
 
   grid = {1,1,1};
@@ -221,7 +221,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrl
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  printf("fill descriptors done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("fill descriptors done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
   return ssrlcv::ptr::value<Unity<Feature<SIFT_Descriptor>>>(features_device,numFeatures,gpu);
 }

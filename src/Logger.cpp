@@ -139,19 +139,6 @@ ssrlcv::Logger::Error &ssrlcv::Logger::Error::operator<<(std::string input){
   return *this;
 }
 
-template <typename... Args>
-void ssrlcv::Logger::Error::printf(const char *format, Args&&... args){
-#if LOG_LEVEL >= 1
-  char buffer[200];
-  int num = snprintf(buffer, 200, format, std::forward<Args>(args)...);
-  if (num >= 0 && num < 200) {
-    this->logger->logError(buffer);
-  } else {
-    this->logger->logError("Printf statement too long");
-  }
-#endif
-}
-
 ssrlcv::Logger::Warning::Warning(){
   this->logger = nullptr;
 }
@@ -172,19 +159,6 @@ ssrlcv::Logger::Warning &ssrlcv::Logger::Warning::operator<<(std::string input){
   this->logger->logWarning(input);
 #endif
   return *this;
-}
-
-template <typename... Args>
-void ssrlcv::Logger::Warning::printf(const char *format, Args&&... args){
-#if LOG_LEVEL >= 2
-  char buffer[200];
-  int num = snprintf(buffer, 200, format, std::forward<Args>(args)...);
-  if (num >= 0 && num < 200) {
-    this->logger->logWarning(buffer);
-  } else {
-    this->logger->logError("Printf statement too long");
-  }
-#endif
 }
 
 ssrlcv::Logger::Info::Info(){
@@ -208,20 +182,6 @@ ssrlcv::Logger::Info &ssrlcv::Logger::Info::operator<<(std::string input){
 #endif
   return *this;
 }
-
-template <typename... Args>
-void ssrlcv::Logger::Info::printf(const char *format, Args&&... args){
-#if LOG_LEVEL >= 3
-  char buffer[200];
-  int num = snprintf(buffer, 200, format, std::forward<Args>(args)...);
-  if (num >= 0 && num < 200) {
-    this->logger->logInfo(buffer);
-  } else {
-    this->logger->logError("Printf statement too long");
-  }
-#endif
-}
-
 
 
 

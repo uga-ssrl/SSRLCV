@@ -44,7 +44,7 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
     for(int i = 0; i < distanceMatches->size(); ++i){
       if(maxDist < distanceMatches->host.get()[i].distance) maxDist = distanceMatches->host.get()[i].distance;
     }
-    printf("max euclidean distance between features = %f\n",maxDist);
+    logger.info.printf("max euclidean distance between features = %f",maxDist);
     if(distanceMatches->getMemoryState() != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
     ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches = matchFactory.getRawMatches(distanceMatches);
   

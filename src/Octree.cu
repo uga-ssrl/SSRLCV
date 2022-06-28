@@ -528,7 +528,7 @@ void ssrlcv::Octree::fillInCoarserDepths(){
     CudaSafeCall(cudaFree(nodeArray2D[i]));
   }
   delete[] nodeArray2D;
-  printf("TOTAL NODES = %d\n\n",totalNodes);
+  logger.info.printf("TOTAL NODES = %d",totalNodes);
   this->pointNodeIndex = ssrlcv::ptr::value<ssrlcv::Unity<unsigned int>>(pointNodeIndex_device, this->points->size(), gpu);
   this->nodes = ssrlcv::ptr::value<ssrlcv::Unity<Node>>(nodeArray_device, totalNodes, gpu);
   this->nodeDepthIndex = ssrlcv::ptr::value<ssrlcv::Unity<unsigned int>>(nodeDepthIndex_host, this->depth + 1, cpu);
@@ -734,7 +734,7 @@ void ssrlcv::Octree::computeVertexArray(){
   this->vertices = ssrlcv::ptr::value<ssrlcv::Unity<Vertex>>(vertices_device, numVertices, gpu);
   this->vertexDepthIndex = ssrlcv::ptr::value<ssrlcv::Unity<unsigned int>>(vertexDepthIndex_host, this->depth + 1, cpu);
 
-  printf("octree createVertexArray took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
+  logger.info.printf("octree createVertexArray took %f seconds.", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 void ssrlcv::Octree::computeEdgeArray(){
   clock_t cudatimer;
@@ -854,7 +854,7 @@ void ssrlcv::Octree::computeEdgeArray(){
   this->edges = ssrlcv::ptr::value<ssrlcv::Unity<Edge>>(edgeArray_device, numEdges, gpu);
   this->edgeDepthIndex = ssrlcv::ptr::value<ssrlcv::Unity<unsigned int>>(edgeDepthIndex_host, this->depth + 1, cpu);
 
-  printf("octree createEdgeArray took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
+  logger.info.printf("octree createEdgeArray took %f seconds.", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 void ssrlcv::Octree::computeFaceArray(){
   clock_t cudatimer;
@@ -957,7 +957,7 @@ void ssrlcv::Octree::computeFaceArray(){
   this->faces = ssrlcv::ptr::value<ssrlcv::Unity<Face>>(faceArray_device, numFaces, gpu);
   this->faceDepthIndex = ssrlcv::ptr::value<ssrlcv::Unity<unsigned int>>(faceDepthIndex_host, this->depth + 1, cpu);
 
-  printf("octree createFaceArray took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
+  logger.info.printf("octree createFaceArray took %f seconds.", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
 void ssrlcv::Octree::checkForGeneralNodeErrors(){
@@ -1068,51 +1068,51 @@ void ssrlcv::Octree::checkForGeneralNodeErrors(){
     }
   }
   if(numCentersOUTSIDE > 0){
-    printf("ERROR %d centers outside of bounding box\n",numCentersOUTSIDE);
+    logger.err.printf("ERROR %d centers outside of bounding box",numCentersOUTSIDE);
     error = true;
   }
   if(numSiblingParents > 0){
-    std::cout<<"ERROR "<<numSiblingParents<<" NODES THINK THEIR PARENT IS IN THE SAME DEPTH AS THEMSELVES"<<std::endl;
+    logger.err.printf("ERROR %d NODES THINK THEIR PARENT IS IN THE SAME DEPTH AS THEMSELVES", numSiblingParents);
     error = true;
   }
   if(numChildNeighbors > 0){
-    std::cout<<"ERROR "<<numChildNeighbors<<" NODES WITH SIBLINGS AT HIGHER DEPTH"<<std::endl;
+    logger.err.printf("ERROR %d NODES WITH SIBLINGS AT HIGHER DEPTH", numChildNeighbors);
     error = true;
   }
   if(numParentNeighbors > 0){
-    std::cout<<"ERROR "<<numParentNeighbors<<" NODES WITH SIBLINGS AT LOWER DEPTH"<<std::endl;
+    logger.err.printf("ERROR %d NODES WITH SIBLINGS AT LOWER DEPTH", numParentNeighbors);
     error = true;
   }
   if(numFuckedNodes > 0){
-    std::cout<<numFuckedNodes<<" ERROR IN NODE CONCATENATION OR GENERATION"<<std::endl;
+    logger.err.printf("ERROR IN %d NODE CONCATENATION OR GENERATION", numFuckedNodes);
     error = true;
   }
   if(orphanNodes > 0){
-    std::cout<<orphanNodes<<" ERROR THERE ARE ORPHAN NODES"<<std::endl;
+    logger.err.printf("ERROR THERE ARE %d ORPHAN NODES", orphanNodes);
     error = true;
   }
   if(nodesThatCantFindChildren > 0){
-    std::cout<<"ERROR "<<nodesThatCantFindChildren<<" PARENTS WITHOUT CHILDREN"<<std::endl;
+    logger.err.printf("ERROR %d PARENTS WITHOUT CHILDREN", nodesThatCantFindChildren);
     error = true;
   }
   if(numVerticesMissing > 0){
-    std::cout<<"ERROR "<<numVerticesMissing<<" VERTICES MISSING"<<std::endl;
+    logger.err.printf("ERROR %d VERTICES MISSING", numVerticesMissing);
     error = true;
   }
   if(numEgesMissing > 0){
-    std::cout<<"ERROR "<<numEgesMissing<<" EDGES MISSING"<<std::endl;
+    logger.err.printf("ERROR %d EDGES MISSING", numEgesMissing);
     error = true;
   }
   if(numFacesMissing > 0){
-    std::cout<<"ERROR "<<numFacesMissing<<" FACES MISSING"<<std::endl;
+    logger.err.printf("ERROR %d FACES MISSING", numFacesMissing);
     error = true;
   }
   if(error) exit(-1);
-  else std::cout<<"NO ERRORS DETECTED IN OCTREE"<<std::endl;
+  else logger.err.printf("NO ERRORS DETECTED IN OCTREE");
   std::cout<<"NODES WITHOUT POINTS = "<<noPoints<<std::endl;
   std::cout<<"NODES WITH POINTS = "<<this->nodes->size() - noPoints<<std::endl<<std::endl;
 
-  printf("octree checkForErrors took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
+  logger.info.printf("octree checkForErrors took %f seconds.", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
   this->nodes->transferMemoryTo(origin);
 }
 

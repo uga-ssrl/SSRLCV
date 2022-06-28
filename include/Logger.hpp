@@ -42,7 +42,17 @@ namespace ssrlcv{
       Error &operator<<(std::string input);
 
       template <typename... Args>
-      void printf(const char *format, Args&&... args);
+      void printf(const char *format, Args&&... args){
+      #if LOG_LEVEL >= 1
+        char buffer[200];
+        int num = snprintf(buffer, 200, format, std::forward<Args>(args)...);
+        if (num >= 0 && num < 200) {
+          this->logger->logError(buffer);
+        } else {
+          this->logger->logError("Printf statement too long");
+        }
+      #endif
+      }
     };
     /**
      * Structure to handle warning messages
@@ -58,7 +68,17 @@ namespace ssrlcv{
       Warning &operator<<(std::string input);
 
       template <typename... Args>
-      void printf(const char *format, Args&&... args);
+      void printf(const char *format, Args&&... args){
+      #if LOG_LEVEL >= 2
+        char buffer[200];
+        int num = snprintf(buffer, 200, format, std::forward<Args>(args)...);
+        if (num >= 0 && num < 200) {
+          this->logger->logWarning(buffer);
+        } else {
+          this->logger->logError("Printf statement too long");
+        }
+      #endif
+      }
     };
     /**
      * Structure to handle info messages
@@ -74,7 +94,17 @@ namespace ssrlcv{
       Info &operator<<(std::string input);
 
       template <typename... Args>
-      void printf(const char *format, Args&&... args);
+      void printf(const char *format, Args&&... args){
+      #if LOG_LEVEL >= 3
+        char buffer[200];
+        int num = snprintf(buffer, 200, format, std::forward<Args>(args)...);
+        if (num >= 0 && num < 200) {
+          this->logger->logInfo(buffer);
+        } else {
+          this->logger->logError("Printf statement too long");
+        }
+      #endif
+      }
     };
 
     enum Verbosity{
