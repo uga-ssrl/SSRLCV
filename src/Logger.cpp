@@ -112,36 +112,114 @@ ssrlcv::Logger::~Logger(){
 
 ssrlcv::Logger &ssrlcv::Logger::operator<<(const char *input){
   this->log(input);
+  return *this;
 }
+
 ssrlcv::Logger::Error::Error(){
   this->logger = nullptr;
 }
+
 ssrlcv::Logger::Error::Error(ssrlcv::Logger *logger){
   this->logger = logger;
 }
+
 ssrlcv::Logger::Error &ssrlcv::Logger::Error::operator<<(const char *input){
+#if LOG_LEVEL >= 1
   std::cout<<input<<std::endl;
   this->logger->logError(input);
+#endif
   return *this;
 }
+
 ssrlcv::Logger::Error &ssrlcv::Logger::Error::operator<<(std::string input){
+#if LOG_LEVEL >= 1
   std::cout<<input<<std::endl;
   this->logger->logError(input);
+#endif
   return *this;
 }
+
+template <typename... Args>
+void ssrlcv::Logger::Error::printf(const char *format, Args&&... args){
+#if LOG_LEVEL >= 1
+  char buffer[200];
+  int num = snprintf(buffer, 200, format, std::forward<Args>(args)...);
+  if (num >= 0 && num < 200) {
+    this->logger->logError(buffer);
+  } else {
+    this->logger->logError("Printf statement too long");
+  }
+#endif
+}
+
 ssrlcv::Logger::Warning::Warning(){
   this->logger = nullptr;
 }
+
 ssrlcv::Logger::Warning::Warning(ssrlcv::Logger *logger){
   this->logger = logger;
 }
+
 ssrlcv::Logger::Warning &ssrlcv::Logger::Warning::operator<<(const char *input){
+#if LOG_LEVEL >= 2
   this->logger->logWarning(input);
+#endif
   return *this;
 }
+
 ssrlcv::Logger::Warning &ssrlcv::Logger::Warning::operator<<(std::string input){
+#if LOG_LEVEL >= 2
   this->logger->logWarning(input);
+#endif
   return *this;
+}
+
+template <typename... Args>
+void ssrlcv::Logger::Warning::printf(const char *format, Args&&... args){
+#if LOG_LEVEL >= 2
+  char buffer[200];
+  int num = snprintf(buffer, 200, format, std::forward<Args>(args)...);
+  if (num >= 0 && num < 200) {
+    this->logger->logWarning(buffer);
+  } else {
+    this->logger->logError("Printf statement too long");
+  }
+#endif
+}
+
+ssrlcv::Logger::Info::Info(){
+  this->logger = nullptr;
+}
+
+ssrlcv::Logger::Info::Info(ssrlcv::Logger *logger){
+  this->logger = logger;
+}
+
+ssrlcv::Logger::Info &ssrlcv::Logger::Info::operator<<(const char *input){
+#if LOG_LEVEL >= 3
+  this->logger->logInfo(input);
+#endif
+  return *this;
+}
+
+ssrlcv::Logger::Info &ssrlcv::Logger::Info::operator<<(std::string input){
+#if LOG_LEVEL >= 3
+  this->logger->logInfo(input);
+#endif
+  return *this;
+}
+
+template <typename... Args>
+void ssrlcv::Logger::Info::printf(const char *format, Args&&... args){
+#if LOG_LEVEL >= 3
+  char buffer[200];
+  int num = snprintf(buffer, 200, format, std::forward<Args>(args)...);
+  if (num >= 0 && num < 200) {
+    this->logger->logInfo(buffer);
+  } else {
+    this->logger->logError("Printf statement too long");
+  }
+#endif
 }
 
 
@@ -228,6 +306,38 @@ void ssrlcv::Logger::logWarning(const char *input){
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
   outstream << std::fixed << std::setprecision(32) << this->getTime() << ",warning,";
+  // now print the real junk
+  outstream << input << std::endl;
+  outstream.close();
+  this->mtx.unlock();
+}
+
+/**
+ * logs a message with an error tag
+ * @param input a string to write to the log
+ */
+void ssrlcv::Logger::logInfo(std::string input){
+  std::ofstream outstream;
+  this->mtx.lock();
+  outstream.open(this->logFileLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  outstream << std::fixed << std::setprecision(32) << this->getTime() << ",info,";
+  // now print the real junk
+  outstream << input << std::endl;
+  outstream.close();
+  this->mtx.unlock();
+}
+
+/**
+ * logs a message with an error tag
+ * @param input a string to write to the log
+ */
+void ssrlcv::Logger::logInfo(const char *input){
+  std::ofstream outstream;
+  this->mtx.lock();
+  outstream.open(this->logFileLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  outstream << std::fixed << std::setprecision(32) << this->getTime() << ",info,";
   // now print the real junk
   outstream << input << std::endl;
   outstream.close();

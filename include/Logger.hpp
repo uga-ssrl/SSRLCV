@@ -40,6 +40,9 @@ namespace ssrlcv{
        */
       Error &operator<<(const char* input);
       Error &operator<<(std::string input);
+
+      template <typename... Args>
+      void printf(const char *format, Args&&... args);
     };
     /**
      * Structure to handle warning messages
@@ -53,6 +56,25 @@ namespace ssrlcv{
        */
       Warning &operator<<(const char *input);
       Warning &operator<<(std::string input);
+
+      template <typename... Args>
+      void printf(const char *format, Args&&... args);
+    };
+    /**
+     * Structure to handle info messages
+     */
+    struct Info{
+      Logger* logger;
+      Info();
+      Info(Logger* logger);
+      /**
+       * Overloaded Bit Shift Left Operator, needed to keep united mutex locking
+       */
+      Info &operator<<(const char *input);
+      Info &operator<<(std::string input);
+
+      template <typename... Args>
+      void printf(const char *format, Args&&... args);
     };
 
     enum Verbosity{
@@ -64,6 +86,7 @@ namespace ssrlcv{
 
     Error err;
     Warning warn;
+    Info info;
 
     int verbosity;//
 
@@ -146,16 +169,28 @@ namespace ssrlcv{
     void logState(std::string state);
 
     /**
-     * logs a message with an error tag
+     * logs a message with a warning tag
      * @param input a string to write to the log
      */
     void logWarning(const char *input);
 
     /**
-     * logs a message with an error tag
+     * logs a message with a warning tag
      * @param input a string to write to the log
      */
     void logWarning(std::string input);
+
+    /**
+     * logs a message with an info tag
+     * @param input a string to write to the log
+     */
+    void logInfo(const char *input);
+
+    /**
+     * logs a message with an info tag
+     * @param input a string to write to the log
+     */
+    void logInfo(std::string input);
 
     /**
      * logs a message with an error tag
@@ -204,6 +239,8 @@ namespace ssrlcv{
      * stops the backgound logging if it is running
      */
     void stopBackgroundLogging();
+
+    std::string format(const char* format, ...);
 
   private:
 
