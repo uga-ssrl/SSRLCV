@@ -101,11 +101,6 @@ int main(int argc, char *argv[]){
 
     std::cout << "Starting matching..." << std::endl;
 
-    // 
-    // CREATE KD TREE
-    //
-    
-
     ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
     ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
     if(seedDistances != nullptr) delete seedDistances;
