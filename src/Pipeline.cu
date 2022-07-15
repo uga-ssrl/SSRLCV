@@ -30,15 +30,37 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
   
   void ssrlcv::doFeatureMatching(ssrlcv::FeatureMatchingInput *in, ssrlcv::FeatureMatchingOutput *out) {
     std::cout << "Starting matching..." << std::endl;
-    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,200.0f*200.0f);
+
+    /**************************
+    * ORIGINAL IMPLEMENTATION *
+    ***************************/
+
+    // // logger.logState("generating seed matches");
+    // if (in->seedFeatures != nullptr)
+    //   matchFactory.setSeedFeatures(in->seedFeatures);
+    // ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
+    // ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], seedDistances);
+    // // logger.logState("done generating seed matches");
+    
+    /*****************************
+    *   KD-TREE IMPLEMENTATION   *
+    ******************************
+    *      VARIABLES TO TUNE      *
+    *                             *
+    * absoluteThreshold = 15000.0 *
+    * reativeThreshold = 0.6      *
+    * emax = 100                  *
+    *******************************/
+
     logger.logState("MATCHING");
-    // logger.logState("generating seed matches");
-    if (in->seedFeatures != nullptr)
-      matchFactory.setSeedFeatures(in->seedFeatures);
-    ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
-    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], seedDistances);
-    // logger.logState("done generating seed matches");
-  
+    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,15000.0f);
+
+    // build a kd tree using img2
+    ssrlcv::KDTree<ssrlcv::SIFT_Descriptor> kdtree = ssrlcv::KDTree<ssrlcv::SIFT_Descriptor>(in->allFeatures[1]);
+    
+    // generate matches
+    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatchesKDTree(in->images[0], in->allFeatures[0], in->images[1], kdtree);
+   
     distanceMatches->transferMemoryTo(ssrlcv::cpu);
     float maxDist = 0.0f;
     for(int i = 0; i < distanceMatches->size(); ++i){

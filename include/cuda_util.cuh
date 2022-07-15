@@ -165,7 +165,7 @@ void getGridAndBlock(unsigned long numElements, dim3 &grid, unsigned int desired
   else{
     grid = {(unsigned int) numElements,1,1};
   }
-}
+} // getGridAndBlock
 
 
 /**

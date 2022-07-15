@@ -254,7 +254,7 @@ void ssrlcv::MatchFactory<T>::sortMatches(Unity<FeatureMatch<T>>* matches){
 template<typename T>
 ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::getRawMatches(ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> matches){
   if(matches->getMemoryState() == gpu || matches->getFore() == gpu){
-    ssrlcv::ptr::device<Match> rawMatches_device( matches->size());
+    ssrlcv::ptr::device<Match> rawMatches_device(matches->size());
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     void (*fp)(unsigned long, Match*, DMatch*) = &convertMatchToRaw;
@@ -277,7 +277,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::getRaw
 template<typename T>
 ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::getRawMatches(Unity<FeatureMatch<T>>* matches){
   if(matches->getMemoryState() == gpu || matches->getFore() == gpu){
-    ssrlcv::ptr::device<Match> rawMatches_device( matches->size());
+    ssrlcv::ptr::device<Match> rawMatches_device(matches->size());
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
     void (*fp)(unsigned long, Match*, FeatureMatch<T>*) = &convertMatchToRaw;
@@ -483,7 +483,54 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>>ssrlcv::MatchFactory<T>:: gener
   if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
 
   return matches;
-}
+} // generateDistanceMatches
+template<typename T>
+ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> ssrlcv::MatchFactory<T>::generateDistanceMatchesKDTree(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<ssrlcv::Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::KDTree<T> kdtree) {
+
+  // transfer query points to GPU
+  MemoryState q_origin = queryFeatures->getMemoryState();
+  if(q_origin != gpu) queryFeatures->setMemoryState(gpu);
+
+  // transfer KD-Tree to GPU
+  ssrlcv::ptr::device<ssrlcv::KDTree<T>> d_kdtree(1);
+  CudaSafeCall(cudaMemcpy(d_kdtree.get(),&kdtree,sizeof(kdtree),cudaMemcpyHostToDevice));
+   
+  // transfer KD-Tree nodes to GPU
+  thrust::device_vector<typename KDTree<T>::Node> d_nodes = kdtree.nodes;
+  typename KDTree<T>::Node* pd_nodes = thrust::raw_pointer_cast(d_nodes.data());
+
+  // transfer KD-Tree points to GPU
+  ssrlcv::ptr::value<ssrlcv::Unity<Feature<T>>> d_points = kdtree.points; 
+  MemoryState t_origin = d_points->getMemoryState();
+  if(t_origin != gpu) d_points->setMemoryState(gpu); 
+
+  // array to hold the matched pairs
+  unsigned int numPossibleMatches = queryFeatures->size();
+  ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> matches = ssrlcv::ptr::value<ssrlcv::Unity<DMatch>>(nullptr, numPossibleMatches, gpu);
+
+  // grid and block initilization
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+  void (*ptr)(unsigned int, unsigned long, Feature<T>*, unsigned int, KDTree<T>*,
+  typename KDTree<T>::Node*, Feature<T>*, DMatch*, float) = &matchFeaturesKDTree;
+  getFlatGridBlock(queryFeatures->size(), grid, block, ptr);
+
+  clock_t timer = clock();
+  
+  // kernel call
+  matchFeaturesKDTree<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device.get(), 
+  target->id, d_kdtree.get(), pd_nodes, d_points->device.get(), matches->device.get(), this->absoluteThreshold);
+
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  this->validateMatches(matches);
+  printf("\n\ndone in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  if(q_origin != gpu) queryFeatures->setMemoryState(q_origin);
+  if(t_origin != gpu) kdtree.points->setMemoryState(t_origin);
+
+  return matches;
+} // generateDistanceMatchesKDTree
 template<typename T>
 ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>>ssrlcv::MatchFactory<T>:: generateDistanceMatchesConstrained(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, float fundamental[3][3], ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances){
   MemoryState origin[2] = {queryFeatures->getMemoryState(), targetFeatures->getMemoryState()};
@@ -533,7 +580,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>>ssrlcv::MatchFactory<T>:: gener
   if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
 
   return matches;
-}
+} // generateDistanceMatchesConstrained
 
 
 template<typename T>
@@ -1243,6 +1290,7 @@ Feature<T>* seedFeatures, float* matchDistances){
   } // if
 } // getSeedMatchDistances
 
+
 template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
@@ -1466,6 +1514,7 @@ float relativeThreshold, float absoluteThreshold){
     matches[blockId] = match;
   }
 }
+
 
 template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
@@ -1695,6 +1744,23 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
     matches[blockId] = match;
   }
 }
+template<typename T>
+__global__ void ssrlcv::matchFeaturesKDTree(unsigned int queryImageID, unsigned long numFeaturesQuery, ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, 
+ssrlcv::KDTree<T>* kdtree, typename ssrlcv::KDTree<T>::Node* nodes, ssrlcv::Feature<T>* featuresTree, ssrlcv::DMatch* matches, float absoluteThreshold) {
+  
+  unsigned int globalThreadID = (blockIdx.y * gridDim.x + blockIdx.x) * blockDim.x + threadIdx.x; // 2D grid of 1D blocks 
+  if (globalThreadID < numFeaturesQuery) { 
+    Feature<T> feature = featuresQuery[globalThreadID]; 
+    __syncthreads(); 
+    DMatch match;
+    int emax = 100; // at most, search 100 leaf nodes
+    match = findNearest(kdtree, nodes, featuresTree, feature, queryImageID, targetImageID, emax, absoluteThreshold); // search function 
+    __syncthreads();
+    matches[globalThreadID] = match;
+  } 
+
+} // matchFeaturesKDTree
+
 
 template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
@@ -1933,6 +1999,7 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
   }
 }
 
+
 template<typename T>
 __global__ void ssrlcv::matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
 ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
@@ -2140,6 +2207,7 @@ float relativeThreshold, float absoluteThreshold){
     matches[blockId] = match;
   }
 }
+
 
 /*
   utility kernels
