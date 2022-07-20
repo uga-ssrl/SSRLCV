@@ -75,7 +75,7 @@ template<typename T>
 void ssrlcv::Quadtree<T>::generateLeafNodes(){
 
   clock_t timer = clock();
-  std::cout<<"generating leaf nodes for quadtree..."<<std::endl;
+  logger.info<<"generating leaf nodes for quadtree...";
 
   unsigned long numLeafNodes = 0;
   numLeafNodes = this->data->size();
@@ -143,7 +143,7 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(){
 template<typename T>
 void ssrlcv::Quadtree<T>::generateParentNodes(){
   clock_t timer = clock();
-  std::cout<<"filling coarser depths of quadtree..."<<std::endl;
+  logger.info<<"filling coarser depths of quadtree...";
   if(this->nodes == nullptr || this->nodes->getMemoryState() == null){
     //TODO potentially develop support for bottom up growth
     throw NullUnityException("Cannot generate parent nodes before children");
@@ -291,7 +291,7 @@ void ssrlcv::Quadtree<T>::fillNeighborhoods(){
     CudaCheckError();
   }
   this->nodes->setFore(gpu);//just to ensure that it is known gpu nodes was edited last
-  std::cout<<"Neighborhoods filled"<<std::endl;
+  logger.info<<"Neighborhoods filled";
 }
 
 template<typename T>
@@ -338,7 +338,7 @@ void ssrlcv::Quadtree<T>::generateVertices(){
     CudaCheckError();
     CudaSafeCall(cudaMemcpy(&numVertices, atomicCounter.get(), sizeof(int), cudaMemcpyDeviceToHost));
     if(i == this->depth  && numVertices - prevCount != 4){
-      std::cout<<"ERROR GENERATING VERTICES, vertices at depth 0 != 4 -> "<<numVertices - prevCount<<std::endl;
+      logger.err<<"ERROR GENERATING VERTICES, vertices at depth 0 != 4 -> " + std::string(numVertices - prevCount);
       exit(-1);
     }
     vertices2D.get()[i].set((numVertices - prevCount));
@@ -426,7 +426,7 @@ void ssrlcv::Quadtree<T>::generateEdges(){
     CudaCheckError();
     CudaSafeCall(cudaMemcpy(&numEdges, atomicCounter, sizeof(int), cudaMemcpyDeviceToHost));
     if(i == this->depth  && numEdges - prevCount != 4){
-      std::cout<<"ERROR GENERATING EDGES, vertices at depth 0 != 4 -> "<<numEdges - prevCount<<std::endl;
+      logger.err<<"ERROR GENERATING EDGES, vertices at depth 0 != 4 -> " + std::string(numEdges - prevCount);
       exit(-1);
     }
 
@@ -484,7 +484,7 @@ void ssrlcv::Quadtree<T>::setNodeFlags(ssrlcv::ptr::value<ssrlcv::Unity<bool>> h
     throw NullUnityException("hashMap must be filled before setFlags is called");
   }
   if(!(depthRange.x == 0 && depthRange.y == 0) && (depthRange.x > depthRange.y || depthRange.x > this->depth || this->depth > depthRange.y || this->depth < depthRange.x)){
-    std::cout<<"ERROR: invalid depthRange in setFlags"<<std::endl;
+    logger.err<<"ERROR: invalid depthRange in setFlags";
     exit(-1);
   }
   MemoryState origin[3] = {hashMap->getMemoryState(),this->nodes->getMemoryState(),this->nodeDepthIndex->getMemoryState()};
@@ -530,7 +530,7 @@ template<typename T>
 void ssrlcv::Quadtree<T>::setNodeFlags(float2 flagBorder, bool requireFullNeighbors, uint2 depthRange){
   if(!(depthRange.x == 0 && depthRange.y == 0) && (depthRange.x > depthRange.y || depthRange.x > this->depth || this->depth > depthRange.y ||
     this->depth < depthRange.x)){
-    std::cout<<"ERROR: invalid depthRange in setFlags"<<std::endl;
+    logger.err<<"ERROR: invalid depthRange in setFlags";
     exit(-1);
   }
   MemoryState origin[2] = {this->nodes->getMemoryState(),this->nodeDepthIndex->getMemoryState()};
@@ -580,7 +580,7 @@ void ssrlcv::Quadtree<T>::setNodeFlags(float2 flagBorder, bool requireFullNeighb
 template<typename T>
 void ssrlcv::Quadtree<T>::writePLY(){
   std::string newFile = "out/test_"+ std::to_string(rand())+ ".ply";
-  std::cout<<"writing "<<newFile<<std::endl;
+  logger.info<<"writing " + newFile;
   std::ofstream plystream(newFile);
   if (plystream.is_open()) {
     int verticesToWrite = this->nodes->size();
@@ -608,10 +608,10 @@ void ssrlcv::Quadtree<T>::writePLY(){
       plystream << stringBuffer.str();
     }
 
-    std::cout<<newFile + " has been created.\n"<<std::endl;
+    logger.info<<newFile + " has been created.";
   }
   else{
-    std::cout << "Unable to open: " + newFile<< std::endl;
+    logger.err << "Unable to open: " + newFile;
     exit(1);
   }
 }

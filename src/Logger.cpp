@@ -34,6 +34,7 @@ ssrlcv::Logger::Logger(){
   // setting up specific "stream" handlers
   this->err = Error(this);
   this->warn = Warning(this);
+  this->info = Info(this);
   // this->verbosity = 0;
 }
 
@@ -65,6 +66,7 @@ ssrlcv::Logger::Logger(const char* logPath){
   // setting up specific "stream" handlers
   this->err = Error(this);
   this->warn = Warning(this);
+  this->info = Info(this);
   // this->verbosity = 0;
 }
 
@@ -94,6 +96,7 @@ ssrlcv::Logger &ssrlcv::Logger::operator=(ssrlcv::Logger const &loggerCopy){
     // setting up specific "stream" handlers
     this->err = Error(this);
     this->warn = Warning(this);
+    this->info = Info(this);
   }
   return *this;
 }

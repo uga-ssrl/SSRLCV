@@ -15,7 +15,7 @@ ssrlcv::SIFT_FeatureFactory::SIFT_FeatureFactory(float orientationContribWidth, 
  * @return a vector of SIFT feature descriptors
  */
 ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrlcv::SIFT_FeatureFactory::generateFeatures(ssrlcv::ptr::value<ssrlcv::Image> image, bool dense, unsigned int maxOrientations, float orientationThreshold){
-  std::cout<<"Generating SIFT features for image "<<image->id<<std::endl<<"\t";
+  logger.info.printf("Generating SIFT features for image %d", image->id);
   ssrlcv::ptr::value<Unity<Feature<SIFT_Descriptor>>> features;
   
   // make sure we are operating in GPU memory
@@ -47,7 +47,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrl
     // will free CPU memory and instantiate GPU memory
     keyPoints->setMemoryState(gpu);
 
-    logger.info.printf("\nDense SIFT prep done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
+    logger.info.printf("Dense SIFT prep done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
     features = this->createFeatures(image->size,orientationThreshold,maxOrientations,1.0f,gradients,keyPoints);
   }
@@ -61,7 +61,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrl
     int2 kernelSize = {8,8};
     float2 sigmaMultiplier = {2,sqrtf(2.0f)};
     ssrlcv::ptr::value<DOG> dog = ssrlcv::ptr::value<DOG>(image,-1,scaleSpaceDim,sqrtf(2.0f)/2.0f,sigmaMultiplier,kernelSize,true);//last true specifies dog conversion
-    std::cout<<"\tdog created"<<std::endl;
+    logger.info<<"\tdog created";
 
     // set memory back to CPU
     if(origin != gpu) image->pixels->setMemoryState(origin);//no longer need to force pixels on gpu
@@ -118,8 +118,8 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrl
       logger.err<<"ERROR: something went wrong and there are 0 keypoints\n";
       exit(0);
     }
-    std::cout<<"total keypoints found = "<<numKeyPoints<<std::endl;
-    std::cout<<"creating features from keypoints..."<<std::endl;
+    logger.info.printf("total keypoints found = %d", numKeyPoints);
+    logger.info<<"creating features from keypoints...";
     // here, a feature vector containing SIFT feature descriptors is generated for each key point
     features = ssrlcv::ptr::value<Unity<Feature<SIFT_Descriptor>>>(nullptr,numKeyPoints,gpu);
     // fill descriptors based on SSKeyPoint information
@@ -161,10 +161,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrl
         if(gradientsOrigin != gpu) currentBlur->gradients->setMemoryState(gradientsOrigin);
       } // for
       if(extremaOrigin.get()[o] != gpu) currentOctave->extrema->setMemoryState(extremaOrigin.get()[o]);
-      std::cout<<"\tfeatures created from octave "<<o<<std::endl;
+      logger.info.printf("\tfeatures created from octave %d", o);
     } // for
   }
-  std::cout<<"\n\n";
   return features; 
 } // generateFeatures
 

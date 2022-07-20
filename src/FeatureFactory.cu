@@ -55,7 +55,7 @@ ssrlcv::FeatureFactory::ScaleSpace::Octave::Octave(int id, unsigned int numBlurs
 numBlurs(numBlurs),pixelWidth(pixelWidth),id(id){
     this->extrema = nullptr;
     this->extremaBlurIndices = nullptr;
-    logger.info.printf("creating octave[%d] with %d blurs of size {%d,%d}",this->id,this->numBlurs,size.x,size.y);
+    logger.info.printf("\tcreating octave[%d] with %d blurs of size {%d,%d}",this->id,this->numBlurs,size.x,size.y);
     MemoryState origin = pixels->getMemoryState();
     if(origin != gpu) pixels->setMemoryState(gpu);
 
@@ -334,7 +334,7 @@ depth(depth), isDOG(makeDOG){
         exit(-1);
     }
 
-    logger.info.printf("creating scalespace with depth {%d,%d}",this->depth.x,this->depth.y);
+    logger.info.printf("\tcreating scalespace with depth {%d,%d}",this->depth.x,this->depth.y);
     ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels;
     MemoryState origin = image->pixels->getMemoryState();
     if(origin != gpu) image->pixels->setMemoryState(gpu);
@@ -377,7 +377,6 @@ depth(depth), isDOG(makeDOG){
     }
     this->octaves = ssrlcv::ptr::host<ssrlcv::ptr::value<Octave>>(this->depth.x);
     for(int i = 0; i < this->depth.x; ++i){
-        std::cout<<"\t";
         this->octaves.get()[i] = ssrlcv::ptr::value<Octave>(i,this->depth.y,kernelSize,sigmas,pixels,imageSize,pixelWidth,this->depth.y - 2);
 
         if(i + 1 < this->depth.x){
@@ -450,7 +449,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::dumpData(std::string filePath){
     }
 }
 void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, float edgeThreshold, bool subpixel){
-    std::cout<<"looking for keypoints..."<<"\n";
+    logger.info<<"looking for keypoints...";
     if(this->depth.y < 4){
         logger.err<<"findKeyPoints should be done on a dog scale space - this is either not a dog or the number of blurs is insufficient"<<"\n";
         exit(-1);
@@ -458,37 +457,39 @@ void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, flo
     int temp = 0;
     ssrlcv::ptr::value<ssrlcv::Unity<SSKeyPoint>> currentExtrema = nullptr;
     for(int i = 0; i < this->depth.x; ++i){
-        if(i != 0 && this->octaves.get()[i]->extrema != nullptr) std::cout<<"\n";
+        std::stringstream ss;
         this->octaves.get()[i]->searchForExtrema();
         this->octaves.get()[i]->normalize();
         currentExtrema = this->octaves.get()[i]->extrema;
         if(currentExtrema == nullptr) continue;
         temp = currentExtrema->size();
         if(currentExtrema == nullptr) continue;
-        std::cout<<"\tkeypoints in octave["<<i<<"] = ";
+        ss<<"\tkeypoints in octave["<<i<<"] = ";
         if(currentExtrema == nullptr){
-            std::cout<<0;
+            ss<<0;
+            logger.info<<ss.str();
             continue;
         }
-        std::cout<<temp;
+        ss<<temp;
         this->octaves.get()[i]->removeNoise(noiseThreshold*0.8);
-        std::cout<<"-"<<temp - this->octaves.get()[i]->extrema->size();
+        ss<<"-"<<temp - this->octaves.get()[i]->extrema->size();
         if(currentExtrema == nullptr) continue;
         if(subpixel){
             temp = currentExtrema->size();
             this->octaves.get()[i]->refineExtremaLocation();
             if(currentExtrema == nullptr) continue;
-            std::cout<<"-"<<temp - currentExtrema->size();
+            ss<<"-"<<temp - currentExtrema->size();
             temp = currentExtrema->size();
             this->octaves.get()[i]->removeNoise(noiseThreshold);
             if(currentExtrema == nullptr) continue;
-            std::cout<<"-"<<temp - currentExtrema->size();
+            ss<<"-"<<temp - currentExtrema->size();
         }
         temp = currentExtrema->size();
         this->octaves.get()[i]->removeEdges(edgeThreshold);
         if(currentExtrema == nullptr) continue;
-        std::cout<<"-"<<temp - currentExtrema->size();
-        std::cout<<"="<<currentExtrema->size()<<"\n";
+        ss<<"-"<<temp - currentExtrema->size();
+        ss<<"="<<currentExtrema->size();
+        logger.info<<ss.str();
     }
     for(int i = 0; i < this->depth.x; ++i){
         if(this->octaves.get()[i]->extrema == nullptr){
@@ -527,7 +528,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::FeatureFactory::ScaleSpace::SSKeyPoint>
 }
 
 void ssrlcv::FeatureFactory::ScaleSpace::computeKeyPointOrientations(float orientationThreshold, unsigned int maxOrientations, float contributerWindowWidth, bool keepGradients){
-    std::cout<<"computing keypoint orientations..."<<"\n";
+    logger.info<<"computing keypoint orientations...";
     ssrlcv::ptr::value<ScaleSpace::Octave> currentOctave(nullptr);
     ssrlcv::ptr::value<ScaleSpace::Octave::Blur> currentBlur(nullptr);
     dim3 grid = {1,1,1};

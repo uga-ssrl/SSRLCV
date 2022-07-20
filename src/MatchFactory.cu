@@ -39,7 +39,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::ptr::value<ssrlcv::Unity<u
   CudaCheckError();
   int numMatchesLeft = new_end - needsValidating;
   if(numMatchesLeft == 0){
-    std::cout<<"No valid matches found"<<"\n";
+    logger.info<<"No valid matches found";
     matches.clear();
     return;
   }
@@ -65,7 +65,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::ptr::value<ssrlcv::Unity<s
   CudaCheckError();
   int numMatchesLeft = new_end - needsValidating;
   if(numMatchesLeft == 0){
-    std::cout<<"No valid matches found"<<"\n";
+    logger.info<<"No valid matches found";
     matches.clear();
     return;
   }
@@ -91,7 +91,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::ptr::value<ssrlcv::Unity<s
   CudaCheckError();
   int numMatchesLeft = new_end - needsValidating;
   if(numMatchesLeft == 0){
-    std::cout<<"No valid matches found"<<"\n";
+    logger.info<<"No valid matches found";
     matches.clear();
     return;
   }
@@ -116,7 +116,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::FeatureMatch
   CudaCheckError();
   int numMatchesLeft = new_end - matches->device.get();
   if(numMatchesLeft == 0){
-    std::cout<<"No valid matches found"<<"\n";
+    logger.info<<"No valid matches found";
     delete matches;
     matches = nullptr;
     return;
@@ -136,7 +136,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::FeatureMatch
 template<typename T>
 void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> matches, float threshold){
   if(threshold == 0.0f){
-    std::cout<<"ERROR illegal value used for threshold: 0.0"<<"\n";
+    logger.err<<"ERROR illegal value used for threshold: 0.0";
     exit(-1);
   }
   MemoryState origin = matches->getMemoryState();
@@ -163,7 +163,7 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::ptr::value<ssrlcv::Unity<ssr
 template<typename T>
 void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T>>* matches, float threshold){
   if(threshold == 0.0f){
-    std::cout<<"ERROR illegal value used for cutoff ratio: 0.0"<<"\n";
+    logger.err<<"ERROR illegal value used for cutoff ratio: 0.0";
     exit(-1);
   }
   MemoryState origin = matches->getMemoryState();
@@ -753,7 +753,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
   ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances;
   unsigned long long totalMatches = 0;
   int i = 0;
-  std::cout<<"matching images"<<"\n";
+  logger.info<<"matching images";
   for(int i = 0; query != images.end() - 1; ++query, ++features_query){
     if(this->seedFeatures != nullptr) seedDistances = this->getSeedDistances(*features_query);
     for(target = query + 1,features_target = features_query + 1; target != images.end(); ++target, ++features_target){
@@ -768,13 +768,13 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
     logger.err<<"exiting..."<<"\n";
     exit(0);
   }
-  std::cout<<"prepping match interpolation on cpu"<<"\n";
+  logger.info<<"prepping match interpolation on cpu";
   //required connections to make a match?
   std::vector<uint2>** adjacencyList = new std::vector<uint2>*[images.size() - 1];
 
   i = 0;
   adjacencyList[0] = new std::vector<uint2>[features[0]->size()];
-  std::cout<<"building adjacency list"<<"\n";
+  logger.info<<"building adjacency list";
   for(auto m = matchIndices.begin(); m != matchIndices.end(); ++m){
     ssrlcv::ptr::value<ssrlcv::Unity<uint2_pair>> currentMatches = *m;
     if(currentMatches->getMemoryState() != cpu) currentMatches->setMemoryState(cpu);
@@ -790,7 +790,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
   MemoryState* origin = new MemoryState[images.size()];
   std::vector<std::vector<uint2>> multiMatch_vec;
   bool badMatch = false;
-  std::cout<<"deriving matches from adjacency"<<"\n";
+  logger.info<<"deriving matches from adjacency";
   for(i = 0; i < images.size() - 1; ++i){
     origin[i] = features[i]->getMemoryState();
     if(origin[i] != cpu) features[i]->setMemoryState(cpu);
@@ -831,7 +831,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
     delete[] adjacencyList[i];
   }
   delete[] adjacencyList;
-  std::cout<<"total matches found in set = "<<multiMatch_vec.size()<<"\n";
+  logger.info.printf("total matches found in set = %d", multiMatch_vec.size());
   matchSet.matches = ssrlcv::ptr::value<ssrlcv::Unity<MultiMatch>>(nullptr,multiMatch_vec.size(),cpu);
   std::vector<KeyPoint> kp_vec;
   i = 0;
@@ -929,7 +929,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::generateDiparityMatches
   CudaCheckError();
   int numMatchesLeft = new_end - needsValidating;
   if(numMatchesLeft == 0){
-    std::cout<<"No valid matches found"<<"\n";
+    logger.info<<"No valid matches found";
     matches.clear();
   }
   else{
@@ -978,7 +978,7 @@ void ssrlcv::writeMatchFile(ssrlcv::ptr::value<ssrlcv::Unity<Match>> matches, st
       exit(-1);
     }
   }
-  std::cout<<pathToFile<<" has been written"<<"\n";
+  logger.info << pathToFile + " has been written";
   if(origin != matches->getMemoryState()) matches->setMemoryState(origin);
 }
 void ssrlcv::writeMatchFile(MatchSet multiview_matches, std::string pathToFile, bool binary){
@@ -1008,7 +1008,7 @@ void ssrlcv::writeMatchFile(MatchSet multiview_matches, std::string pathToFile, 
     exit(-1);
   }
   
-  std::cout<<pathToFile<<" has been written"<<"\n";
+  logger.info << pathToFile + " has been written";
   if(origin[0] != cpu) matches->setMemoryState(origin[0]);
   if(origin[1] != cpu) keyPoints->setMemoryState(origin[1]);
 }
@@ -1037,7 +1037,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::readMatchFile(std::stri
       match_vec.push_back(match);
     }
   }
-  std::cout<<match_vec.size()<<" matches have been read."<<"\n";
+  logger.info.printf("%d matches have been read.", match_vec.size());
   ssrlcv::ptr::value<ssrlcv::Unity<Match>> matches = ssrlcv::ptr::value<ssrlcv::Unity<Match>>(nullptr,match_vec.size(),cpu);
   std::memcpy(matches->host.get(),&match_vec[0],match_vec.size()*sizeof(Match));
   return matches;

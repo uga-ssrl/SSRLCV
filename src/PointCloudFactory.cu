@@ -27,7 +27,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::stereo_disp
                         + (cameras[0].cam_pos.z - cameras[1].cam_pos.z)*(cameras[0].cam_pos.z - cameras[1].cam_pos.z));
   float scale = (baseline * cameras[0].foc )/(cameras[0].dpix.x);
 
-  std::cout << "Stereo Baseline: " << baseline << ", Stereo Scale Factor: " << scale <<  ", Inverted Stereo Scale Factor: " << (1.0/scale) << std::endl;
+  logger.info << "Stereo Baseline: " + std::to_string(baseline) + ", Stereo Scale Factor: " + std::to_string(scale) +  ", Inverted Stereo Scale Factor: " + std::to_string(1.0/scale);
 
   MemoryState origin = matches->getMemoryState();
   if(origin == cpu) matches->transferMemoryTo(gpu);
@@ -277,9 +277,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::twoViewTria
   void (*fp)(float*, unsigned long, Bundle::Line*, Bundle*, float3*) = &computeTwoViewTriangulate;
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
-  // std::cout << "Starting 2-view triangulation ..." << std::endl;
   computeTwoViewTriangulate<<<grid,block>>>(d_linearError,bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud->device.get());
-  // std::cout << "2-view Triangulation done ... \n" << std::endl;
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -324,9 +322,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::twoViewTria
   void (*fp)(float*, float*, unsigned long, Bundle::Line*, Bundle*, float3*) = &computeTwoViewTriangulate;
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
-  // std::cout << "Starting 2-view triangulation ..." << std::endl;
   computeTwoViewTriangulate<<<grid,block>>>(d_linearError,errors->device.get(),bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud->device.get());
-  // std::cout << "2-view Triangulation done ... \n" << std::endl;
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -382,9 +378,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::twoViewTria
   void (*fp)(float*, float*, float*, unsigned long, Bundle::Line*, Bundle*, float3*) = &computeTwoViewTriangulate;
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
-  // std::cout << "Starting 2-view triangulation ..." << std::endl;
   computeTwoViewTriangulate<<<grid,block>>>(d_linearError,d_linearErrorCutoff,errors->device.get(),bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud->device.get());
-  // std::cout << "2-view Triangulation done ... \n" << std::endl;
 
   // tell which data is most up to date
   bundleSet.lines->setFore(gpu);
@@ -450,9 +444,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3_b>> ssrlcv::PointCloudFactory::twoViewTr
     dim3 block = {1,1,1};
     getFlatGridBlock(bundleSet.bundles->size(),grid,block,computeTwoViewTriangulate_b);
 
-    // std::cout << "Starting 2-view triangulation ..." << std::endl;
     computeTwoViewTriangulate_b<<<grid,block>>>(d_linearError,d_linearErrorCutoff,errors->device.get(),bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud_b->device.get());
-    // std::cout << "2-view Triangulation done ... \n" << std::endl;
 
     pointcloud_b->setFore(gpu);
     errors->setFore(gpu);
@@ -469,7 +461,6 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3_b>> ssrlcv::PointCloudFactory::twoViewTr
     errors->clear(gpu);
     // temp
 
-    std::cout << std::endl;
     // end temp
     // clear the other boiz
     bundleSet.lines->clear(gpu);
@@ -586,9 +577,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::nViewTriang
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
 
-  std::cout << "Starting n-view triangulation ..." << std::endl;
+  logger.info << "Starting n-view triangulation ...";
   computeNViewTriangulate<<<grid,block>>>(bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud->device.get());
-  std::cout << "n-view Triangulation done ... \n" << std::endl;
+  logger.info << "n-view Triangulation done ...";
 
   pointcloud->setFore(gpu);
   bundleSet.lines->setFore(gpu);
@@ -627,9 +618,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::nViewTriang
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
 
-  std::cout << "Starting n-view triangulation ..." << std::endl;
+  logger.info << "Starting n-view triangulation ...";
   computeNViewTriangulate<<<grid,block>>>(d_angularError,bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud->device.get());
-  std::cout << "n-view Triangulation done ... \n" << std::endl;
+  logger.info << "n-view Triangulation done ...";
 
   pointcloud->setFore(gpu);
   bundleSet.lines->setFore(gpu);
@@ -673,9 +664,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::nViewTriang
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
 
-  std::cout << "Starting n-view triangulation ..." << std::endl;
+  logger.info << "Starting n-view triangulation ...";
   computeNViewTriangulate<<<grid,block>>>(d_angularError,errors->device.get(),bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud->device.get());
-  std::cout << "n-view Triangulation done ... \n" << std::endl;
+  logger.info << "n-view Triangulation done ...";
 
   //
   pointcloud->setFore(gpu);
@@ -730,9 +721,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::nViewTriang
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
 
-  std::cout << "Starting n-view triangulation ..." << std::endl;
+  logger.info << "Starting n-view triangulation ...";
   computeNViewTriangulate<<<grid,block>>>(d_angularError,d_angularErrorCutoff,errors->device.get(),bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud->device.get());
-  std::cout << "n-view Triangulation done ... \n" << std::endl;
+  logger.info << "n-view Triangulation done ...";
 
   bundleSet.lines->setFore(gpu);
   bundleSet.bundles->setFore(gpu);
@@ -796,9 +787,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::nViewTriang
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
 
-  std::cout << "Starting n-view triangulation ..." << std::endl;
+  logger.info << "Starting n-view triangulation ...";
   computeNViewTriangulate<<<grid,block>>>(d_angularError,d_lowCut,d_highCut,errors->device.get(),bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud->device.get());
-  std::cout << "n-view Triangulation done ... \n" << std::endl;
+  logger.info << "n-view Triangulation done ...";
 
   bundleSet.lines->setFore(gpu);
   bundleSet.bundles->setFore(gpu);
@@ -857,7 +848,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
     // standard projection case
     //
 
-    if (local_debug || local_verbose) std::cout << "\t Generating standard projective bundles ... " << std::endl;
+    if (local_debug || local_verbose) logger.info << "\t Generating standard projective bundles ... ";
 
     // the cameras
     size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
@@ -868,7 +859,6 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
       h_cameras[i] = images.at(i)->camera;
     }
     ssrlcv::Image::Camera* d_cameras;
-    // std::cout << "set the cameras ... " << std::endl;
     CudaSafeCall(cudaMalloc(&d_cameras, cam_bytes));
     // copy the othe guy
     CudaSafeCall(cudaMemcpy(d_cameras, h_cameras, cam_bytes, cudaMemcpyHostToDevice));
@@ -888,7 +878,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
     // pushbroom projection case
     //
 
-    if (local_debug || local_verbose) std::cout << "\t Generating special pushbroom bundles ... " << std::endl;
+    if (local_debug || local_verbose) logger.info << "\t Generating special pushbroom bundles ... ";
 
     // the cameras
     size_t push_bytes = images.size()*sizeof(ssrlcv::Image::PushbroomCamera);
@@ -899,7 +889,6 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
       h_pushbrooms[i] = images.at(i)->pushbroom;
     }
     ssrlcv::Image::PushbroomCamera* d_pushbrooms;
-    // std::cout << "set the cameras ... " << std::endl;
     CudaSafeCall(cudaMalloc(&d_pushbrooms, push_bytes));
     // copy the othe guy
     CudaSafeCall(cudaMemcpy(d_pushbrooms, h_pushbrooms, push_bytes, cudaMemcpyHostToDevice));
@@ -1006,7 +995,6 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
     h_cameras[i] = images.at(i)->camera;
   }
   ssrlcv::Image::Camera* d_cameras;
-  // std::cout << "set the cameras ... " << std::endl;
   CudaSafeCall(cudaMalloc(&d_cameras, cam_bytes));
   // copy the othe guy
   CudaSafeCall(cudaMemcpy(d_cameras, h_cameras, cam_bytes, cudaMemcpyHostToDevice));
@@ -1018,9 +1006,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   getFlatGridBlock(bundles->size(),grid,block,generateBundle);
 
   //in this kernel fill lines and bundles from keyPoints and matches
-  // std::cout << "Calling bundle generation kernel ..." << std::endl;
   generateBundle<<<grid, block>>>(bundles->size(),bundles->device.get(), lines->device.get(), matchSet->matches->device.get(), matchSet->keyPoints->device.get(), d_cameras);
-  // std::cout << "Returned from bundle generation kernel ... \n" << std::endl;
 
   CudaSafeCall(cudaFree(d_cameras));
 
@@ -1368,7 +1354,7 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
         // update the hessian
         h->host.get()[h_i] = numer / denom;
 
-        if (isnan(numer/denom && local_debug)){
+        if (isnan(numer/denom) && local_debug){
           std::cout << "!!NaN found at: [" << i << "," << j << "] " << std::endl;
           std::cout << "\t " << A << "  " << B << "  " << C << "  " << D << "  " << E << std::endl;
           std::cout << "\t i mod " << num_params << " = " << i%num_params << "\t" << std::endl;

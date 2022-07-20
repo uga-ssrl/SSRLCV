@@ -753,7 +753,7 @@ namespace ssrlcv{
 
       cp.close();
       if(cp.good()){
-        std::cout<<"Unity created from checkpoint "<<path<<"\n";
+        logger.info<<"Unity created from checkpoint " + path;
       }
       else{
         path = "could not successfully read checkpoint " + path;
@@ -1192,7 +1192,7 @@ namespace ssrlcv{
       }
       cp.close();
       if(cp.good()){
-        std::cout<<"checkpoint "<<pathToFile<<" successfully written\n";
+        logger.info<<"checkpoint " + pathToFile + " successfully written";
       }
       else{
         pathToFile = "could not write Unity<T> checkpoint: " + pathToFile;

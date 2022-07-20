@@ -99,7 +99,7 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
   bool local_debug   = false;
   bool local_verbose = true;
 
-  if (local_verbose || local_debug) std::cout << "Reading Mesh ... " << "\n";
+  if (local_verbose || local_debug) logger.info << "Reading Mesh ... ";
 
   // temp storage
   std::vector<float3> tempPoints;
@@ -220,10 +220,18 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
   }
 
   if (local_verbose || local_debug) {
-    std::cout << "Done reading mesh!" << "\n";
-    std::cout << "\t Total Points Loaded:  " << this->points->size() << "\n";
-    std::cout << "\t Total Faces  Loaded:  " << (this->faces->size() / (int) this->faceEncoding) << "\n";
-    std::cout << "\t Faces Num: " << this->faces->size() << "\n";
+    std::stringstream ss;
+    ss << "Done reading mesh!";
+    logger.info << ss.str();
+    ss.str("");
+    ss << "\t Total Points Loaded:  " << this->points->size();
+    logger.info << ss.str();
+    ss.str("");
+    ss << "\t Total Faces  Loaded:  " << (this->faces->size() / (int) this->faceEncoding);
+    logger.info << ss.str();
+    ss.str("");
+    ss << "\t Faces Num: " << this->faces->size();
+    logger.info << ss.str();
   }
 
 }
@@ -281,7 +289,7 @@ float ssrlcv::MeshFactory::calculateAverageDifference(ssrlcv::ptr::value<ssrlcv:
   bool local_debug   = false;
   bool local_verbose = true;
 
-  if (local_verbose || local_debug) std::cout << "Computing average diff between mesh and point cloud ..." << "\n";
+  if (local_verbose || local_debug) logger.info << "Computing average diff between mesh and point cloud ...";
 
   if (!faceEncoding){
     logger.err << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" << "\n";
@@ -340,7 +348,9 @@ float ssrlcv::MeshFactory::calculateAverageDifference(ssrlcv::ptr::value<ssrlcv:
   CudaSafeCall(cudaMemcpy(&misses,d_misses.get(),sizeof(int),cudaMemcpyDeviceToHost));
 
   if (local_debug || local_verbose) {
-    std::cout << "\t " << (pointCloud->size() - misses) << " / " << pointCloud->size() << " are valid errors" << "\n";
+    std::stringstream ss;
+    ss << "\t " << (pointCloud->size() - misses) << " / " << pointCloud->size() << " are valid errors";
+    logger.info << ss.str();
   }
   if (misses) {
     // discount the misses
@@ -367,7 +377,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculatePerPointD
   bool local_debug   = false;
   bool local_verbose = true;
 
-  if (local_verbose || local_debug) std::cout << "Computing per point diff between mesh and point cloud ..." << "\n";
+  if (local_verbose || local_debug) logger.info << "Computing per point diff between mesh and point cloud ...";
 
   if (!faceEncoding){
     logger.err << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" << "\n";
@@ -486,7 +496,7 @@ void ssrlcv::MeshFactory::filterByOctreeNeighborDistance(float sigma){
     if (isnan(newPoints->host.get()[i].x)) bad_points++;
     // std::cout << "boi: " << newPoints->host.get()[i].x << "\t";
   }
-  if (local_debug || local_verbose) std::cout << "Detected " << bad_points << " points in low density regions to remove ..." << "\n";
+  if (local_debug || local_verbose) logger.info << "Detected " + std::to_string(bad_points) + " points in low density regions to remove ...";
 
   // allocate new space and fill the points
   this->points = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,(newPoints->size() - bad_points),cpu);
@@ -497,7 +507,9 @@ void ssrlcv::MeshFactory::filterByOctreeNeighborDistance(float sigma){
       index++;
     }
   }
-  if (local_debug || local_verbose) std::cout << "Removed " << bad_points << " bad points, " <<  this->points->size() << " good points remain ..." << "\n";
+  std::stringstream ss;
+  ss << "Removed " << bad_points << " bad points, " <<  this->points->size() << " good points remain ...";
+  if (local_debug || local_verbose) logger.info << ss.str();
 }
 
 /**
@@ -525,7 +537,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculateAverageDi
   void (*fp)(int *, unsigned long, float3*, float*) = &averageDistToNeighbors;
   getFlatGridBlock(this->points->size(),grid,block,fp);
 
-  if (local_verbose) std::cout << "calulating nearest neighbors via exaustive kernel search ..." << "\n";
+  if (local_verbose) logger.info << "calulating nearest neighbors via exaustive kernel search ...";
 
   averageDistToNeighbors<<<grid,block>>>(d_num.get(),this->points->size(),this->points->device.get(),averages->device.get());
 
@@ -590,7 +602,9 @@ void ssrlcv::MeshFactory::filterByNeighborDistance(float sigma){
     if (samples->host.get()[i] > cutoff) bad_points++;
   }
 
-  if (local_debug || local_verbose) std::cout << "Detected " << bad_points << " points in low density regions to remove ..." << "\n";
+  std::stringstream ss;
+  ss << "Detected " << bad_points << " points in low density regions to remove ...";
+  if (local_debug || local_verbose) logger.info << ss.str();
 
   // allocate new space and fill the points
   ssrlcv::ptr::value<ssrlcv::Unity<float3>> temp = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,(this->points->size() - bad_points),cpu);
@@ -606,7 +620,9 @@ void ssrlcv::MeshFactory::filterByNeighborDistance(float sigma){
     this->points->host.get()[i] = temp->host.get()[i];
   }
 
-  if (local_debug || local_verbose) std::cout << "Removed " << bad_points << " bad points, " <<  this->points->size() << " good points remain ..." << "\n";
+  ss.str("");
+  ss << "Removed " << bad_points << " bad points, " <<  this->points->size() << " good points remain ...";
+  if (local_debug || local_verbose) logger.info << ss.str();
 }
 
 
@@ -1250,10 +1266,10 @@ void ssrlcv::MeshFactory::generateMesh(){
       stringBuffer << "\n";
       plystream << stringBuffer.str();
     }
-    std::cout<<newFile + " has been created.\n"<<"\n";
+    logger.info<<newFile + " has been created.";
   }
   else{
-    std::cout << "Unable to open: " + newFile<< "\n";
+    logger.err << "Unable to open: " + newFile;
     exit(1);
   }
 }
@@ -1333,10 +1349,10 @@ void ssrlcv::MeshFactory::generateMeshWithFinestEdges(){
       stringBuffer << " 255 255 255\n";
       plystream << stringBuffer.str();
     }
-    std::cout<<newFile + " has been created.\n"<<"\n";
+    logger.info<<newFile + " has been created.";
   }
   else{
-    std::cout << "Unable to open: " + newFile<< "\n";
+    logger.err << "Unable to open: " + newFile;
     exit(1);
   }
   this->octree->vertices->transferMemoryTo(origin[0]);
