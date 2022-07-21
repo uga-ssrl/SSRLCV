@@ -36,6 +36,7 @@ ssrlcv::Logger::Logger(){
   this->warn = Warning(this);
   this->info = Info(this);
   // this->verbosity = 0;
+  std::cout << "Logging to " + this->logFileLocation << std::endl;
 }
 
 /**
@@ -68,6 +69,7 @@ ssrlcv::Logger::Logger(const char* logPath){
   this->warn = Warning(this);
   this->info = Info(this);
   // this->verbosity = 0;
+  std::cout << "Logging to " + this->logFileLocation << std::endl;
 }
 
 /**
@@ -97,6 +99,7 @@ ssrlcv::Logger &ssrlcv::Logger::operator=(ssrlcv::Logger const &loggerCopy){
     this->err = Error(this);
     this->warn = Warning(this);
     this->info = Info(this);
+    std::cout << "Logging to " + this->logFileLocation << std::endl;
   }
   return *this;
 }
