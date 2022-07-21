@@ -41,7 +41,7 @@
 inline void __cudaSafeCall(cudaError err, const char *file, const int line) {
 #ifdef CUDA_ERROR_CHECK
   if (cudaSuccess != err) {
-      fprintf(stderr, "cudaSafeCall() failed at %s:%i : %s\n",
+      logger.err.printf("cudaSafeCall() failed at %s:%i : %s",
       file, line, cudaGetErrorString(err));
       exit(-1);
   }
@@ -63,7 +63,7 @@ inline void __cudaCheckError(const char *file, const int line) {
 #ifdef CUDA_ERROR_CHECK
   cudaError err = cudaGetLastError();
   if (cudaSuccess != err) {
-    fprintf(stderr, "cudaCheckError() failed at %s:%i : %s\n",
+    logger.err.printf("cudaCheckError() failed at %s:%i : %s",
     file, line, cudaGetErrorString(err));
     exit(-1);
   }
@@ -72,7 +72,7 @@ inline void __cudaCheckError(const char *file, const int line) {
   // Comment away if needed.
   // err = cudaDeviceSynchronize();
   if (cudaSuccess != err) {
-    fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
+    logger.err.printf("cudaCheckError() with sync failed at %s:%i : %s",
     file, line, cudaGetErrorString(err));
     exit(-1);
   }
@@ -121,7 +121,7 @@ namespace ssrlcv{
       case nc:
         return "no change (this should only be used to help with data manipulation methods)";
       default:
-        logger.err<<"ERROR: unknown MemoryState when calling memoryStateToString()\n";
+        logger.err<<"ERROR: unknown MemoryState when calling memoryStateToString()";
         exit(-1);
     }
   }
@@ -816,16 +816,16 @@ namespace ssrlcv{
   template<typename T>
   void Unity<T>::clear(MemoryState state){
     if(state == null){
-      logger.warn<<"WARNING: Unity<T>::clear(ssrlcv::null) does nothing\n";
+      logger.warn<<"WARNING: Unity<T>::clear(ssrlcv::null) does nothing";
       return;
     }
     else if(state != both && this->state != both && this->state != state){
       logger.warn<<"WARNING: Attempt to clear null memory in location "
-      <<memoryStateToString(state)<<"...action prevented\n";
+      <<memoryStateToString(state)<<"...action prevented";
       return;
     }
     else if(this->state == null){
-      logger.warn<<"WARNING: Attempt to clear null (empty) Unity...action prevented\n";
+      logger.warn<<"WARNING: Attempt to clear null (empty) Unity...action prevented";
       return;
     }
     else if(this->state <= 3){//currently supported types
@@ -882,7 +882,7 @@ namespace ssrlcv{
   template<typename T>
   void Unity<T>::setMemoryState(MemoryState state){
     if(state == this->state){
-      logger.warn<<"WARNING: hard setting of memory state to same memory state does nothing: "<<memoryStateToString(this->state)<<"\n";
+      logger.warn<<"WARNING: hard setting of memory state to same memory state does nothing: "<<memoryStateToString(this->state);
       return;
     }
     else if(this->state == null){
@@ -909,7 +909,7 @@ namespace ssrlcv{
   template<typename T>
   void Unity<T>::pin(){
     if(this->pinned){
-      logger.warn<<"WARNING: attempt to pin already pinned Unity<T> does nothing\n";
+      logger.warn<<"WARNING: attempt to pin already pinned Unity<T> does nothing";
       return;
     }
     //TODO: determine what to do if it is unified
@@ -923,7 +923,7 @@ namespace ssrlcv{
   template<typename T>
   void Unity<T>::unpin(){
     if(!this->pinned){
-      logger.warn<<"WARNING: attempt to unpin nonpinned Unity<T> does nothing\n";
+      logger.warn<<"WARNING: attempt to unpin nonpinned Unity<T> does nothing";
       return;
     }
     //TODO determine what to do if it is unified
@@ -1035,11 +1035,11 @@ namespace ssrlcv{
       throw NullUnityException("attempt to Unity<T>::setFore(MemoryState state) when this->state == null");
     }
     else if(this->fore == state){
-      logger.warn<<"WARNING: Unity<T>::setFore(MemoryState state) when state == this->fore does nothing\n";
+      logger.warn<<"WARNING: Unity<T>::setFore(MemoryState state) when state == this->fore does nothing";
       return;
     }
     else if(state == both){
-      logger.warn<<"ERROR: cannot set fore to both manually: \n\tuse setMemoryState(both) or transferMemoryTo((this->fore == gpu) ? cpu : gpu)\n";
+      logger.warn<<"ERROR: cannot set fore to both manually:" << "\tuse setMemoryState(both) or transferMemoryTo((this->fore == gpu) ? cpu : gpu)";
       exit(-1);
     }
     else if(this->state != both && this->state != state){
@@ -1062,7 +1062,7 @@ namespace ssrlcv{
     }
     if(state <= 3){
       if(this->fore == state){
-        logger.warn<<"WARNING: transfering memory to location of fore does nothing: "<<memoryStateToString(state)<<"\n";
+        logger.warn<<"WARNING: transfering memory to location of fore does nothing: "<<memoryStateToString(state);
         return;
       }
       else{
@@ -1106,7 +1106,7 @@ namespace ssrlcv{
     this->fore = gpu;
     unsigned long compressedSize = new_end - data_ptr;
     if(compressedSize == 0){
-      logger.warn<<"Unity<T>::remove(bool(*validate)(const T&)) led to all elements being removed (data cleared)\n";
+      logger.warn<<"Unity<T>::remove(bool(*validate)(const T&)) led to all elements being removed (data cleared)";
       this->clear();
       return;
     }
