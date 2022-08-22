@@ -215,7 +215,7 @@ void ssrlcv::MatchFactory<T>::sortMatches(ssrlcv::ptr::value<ssrlcv::Unity<DMatc
     if(matches->getMemoryState() == both) matches->transferMemoryTo(gpu);
   }
   else{
-    logger.err<<"ERROR cannot perform sortMatches with matches->getMemoryState() = "<<std::to_string(matches->getMemoryState())<<"\n";
+    logger.err<<"ERROR cannot perform sortMatches with matches->getMemoryState() = "<<std::to_string(matches->getMemoryState());
     exit(-1);
   }
 }
@@ -246,7 +246,7 @@ void ssrlcv::MatchFactory<T>::sortMatches(Unity<FeatureMatch<T>>* matches){
     if(matches->getMemoryState() == both) matches->transferMemoryTo(gpu);
   }
   else{
-    logger.err<<"ERROR cannot perform sortMatches with matches->getMemoryState() = "<<std::to_string(matches->getMemoryState())<<"\n";
+    logger.err<<"ERROR cannot perform sortMatches with matches->getMemoryState() = "<<std::to_string(matches->getMemoryState());
     exit(-1);
   }
 }
@@ -362,7 +362,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::genera
     target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(),this->absoluteThreshold);
   }
   else if(seedDistances->size() != queryFeatures->size()){
-    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
     exit(-1);
   }
   else{
@@ -413,7 +413,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::genera
     target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(), epsilon,fundamental_device.get(),this->absoluteThreshold);
   }
   else if(seedDistances->size() != queryFeatures->size()){
-    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
     exit(-1);
   }
   else{
@@ -461,7 +461,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>>ssrlcv::MatchFactory<T>:: gener
     target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(),this->absoluteThreshold);
   }
   else if(seedDistances->size() != queryFeatures->size()){
-    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
     exit(-1);
   }
   else{
@@ -511,7 +511,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>>ssrlcv::MatchFactory<T>:: gener
     target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(), epsilon, fundamental_device.get(),this->absoluteThreshold);
   }
   else if(seedDistances->size() != queryFeatures->size()){
-    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
     exit(-1);
   }
   else{
@@ -562,7 +562,7 @@ ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<ssrlcv::Unity<ssrlc
     target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(),this->absoluteThreshold);
   }
   else if(seedDistances->size() != queryFeatures->size()){
-    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
     exit(-1);
   }
   else{
@@ -610,7 +610,7 @@ ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<ssrlcv::Unity<ssrlc
     target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(), epsilon, fundamental_device.get(),this->absoluteThreshold);
   }
   else if(seedDistances->size() != queryFeatures->size()){
-    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
     exit(-1);
   }
   else{
@@ -660,7 +660,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::uint2_pair>> ssrlcv::MatchFactory<T>::g
     target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(),this->absoluteThreshold);
   }
   else if(seedDistances->size() != queryFeatures->size()){
-    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
     exit(-1);
   }
   else{
@@ -711,7 +711,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::uint2_pair>> ssrlcv::MatchFactory<T>::g
     target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(), epsilon,fundamental_device.get(),this->absoluteThreshold);
   }
   else if(seedDistances->size() != queryFeatures->size()){
-    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
     exit(-1);
   }
   else{
@@ -743,7 +743,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
   matchSet.keyPoints = nullptr;
   matchSet.matches = nullptr;
   if(estimatedOverlap == 0){
-    logger.warn<<"WARNING: estimated overlap fraction of 0.0f requires unordered match interpolation"<<"\n";
+    logger.warn<<"WARNING: estimated overlap fraction of 0.0f requires unordered match interpolation";
   }
   std::vector<ssrlcv::ptr::value<ssrlcv::Image>>::iterator query = images.begin();
   std::vector<ssrlcv::ptr::value<ssrlcv::Image>>::iterator target = query + 1;
@@ -764,8 +764,8 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
     }
   }
   if(totalMatches == 0){
-    logger.err<<"There were no matches found in the set of images, likely due to unreasonable threshold"<<"\n";
-    logger.err<<"exiting..."<<"\n";
+    logger.err<<"There were no matches found in the set of images, likely due to unreasonable threshold";
+    logger.err<<"exiting...";
     exit(0);
   }
   logger.info<<"prepping match interpolation on cpu";
@@ -858,11 +858,11 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
 ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::generateDiparityMatches(uint2 querySize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> queryPixels, uint2 targetSize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> targetPixels, 
   float fundamental[3][3], unsigned int maxDisparity,unsigned int windowSize, Direction direction){
   if(direction != right && direction != left && direction != undefined){
-    logger.err<<"ERROR: unsupported search direction for disparity matching"<<"\n";
+    logger.err<<"ERROR: unsupported search direction for disparity matching";
     exit(-1);
   }
   if(maxDisparity > querySize.x){
-    logger.err<<"Max disparity cannot be larger than image size"<<"\n";
+    logger.err<<"Max disparity cannot be larger than image size";
     exit(-1);
   }
   logger.info.printf("running disparity matching on parallel images");
@@ -872,7 +872,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::generateDiparityMatches
   logger.info.printf("\twindow size = %ux%u",windowSize,windowSize);
 
   if(windowSize == 0 || windowSize % 2 == 0 || windowSize > 31){
-    logger.err<<"ERROR window size for disparity matching must be greater than 0, less than 31 and odd"<<"\n";
+    logger.err<<"ERROR window size for disparity matching must be greater than 0, less than 31 and odd";
     exit(-1);
   }
 
@@ -956,7 +956,7 @@ void ssrlcv::writeMatchFile(ssrlcv::ptr::value<ssrlcv::Unity<Match>> matches, st
       }
     }
     else{
-      logger.err<<"ERROR: cannot write "<<pathToFile<<"\n";
+      logger.err<<"ERROR: cannot write "<<pathToFile;
     }
     matchstream.close();
   }
@@ -974,7 +974,7 @@ void ssrlcv::writeMatchFile(ssrlcv::ptr::value<ssrlcv::Unity<Match>> matches, st
       matchstream.close();
     }
     else{
-      logger.err<<"ERROR: cannot write match files"<<"\n";
+      logger.err<<"ERROR: cannot write match files";
       exit(-1);
     }
   }
@@ -1004,7 +1004,7 @@ void ssrlcv::writeMatchFile(MatchSet multiview_matches, std::string pathToFile, 
     matchstream.close();
   }
   else{
-    logger.err<<"ERROR: cannot write match files"<<"\n";
+    logger.err<<"ERROR: cannot write match files";
     exit(-1);
   }
   

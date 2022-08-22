@@ -820,7 +820,7 @@ void ssrlcv::writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<flo
   std::string fname = filename;
   // we need triangles or quadrilaterals
   if (!(faceEncoding == 3 || faceEncoding == 4)){
-    logger.err << "ERROR: error writing mesh based PLY, unsupported face encoding of " << std::to_string(faceEncoding) << "\n";
+    logger.err << "ERROR: error writing mesh based PLY, unsupported face encoding of " << std::to_string(faceEncoding) ;
     return;
   }
   std::ofstream of;
@@ -1024,7 +1024,7 @@ void ssrlcv::writeCSV(std::vector<float> v, std::string filename){
  */
 void ssrlcv::writeCSV(std::vector<float> x, std::vector<float> y, std::string filename){
   if (x.size() != y.size()){
-    logger.err << "CSV ERROR: Vectors are not the same size!" << "\n";
+    logger.err << "CSV ERROR: Vectors are not the same size!" ;
     return;
   }
   std::ofstream outfile;

@@ -237,12 +237,12 @@ ssrlcv::Image::Image(std::string filePath, int id) {
 
       file.close();
     } else { // if no config file was found!
-      logger.warn << "WARN: NO CAMERA PARAM FILE FOUND, at least an empty params.csv or params.bcp is required. To disable this requirement use the flag -np or -noparams" << "\n";
+      logger.warn << "WARN: NO CAMERA PARAM FILE FOUND, at least an empty params.csv or params.bcp is required. To disable this requirement use the flag -np or -noparams";
       // std::throw -1; // TODO make this throw an exception
-      logger.err << "\t given   filePath: " << filePath<< "\n";
-      logger.err << "\t given   filename: " << filename<< "\n";
-      logger.err << "\t given param_path: " << params_path<< "\n";
-      logger.err << "\t cleaned filename: " << file_no_digits<< "\n";
+      logger.err << "\t given   filePath: " << filePath;
+      logger.err << "\t given   filename: " << filename;
+      logger.err << "\t given param_path: " << params_path;
+      logger.err << "\t cleaned filename: " << file_no_digits;
     }
   }
   logger.info << "filePath: " + filePath;
@@ -266,7 +266,7 @@ ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int
     this->colorDepth = 1;
   }
   else if(convertColorDepthTo != 0){
-    logger.err<<"ERROR: Image() does not currently support conversion to anything but BW"<<"\n";
+    logger.err<<"ERROR: Image() does not currently support conversion to anything but BW";
     exit(-1);
   }
 }
@@ -288,7 +288,7 @@ void ssrlcv::Image::convertColorDepthTo(unsigned int colorDepth){
     this->colorDepth = 3;
   }
   else{
-    logger.err<<std::to_string(colorDepth)<<" is currently not supported in convertColorDepthTo"<<"\n";
+    logger.err<<std::to_string(colorDepth)<<" is currently not supported in convertColorDepthTo";
     exit(-1);
   }
 }
@@ -297,11 +297,12 @@ ssrlcv::ptr::value<ssrlcv::Unity<int2>> ssrlcv::Image::getPixelGradients(){
 }
 void ssrlcv::Image::alterSize(int scalingFactor){
   if(scalingFactor == 0){
-    logger.err<<"using a binDepth of 0 results in no binning or upsampling\nuse binDepth>0 for binning and binDepth<0 for upsampling"<<"\n";
+    logger.err<<"using a binDepth of 0 results in no binning or upsampling";
+    logger.err<<"use binDepth>0 for binning and binDepth<0 for upsampling";
     return;
   }
   else if((float)this->size.x/powf(2.0f,scalingFactor) < 1.0f ||(float)this->size.y/powf(2.0f,scalingFactor) < 1.0f){
-    logger.err<<"ERROR binning "<<std::to_string(scalingFactor)<<" many times cannot be done on and image of size "<<std::to_string(this->size.x)<<"x"<<std::to_string(this->size.y)<<"\n";
+    logger.err<<"ERROR binning "<<std::to_string(scalingFactor)<<" many times cannot be done on and image of size "<<std::to_string(this->size.x)<<"x"<<std::to_string(this->size.y);
     exit(-1);
   }
   MemoryState origin = this->pixels->getMemoryState();
@@ -377,7 +378,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::Image::getFloatVector(int len){
       params->host.get()[0 ] = this->camera.cam_pos.x ;
       break;
     default:
-      logger.err << "ERROR: the requested camera float vector is out of bounds or non-standard!"<< "\n";
+      logger.err << "ERROR: the requested camera float vector is out of bounds or non-standard!";
       break;
   }
   return params;
@@ -442,15 +443,15 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::Image::getExtrinsicDifference(C
 
 ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> ssrlcv::addBufferBorder(uint2 size, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, int2 border){
   if(border.x == 0 && border.y == 0){
-    logger.err<<"ERROR border cannot be 0"<<"\n";
+    logger.err<<"ERROR border cannot be 0";
     exit(-1);
   }
   if(border.x*2 + (int) size.x < 0 || border.y*2 + (int)size.y < 0){
-    logger.err<<"ERROR border causes negative dimensions"<<"\n";
+    logger.err<<"ERROR border causes negative dimensions";
     exit(-1);
   }
   if(pixels->size()%((int)size.x*size.y) != 0){
-    logger.err<<"ERROR color depth cannot be determined due to pixels->size()%(size.x*size.y) != 0"<<"\n";
+    logger.err<<"ERROR color depth cannot be determined due to pixels->size()%(size.x*size.y) != 0";
   }
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
@@ -468,15 +469,15 @@ ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> ssrlcv::addBufferBorder(uint2 s
 }
 ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::addBufferBorder(uint2 size, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, int2 border){
   if(border.x == 0 && border.y == 0){
-    logger.err<<"ERROR border cannot be 0"<<"\n";
+    logger.err<<"ERROR border cannot be 0";
     exit(-1);
   }
   if(border.x*2 + (int) size.x < 0 || border.y*2 + (int)size.y < 0){
-    logger.err<<"ERROR border causes negative dimensions"<<"\n";
+    logger.err<<"ERROR border causes negative dimensions";
     exit(-1);
   }
   if(pixels->size()%((int)size.x*size.y) != 0){
-    logger.err<<"ERROR color depth cannot be determined due to pixels->size()%(size.x*size.y) != 0"<<"\n";
+    logger.err<<"ERROR color depth cannot be determined due to pixels->size()%(size.x*size.y) != 0";
   }
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
@@ -1023,7 +1024,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::scaleImage(uint2 imageSize, ssr
 
 ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::convolve(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, int2 kernelSize, float* kernel, bool symmetric){
   if(kernelSize.x%2 == 0 || kernelSize.y%2 == 0){
-    logger.err<<"ERROR kernel for image convolution must have an odd dimension"<<"\n";
+    logger.err<<"ERROR kernel for image convolution must have an odd dimension";
     exit(-1);
   }
   MemoryState origin = pixels->getMemoryState();
@@ -1057,7 +1058,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::convolve(uint2 imageSize, ssrlc
 }
 ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::convolve(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, int2 kernelSize, float* kernel, bool symmetric){
   if(kernelSize.x%2 == 0 || kernelSize.y%2 == 0){
-    logger.err<<"ERROR kernel for image convolution must have an odd dimension"<<"\n";
+    logger.err<<"ERROR kernel for image convolution must have an odd dimension";
     exit(-1);
   }
   MemoryState origin = pixels->getMemoryState();

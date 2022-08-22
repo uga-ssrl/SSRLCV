@@ -142,7 +142,7 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
           if(local_debug) std::cout << "detected " << num << " Faces" << "\n";
         } else if (!type.compare("edge")) {
           // TODO read in edges if desired
-          logger.warn << "\tWARN: edge reading is not currently supported in MeshFactory" << "\n";
+          logger.warn << "\tWARN: edge reading is not currently supported in MeshFactory" ;
           if(local_debug) std::cout << "detected " << num << " Edges" << "\n";
         }
 
@@ -183,7 +183,7 @@ void ssrlcv::MeshFactory::loadMesh(const char* filePath){
             std::cout << "faceNum updated to:   " << numFaces << "\t from " << (numFaces / this->faceEncoding) << "\n";
           }
           if (!(this->faceEncoding == 3 || this->faceEncoding == 4)){
-            logger.err << "ERROR: error with reading mesh PLY face encoding, encoding was: " << std::to_string(this->faceEncoding) << "\n";
+            logger.err << "ERROR: error with reading mesh PLY face encoding, encoding was: " << std::to_string(this->faceEncoding) ;
             return;
           }
         } else {
@@ -253,7 +253,7 @@ void ssrlcv::MeshFactory::loadPoints(const char* filePath){
 void ssrlcv::MeshFactory::saveMesh(const char* filename){
   // make sure we are not trying to save an empty thing
   if (!faceEncoding) {
-    logger.err << "ERROR: cannot save MESH, no face encoding was set. Have point and face unity's been set?" << "\n";
+    logger.err << "ERROR: cannot save MESH, no face encoding was set. Have point and face unity's been set?" ;
     return;
   }
   // save the boi!
@@ -292,7 +292,7 @@ float ssrlcv::MeshFactory::calculateAverageDifference(ssrlcv::ptr::value<ssrlcv:
   if (local_verbose || local_debug) logger.info << "Computing average diff between mesh and point cloud ...";
 
   if (!faceEncoding){
-    logger.err << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" << "\n";
+    logger.err << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" ;
     return -1.0f;
   }
 
@@ -380,7 +380,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculatePerPointD
   if (local_verbose || local_debug) logger.info << "Computing per point diff between mesh and point cloud ...";
 
   if (!faceEncoding){
-    logger.err << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" << "\n";
+    logger.err << "ERROR: cannot caclulate average difference, no face encoding was set. Have point and face unity's been set?" ;
     return nullptr;
   }
 
@@ -522,7 +522,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::MeshFactory::calculateAverageDi
   bool local_verbose = true;
 
   if (n > 6){
-    logger.warn << "WARNING: values larger than N = 6 neighbors are not nesseary, chaning N from " << std::to_string(n) << " to 6 ..." << "\n";
+    logger.warn << "WARNING: values larger than N = 6 neighbors are not nesseary, chaning N from " << std::to_string(n) << " to 6 ..." ;
   }
 
   ssrlcv::ptr::device<int> d_num(1);

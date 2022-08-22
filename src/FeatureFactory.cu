@@ -330,7 +330,7 @@ depth(depth), isDOG(makeDOG){
 
     int numResize = (int)powf(2, startingOctave+depth.x);
     if(image->size.x/numResize == 0 || image->size.y/numResize == 0){
-        logger.err<<"This image is too small to make a ScaleSpace of the specified depth"<<"\n";
+        logger.err<<"This image is too small to make a ScaleSpace of the specified depth";
         exit(-1);
     }
 
@@ -451,7 +451,7 @@ void ssrlcv::FeatureFactory::ScaleSpace::dumpData(std::string filePath){
 void ssrlcv::FeatureFactory::ScaleSpace::findKeyPoints(float noiseThreshold, float edgeThreshold, bool subpixel){
     logger.info<<"looking for keypoints...";
     if(this->depth.y < 4){
-        logger.err<<"findKeyPoints should be done on a dog scale space - this is either not a dog or the number of blurs is insufficient"<<"\n";
+        logger.err<<"findKeyPoints should be done on a dog scale space - this is either not a dog or the number of blurs is insufficient";
         exit(-1);
     }
     int temp = 0;
@@ -508,7 +508,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::FeatureFactory::ScaleSpace::SSKeyPoint>
         totalKeyPoints += this->octaves.get()[i]->extrema->size();
     }
     if(totalKeyPoints == 0){
-        logger.err<<"scale space has no keyPoints generated within its octaves"<<"\n";
+        logger.err<<"scale space has no keyPoints generated within its octaves";
         exit(0);
     }
     ssrlcv::ptr::value<ssrlcv::Unity<SSKeyPoint>> aggregatedKeyPoints = ssrlcv::ptr::value<ssrlcv::Unity<SSKeyPoint>>(nullptr,totalKeyPoints,keepThenTransfer ? gpu : destination);

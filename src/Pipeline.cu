@@ -101,7 +101,7 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
     ssrlcv::BundleSet bundleSet = pointCloudFactory.generateBundles(&in->matchSet,in->images);
     out->points = (pointCloudFactory.*triangulate)(bundleSet, &error);
     std::stringstream ss;
-    ss << "\tUnfiltered Error: " << std::fixed << std::setprecision(12) << error << std::endl;
+    ss << "\tUnfiltered Error: " << std::fixed << std::setprecision(12) << error;
     logger.info << ss.str();
   
     logger.logState("TRIANGULATE");
@@ -124,7 +124,7 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
       ssrlcv::BundleSet bundleSet = pointCloudFactory.generateBundles(&in->matchSet,in->images);
       out->points = pointCloudFactory.twoViewTriangulate(bundleSet, &linearError);
       std::stringstream ss;
-      ss << "Filtered " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << linearError << std::endl;
+      ss << "Filtered " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << linearError;
       logger.info << ss.str();
   
       // second time
@@ -133,7 +133,7 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
       bundleSet = pointCloudFactory.generateBundles(&in->matchSet,in->images);
       out->points = pointCloudFactory.twoViewTriangulate(bundleSet, &linearError);
       ss.str("");
-      ss << "Filtered " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << linearError << std::endl;
+      ss << "Filtered " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << linearError;
       logger.info << ss.str();
   
       // neighbor filter
@@ -148,7 +148,7 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
         ssrlcv::BundleSet bundleSet = pointCloudFactory.generateBundles(&in->matchSet,in->images);
         out->points = pointCloudFactory.nViewTriangulate(bundleSet, &angularError);
         std::stringstream ss;
-        ss << "Filtered " << 0.1  << " Linear Error: " << std::fixed << std::setprecision(12) << angularError << std::endl;
+        ss << "Filtered " << 0.1  << " Linear Error: " << std::fixed << std::setprecision(12) << angularError;
         logger.info << ss.str();
       }
     }

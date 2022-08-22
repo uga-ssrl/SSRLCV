@@ -115,7 +115,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrl
       numKeyPoints += dog->octaves.get()[o]->extrema->size();
     }
     if(numKeyPoints == 0){
-      logger.err<<"ERROR: something went wrong and there are 0 keypoints\n";
+      logger.err<<"ERROR: something went wrong and there are 0 keypoints";
       exit(0);
     }
     logger.info.printf("total keypoints found = %d", numKeyPoints);

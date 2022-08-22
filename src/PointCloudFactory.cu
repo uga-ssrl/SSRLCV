@@ -2653,8 +2653,8 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // 2-View Case
     //
 
-    logger.warn << "WARNING: Starting an intesive debug feature, this should be disabled in production\n";
-    logger.warn << "WARNING: DISABLE GENERATE SENSITIVITY FUNCTIONS IN PRODUCTION!!\n";
+    logger.warn << "WARNING: Starting an intesive debug feature, this should be disabled in production";
+    logger.warn << "WARNING: DISABLE GENERATE SENSITIVITY FUNCTIONS IN PRODUCTION!!";
 
     // TODO graph (deltas and value)
 
