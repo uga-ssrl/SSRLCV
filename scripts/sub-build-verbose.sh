@@ -14,10 +14,8 @@
 
 cd $SLURM_SUBMIT_DIR
 
-ml gtest
 ml CUDA/10.0.130
 ml GCCcore/6.4.0
 
 make clean
-make sfm -j8 SM=35
-make test -j8 SM=35
+make sfm -j8 SM=35 LOG_LEVEL=4
