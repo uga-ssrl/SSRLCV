@@ -76,6 +76,14 @@ namespace ssrlcv{
     } Direction;
 }
 
+// Fix "cannot call host function from host device function" warnings
+namespace thrust{
+  namespace detail{
+    template <typename T, typename U>
+    __host__ __device__ T aligned_reinterpret_cast(U u);
+  }
+}
+
 /**
  * \defgroup cuda_kernels
  * \defgroup cuda_util
