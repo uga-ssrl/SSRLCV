@@ -6,6 +6,10 @@
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
 
+#if LOG_LEVEL >= 4
+#define LOG_MEM
+#endif
+
 
 #include <iostream>
 #include <fstream>
@@ -107,6 +111,24 @@ namespace ssrlcv{
       }
     };
 
+    struct Memory {
+      Logger* logger;
+      Memory();
+      Memory(Logger* logger);
+
+    #ifdef LOG_MEM
+      std::string memoryLogLocation;
+
+      long device_mem = 0;
+      long host_pinned_mem = 0;
+      long host_unpinned_mem = 0;
+    #endif
+
+      void logHostPinned(long change);
+      void logHostUnpinned(long change);
+      void logDevice(long change);
+    };
+
     enum Verbosity{
       nothing = 0,
       errors = 1,
@@ -117,6 +139,9 @@ namespace ssrlcv{
     Error err;
     Warning warn;
     Info info;
+  #ifdef LOG_MEM
+    Memory mem;
+  #endif
 
     int verbosity;//
 

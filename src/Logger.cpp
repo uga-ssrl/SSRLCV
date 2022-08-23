@@ -35,6 +35,9 @@ ssrlcv::Logger::Logger(){
   this->err = Error(this);
   this->warn = Warning(this);
   this->info = Info(this);
+#ifdef LOG_MEM
+  this->mem = Memory(this);
+#endif
   // this->verbosity = 0;
   std::cout << "Logging to " + this->logFileLocation << std::endl;
 }
@@ -68,6 +71,9 @@ ssrlcv::Logger::Logger(const char* logPath){
   this->err = Error(this);
   this->warn = Warning(this);
   this->info = Info(this);
+#ifdef LOG_MEM
+  this->mem = Memory(this);
+#endif
   // this->verbosity = 0;
   std::cout << "Logging to " + this->logFileLocation << std::endl;
 }
@@ -99,6 +105,9 @@ ssrlcv::Logger &ssrlcv::Logger::operator=(ssrlcv::Logger const &loggerCopy){
     this->err = Error(this);
     this->warn = Warning(this);
     this->info = Info(this);
+  #ifdef LOG_MEM
+    this->mem = Memory(this);
+  #endif
     std::cout << "Logging to " + this->logFileLocation << std::endl;
   }
   return *this;
@@ -110,6 +119,10 @@ ssrlcv::Logger &ssrlcv::Logger::operator=(ssrlcv::Logger const &loggerCopy){
 ssrlcv::Logger::~Logger(){
   this->err.logger = nullptr;
   this->warn.logger = nullptr;
+  this->info.logger = nullptr;
+#ifdef LOG_MEM
+  this->mem.logger = nullptr;
+#endif
   this->stopBackgroundLogging();
 }
 
@@ -190,6 +203,90 @@ ssrlcv::Logger::Info &ssrlcv::Logger::Info::operator<<(std::string input){
 }
 
 
+//
+// Memory Logging
+//
+
+ssrlcv::Logger::Memory::Memory() {
+  this->logger = nullptr;
+}
+
+ssrlcv::Logger::Memory::Memory(Logger* logger) {
+  this->logger = logger;
+#ifdef LOG_MEM
+  // check if the log file exists
+  this->memoryLogLocation = this->logger->logPath + "/memory.csv";
+  std::ifstream exist(this->memoryLogLocation.c_str());
+  if (!exist.good()){
+    // make the file
+    std::ofstream temp;
+    temp.open(this->memoryLogLocation);
+    temp.close();
+  }
+  // this->verbosity = 0;
+  std::cout << "Logging memory to " + this->memoryLogLocation << std::endl;
+#endif
+}
+
+void ssrlcv::Logger::Memory::logHostPinned(long change) {
+#ifdef LOG_MEM
+  this->host_pinned_mem += change;
+
+  std::ofstream outstream;
+  this->logger->mtx.lock();
+  outstream.open(this->memoryLogLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  outstream << std::fixed << std::setprecision(32) << this->logger->getTime();
+  // now print the real junk
+  outstream << ",total," << this->device_mem + this->host_unpinned_mem + this->host_pinned_mem;
+  outstream << ",host_unpinned," << this->host_unpinned_mem;
+  outstream << ",host_pinned," << this->host_pinned_mem;
+  outstream << ",device," << this->device_mem;
+  outstream << std::endl;
+  outstream.close();
+  this->logger->mtx.unlock();
+#endif
+}
+
+void ssrlcv::Logger::Memory::logHostUnpinned(long change) {
+#ifdef LOG_MEM
+  this->host_unpinned_mem += change;
+
+  std::ofstream outstream;
+  this->logger->mtx.lock();
+  outstream.open(this->memoryLogLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  outstream << std::fixed << std::setprecision(32) << this->logger->getTime();
+  // now print the real junk
+  outstream << ",total," << this->device_mem + this->host_unpinned_mem + this->host_pinned_mem;
+  outstream << ",host_unpinned," << this->host_unpinned_mem;
+  outstream << ",host_pinned," << this->host_pinned_mem;
+  outstream << ",device," << this->device_mem;
+  outstream << std::endl;
+  outstream.close();
+  this->logger->mtx.unlock();
+#endif
+}
+
+void ssrlcv::Logger::Memory::logDevice(long change) {
+#ifdef LOG_MEM
+  this->device_mem += change;
+
+  std::ofstream outstream;
+  this->logger->mtx.lock();
+  outstream.open(this->memoryLogLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  outstream << std::fixed << std::setprecision(32) << this->logger->getTime();
+  // now print the real junk
+  outstream << ",total," << this->device_mem + this->host_unpinned_mem + this->host_pinned_mem;
+  outstream << ",host_unpinned," << this->host_unpinned_mem;
+  outstream << ",host_pinned," << this->host_pinned_mem;
+  outstream << ",device," << this->device_mem;
+  outstream << std::endl;
+  outstream.close();
+  this->logger->mtx.unlock();
+#endif
+}
 
 // =============================================================================================================
 //
