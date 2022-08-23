@@ -6,14 +6,6 @@
 #ifndef COMMON_INCLUDES_HPP
 #define COMMON_INCLUDES_HPP
 
-// Fix "cannot call host function from host device function" warnings
-namespace thrust{
-  namespace detail{
-    template <typename T, typename U>
-    __host__ __device__ T aligned_reinterpret_cast(U u);
-  }
-}
-
 // our boiz \ nvidia
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
