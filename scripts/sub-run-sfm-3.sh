@@ -1,13 +1,13 @@
 #!/bin/bash
-#SBATCH --job-name=valgrind2                # Job name
+#SBATCH --job-name=run-sfm-3                # Job name
 #SBATCH --partition=gpu_p             # Partition (queue) name, i.e., gpu_p 
 #SBATCH --gres=gpu:K40:1                  # Requests one GPU device 
 #SBATCH --ntasks=1                    # Run a single task       
 #SBATCH --cpus-per-task=2             # Number of CPU cores per task
 #SBATCH --mem=4gb                    # Job memory request
 #SBATCH --time=00:30:00                # Time limit hrs:min:sec
-#SBATCH --output=log/valgrind2.%j.out       # Standard output log
-#SBATCH --error=log/valgrind2.%j.err        # Standard error log
+#SBATCH --output=log/run-sfm-3.%j.out       # Standard output log
+#SBATCH --error=log/run-sfm-3.%j.err        # Standard error log
 
 #SBATCH --mail-type=BEGIN,END,FAIL      # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=%u@uga.edu  # Where to send mail    
