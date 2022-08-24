@@ -29,7 +29,7 @@
  * global to call this in any signal capturing method
  */
 void safeShutdown(int sig){
-  std::cout << "Safely Ending SSRLCV ..." << std::endl;
+  logger.info << "Safely Ending SSRLCV ...";
   logger.logState("safeShutdown");
   logger.stopBackgroundLogging();
   exit(sig); // exit with the same signal
@@ -67,7 +67,7 @@ int main(int argc, char *argv[]){
     }
     std::vector<std::string> imagePaths = ((ssrlcv::img_dir_arg *)args["dir"])->paths;
     int numImages = (int) imagePaths.size();
-    std::cout<<"Found " << numImages << " images in directory given" << std::endl;
+    logger.info.printf("Found %d images in directory given", numImages);
     logger.logState("SEED");
 
     //

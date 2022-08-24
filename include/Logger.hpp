@@ -6,6 +6,10 @@
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
 
+#if LOG_LEVEL >= 4
+#define LOG_MEM
+#endif
+
 
 #include <iostream>
 #include <fstream>
@@ -40,6 +44,19 @@ namespace ssrlcv{
        */
       Error &operator<<(const char* input);
       Error &operator<<(std::string input);
+
+      template <typename... Args>
+      void printf(const char *format, Args&&... args){
+      #if LOG_LEVEL >= 1
+        char buffer[200];
+        int num = snprintf(buffer, 200, format, std::forward<Args>(args)...);
+        if (num >= 0 && num < 200) {
+          this->logger->logError(buffer);
+        } else {
+          this->logger->logError("Printf statement too long");
+        }
+      #endif
+      }
     };
     /**
      * Structure to handle warning messages
@@ -53,6 +70,63 @@ namespace ssrlcv{
        */
       Warning &operator<<(const char *input);
       Warning &operator<<(std::string input);
+
+      template <typename... Args>
+      void printf(const char *format, Args&&... args){
+      #if LOG_LEVEL >= 2
+        char buffer[200];
+        int num = snprintf(buffer, 200, format, std::forward<Args>(args)...);
+        if (num >= 0 && num < 200) {
+          this->logger->logWarning(buffer);
+        } else {
+          this->logger->logError("Printf statement too long");
+        }
+      #endif
+      }
+    };
+    /**
+     * Structure to handle info messages
+     */
+    struct Info{
+      Logger* logger;
+      Info();
+      Info(Logger* logger);
+      /**
+       * Overloaded Bit Shift Left Operator, needed to keep united mutex locking
+       */
+      Info &operator<<(const char *input);
+      Info &operator<<(std::string input);
+
+      template <typename... Args>
+      void printf(const char *format, Args&&... args){
+      #if LOG_LEVEL >= 3
+        char buffer[200];
+        int num = snprintf(buffer, 200, format, std::forward<Args>(args)...);
+        if (num >= 0 && num < 200) {
+          this->logger->logInfo(buffer);
+        } else {
+          this->logger->logError("Printf statement too long");
+        }
+      #endif
+      }
+    };
+
+    struct Memory {
+      Logger* logger;
+      Memory();
+      Memory(Logger* logger);
+
+    #ifdef LOG_MEM
+      std::string memoryLogLocation;
+
+      long device_mem = 0;
+      long host_pinned_mem = 0;
+      long host_unpinned_mem = 0;
+    #endif
+
+      void logHostPinned(long change);
+      void logHostUnpinned(long change);
+      void logDevice(long change);
     };
 
     enum Verbosity{
@@ -64,6 +138,10 @@ namespace ssrlcv{
 
     Error err;
     Warning warn;
+    Info info;
+  #ifdef LOG_MEM
+    Memory mem;
+  #endif
 
     int verbosity;//
 
@@ -146,16 +224,28 @@ namespace ssrlcv{
     void logState(std::string state);
 
     /**
-     * logs a message with an error tag
+     * logs a message with a warning tag
      * @param input a string to write to the log
      */
     void logWarning(const char *input);
 
     /**
-     * logs a message with an error tag
+     * logs a message with a warning tag
      * @param input a string to write to the log
      */
     void logWarning(std::string input);
+
+    /**
+     * logs a message with an info tag
+     * @param input a string to write to the log
+     */
+    void logInfo(const char *input);
+
+    /**
+     * logs a message with an info tag
+     * @param input a string to write to the log
+     */
+    void logInfo(std::string input);
 
     /**
      * logs a message with an error tag
@@ -204,6 +294,8 @@ namespace ssrlcv{
      * stops the backgound logging if it is running
      */
     void stopBackgroundLogging();
+
+    std::string format(const char* format, ...);
 
   private:
 
