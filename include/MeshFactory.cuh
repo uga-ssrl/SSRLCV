@@ -8,6 +8,7 @@
 #include "common_includes.hpp"
 #include "Image.cuh"
 #include "Octree.cuh"
+#include "fix_thrust_warning.h"
 #include <thrust/scan.h>
 #include <thrust/device_ptr.h>
 

@@ -9,6 +9,7 @@
 #include "common_includes.hpp"
 #include "Image.cuh"
 #include "Feature.cuh"
+#include "fix_thrust_warning.h"
 #include <thrust/device_ptr.h>
 #include <thrust/copy.h>
 #include <thrust/scan.h>

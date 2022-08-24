@@ -34,7 +34,12 @@ ssrlcv::Logger::Logger(){
   // setting up specific "stream" handlers
   this->err = Error(this);
   this->warn = Warning(this);
+  this->info = Info(this);
+#ifdef LOG_MEM
+  this->mem = Memory(this);
+#endif
   // this->verbosity = 0;
+  std::cout << "Logging to " + this->logFileLocation << std::endl;
 }
 
 /**
@@ -65,7 +70,12 @@ ssrlcv::Logger::Logger(const char* logPath){
   // setting up specific "stream" handlers
   this->err = Error(this);
   this->warn = Warning(this);
+  this->info = Info(this);
+#ifdef LOG_MEM
+  this->mem = Memory(this);
+#endif
   // this->verbosity = 0;
+  std::cout << "Logging to " + this->logFileLocation << std::endl;
 }
 
 /**
@@ -94,6 +104,11 @@ ssrlcv::Logger &ssrlcv::Logger::operator=(ssrlcv::Logger const &loggerCopy){
     // setting up specific "stream" handlers
     this->err = Error(this);
     this->warn = Warning(this);
+    this->info = Info(this);
+  #ifdef LOG_MEM
+    this->mem = Memory(this);
+  #endif
+    std::cout << "Logging to " + this->logFileLocation << std::endl;
   }
   return *this;
 }
@@ -104,6 +119,10 @@ ssrlcv::Logger &ssrlcv::Logger::operator=(ssrlcv::Logger const &loggerCopy){
 ssrlcv::Logger::~Logger(){
   this->err.logger = nullptr;
   this->warn.logger = nullptr;
+  this->info.logger = nullptr;
+#ifdef LOG_MEM
+  this->mem.logger = nullptr;
+#endif
   this->stopBackgroundLogging();
 }
 
@@ -112,40 +131,162 @@ ssrlcv::Logger::~Logger(){
 
 ssrlcv::Logger &ssrlcv::Logger::operator<<(const char *input){
   this->log(input);
+  return *this;
 }
+
 ssrlcv::Logger::Error::Error(){
   this->logger = nullptr;
 }
+
 ssrlcv::Logger::Error::Error(ssrlcv::Logger *logger){
   this->logger = logger;
 }
+
 ssrlcv::Logger::Error &ssrlcv::Logger::Error::operator<<(const char *input){
+#if LOG_LEVEL >= 1
   std::cout<<input<<std::endl;
   this->logger->logError(input);
+#endif
   return *this;
 }
+
 ssrlcv::Logger::Error &ssrlcv::Logger::Error::operator<<(std::string input){
+#if LOG_LEVEL >= 1
   std::cout<<input<<std::endl;
   this->logger->logError(input);
+#endif
   return *this;
 }
+
 ssrlcv::Logger::Warning::Warning(){
   this->logger = nullptr;
 }
+
 ssrlcv::Logger::Warning::Warning(ssrlcv::Logger *logger){
   this->logger = logger;
 }
+
 ssrlcv::Logger::Warning &ssrlcv::Logger::Warning::operator<<(const char *input){
+#if LOG_LEVEL >= 2
   this->logger->logWarning(input);
+#endif
   return *this;
 }
+
 ssrlcv::Logger::Warning &ssrlcv::Logger::Warning::operator<<(std::string input){
+#if LOG_LEVEL >= 2
   this->logger->logWarning(input);
+#endif
+  return *this;
+}
+
+ssrlcv::Logger::Info::Info(){
+  this->logger = nullptr;
+}
+
+ssrlcv::Logger::Info::Info(ssrlcv::Logger *logger){
+  this->logger = logger;
+}
+
+ssrlcv::Logger::Info &ssrlcv::Logger::Info::operator<<(const char *input){
+#if LOG_LEVEL >= 3
+  this->logger->logInfo(input);
+#endif
+  return *this;
+}
+
+ssrlcv::Logger::Info &ssrlcv::Logger::Info::operator<<(std::string input){
+#if LOG_LEVEL >= 3
+  this->logger->logInfo(input);
+#endif
   return *this;
 }
 
 
+//
+// Memory Logging
+//
 
+ssrlcv::Logger::Memory::Memory() {
+  this->logger = nullptr;
+}
+
+ssrlcv::Logger::Memory::Memory(Logger* logger) {
+  this->logger = logger;
+#ifdef LOG_MEM
+  // check if the log file exists
+  this->memoryLogLocation = this->logger->logPath + "/memory.csv";
+  std::ifstream exist(this->memoryLogLocation.c_str());
+  if (!exist.good()){
+    // make the file
+    std::ofstream temp;
+    temp.open(this->memoryLogLocation);
+    temp.close();
+  }
+  // this->verbosity = 0;
+  std::cout << "Logging memory to " + this->memoryLogLocation << std::endl;
+#endif
+}
+
+void ssrlcv::Logger::Memory::logHostPinned(long change) {
+#ifdef LOG_MEM
+  this->host_pinned_mem += change;
+
+  std::ofstream outstream;
+  this->logger->mtx.lock();
+  outstream.open(this->memoryLogLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  outstream << std::fixed << std::setprecision(32) << this->logger->getTime();
+  // now print the real junk
+  outstream << ",total," << this->device_mem + this->host_unpinned_mem + this->host_pinned_mem;
+  outstream << ",host_unpinned," << this->host_unpinned_mem;
+  outstream << ",host_pinned," << this->host_pinned_mem;
+  outstream << ",device," << this->device_mem;
+  outstream << std::endl;
+  outstream.close();
+  this->logger->mtx.unlock();
+#endif
+}
+
+void ssrlcv::Logger::Memory::logHostUnpinned(long change) {
+#ifdef LOG_MEM
+  this->host_unpinned_mem += change;
+
+  std::ofstream outstream;
+  this->logger->mtx.lock();
+  outstream.open(this->memoryLogLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  outstream << std::fixed << std::setprecision(32) << this->logger->getTime();
+  // now print the real junk
+  outstream << ",total," << this->device_mem + this->host_unpinned_mem + this->host_pinned_mem;
+  outstream << ",host_unpinned," << this->host_unpinned_mem;
+  outstream << ",host_pinned," << this->host_pinned_mem;
+  outstream << ",device," << this->device_mem;
+  outstream << std::endl;
+  outstream.close();
+  this->logger->mtx.unlock();
+#endif
+}
+
+void ssrlcv::Logger::Memory::logDevice(long change) {
+#ifdef LOG_MEM
+  this->device_mem += change;
+
+  std::ofstream outstream;
+  this->logger->mtx.lock();
+  outstream.open(this->memoryLogLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  outstream << std::fixed << std::setprecision(32) << this->logger->getTime();
+  // now print the real junk
+  outstream << ",total," << this->device_mem + this->host_unpinned_mem + this->host_pinned_mem;
+  outstream << ",host_unpinned," << this->host_unpinned_mem;
+  outstream << ",host_pinned," << this->host_pinned_mem;
+  outstream << ",device," << this->device_mem;
+  outstream << std::endl;
+  outstream.close();
+  this->logger->mtx.unlock();
+#endif
+}
 
 // =============================================================================================================
 //
@@ -228,6 +369,38 @@ void ssrlcv::Logger::logWarning(const char *input){
   outstream.open(this->logFileLocation, std::ofstream::app);
   // ALWAYS LOG THE TIME!
   outstream << std::fixed << std::setprecision(32) << this->getTime() << ",warning,";
+  // now print the real junk
+  outstream << input << std::endl;
+  outstream.close();
+  this->mtx.unlock();
+}
+
+/**
+ * logs a message with an error tag
+ * @param input a string to write to the log
+ */
+void ssrlcv::Logger::logInfo(std::string input){
+  std::ofstream outstream;
+  this->mtx.lock();
+  outstream.open(this->logFileLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  outstream << std::fixed << std::setprecision(32) << this->getTime() << ",info,";
+  // now print the real junk
+  outstream << input << std::endl;
+  outstream.close();
+  this->mtx.unlock();
+}
+
+/**
+ * logs a message with an error tag
+ * @param input a string to write to the log
+ */
+void ssrlcv::Logger::logInfo(const char *input){
+  std::ofstream outstream;
+  this->mtx.lock();
+  outstream.open(this->logFileLocation, std::ofstream::app);
+  // ALWAYS LOG THE TIME!
+  outstream << std::fixed << std::setprecision(32) << this->getTime() << ",info,";
   // now print the real junk
   outstream << input << std::endl;
   outstream.close();

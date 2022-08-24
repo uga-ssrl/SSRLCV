@@ -10,6 +10,7 @@
 #include "common_includes.hpp"
 #include "io_util.hpp"
 #include "Feature.cuh"
+#include "fix_thrust_warning.h"
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 #include <thrust/device_vector.h>

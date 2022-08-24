@@ -12,6 +12,8 @@
 #define UNITY_CUH
 
 #include <cuda.h>
+
+#include "fix_thrust_warning.h"
 #include <thrust/device_ptr.h>
 #include <thrust/sort.h>
 #include <thrust/remove.h>
@@ -24,65 +26,7 @@
 #include <fstream>
 #include <typeinfo>
 #include "Logger.hpp"
-
-#define CUDA_ERROR_CHECK
-#define CudaSafeCall( err ) __cudaSafeCall( err, __FILE__, __LINE__ )
-#define CudaCheckError()    __cudaCheckError( __FILE__, __LINE__ )
-/**
-* \defgroup error_util
-* \{
-*/
-
-/**
- * \brief CUDA error checking function wrapper. 
- * \details This should be used as a function wrapper for CUDA error checking 
- * on cudaMemcpy, cudaFree, and cudaMalloc calls.
- */
-inline void __cudaSafeCall(cudaError err, const char *file, const int line) {
-#ifdef CUDA_ERROR_CHECK
-  if (cudaSuccess != err) {
-      fprintf(stderr, "cudaSafeCall() failed at %s:%i : %s\n",
-      file, line, cudaGetErrorString(err));
-      exit(-1);
-  }
-#endif
-
-  return;
-}
-/**
- * \brief Error checker function after kernel calls.
- * \details Calling this function after kernel calls will 
- * allow for CUDA error checking on kernels with the error line 
- * likely coming from the next thread fence 
- * (cuda memory transfers or cudaDeviceSynchronize()).
- * \note Uncommenting err = cudaDeviceSynchronize(); 
- * on line 55 in Unity.cuh (and doing make clean;make) 
- * will allow for more careful checking. (this will slow things down)
- */
-inline void __cudaCheckError(const char *file, const int line) {
-#ifdef CUDA_ERROR_CHECK
-  cudaError err = cudaGetLastError();
-  if (cudaSuccess != err) {
-    fprintf(stderr, "cudaCheckError() failed at %s:%i : %s\n",
-    file, line, cudaGetErrorString(err));
-    exit(-1);
-  }
-
-  // More careful checking. However, this will affect performance.
-  // Comment away if needed.
-  // err = cudaDeviceSynchronize();
-  if (cudaSuccess != err) {
-    fprintf(stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
-    file, line, cudaGetErrorString(err));
-    exit(-1);
-  }
-#endif
-
-  return;
-}
-/**
-* \}
-*/
+#include "Memory.cuh"
 namespace ssrlcv{
   /**
   * \defgroup unity
@@ -121,7 +65,7 @@ namespace ssrlcv{
       case nc:
         return "no change (this should only be used to help with data manipulation methods)";
       default:
-        logger.err<<"ERROR: unknown MemoryState when calling memoryStateToString()\n";
+        logger.err<<"ERROR: unknown MemoryState when calling memoryStateToString()";
         exit(-1);
     }
   }
@@ -187,187 +131,6 @@ namespace ssrlcv{
       return msg.c_str();
     }
   };
-
-  template<class T>
-  struct host_delete {
-    void operator ()( T * ptr)
-    { 
-      CudaSafeCall(cudaFreeHost((void *)ptr));
-    }
-  };
-
-  template<class T>
-  struct device_delete {
-    void operator ()( T * ptr)
-    { 
-      CudaSafeCall(cudaFree(ptr));
-    }
-  };
-
-  namespace ptr {
-
-    template <typename T>
-    class base {
-    protected:
-      std::shared_ptr<T> ptr;
-    public:
-      base() noexcept : ptr(nullptr) { }
-
-      base(std::nullptr_t) noexcept : ptr(nullptr) { }
-
-      base( const base& r ) : ptr(r.ptr) { }
-
-      base<T>& operator=(const base& r) {
-        this->ptr = r.ptr;
-        return *this;
-      }
-
-      T* get() const noexcept {
-        return ptr.get();
-      }
-
-      T& operator*() const noexcept {
-        return ptr.operator*();
-      }
-
-      T* operator->() const noexcept {
-        return ptr.operator->();
-      }
-
-      explicit operator bool() const noexcept {
-        return ptr.operator bool();
-      }
-
-      operator std::shared_ptr<T>() const noexcept {
-        return ptr;
-      }
-
-      void clear() {
-        ptr.reset();
-      }
-
-      virtual void set(size_t n, bool pinned = false) {}
-
-    };
-
-    template <typename T>
-    class device : public base<T> {
-    public:
-      using base<T>::ptr;
-      using base<T>::set;
-
-      void set(size_t n, bool pinned = false) {
-        ptr.reset((T *)nullptr, device_delete<T>());
-        CudaSafeCall(cudaMalloc((void**)&ptr, n * sizeof(T)));
-      }
-
-      device(size_t n) {
-        set(n);
-      }
-
-      device() {}
-
-      device( const device& r ) {
-        this->ptr = r.ptr;
-      }
-
-      device(std::nullptr_t) noexcept { }
-
-      T& operator[]( std::ptrdiff_t idx ) const {
-        return ptr.get()[idx];
-      }
-
-    };
-
-    template <typename T>
-    class host : public base<T> {
-    public:
-      using base<T>::ptr;
-      using base<T>::set;
-
-      void set(size_t n, bool pinned = false) {
-        if (pinned) {
-          ptr.reset((T *)nullptr, host_delete<T>());
-          CudaSafeCall(cudaMallocHost((void**)&ptr, n * sizeof(T)));
-        } else {
-          ptr.reset(new T[n], std::default_delete<T[]>());
-        }
-      }
-
-      host() {}
-
-      host(std::nullptr_t) noexcept { }
-
-      host( const host& r ) {
-        this->ptr = r.ptr;
-      }
-
-      host(size_t n, bool pinned = false) {
-        set(n, pinned);
-      }
-
-      T& operator[]( std::ptrdiff_t idx ) const {
-        return ptr.get()[idx];
-      }
-
-    };
-
-    template <typename T>
-    class value : public base<T> {
-    public:
-      using base<T>::ptr;
-
-      value(std::nullptr_t) noexcept { }
-
-      value() {}
-
-      value( const value& r ) {
-        this->ptr = r.ptr;
-      }
-
-      template <typename... Args>
-      void construct(Args&&... args) {
-        ptr = std::make_shared<T>(std::forward<Args>(args)...);
-      }
-
-      template <typename... Args>
-      explicit value(Args&&... args) {
-        ptr = std::make_shared<T>(std::forward<Args>(args)...);
-      }
-
-    };
-
-    template <typename T, typename U>
-    bool operator==( const base<T>& lhs, const base<U>& rhs ) noexcept {
-      return lhs.get() == rhs.get();
-    }
-
-    template <typename T, typename U>
-    bool operator!=( const base<T>& lhs, const base<U>& rhs ) noexcept {
-      return lhs.get() != rhs.get();
-    }
-
-    template <typename T>
-    bool operator==( const base<T>& lhs, std::nullptr_t rhs ) noexcept {
-      return lhs.get() == nullptr;
-    }
-
-    template <typename T>
-    bool operator==( std::nullptr_t lhs, const base<T>& rhs ) noexcept {
-      return nullptr == rhs.get();
-    }
-
-    template <typename T>
-    bool operator!=( const base<T>& lhs, std::nullptr_t rhs ) noexcept {
-      return lhs.get() != nullptr;
-    }
-
-    template <typename T>
-    bool operator!=( std::nullptr_t lhs, const base<T>& rhs ) noexcept {
-      return nullptr != rhs.get();
-    }
-
-  }
 
   /**
   * \class Unity
@@ -753,7 +516,7 @@ namespace ssrlcv{
 
       cp.close();
       if(cp.good()){
-        std::cout<<"Unity created from checkpoint "<<path<<"\n";
+        logger.info<<"Unity created from checkpoint " + path;
       }
       else{
         path = "could not successfully read checkpoint " + path;
@@ -816,16 +579,16 @@ namespace ssrlcv{
   template<typename T>
   void Unity<T>::clear(MemoryState state){
     if(state == null){
-      logger.warn<<"WARNING: Unity<T>::clear(ssrlcv::null) does nothing\n";
+      logger.warn<<"WARNING: Unity<T>::clear(ssrlcv::null) does nothing";
       return;
     }
     else if(state != both && this->state != both && this->state != state){
       logger.warn<<"WARNING: Attempt to clear null memory in location "
-      <<memoryStateToString(state)<<"...action prevented\n";
+      <<memoryStateToString(state)<<"...action prevented";
       return;
     }
     else if(this->state == null){
-      logger.warn<<"WARNING: Attempt to clear null (empty) Unity...action prevented\n";
+      logger.warn<<"WARNING: Attempt to clear null (empty) Unity...action prevented";
       return;
     }
     else if(this->state <= 3){//currently supported types
@@ -882,7 +645,7 @@ namespace ssrlcv{
   template<typename T>
   void Unity<T>::setMemoryState(MemoryState state){
     if(state == this->state){
-      logger.warn<<"WARNING: hard setting of memory state to same memory state does nothing: "<<memoryStateToString(this->state)<<"\n";
+      logger.warn<<"WARNING: hard setting of memory state to same memory state does nothing: "<<memoryStateToString(this->state);
       return;
     }
     else if(this->state == null){
@@ -909,7 +672,7 @@ namespace ssrlcv{
   template<typename T>
   void Unity<T>::pin(){
     if(this->pinned){
-      logger.warn<<"WARNING: attempt to pin already pinned Unity<T> does nothing\n";
+      logger.warn<<"WARNING: attempt to pin already pinned Unity<T> does nothing";
       return;
     }
     //TODO: determine what to do if it is unified
@@ -923,7 +686,7 @@ namespace ssrlcv{
   template<typename T>
   void Unity<T>::unpin(){
     if(!this->pinned){
-      logger.warn<<"WARNING: attempt to unpin nonpinned Unity<T> does nothing\n";
+      logger.warn<<"WARNING: attempt to unpin nonpinned Unity<T> does nothing";
       return;
     }
     //TODO determine what to do if it is unified
@@ -1035,11 +798,11 @@ namespace ssrlcv{
       throw NullUnityException("attempt to Unity<T>::setFore(MemoryState state) when this->state == null");
     }
     else if(this->fore == state){
-      logger.warn<<"WARNING: Unity<T>::setFore(MemoryState state) when state == this->fore does nothing\n";
+      logger.warn<<"WARNING: Unity<T>::setFore(MemoryState state) when state == this->fore does nothing";
       return;
     }
     else if(state == both){
-      logger.warn<<"ERROR: cannot set fore to both manually: \n\tuse setMemoryState(both) or transferMemoryTo((this->fore == gpu) ? cpu : gpu)\n";
+      logger.warn<<"ERROR: cannot set fore to both manually:" << "\tuse setMemoryState(both) or transferMemoryTo((this->fore == gpu) ? cpu : gpu)";
       exit(-1);
     }
     else if(this->state != both && this->state != state){
@@ -1062,7 +825,7 @@ namespace ssrlcv{
     }
     if(state <= 3){
       if(this->fore == state){
-        logger.warn<<"WARNING: transfering memory to location of fore does nothing: "<<memoryStateToString(state)<<"\n";
+        logger.warn<<"WARNING: transfering memory to location of fore does nothing: "<<memoryStateToString(state);
         return;
       }
       else{
@@ -1106,7 +869,7 @@ namespace ssrlcv{
     this->fore = gpu;
     unsigned long compressedSize = new_end - data_ptr;
     if(compressedSize == 0){
-      logger.warn<<"Unity<T>::remove(bool(*validate)(const T&)) led to all elements being removed (data cleared)\n";
+      logger.warn<<"Unity<T>::remove(bool(*validate)(const T&)) led to all elements being removed (data cleared)";
       this->clear();
       return;
     }
@@ -1192,7 +955,7 @@ namespace ssrlcv{
       }
       cp.close();
       if(cp.good()){
-        std::cout<<"checkpoint "<<pathToFile<<" successfully written\n";
+        logger.info<<"checkpoint " + pathToFile + " successfully written";
       }
       else{
         pathToFile = "could not write Unity<T> checkpoint: " + pathToFile;

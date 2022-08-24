@@ -40,7 +40,7 @@ ssrlcv::Octree::Octree(int numPoints, ssrlcv::ptr::host<float3> points, int dept
 
   this->depth = depth;
   if(this->depth >= 10){
-    std::cout<<"ERROR this octree currently only supports a depth of 10 at the max"<<std::endl;
+    logger.err<<"ERROR this octree currently only supports a depth of 10 at the max";
     exit(-1);
   }
 
@@ -139,7 +139,7 @@ ssrlcv::Octree::Octree(int numPoints, ssrlcv::ptr::host<float3> points, float de
     ++this->depth;
   }
   if(this->depth >= 10){
-    std::cout<<"ERROR this octree currently only supports a depth of 10 at the max"<<std::endl;
+    logger.err<<"ERROR this octree currently only supports a depth of 10 at the max";
     exit(-1);
   }
 
@@ -207,7 +207,7 @@ ssrlcv::Octree::Octree(ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, int dep
 
   this->depth = depth;
   if(this->depth > 10){
-    std::cout<<"ERROR this octree currently only supports a depth of 10 at the max"<<std::endl;
+    logger.err<<"ERROR this octree currently only supports a depth of 10 at the max";
     exit(-1);
   }
 
@@ -276,7 +276,7 @@ ssrlcv::Octree::Octree(ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, float d
     ++this->depth;
   }
   if(this->depth >= 10){
-    std::cout<<"ERROR this octree currently only supports a depth of 10 at the max"<<std::endl;
+    logger.err<<"ERROR this octree currently only supports a depth of 10 at the max";
     exit(-1);
   }
 
@@ -443,7 +443,7 @@ void ssrlcv::Octree::createFinestNodes(){
 
 void ssrlcv::Octree::fillInCoarserDepths(){
   if(this->nodes == nullptr || this->nodes->getMemoryState() == null){
-    std::cout<<"ERROR cannot create coarse depths before finest nodes have been built"<<std::endl;
+    logger.err<<"ERROR cannot create coarse depths before finest nodes have been built";
     exit(-1);
   }
 
@@ -528,7 +528,7 @@ void ssrlcv::Octree::fillInCoarserDepths(){
     CudaSafeCall(cudaFree(nodeArray2D[i]));
   }
   delete[] nodeArray2D;
-  printf("TOTAL NODES = %d\n\n",totalNodes);
+  logger.info.printf("TOTAL NODES = %d",totalNodes);
   this->pointNodeIndex = ssrlcv::ptr::value<ssrlcv::Unity<unsigned int>>(pointNodeIndex_device, this->points->size(), gpu);
   this->nodes = ssrlcv::ptr::value<ssrlcv::Unity<Node>>(nodeArray_device, totalNodes, gpu);
   this->nodeDepthIndex = ssrlcv::ptr::value<ssrlcv::Unity<unsigned int>>(nodeDepthIndex_host, this->depth + 1, cpu);
@@ -536,7 +536,7 @@ void ssrlcv::Octree::fillInCoarserDepths(){
 
 void ssrlcv::Octree::fillNeighborhoods(){
   if(this->nodes == nullptr || this->nodes->getMemoryState() == null){
-    std::cout<<"ERROR cannot fill neighborhood without nodes"<<std::endl;
+    logger.err<<"ERROR cannot fill neighborhood without nodes";
     exit(-1);
   }
   int* parentLUT = new int[216];
@@ -693,7 +693,7 @@ void ssrlcv::Octree::computeVertexArray(){
     CudaCheckError();
     CudaSafeCall(cudaMemcpy(&numVertices, atomicCounter, sizeof(int), cudaMemcpyDeviceToHost));
     if(i == this->depth  && numVertices - prevCount != 8){
-      std::cout<<"ERROR GENERATING VERTICES, vertices at depth 0 != 8 -> "<<numVertices - prevCount<<std::endl;
+      logger.err<<"ERROR GENERATING VERTICES, vertices at depth 0 != 8 -> " + std::to_string(numVertices - prevCount);
       exit(-1);
     }
 
@@ -734,7 +734,7 @@ void ssrlcv::Octree::computeVertexArray(){
   this->vertices = ssrlcv::ptr::value<ssrlcv::Unity<Vertex>>(vertices_device, numVertices, gpu);
   this->vertexDepthIndex = ssrlcv::ptr::value<ssrlcv::Unity<unsigned int>>(vertexDepthIndex_host, this->depth + 1, cpu);
 
-  printf("octree createVertexArray took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
+  logger.info.printf("octree createVertexArray took %f seconds.", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 void ssrlcv::Octree::computeEdgeArray(){
   clock_t cudatimer;
@@ -813,7 +813,7 @@ void ssrlcv::Octree::computeEdgeArray(){
     CudaCheckError();
     CudaSafeCall(cudaMemcpy(&numEdges, atomicCounter, sizeof(int), cudaMemcpyDeviceToHost));
     if(i == this->depth  && numEdges - prevCount != 12){
-      std::cout<<"ERROR GENERATING EDGES, edges at depth 0 != 12 -> "<<numEdges - prevCount<<std::endl;
+      logger.err<<"ERROR GENERATING EDGES, edges at depth 0 != 12 -> " + std::to_string(numEdges - prevCount);
       exit(-1);
     }
 
@@ -854,7 +854,7 @@ void ssrlcv::Octree::computeEdgeArray(){
   this->edges = ssrlcv::ptr::value<ssrlcv::Unity<Edge>>(edgeArray_device, numEdges, gpu);
   this->edgeDepthIndex = ssrlcv::ptr::value<ssrlcv::Unity<unsigned int>>(edgeDepthIndex_host, this->depth + 1, cpu);
 
-  printf("octree createEdgeArray took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
+  logger.info.printf("octree createEdgeArray took %f seconds.", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 void ssrlcv::Octree::computeFaceArray(){
   clock_t cudatimer;
@@ -916,7 +916,7 @@ void ssrlcv::Octree::computeFaceArray(){
     CudaCheckError();
     CudaSafeCall(cudaMemcpy(&numFaces, atomicCounter, sizeof(int), cudaMemcpyDeviceToHost));
     if(i == this->depth  && numFaces - prevCount != 6){
-      std::cout<<"ERROR GENERATING FACES, faces at depth 0 != 6 -> "<<numFaces - prevCount<<std::endl;
+      logger.err<<"ERROR GENERATING FACES, faces at depth 0 != 6 -> " + std::to_string(numFaces - prevCount);
       exit(-1);
     }
 
@@ -957,7 +957,7 @@ void ssrlcv::Octree::computeFaceArray(){
   this->faces = ssrlcv::ptr::value<ssrlcv::Unity<Face>>(faceArray_device, numFaces, gpu);
   this->faceDepthIndex = ssrlcv::ptr::value<ssrlcv::Unity<unsigned int>>(faceDepthIndex_host, this->depth + 1, cpu);
 
-  printf("octree createFaceArray took %f seconds.\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
+  logger.info.printf("octree createFaceArray took %f seconds.", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
 }
 
 void ssrlcv::Octree::checkForGeneralNodeErrors(){
@@ -967,7 +967,7 @@ void ssrlcv::Octree::checkForGeneralNodeErrors(){
     this->nodes->transferMemoryTo(cpu);
   }
   else{
-    std::cout<<"ERROR cannot check nodes for errors without nodes"<<std::endl;
+    logger.err<<"ERROR cannot check nodes for errors without nodes";
     exit(-1);
   }
   clock_t cudatimer;
@@ -1006,7 +1006,7 @@ void ssrlcv::Octree::checkForGeneralNodeErrors(){
         checkForChildren++;
       }
       if(nodes_host.get()[i].children[c] == 0 && nodes_host.get()[i].depth != this->depth - 1){
-        std::cout<<"NODE THAT IS NOT AT 2nd TO FINEST DEPTH HAS A CHILD WITH INDEX 0 IN FINEST DEPTH"<<std::endl;
+        logger.err<<"NODE THAT IS NOT AT 2nd TO FINEST DEPTH HAS A CHILD WITH INDEX 0 IN FINEST DEPTH";
       }
     }
     if(nodes_host.get()[i].numPoints == 0){
@@ -1021,7 +1021,7 @@ void ssrlcv::Octree::checkForGeneralNodeErrors(){
     }
     if(nodes_host.get()[i].depth == 0){
       if(nodes_host.get()[i].numPoints != this->points->size()){
-        std::cout<<"DEPTH 0 DOES NOT CONTAIN ALL POINTS "<<nodes_host.get()[i].numPoints<<","<<this->points->size()<<std::endl;
+        logger.err<<"DEPTH 0 DOES NOT CONTAIN ALL POINTS " + std::to_string(nodes_host.get()[i].numPoints) + "," + std::to_string(this->points->size());
         exit(-1);
       }
     }
@@ -1068,51 +1068,51 @@ void ssrlcv::Octree::checkForGeneralNodeErrors(){
     }
   }
   if(numCentersOUTSIDE > 0){
-    printf("ERROR %d centers outside of bounding box\n",numCentersOUTSIDE);
+    logger.err.printf("ERROR %d centers outside of bounding box",numCentersOUTSIDE);
     error = true;
   }
   if(numSiblingParents > 0){
-    std::cout<<"ERROR "<<numSiblingParents<<" NODES THINK THEIR PARENT IS IN THE SAME DEPTH AS THEMSELVES"<<std::endl;
+    logger.err.printf("ERROR %d NODES THINK THEIR PARENT IS IN THE SAME DEPTH AS THEMSELVES", numSiblingParents);
     error = true;
   }
   if(numChildNeighbors > 0){
-    std::cout<<"ERROR "<<numChildNeighbors<<" NODES WITH SIBLINGS AT HIGHER DEPTH"<<std::endl;
+    logger.err.printf("ERROR %d NODES WITH SIBLINGS AT HIGHER DEPTH", numChildNeighbors);
     error = true;
   }
   if(numParentNeighbors > 0){
-    std::cout<<"ERROR "<<numParentNeighbors<<" NODES WITH SIBLINGS AT LOWER DEPTH"<<std::endl;
+    logger.err.printf("ERROR %d NODES WITH SIBLINGS AT LOWER DEPTH", numParentNeighbors);
     error = true;
   }
   if(numFuckedNodes > 0){
-    std::cout<<numFuckedNodes<<" ERROR IN NODE CONCATENATION OR GENERATION"<<std::endl;
+    logger.err.printf("ERROR IN %d NODE CONCATENATION OR GENERATION", numFuckedNodes);
     error = true;
   }
   if(orphanNodes > 0){
-    std::cout<<orphanNodes<<" ERROR THERE ARE ORPHAN NODES"<<std::endl;
+    logger.err.printf("ERROR THERE ARE %d ORPHAN NODES", orphanNodes);
     error = true;
   }
   if(nodesThatCantFindChildren > 0){
-    std::cout<<"ERROR "<<nodesThatCantFindChildren<<" PARENTS WITHOUT CHILDREN"<<std::endl;
+    logger.err.printf("ERROR %d PARENTS WITHOUT CHILDREN", nodesThatCantFindChildren);
     error = true;
   }
   if(numVerticesMissing > 0){
-    std::cout<<"ERROR "<<numVerticesMissing<<" VERTICES MISSING"<<std::endl;
+    logger.err.printf("ERROR %d VERTICES MISSING", numVerticesMissing);
     error = true;
   }
   if(numEgesMissing > 0){
-    std::cout<<"ERROR "<<numEgesMissing<<" EDGES MISSING"<<std::endl;
+    logger.err.printf("ERROR %d EDGES MISSING", numEgesMissing);
     error = true;
   }
   if(numFacesMissing > 0){
-    std::cout<<"ERROR "<<numFacesMissing<<" FACES MISSING"<<std::endl;
+    logger.err.printf("ERROR %d FACES MISSING", numFacesMissing);
     error = true;
   }
   if(error) exit(-1);
-  else std::cout<<"NO ERRORS DETECTED IN OCTREE"<<std::endl;
-  std::cout<<"NODES WITHOUT POINTS = "<<noPoints<<std::endl;
-  std::cout<<"NODES WITH POINTS = "<<this->nodes->size() - noPoints<<std::endl<<std::endl;
+  else logger.err.printf("NO ERRORS DETECTED IN OCTREE");
+  logger.err<<"NODES WITHOUT POINTS = " + std::to_string(noPoints);
+  logger.err<<"NODES WITH POINTS = " + std::to_string(this->nodes->size() - noPoints);
 
-  printf("octree checkForErrors took %f seconds.\n\n", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
+  logger.info.printf("octree checkForErrors took %f seconds.", ((float) clock() - cudatimer)/CLOCKS_PER_SEC);
   this->nodes->transferMemoryTo(origin);
 }
 
@@ -1361,7 +1361,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
   if(points_origin == cpu){
     this->points->transferMemoryTo(gpu);
   }
-  logger.warn <<"WARNING: float3 normal calculation is currently performed only on sphere centers\n";
+  logger.warn <<"WARNING: float3 normal calculation is currently performed only on sphere centers";
   findNormalNeighborsAndComputeCMatrix<<<grid, block>>>(numNodesAtDepth, nodeDepthIndex, maxNeighbors,
     this->nodes->device.get(), this->points->device.get(), cMatrix_device.get(), neighborIndices_device.get(), numRealNeighbors_device.get());
 
@@ -1393,7 +1393,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors){
     m = numRealNeighbors[p];
     lwork = 0;
     if(m < minNeighForNorms){
-      std::cout<<"ERROR...point does not have enough neighbors...increase min neighbors"<<std::endl;
+      logger.err<<"ERROR...point does not have enough neighbors...increase min neighbors";
       exit(-1);
     }
     CudaSafeCall(cudaMalloc((void**)&d_A, m*n*sizeof(float)));
@@ -1570,7 +1570,7 @@ void ssrlcv::Octree::computeNormals(int minNeighForNorms, int maxNeighbors, unsi
     m = numRealNeighbors[p];
     lwork = 0;
     if(m < minNeighForNorms){
-      std::cout<<"ERROR...point does not have enough neighbors...increase min neighbors"<<std::endl;
+      logger.err<<"ERROR...point does not have enough neighbors...increase min neighbors";
       exit(-1);
     }
     CudaSafeCall(cudaMalloc((void**)&d_A, m*n*sizeof(float)));
@@ -1893,7 +1893,7 @@ void ssrlcv::Octree::writeDepthPLY(int d, bool binary){
   }
 
   if(d < 0 || d > this->depth){
-    std::cout<<"ERROR DEPTH FOR WRITEDEPTHPLY IS OUT OF BOUNDS"<<std::endl;
+    logger.err<<"ERROR DEPTH FOR WRITEDEPTHPLY IS OUT OF BOUNDS";
     exit(-1);
   }
   if(this->name.length() == 0) this->name = this->pathToFile.substr(this->pathToFile.find_last_of("/") + 1,this->pathToFile.length() - 4);
