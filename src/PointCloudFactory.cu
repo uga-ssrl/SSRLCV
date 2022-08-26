@@ -4188,16 +4188,8 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
     }; // set the key point
     // rotate to correct orientation
     kp[k] = rotatePoint(kp[k], cameras[currentKP.parentId].cam_rot);
-    // move to correct world coordinate
-    kp[k].x = cameras[currentKP.parentId].cam_pos.x - (kp[k].x);
-    kp[k].y = cameras[currentKP.parentId].cam_pos.y - (kp[k].y);
-    kp[k].z = cameras[currentKP.parentId].cam_pos.z - (kp[k].z);
     // calculate the vector component of the line
-    lines[i].vec = {
-      cameras[currentKP.parentId].cam_pos.x - kp[k].x,
-      cameras[currentKP.parentId].cam_pos.y - kp[k].y,
-      cameras[currentKP.parentId].cam_pos.z - kp[k].z
-    };
+    lines[i].vec = kp[k];
     // fill in the line values
     normalize(lines[i].vec);
     lines[i].pnt = cameras[currentKP.parentId].cam_pos;
