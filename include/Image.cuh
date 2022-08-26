@@ -47,6 +47,7 @@ namespace ssrlcv{
       /**
        * \brief identical to the image size param, but used in GPU camera modification method
        */
+      float3 ecef_offset; //<\position offset (add this to convert to ECEF)
       uint2 size;
       __device__ __host__ Camera();
       __device__ __host__ Camera(uint2 size);
