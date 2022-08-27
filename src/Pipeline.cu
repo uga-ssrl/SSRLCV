@@ -14,9 +14,18 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
     logger.logState("SEED");
   
     logger.logState("FEATURES");
+    
+    float3 offset;
+
     for (int i = 0; i < in->numImages; i ++) {
       // new image with path and ID
       ssrlcv::ptr::value<ssrlcv::Image> image = ssrlcv::ptr::value<ssrlcv::Image>(in->imagePaths[i], i);
+      
+      if (i == 0)
+        offset = image->camera.cam_pos;
+      image->camera.ecef_offset = offset;
+      image->camera.cam_pos -= offset;
+
       // array of features containing sift descriptors at every point
       ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> features =
                 featureFactory.generateFeatures(image,false,2,0.8);
