@@ -438,6 +438,78 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::genera
   return matches;
 }
 
+template<typename T>
+ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::generateMatchesDoubleConstrained(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances){
+  // choose example pixel
+  for (unsigned long i = 0; i < queryFeatures->size(); i ++) {
+    float2 loc = queryFeatures->host[i].loc;
+
+    float3 v = {
+      query->camera.dpix.x * ((loc.x) - (query->camera.size.x / 2.0f)),
+      query->camera.dpix.y * ((loc.y) - (query->camera.size.y / 2.0f)),
+      query->camera.foc
+    };
+
+    // next part can be rotatePoint when moved to kernel
+    float rotationMatrix[3][3];
+    rotationMatrix[0][0] = cosf(query->camera.cam_rot.z) * cosf(query->camera.cam_rot.y);
+    rotationMatrix[0][1] = cosf(query->camera.cam_rot.z) * sinf(query->camera.cam_rot.y) * sinf(query->camera.cam_rot.x) - sinf(query->camera.cam_rot.z) * cosf(query->camera.cam_rot.x);
+    rotationMatrix[0][2] = cosf(query->camera.cam_rot.z) * sinf(query->camera.cam_rot.y) * cosf(query->camera.cam_rot.x) + sinf(query->camera.cam_rot.z) * sinf(query->camera.cam_rot.x);
+    rotationMatrix[1][0] = sinf(query->camera.cam_rot.z) * cosf(query->camera.cam_rot.y);
+    rotationMatrix[1][1] = sinf(query->camera.cam_rot.z) * sinf(query->camera.cam_rot.y) * sinf(query->camera.cam_rot.x) + cosf(query->camera.cam_rot.z) * cosf(query->camera.cam_rot.x);
+    rotationMatrix[1][2] = sinf(query->camera.cam_rot.z) * sinf(query->camera.cam_rot.y) * cosf(query->camera.cam_rot.x) - cosf(query->camera.cam_rot.z) * sinf(query->camera.cam_rot.x);
+    rotationMatrix[2][0] = -1 * sinf(query->camera.cam_rot.y);
+    rotationMatrix[2][1] = cosf(query->camera.cam_rot.y) * sinf(query->camera.cam_rot.x);
+    rotationMatrix[2][2] = cosf(query->camera.cam_rot.y) * cosf(query->camera.cam_rot.x);
+    float temp[3] = {v.x, v.y, v.z};
+    float t[3];
+    for (int r = 0; r < 3; ++r)
+    {
+      float val = 0;
+      for (int c = 0; c < 3; ++c)
+      {
+        val += rotationMatrix[r][c] * temp[c];
+      }
+      t[r] = val;
+    }
+    v = {t[0], t[1], t[2]};
+
+    float3 p = {
+      query->camera.cam_pos.x + query->camera.ecef_offset.x,
+      query->camera.cam_pos.y + query->camera.ecef_offset.y,
+      query->camera.cam_pos.z + query->camera.ecef_offset.z
+    };
+
+    float M = 6384.4;
+    float m = 6356.77;
+
+    // solve two quadratics
+    float a = dotProduct(v, v);
+    float b = 2*dotProduct(p, v);
+    float c1 = dotProduct(p, p) - (M * M);
+    float c2 = dotProduct(p, p) - (m * m);
+
+    // TODO: Do both cases
+    float3 tmp = (sqrtf(b*b - 4*a*c1) - b) / (2*a) * v + p;
+    float4 X1 = {tmp.x, tmp.y, tmp.z, 1};
+    tmp = (sqrtf(b*b - 4*a*c2) - b) / (2*a) * v + p;
+    float4 X2 = {tmp.x, tmp.y, tmp.z, 1};
+
+    float3 x1, x2;
+    float4 P[3];
+    target->getProjectionMatrix(P);
+    multiply(P, X1, x1);
+    multiply(P, X2, x2);
+
+    
+    std::cout << x1.x/x1.z << ", " << x1.y/x1.z << std::endl;
+    std::cout << x2.x/x2.z << ", " << x2.y/x2.z << std::endl;
+
+
+  }
+  return nullptr;
+}
+
 
 template<typename T>
 ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>>ssrlcv::MatchFactory<T>:: generateDistanceMatches(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances){

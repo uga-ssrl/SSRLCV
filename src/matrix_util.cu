@@ -32,6 +32,14 @@ __device__ __host__ void ssrlcv::multiply(const float (&A)[3][3], const float (&
     }
   }
 }
+__device__ __host__ void ssrlcv::multiply(const float3 (&A)[3], const float4 (&B)[3], float4 (&C)[3]){
+  for(int r = 0; r < 3; ++r){
+    C[r].x = (A[r].x*B[0].x) + (A[r].y*B[1].x) + (A[r].z*B[2].x);
+    C[r].y = (A[r].x*B[0].y) + (A[r].y*B[1].y) + (A[r].z*B[2].y);
+    C[r].z = (A[r].x*B[0].z) + (A[r].y*B[1].z) + (A[r].z*B[2].z);
+    C[r].w = (A[r].x*B[0].w) + (A[r].y*B[1].w) + (A[r].z*B[2].w);
+  }
+}
 __device__ __host__ void ssrlcv::multiply(const float (&A)[9], const float (&B)[3], float (&C)[3]){
    for (int r = 0; r < 3; ++r){
     float val = 0;
@@ -45,6 +53,12 @@ __device__ __host__ void ssrlcv::multiply(const float3 (&A)[3], const float3 &B,
   C.x = (A[0].x * B.x) + (A[0].y * B.y) + (A[0].z * B.z);
   C.y = (A[1].x * B.x) + (A[1].y * B.y) + (A[1].z * B.z);
   C.z = (A[2].x * B.x) + (A[2].y * B.y) + (A[2].z * B.z);
+}
+
+__device__ __host__ void ssrlcv::multiply(const float4 (&A)[3], const float4 &B, float3 &C){
+  C.x = (A[0].x * B.x) + (A[0].y * B.y) + (A[0].z * B.z) + (A[0].w * B.w);
+  C.y = (A[1].x * B.x) + (A[1].y * B.y) + (A[1].z * B.z) + (A[1].w * B.w);
+  C.z = (A[2].x * B.x) + (A[2].y * B.y) + (A[2].z * B.z) + (A[2].w * B.w);
 }
 
 __device__ __host__ void ssrlcv::multiply(const float (&A)[3][3], const float (&B)[3], float (&C)[3]){
@@ -79,6 +93,10 @@ __device__ __host__ void ssrlcv::multiply(const float (&A)[2][2], const float (&
 
 __device__ __host__ float ssrlcv::dotProduct(const float (&A)[3], const float (&B)[3]){
   return (A[0]*B[0]) + (A[1]*B[1]) + (A[2]*B[2]);
+}
+
+__device__ __host__ float ssrlcv::dotProduct(const float4 A, const float4 B){
+  return (A.x*B.x) + (A.y*B.y) + (A.z*B.z) + (A.w*B.w);
 }
 
 __device__ __host__ float3 ssrlcv::crossProduct(const float3 A, const float3 B){

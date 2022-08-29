@@ -262,6 +262,10 @@ namespace ssrlcv{
      */
     ssrlcv::ptr::value<ssrlcv::Unity<Match>> generateMatchesConstrained(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, float fundamental[3][3], ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
 
+
+    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> generateMatchesDoubleConstrained(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
+
+
     /**
      * \brief Generates DMatches between Feature<Descriptor> when Descriptor::distProtocol() is implemented
      */

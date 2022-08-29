@@ -45,6 +45,8 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
     if (in->seedFeatures != nullptr)
       matchFactory.setSeedFeatures(in->seedFeatures);
     ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
+    matchFactory.generateMatchesDoubleConstrained(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], 0, seedDistances);
+    exit(0);
     ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], seedDistances);
     // logger.logState("done generating seed matches");
   
@@ -112,6 +114,7 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
     std::stringstream ss;
     ss << "\tUnfiltered Error: " << std::fixed << std::setprecision(12) << error;
     logger.info << ss.str();
+    std::cout << out->points->host[0].x << ", " << out->points->host[0].y << ", " << out->points->host[0].z << std::endl;
   
     logger.logState("TRIANGULATE");
   }
