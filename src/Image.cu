@@ -46,6 +46,21 @@ ssrlcv::Image::Image(uint2 size, unsigned int colorDepth, ssrlcv::ptr::value<ssr
 }
 
 ssrlcv::Image::Image(std::string filePath, int id) {
+  if (getFileExtension(filePath) == "cpimg") {
+    std::ifstream cp(filePath.c_str(), std::ifstream::binary);
+    char buf[sizeof(ssrlcv::Image)];
+    cp.read(buf, sizeof(ssrlcv::Image));
+    this->camera = ((ssrlcv::Image *)buf)->camera;
+    this->id = ((ssrlcv::Image *)buf)->id;
+    this->size = ((ssrlcv::Image *)buf)->size;
+    this->colorDepth = ((ssrlcv::Image *)buf)->colorDepth;
+    this->pushbroom = ((ssrlcv::Image *)buf)->pushbroom;
+    ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> thing(getFolderFromFilePath(filePath) + "/pixels/" + std::to_string(this->id) + "_" + typeid(unsigned char).name() + ".uty");
+    this->pixels = thing;
+    cp.close();
+    return;
+  }
+
   std::string filename = getFileFromFilePath(filePath);
   this->filePath = filePath;
   this->id = id;
@@ -248,6 +263,34 @@ ssrlcv::Image::Image(std::string filePath, int id) {
   logger.info << "filePath: " + filePath;
 }
 
+void ssrlcv::Image::checkpoint(std::string dirPath) {
+  std::string path = dirPath + std::to_string(this->id) + "_" + typeid(ssrlcv::Image).name() + ".cpimg";
+  std::ofstream cp(path.c_str(), std::ofstream::binary);
+  size_t hash_code = typeid(ssrlcv::Image).hash_code();
+  if(cp.is_open()){
+    ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> temp = this->pixels;
+    std::string temp_str = this->filePath;
+    this->filePath.clear();
+    this->pixels = nullptr;
+    cp.write((char *)this,sizeof(ssrlcv::Image));
+    this->filePath = temp_str;
+    this->pixels = temp;
+    cp.close();
+    if(cp.good()){
+      logger.info<<"checkpoint " + path + " successfully written";
+    }
+    else{
+      path = "could not write Image checkpoint: " + path;
+      throw ssrlcv::CheckpointException(path);
+    }
+  }
+  else{
+    path = "could not open for writing: " + path;
+    throw ssrlcv::CheckpointException(path);
+  }
+  mkdir((dirPath + "/pixels").c_str(), 0755);
+  this->pixels->checkpoint(this->id, dirPath + "/pixels/");
+}
 
 ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int id){
   this->filePath = filePath;
