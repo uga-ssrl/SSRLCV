@@ -113,8 +113,8 @@ TEST(PipelineTest, FeatureGeneration2View) {
   // featureGenOutput.seedFeatures->checkpoint(-1, getPath());
   // featureGenOutput.allFeatures.at(0)->checkpoint(0, getPath());
   // featureGenOutput.allFeatures.at(1)->checkpoint(1, getPath());
-  // featureGenOutput.images.at(0)->checkpoint(getPath());
-  // featureGenOutput.images.at(1)->checkpoint(getPath());
+  featureGenOutput.images.at(0)->checkpoint(getPath());
+  featureGenOutput.images.at(1)->checkpoint(getPath());
 
   ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> realSeedFeatures(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(-1));
   ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> realFeatures0(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(0));
@@ -151,9 +151,9 @@ TEST(PipelineTest, FeatureGeneration3View) {
   // featureGenOutput.allFeatures.at(0)->checkpoint(0, getPath(true));
   // featureGenOutput.allFeatures.at(1)->checkpoint(1, getPath(true));
   // featureGenOutput.allFeatures.at(2)->checkpoint(2, getPath(true));
-  // featureGenOutput.images.at(0)->checkpoint(getPath(true));
-  // featureGenOutput.images.at(1)->checkpoint(getPath(true));
-  // featureGenOutput.images.at(2)->checkpoint(getPath(true));
+  featureGenOutput.images.at(0)->checkpoint(getPath(true));
+  featureGenOutput.images.at(1)->checkpoint(getPath(true));
+  featureGenOutput.images.at(2)->checkpoint(getPath(true));
 
   ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> realSeedFeatures(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(-1, true));
   ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> realFeatures0(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(0, true));
