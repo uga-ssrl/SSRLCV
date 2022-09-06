@@ -441,8 +441,13 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::genera
 template<typename T>
 ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::generateMatchesDoubleConstrained(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances){
   // choose example pixel
-  for (unsigned long i = 0; i < queryFeatures->size(); i ++) {
-    float2 loc = queryFeatures->host[i].loc;
+  ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = this->generateDistanceMatches(query, queryFeatures, target, targetFeatures, seedDistances);
+  std::cout << distanceMatches->size() << std::endl;
+  distanceMatches->transferMemoryTo(ssrlcv::cpu);
+
+  for (int i = 0; i < distanceMatches->size(); i ++) {
+    ssrlcv::DMatch d = distanceMatches->host[i];
+    float2 loc = d.keyPoints[0].loc;
 
     float3 v = {
       query->camera.dpix.x * ((loc.x) - (query->camera.size.x / 2.0f)),
@@ -490,9 +495,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::genera
     float c2 = dotProduct(p, p) - (m * m);
 
     // TODO: Do both cases
-    float3 tmp = (sqrtf(b*b - 4*a*c1) - b) / (2*a) * v + p;
+    float3 tmp = (-sqrtf(b*b - 4*a*c1) - b) / (2*a) * v + p;
     float4 X1 = {tmp.x, tmp.y, tmp.z, 1};
-    tmp = (sqrtf(b*b - 4*a*c2) - b) / (2*a) * v + p;
+    tmp = (-sqrtf(b*b - 4*a*c2) - b) / (2*a) * v + p;
     float4 X2 = {tmp.x, tmp.y, tmp.z, 1};
 
     float3 x1, x2;
@@ -501,9 +506,53 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::genera
     multiply(P, X1, x1);
     multiply(P, X2, x2);
 
+    float2 p1 = {x1.x/x1.z, x1.y/x1.z};
+    float2 p2 = {x2.x/x2.z, x2.y/x2.z};
+
+    float2 left, right;
+    if (p1.x < p2.x) {
+      left = p1;
+      right = p2;
+    } else {
+      left = p2;
+      right = p1;
+    }
+
+    bool fits;
+    float x = d.keyPoints[1].loc.x;
+    float y = d.keyPoints[1].loc.y;
+    //check horizontal
+    if (x < left.x - epsilon || x > right.x + epsilon) {
+      // too far from lin segment horizontally
+      fits = false;
+    } else if (left.x == right.x) {
+      // vertical line case
+      float top, bottom; // top should be lower (since y down)
+      if (p1.y < p2.y) {
+        top = p1.y;
+        bottom = p2.y;
+      } else {
+        top = p2.y;
+        bottom = p1.y;
+      }
+      if ((top - epsilon) > y || (bottom + epsilon) < y) {
+        fits = false;
+      } else {
+        fits = true;
+      }
+    } else {
+      float slope = (left.y - right.y) / (left.x - right.x);
+      float y_line = slope * (x - left.x) + left.y;
+      if (abs(y_line - y) > epsilon) {
+        fits = false;
+      } else {
+        fits = true;
+      }
+    }
+
     
-    std::cout << x1.x/x1.z << ", " << x1.y/x1.z << std::endl;
-    std::cout << x2.x/x2.z << ", " << x2.y/x2.z << std::endl;
+    std::cout << "(" << left.x << "," << left.y << ") to (";
+    std::cout << right.x << "," << right.y << ") : (" << d.keyPoints[1].loc.x << "," << d.keyPoints[1].loc.y << ") -> " << fits << std::endl;
 
 
   }
@@ -607,6 +656,59 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>>ssrlcv::MatchFactory<T>:: gener
   return matches;
 }
 
+template<typename T>
+ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>>ssrlcv::MatchFactory<T>:: generateDistanceMatchesDoubleConstrained(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances){
+MemoryState origin[2] = {queryFeatures->getMemoryState(), targetFeatures->getMemoryState()};
+
+  if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
+  if(origin[1] != gpu) targetFeatures->setMemoryState(gpu);
+
+  unsigned int numPossibleMatches = queryFeatures->size();
+
+  float4 targetProjection[3];
+  target->getProjectionMatrix(targetProjection);
+
+  ssrlcv::ptr::device<ssrlcv::Image::Camera> queryCamera_device(1);
+  CudaSafeCall(cudaMemcpy(queryCamera_device.get(), &query->camera, sizeof(ssrlcv::Image::Camera), cudaMemcpyHostToDevice));
+  ssrlcv::ptr::device<float4> targetProjection_device(3);
+  CudaSafeCall(cudaMemcpy(targetProjection_device.get(), targetProjection, 3*sizeof(float4), cudaMemcpyHostToDevice));
+
+  ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> matches = ssrlcv::ptr::value<ssrlcv::Unity<DMatch>>(nullptr, numPossibleMatches, gpu);
+
+  dim3 grid = {1,1,1};
+  dim3 block = {32,1,1};//IMPROVE
+  getGrid(matches->size(),grid);
+
+  clock_t timer = clock();
+
+  if(seedDistances == nullptr || true){
+    matchFeaturesDoubleConstrained<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device.get(),
+    target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(), epsilon, queryCamera_device.get(), targetProjection_device.get(), this->absoluteThreshold);
+  }
+  else if(seedDistances->size() != queryFeatures->size()){
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
+    exit(-1);
+  }
+  else{/*
+    MemoryState seedOrigin = seedDistances->getMemoryState();
+    if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
+    matchFeaturesDoubleConstrained<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device.get(),
+    target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(),seedDistances->device.get(),
+    this->relativeThreshold,this->absoluteThreshold);
+    if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin);*/
+  }
+  cudaDeviceSynchronize();
+  CudaCheckError();
+
+  this->validateMatches(matches);
+
+  logger.info.printf("done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
+
+  if(origin[0] != gpu) queryFeatures->setMemoryState(origin[0]);
+  if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
+
+  return matches;
+}
 
 template<typename T>
 ssrlcv::Unity<ssrlcv::FeatureMatch<T>>* ssrlcv::MatchFactory<T>::generateFeatureMatches(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> queryFeatures,
@@ -1616,6 +1718,127 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, float* funda
       //ax + by + c = 0
       p = -1*((epipolar.x*currentFeature.loc.x) + epipolar.z)/epipolar.y;
       if(abs(currentFeature.loc.y - p) > regEpsilon) continue;
+      currentDist = feature.descriptor.distProtocol(currentFeature.descriptor,localDist[threadIdx.x]);
+      if(localDist[threadIdx.x] > currentDist){
+        localDist[threadIdx.x] = currentDist;
+        localMatch[threadIdx.x] = f;
+      }
+    }
+    __syncthreads();
+    if(threadIdx.x != 0) return;
+    currentDist = absoluteThreshold;
+    int matchIndex = -1;
+    for(int i = 0; i < 32; ++i){
+      if(currentDist > localDist[i]){
+        currentDist = localDist[i];
+        matchIndex = localMatch[i];
+      }
+    }
+    DMatch match;
+    match.distance = currentDist;
+    if(match.distance >= absoluteThreshold){
+      match.invalid = true;
+    }
+    else{
+      match.invalid = false;
+      match.keyPoints[0].loc = feature.loc;
+      match.keyPoints[1].loc = featuresTarget[matchIndex].loc;
+      match.keyPoints[0].parentId = queryImageID;
+      match.keyPoints[1].parentId = targetImageID;
+    }
+    matches[blockId] = match;
+  }
+}
+template<typename T>
+__global__ void ssrlcv::matchFeaturesDoubleConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
+ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, ssrlcv::Image::Camera *queryCamera, float4 *targetProjection, float absoluteThreshold) {
+  unsigned int blockId = blockIdx.y * gridDim.x + blockIdx.x;
+  if(blockId < numFeaturesQuery){
+    Feature<T> feature = featuresQuery[blockId];
+    __shared__ int localMatch[32];
+    __shared__ float localDist[32];
+    localMatch[threadIdx.x] = -1;
+    localDist[threadIdx.x] = absoluteThreshold;
+    __syncthreads();
+    float currentDist = 0.0f;
+    unsigned long numFeaturesTarget_register = numFeaturesTarget;
+
+    float3 queryVec = {
+      queryCamera->dpix.x * ((feature.loc.x) - (queryCamera->size.x / 2.0f)),
+      queryCamera->dpix.y * ((feature.loc.y) - (queryCamera->size.y / 2.0f)),
+      queryCamera->foc
+    };
+    queryVec = rotatePoint(queryVec, queryCamera->cam_rot);
+    float3 queryCent = {
+      queryCamera->cam_pos.x + queryCamera->ecef_offset.x,
+      queryCamera->cam_pos.y + queryCamera->ecef_offset.y,
+      queryCamera->cam_pos.z + queryCamera->ecef_offset.z
+    };
+
+    float m1 = 6384.4;
+    float m2 = 6356.77;
+
+    // solving two quadratics
+    float a = dotProduct(queryVec, queryVec);
+    float b = 2 * dotProduct(queryVec, queryCent);
+    float c1 = dotProduct(queryCent, queryCent) - (m1 * m1);
+    float c2 = dotProduct(queryCent, queryCent) - (m2 * m2);
+
+    float3 tmp = (-sqrtf(b*b - 4*a*c1) - b) / (2*a) * queryVec + queryCent;
+    float4 X1 = {tmp.x, tmp.y, tmp.z, 1};
+    tmp = (-sqrtf(b*b - 4*a*c2) - b) / (2*a) * queryVec + queryCent;
+    float4 X2 = {tmp.x, tmp.y, tmp.z, 1};
+
+    float3 x1, x2;
+    float4 P[3] = {targetProjection[0], targetProjection[1], targetProjection[2]};
+    multiply(P, X1, x1);
+    multiply(P, X2, x2);
+
+    float2 p1 = {x1.x/x1.z, x1.y/x1.z};
+    float2 p2 = {x2.x/x2.z, x2.y/x2.z};
+
+    float2 left, right;
+    if (p1.x < p2.x) {
+      left = p1;
+      right = p2;
+    } else {
+      left = p2;
+      right = p1;
+    }
+    Feature<T> currentFeature;
+    float regEpsilon = epsilon;
+
+    for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
+      currentFeature = featuresTarget[f];
+
+      float x = currentFeature.loc.x;
+      float y = currentFeature.loc.y;
+      //check horizontal
+      if (x < left.x - regEpsilon || x > right.x + regEpsilon) {
+        // too far from lin segment horizontally
+        continue;
+      } else if (left.x == right.x) {
+        // vertical line case
+        float top, bottom; // top should be lower (since y down)
+        if (p1.y < p2.y) {
+          top = p1.y;
+          bottom = p2.y;
+        } else {
+          top = p2.y;
+          bottom = p1.y;
+        }
+        if ((top - regEpsilon) > y || (bottom + regEpsilon) < y) {
+          continue;
+        }
+      } else {
+        float slope = (left.y - right.y) / (left.x - right.x);
+        float y_line = slope * (x - left.x) + left.y;
+        if (abs(y_line - y) > regEpsilon) {
+          continue;
+        }
+      }
+
       currentDist = feature.descriptor.distProtocol(currentFeature.descriptor,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;

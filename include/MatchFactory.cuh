@@ -275,6 +275,11 @@ namespace ssrlcv{
      * \warning If bad fundamental matrix between two images, matches will be very bad. 
      */
     ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> generateDistanceMatchesConstrained(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, float fundamental[3][3], ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
+    /**
+     * \brief Generates DMatches between Feature<Descriptor> when Descriptor::distProtocol() is implemented with strong epipolar constaints
+     * \warning If bad fundamental matrix between two images, matches will be very bad. 
+     */
+    ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> generateDistanceMatchesDoubleConstrained(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
     
     /**
      * \brief Generates FeatureMatch<Descriptor>s between Feature<Descriptor> when Descriptor::distProtocol() is implemented
@@ -365,6 +370,10 @@ namespace ssrlcv{
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
     Feature<T>* featuresTarget, DMatch* matches, float epsilon, float* fundamental, float absoluteThreshold);
+  template<typename T>
+  __global__ void matchFeaturesDoubleConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, DMatch* matches, float epsilon, Image::Camera *queryCamera, float4 *targetProjection, float absoluteThreshold);
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
