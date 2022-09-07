@@ -186,13 +186,14 @@ namespace ssrlcv {
       using base<T>::set;
 
       void set(long n, bool pinned = false) {
+        T *tmp;
+        CudaSafeCall(cudaMalloc((void**)&tmp, n * sizeof(T)));
         #ifdef LOG_MEM
-        ptr.reset((T *)nullptr, device_delete<T>(n * sizeof(T)));
+        ptr.reset(tmp, device_delete<T>(n * sizeof(T)));
         logger.mem.logDevice(n * sizeof(T));
         #else
-        ptr.reset((T *)nullptr, device_delete<T>());
+        ptr.reset(tmp, device_delete<T>());
         #endif
-        CudaSafeCall(cudaMalloc((void**)&ptr, n * sizeof(T)));
       }
 
       device(long n) {
@@ -221,13 +222,14 @@ namespace ssrlcv {
 
       void set(long n, bool pinned = false) {
         if (pinned) {
+          T *tmp;
+          CudaSafeCall(cudaMallocHost((void**)&tmp, n * sizeof(T)));
           #ifdef LOG_MEM
-            ptr.reset((T *)nullptr, host_pinned_delete<T>(n * sizeof(T)));
+            ptr.reset(tmp, host_pinned_delete<T>(n * sizeof(T)));
             logger.mem.logHostPinned(n * sizeof(T));
           #else
-            ptr.reset((T *)nullptr, host_pinned_delete<T>());
+            ptr.reset(tmp, host_pinned_delete<T>());
           #endif
-          CudaSafeCall(cudaMallocHost((void**)&ptr, n * sizeof(T)));
         } else {
           #ifdef LOG_MEM
             ptr.reset(new T[n], host_unpinned_delete<T>(n * sizeof(T)));
