@@ -205,7 +205,7 @@ ssrlcv::Feature<T> feature, unsigned int queryImageID, unsigned int targetImageI
     int idx[2]; // holds the node indices
     float dist[2]; // holds the euclidean distances
 
-    ssrlcv::PQueueElem pqueue[maxqsize]; // priority queue to search the search
+    ssrlcv::PQueueElem pqueue[maxqsize]; // priority queue to search the tree
 
     for (e = 0; e < emax;) {
         float d, alt_d = 0.f; 
@@ -333,9 +333,167 @@ ssrlcv::Feature<T> feature, unsigned int queryImageID, unsigned int targetImageI
     return match;
 } // findNearest
 
+// The below algorithm is from:
+// J.S. Beis and D.G. Lowe. Shape Indexing Using Approximate Nearest-Neighbor Search
+// in High-Dimensional Spaces. In Proc. IEEE Conf. Comp. Vision Patt. Recog.,
+// pages 1000--1006, 1997. https://www.cs.ubc.ca/~lowe/papers/cvpr97.pdf
+template<typename T> 
+__device__ ssrlcv::DMatch ssrlcv::findNearest(ssrlcv::KDTree<T>* kdtree, typename KDTree<T>::Node* nodes, ssrlcv::Feature<T>* featuresTree,
+ssrlcv::Feature<T> feature, int emax, float relativeThreshold, float absoluteThreshold, float nearestSeed, int k) {
+
+    T desc = feature.descriptor;
+    const unsigned char *vec = desc.values; // descriptor values[128] from query
+
+    int i, j, ncount = 0, e = 0;
+    int qsize = 0;
+    const int maxqsize = 1 << 10;
+
+    int idx[2]; // holds the node indices
+    float dist[2]; // holds the euclidean distances
+
+    ssrlcv::PQueueElem pqueue[maxqsize]; // priority queue to search the search
+
+    for (e = 0; e < emax;) {
+        float d, alt_d = 0.f; 
+        int nidx; // node index
+        
+        if (e == 0) { nidx = 0; } 
+        else {
+            // take the next node from the priority queue
+            if (qsize == 0) { break; }
+            nidx = pqueue[0].idx; // current tree position
+            alt_d = pqueue[0].dist; // distance of the query point from the node
+            
+            if (--qsize > 0) {
+                
+                // std::swap(pqueue[0], pqueue[qsize]);
+                ssrlcv::PQueueElem temp = pqueue[0];
+                pqueue[0] = pqueue[qsize];
+                pqueue[qsize] = temp; 
+
+                d = pqueue[0].dist;
+                for (i = 0;;) {
+                    int left = i*2 + 1, right = i*2 + 2;
+                    if (left >= qsize)
+                        break;
+                    if (right < qsize && pqueue[right].dist < pqueue[left].dist)
+                        left = right;
+                    if (pqueue[left].dist >= d)
+                        break;
+                    
+                    // std::swap(pqueue[i], pqueue[left]);
+                    ssrlcv::PQueueElem temp = pqueue[i];
+                    pqueue[i] = pqueue[left];
+                    pqueue[left] = temp;
+
+                    i = left;
+                } // for
+            } // if
+            if (ncount == k && alt_d > dist[ncount-1]) { continue; }
+        } // if-else
+
+        for (;;) {
+            if (nidx < 0) 
+                break;
+                
+            const typename KDTree<T>::Node& n = nodes[nidx];
+
+            if (n.idx < 0) { // if it is a leaf node
+                i = ~n.idx; 
+                const unsigned char* row = featuresTree[i].descriptor.values; // descriptor values[128] from tree
+
+                // euclidean distance
+                for (j = 0, d = 0.f; j < K; j++) {
+                    float t = vec[j] - row[j];
+                    d += t*t;
+                }
+                dist[ncount] = d;
+                //printf("\nthreadIdx[%d] dist[%d] = %f\n", threadIdx.x, ncount, dist[ncount]);
+                idx[ncount] = i;
+                //printf("\nthreadIdx[%d] idx[%d] = %f\n", threadIdx.x, ncount, idx[ncount]);
+
+                for (i = ncount-1; i >= 0; i--) {
+                    if (dist[i] <= d)
+                        break;
+                    // std::swap(dist[i], dist[i+1]);
+                    float dtemp = dist[i];
+                    dist[i] = dist[i+1];
+                    dist[i+1] = dtemp;
+                    // std::swap(idx[i], idx[i+1]);
+                    int itemp = idx[i];
+                    idx[i] = idx[i+1];
+                    idx[i+1] = itemp; 
+                } // for
+                ncount += ncount < k;
+                e++;
+                break; 
+
+            } // if
+
+            int alt;
+            if (vec[n.idx] <= n.boundary) {
+                nidx = n.left;
+                alt = n.right;
+            } else {
+                nidx = n.right;
+                alt = n.left;
+            }
+
+            d = vec[n.idx] - n.boundary;
+            d = d*d + alt_d; // euclidean distance
+
+            // subtree prunning
+            if (ncount == k && d > dist[ncount-1])
+                continue;
+            // add alternative subtree to the priority queue
+            pqueue[qsize] = PQueueElem(d, alt);
+            for (i = qsize; i > 0;) {
+                int parent = (i-1)/2;
+                if (parent < 0 || pqueue[parent].dist <= d)
+                    break;
+
+                // std::swap(pqueue[i], pqueue[parent]);
+                ssrlcv::PQueueElem temp = pqueue[i];
+                pqueue[i] = pqueue[parent];
+                pqueue[parent] = temp; 
+
+                i = parent;
+            } // for
+            qsize += qsize+1 < maxqsize;
+        } // for
+    } // for
+
+    DMatch match;
+    match.distance = dist[0]; // smallest distance
+    int matchIndex = idx[0]; // index of corresponding leaf node/point
+
+    // printf("match.distance at threadID[%d] = %f\n", threadIdx.x, match.distance);
+    // printf("absoluteThreshold at threadID[%d] = %f\n", threadIdx.x, absoluteThreshold);
+    // printf("relativeThreshold at threadID[%d] = %f\n", threadIdx.x, relativeThreshold);
+    // printf("nearestSeed at threadID[%d] = %f\n", threadIdx.x, nearestSeed);
+
+    if (match.distance >= absoluteThreshold) {
+        match.invalid = true; 
+    } else { 
+      if (match.distance/nearestSeed > relativeThreshold*relativeThreshold) {
+        match.invalid = true;
+      } else {
+        match.invalid = false;
+        match.keyPoints[0].loc = feature.loc; // img1, query features
+        match.keyPoints[1].loc = featuresTree[matchIndex].loc; // img2, kdtree features
+        match.keyPoints[0].parentId = queryImageID;  
+        match.keyPoints[1].parentId = targetImageID;
+        // printf("\nwith seed image: (%f, %f)\n", match.keyPoints[0].loc.x, match.keyPoints[0].loc.y); 
+      } 
+    } // if-else
+
+    return match;
+} // findNearest
+
 /****************
 * DEBUG METHODS *
 *****************/
+
 template<typename T>
 const float2 ssrlcv::KDTree<T>::getPoint(int ptidx, int *label) const {
     if ( !((unsigned)ptidx < (unsigned)points->size()) ) {

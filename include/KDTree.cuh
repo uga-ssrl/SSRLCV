@@ -73,7 +73,7 @@ namespace ssrlcv {
 
     public: 
         
-        // the node of the search tree.
+        // the node of the search tree
         struct Node {
             Node() : idx(-1), left(-1), right(-1), boundary(0.f) {}
             Node(int _idx, int _left, int _right, float _boundary)
@@ -107,7 +107,7 @@ namespace ssrlcv {
         thrust::host_vector<int> labels; // the parallel array of labels
         int maxDepth;
 
-    }; // KD Tree class
+    }; // KD-Tree class
 
     /************************
     * PRIORITY QUEUE STRUCT *
@@ -125,18 +125,34 @@ namespace ssrlcv {
     ***************************/
 
     /**
-     * \brief finds the k nearest neighbors to a point while looking at emax (at most) leaves
+     * \brief finds the k nearest neighbors to a point while looking at emax (at most) leaves. matching is done wihtout a seed image.
      * \param kdtree the KD-Tree to search through
      * \param nodes the nodes of the KD-Tree
-     * \param treeFeatures the KD-Tree feature points  
+     * \param treeFeatures the feature points i.e. the leaf nodes of the KD-Tree 
      * \param queryFeature the query feature point
-     * \param emax the max number of leaf nodes to search. a value closer to the total number query features correleates to a higher accuracy
+     * \param emax the max number of leaf nodes to search. a value closer to the total number tree features correleates to a higher accuracy
      * \param absoluteThreshold the maximum distance between two matched points
-      \param k the number of nearest neighbors. by default this value finds the 1 closest feature to a given feature point
+     * \param k the number of nearest neighbors. by default this value finds the 1 closest tree feature to a given query feature
     */ 
     template<typename T> 
     __device__ DMatch findNearest(KDTree<T>* kdtree, typename KDTree<T>::Node* nodes, Feature<T>* treeFeatures, 
     Feature<T> queryFeature, unsigned int queryImageID, unsigned int targetImageID, int emax, float absoluteThreshold, int k = 1);
+    
+    /**
+     * \brief finds the k nearest neighbors to a point while looking at emax (at most) leaves. matching is done WITH a seed image.
+     * \param kdtree the KD-Tree to search through
+     * \param nodes the nodes of the KD-Tree
+     * \param treeFeatures the feature points i.e. the leaf nodes of the KD-Tree 
+     * \param queryFeature the query feature point
+     * \param emax the max number of leaf nodes to search. a value closer to the total number tree features correleates to a higher accuracy
+     * \param relativeThreshold the realtive threshold based on closest seed descriptor 
+     * \param absoluteThreshold the maximum distance threshold between two matched points
+     * \param nearestSeed the seed distance corresponding to the query point 
+     * \param k the number of nearest neighbors. by default this value finds the 1 closest tree feature to a given query feature
+    */ 
+    template<typename T> 
+    __device__ DMatch findNearest(ssrlcv::KDTree<T>* kdtree, typename KDTree<T>::Node* nodes, ssrlcv::Feature<T>* treeFeatures, 
+    ssrlcv::Feature<T> queryFeature, int emax, float relativeThreshold, float absoluteThreshold, float nearestSeed, int k = 1); 
 
 } // namepsace ssrlcv
 

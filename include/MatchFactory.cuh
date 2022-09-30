@@ -268,7 +268,7 @@ namespace ssrlcv{
     /**
     * \brief Generated DMatches between Feature<Descriptor> when KD-Tree is implemented
     */
-    ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> generateDistanceMatchesKDTree(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::KDTree<T> kdtree);
+    ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> generateDistanceMatchesKDTree(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::KDTree<T> kdtree, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
     /**
      * \brief Generates DMatches between Feature<Descriptor> when Descriptor::distProtocol() is implemented with epipolar constaints
      * \warning If bad fundamental matrix between two images, matches will be very bad. 
@@ -377,7 +377,11 @@ namespace ssrlcv{
   __global__ void matchFeaturesKDTree(unsigned int queryImageID, unsigned long numFeaturesQuery, 
     Feature<T>* featuresQuery, unsigned int targetImageID, KDTree<T>* kdtree, typename KDTree<T>::Node* nodes,
     Feature<T>* featuresTree, DMatch* matches, float absoluteThreshold);
-
+  template<typename T>
+   __global__ void matchFeaturesKDTree(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, KDTree<T>* kdtree, typename KDTree<T>::Node* nodes,
+    Feature<T>* featuresTree, DMatch* matches, float* seedDistances, float relativeThreshold, float absoluteThreshold);
+    
   
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,

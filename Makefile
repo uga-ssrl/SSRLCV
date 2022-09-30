@@ -66,6 +66,7 @@ _BASE_OBJS += Quadtree.cu.o
 _BASE_OBJS += FeatureFactory.cu.o
 _BASE_OBJS += SIFT_FeatureFactory.cu.o
 _BASE_OBJS += MatchFactory.cu.o
+_BASE_OBJS += KDTree.cu.o
 _BASE_OBJS += matrix_util.cu.o
 _BASE_OBJS += Octree.cu.o
 _BASE_OBJS += PointCloudFactory.cu.o
