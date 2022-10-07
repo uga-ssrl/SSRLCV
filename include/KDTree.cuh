@@ -46,16 +46,16 @@
 #define CUDA_CALLABLE_MEMBER
 #endif 
 
+#include "common_includes.hpp"
+#include "Feature.cuh"
+#include "Match.cuh"
+
 #include <vector>
 #include <algorithm>
 #include <cstdio>
 #include <iostream>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
-
-#include "Feature.cuh"
-#include "Logger.hpp"
-#include "Unity.cuh"
 
 using namespace std;
 
@@ -91,7 +91,10 @@ namespace ssrlcv {
         KDTree();
         KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> points);
         KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> points, vector<T> _labels);
-    
+        
+        // helper function to efficiently search the kd tree
+        static float medianPartition(size_t* ofs, int a, int b, const unsigned char* vals);
+
         // builds the search tree
         void build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> points);
         void build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> points, vector<int> labels);
@@ -135,7 +138,7 @@ namespace ssrlcv {
      * \param k the number of nearest neighbors. by default this value finds the 1 closest tree feature to a given query feature
     */ 
     template<typename T> 
-    __device__ DMatch findNearest(KDTree<T>* kdtree, typename KDTree<T>::Node* nodes, Feature<T>* treeFeatures, 
+    __device__ ssrlcv::DMatch findNearest(KDTree<T>* kdtree, typename KDTree<T>::Node* nodes, Feature<T>* treeFeatures, 
     Feature<T> queryFeature, unsigned int queryImageID, unsigned int targetImageID, int emax, float absoluteThreshold, int k = 1);
     
     /**
@@ -151,8 +154,8 @@ namespace ssrlcv {
      * \param k the number of nearest neighbors. by default this value finds the 1 closest tree feature to a given query feature
     */ 
     template<typename T> 
-    __device__ DMatch findNearest(ssrlcv::KDTree<T>* kdtree, typename KDTree<T>::Node* nodes, ssrlcv::Feature<T>* treeFeatures, 
-    ssrlcv::Feature<T> queryFeature, int emax, float relativeThreshold, float absoluteThreshold, float nearestSeed, int k = 1); 
+    __device__ ssrlcv::DMatch findNearest(ssrlcv::KDTree<T>* kdtree, typename KDTree<T>::Node* nodes, ssrlcv::Feature<T>* treeFeatures, 
+    ssrlcv::Feature<T> queryFeature, unsigned int queryImageID, unsigned int targetImageID, int emax, float relativeThreshold, float absoluteThreshold, float nearestSeed, int k = 1); 
 
 } // namepsace ssrlcv
 

@@ -440,7 +440,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::genera
 
 
 template<typename T>
-ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>>ssrlcv::MatchFactory<T>:: generateDistanceMatches(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances){
+ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> ssrlcv::MatchFactory<T>::generateDistanceMatches(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances){
   MemoryState origin[2] = {queryFeatures->getMemoryState(), targetFeatures->getMemoryState()};
 
   if(origin[0] != gpu) queryFeatures->setMemoryState(gpu);
@@ -486,7 +486,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>>ssrlcv::MatchFactory<T>:: gener
 } // generateDistanceMatches
 
 template<typename T>
-ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> ssrlcv::MatchFactory<T>::generateDistanceMatchesKDTree(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<ssrlcv::Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::KDTree<T> kdtree) {
+ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> ssrlcv::MatchFactory<T>::generateDistanceMatchesKDTree(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> queryFeatures, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::KDTree<T> kdtree, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances) {
 
   // transfer query points to GPU
   MemoryState q_origin = queryFeatures->getMemoryState();
@@ -519,16 +519,16 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> ssrlcv::MatchFactory<T>::gener
   clock_t timer = clock();
   
   if (seedDistances == nullptr) {
-    matchFeaturesKDTree<T><<<grid, block>>>(queryID, queryFeatures->size(), queryFeatures->device.get(), 
-    targetID, d_kdtree.get(), pd_nodes, d_points->device.get(), matches->device.get(), this->absoluteThreshold);
+    matchFeaturesKDTree<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device.get(), 
+    target->id, d_kdtree.get(), pd_nodes, d_points->device.get(), matches->device.get(), this->absoluteThreshold);
   } else if (seedDistances->size() != queryFeatures->size()) {
     logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
     exit(-1);
   } else {
     MemoryState seedOrigin = seedDistances->getMemoryState();
     if(seedOrigin != gpu) seedDistances->setMemoryState(gpu);
-    matchFeaturesKDTree<T><<<grid, block>>>(queryID, queryFeatures->size(), queryFeatures->device.get(), 
-    targetID, d_kdtree.get(), pd_nodes, d_points->device.get(), matches->device.get(), seedDistances->device.get(),
+    matchFeaturesKDTree<T><<<grid, block>>>(query->id, queryFeatures->size(), queryFeatures->device.get(), 
+    target->id, d_kdtree.get(), pd_nodes, d_points->device.get(), matches->device.get(), seedDistances->device.get(),
     this->relativeThreshold, this->absoluteThreshold);
     if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin); 
   }
@@ -1757,8 +1757,9 @@ float* seedDistances, float relativeThreshold, float absoluteThreshold){
   }
 }
 template<typename T>
-__global__ void ssrlcv::matchFeaturesKDTree(unsigned int queryImageID, unsigned long numFeaturesQuery, ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, 
-ssrlcv::KDTree<T>* kdtree, typename ssrlcv::KDTree<T>::Node* nodes, ssrlcv::Feature<T>* featuresTree, ssrlcv::DMatch* matches, float absoluteThreshold) {
+__global__ void ssrlcv::matchFeaturesKDTree(unsigned int queryImageID, unsigned long numFeaturesQuery, ssrlcv::Feature<T>* featuresQuery,
+unsigned int targetImageID, ssrlcv::KDTree<T>* kdtree, typename ssrlcv::KDTree<T>::Node* nodes, ssrlcv::Feature<T>* featuresTree,
+ssrlcv::DMatch* matches, float absoluteThreshold) {
   
   unsigned int globalThreadID = (blockIdx.y * gridDim.x + blockIdx.x) * blockDim.x + threadIdx.x; // 2D grid of 1D blocks 
   if (globalThreadID < numFeaturesQuery) { 
@@ -1774,8 +1775,9 @@ ssrlcv::KDTree<T>* kdtree, typename ssrlcv::KDTree<T>::Node* nodes, ssrlcv::Feat
 } // matchFeaturesKDTree
 
 template<typename T>
-__global__ void ssrlcv::matchFeaturesKDTree(unsigned int queryImageID, unsigned long numFeaturesQuery, ssrlcv::Feature<T>* featuresQuery, unsigned int targetImageID, 
-ssrlcv::KDTree<T>* kdtree, typename ssrlcv::KDTree<T>::Node* nodes, ssrlcv::Feature<T>* featuresTree, ssrlcv::DMatch* matches, float* seedDistances, float relativeThreshold, float absoluteThreshold) {
+__global__ void ssrlcv::matchFeaturesKDTree(unsigned int queryImageID, unsigned long numFeaturesQuery, ssrlcv::Feature<T>* featuresQuery,
+unsigned int targetImageID, ssrlcv::KDTree<T>* kdtree, typename ssrlcv::KDTree<T>::Node* nodes, ssrlcv::Feature<T>* featuresTree,
+ssrlcv::DMatch* matches, float* seedDistances, float relativeThreshold, float absoluteThreshold) {
   
   unsigned int globalThreadID = (blockIdx.y * gridDim.x + blockIdx.x) * blockDim.x + threadIdx.x; // 2D grid of 1D blocks
   
@@ -1786,7 +1788,7 @@ ssrlcv::KDTree<T>* kdtree, typename ssrlcv::KDTree<T>::Node* nodes, ssrlcv::Feat
     
     DMatch match;
     int emax = 100; // at most, search 100 leaf nodes
-    match = findNearest(kdtree, nodes, featuresTree, feature, emax, relativeThreshold, absoluteThreshold, nearestSeed); 
+    match = findNearest(kdtree, nodes, featuresTree, feature, queryImageID, targetImageID, emax, relativeThreshold, absoluteThreshold, nearestSeed); 
     __syncthreads();
     matches[globalThreadID] = match;
   } 

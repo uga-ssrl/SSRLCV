@@ -339,7 +339,7 @@ ssrlcv::Feature<T> feature, unsigned int queryImageID, unsigned int targetImageI
 // pages 1000--1006, 1997. https://www.cs.ubc.ca/~lowe/papers/cvpr97.pdf
 template<typename T> 
 __device__ ssrlcv::DMatch ssrlcv::findNearest(ssrlcv::KDTree<T>* kdtree, typename KDTree<T>::Node* nodes, ssrlcv::Feature<T>* featuresTree,
-ssrlcv::Feature<T> feature, int emax, float relativeThreshold, float absoluteThreshold, float nearestSeed, int k) {
+ssrlcv::Feature<T> feature, unsigned int queryImageID, unsigned int targetImageID, int emax, float relativeThreshold, float absoluteThreshold, float nearestSeed, int k) {
 
     T desc = feature.descriptor;
     const unsigned char *vec = desc.values; // descriptor values[128] from query
@@ -403,7 +403,7 @@ ssrlcv::Feature<T> feature, int emax, float relativeThreshold, float absoluteThr
                 const unsigned char* row = featuresTree[i].descriptor.values; // descriptor values[128] from tree
 
                 // euclidean distance
-                for (j = 0, d = 0.f; j < K; j++) {
+                for (j = 0, d = 0.f; j < DIMS; j++) {
                     float t = vec[j] - row[j];
                     d += t*t;
                 }
