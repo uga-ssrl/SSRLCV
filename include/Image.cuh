@@ -10,12 +10,14 @@
 #include "common_includes.hpp"
 #include "io_util.hpp"
 #include "Feature.cuh"
+#include "fix_thrust_warning.h"
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 #include <thrust/device_vector.h>
 #include <thrust/scan.h>
 #include <thrust/device_ptr.h>
 #include <thrust/copy.h>
+#include <sys/stat.h>
 
 namespace ssrlcv{
   /**
@@ -46,6 +48,7 @@ namespace ssrlcv{
       /**
        * \brief identical to the image size param, but used in GPU camera modification method
        */
+      float3 ecef_offset; //<\position offset (add this to convert to ECEF)
       uint2 size;
       __device__ __host__ Camera();
       __device__ __host__ Camera(uint2 size);
@@ -104,7 +107,7 @@ namespace ssrlcv{
     /**
     * \brief Primary constructor utilizing ssrlcv image io.
     * \details This constructor uses a file path to a jpg/jpeg, png or tif/tiff
-    * to fill in the pixel array.
+    * to fill in the pixel array, or a checkpointed .cpimg file.
     * \param filePath - path to image
     * \param id - id of image for referencing with multiple images (optional, defaults to -1)
     */
@@ -122,6 +125,8 @@ namespace ssrlcv{
     * \warning it is only recommened to convert color down (rgb -> grayscale) and not the other way
     */
     Image(std::string filePath, unsigned int convertColorDepthTo, int id = -1);
+
+    void checkpoint(std::string dirPath = "./");
 
     // =============================================================================================================
     //

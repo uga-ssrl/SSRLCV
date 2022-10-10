@@ -1,5 +1,7 @@
 stages:
   - documentation
+  - verbose-build
+  - verbose-sfm
   - build
   - test
 
@@ -7,11 +9,11 @@ pages:
   stage: documentation
   script:
   - doxygen ./doc/doxygen/Doxyfile
-  - mkdir ./public
-  - mv ./doc/doxygen/documentation/html/ ./public
+  - mkdir ./doc/doxygen/public
+  - mv ./doc/doxygen/documentation/html/ ./doc/doxygen/public
   artifacts:
     paths:
-    - ./public
+    - ./doc/doxygen/public
   tags:
   - shell
   only:
@@ -34,6 +36,49 @@ build-sfm:
     - gacrc
   only:
     - merge_requests
+
+build-sfm-verbose:
+  stage: verbose-build
+  script:
+    - scripts/run-script.sh build-verbose # only builds SFM, no tests
+  tags:
+    - gacrc
+  only:
+    - merge_requests
+
+run-sfm-2:
+  stage: verbose-sfm
+  script:
+    - scripts/run-script.sh run-sfm-2
+  tags:
+    - gacrc
+  only:
+    - merge_requests
+  artifacts:
+    paths:
+      - ./out/memory.csv
+      - ./out/ssrlcv.log
+      - ./out/*.ply
+    expire_in: 1 week
+  variables:
+    GIT_CLEAN_FLAGS: none
+
+run-sfm-3:
+  stage: verbose-sfm
+  script:
+    - scripts/run-script.sh run-sfm-3
+  tags:
+    - gacrc
+  only:
+    - merge_requests
+  artifacts:
+    paths:
+      - ./out/memory.csv
+      - ./out/ssrlcv.log
+      - ./out/*.ply
+    expire_in: 1 week
+  variables:
+    GIT_CLEAN_FLAGS: none
 
 google-test:
   stage: test

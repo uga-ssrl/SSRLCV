@@ -6,6 +6,7 @@
 #define OCTREE_CUH
 
 #include "common_includes.hpp"
+#include "fix_thrust_warning.h"
 #include <thrust/sort.h>
 #include <thrust/pair.h>
 #include <thrust/unique.h>

@@ -69,7 +69,7 @@ void ssrlcv::getImagePaths(std::string dirPath, std::vector<std::string> &imageP
   DIR* dir;
   if(dirPath.back() != '/') dirPath += "/";
   if (nullptr == (dir = opendir(dirPath.c_str()))){
-    printf("Error : Failed to open input directory %s\n",dirPath.c_str());
+    logger.err.printf("Error : Failed to open input directory %s",dirPath.c_str());
     exit(-1);
   }
   struct dirent* in_file;
@@ -94,7 +94,7 @@ void ssrlcv::getFilePaths(std::string dirPath, std::vector<std::string> &paths, 
     dirPath += "/";
   if (nullptr == (dir = opendir(dirPath.c_str())))
   {
-    printf("Error : Failed to open input directory %s\n", dirPath.c_str());
+    logger.err.printf("Error : Failed to open input directory %s", dirPath.c_str());
     exit(-1);
   }
   struct dirent *in_file;
@@ -127,7 +127,7 @@ std::vector<std::string> ssrlcv::findFiles(std::string path){
 ssrlcv::img_arg::img_arg(char* path){
   this->path = path;
   if(!fileExists(this->path)){
-    logger.err<<"ERROR: "<<this->path<<" does not exist"<<"\n";
+    logger.err<<"ERROR: "<<this->path<<" does not exist";
     exit(-1);
   }
 }
@@ -135,12 +135,12 @@ ssrlcv::img_dir_arg::img_dir_arg(char* path){
   if(directoryExists(path)){
     getImagePaths(path,this->paths);
     if(this->paths.size() == 0){
-      logger.err<<"ERROR: no images found in "<<path<<"\n";
+      logger.err<<"ERROR: no images found in "<<path;
       exit(-1);
     }
   }
   else{
-    logger.err<<"ERROR: "<<path<<" does not exist"<<"\n";
+    logger.err<<"ERROR: "<<path<<" does not exist";
     exit(-1);
   }
 }
@@ -159,13 +159,13 @@ ssrlcv::int_arg::int_arg(char* val){
  */
 std::map<std::string, ssrlcv::arg*> ssrlcv::parseArgs(int numArgs, char* args[]){
   if(numArgs < 3){
-    std::cout<<"USAGE ./bin/<executable> -d </path/to/image/directory/> -i </path/to/image> -s </path/to/seed/image>"<<"\n";
+    logger.err<<"USAGE ./bin/<executable> -d </path/to/image/directory/> -i </path/to/image> -s </path/to/seed/image>";
     exit(0);
   }
   std::map<std::string, arg*> arg_map;
   for(int a = 1; a < numArgs - 1; ++a){
     std::string temp = cl_args[args[a]];
-    std::cout<<"found "<<temp<<" in arguments"<<"\n";
+    logger.info<<"found "+temp+" in arguments";
     if(temp == "image" || temp == "seed"){
       arg_map.insert(arg_pair(temp,new img_arg(args[++a])));
     }
@@ -179,8 +179,8 @@ std::map<std::string, ssrlcv::arg*> ssrlcv::parseArgs(int numArgs, char* args[])
     }
   }
   if(arg_map.find("img") == arg_map.end() && arg_map.find("dir") == arg_map.end()){
-    logger.err<<"ERROR must include atleast one image other than seed for processing"<<"\n";
-    std::cout<<"USAGE ./bin/<executable> -d </path/to/image/directory/> -i </path/to/image> -s </path/to/seed/image>"<<"\n";
+    logger.err<<"ERROR must include atleast one image other than seed for processing";
+    logger.err<<"USAGE ./bin/<executable> -d </path/to/image/directory/> -i </path/to/image> -s </path/to/seed/image>";
     exit(0);
   }
   return arg_map;
@@ -190,7 +190,7 @@ std::map<std::string, ssrlcv::arg*> ssrlcv::parseArgs(int numArgs, char* args[])
 
 ssrlcv::ptr::host<unsigned char> ssrlcv::getPixelArray(unsigned char** &row_pointers, const unsigned int &width, const unsigned int &height, const int numValues){
   if(numValues == 0){
-    std::cout<<"ERROR: png color type not supported in parallel DSIFT"<<"\n";
+    logger.err<<"ERROR: png color type not supported in parallel DSIFT";
     exit(-1);
   }
   ssrlcv::ptr::host<unsigned char> imageMatrix(height*width*numValues);
@@ -203,26 +203,26 @@ ssrlcv::ptr::host<unsigned char> ssrlcv::getPixelArray(unsigned char** &row_poin
     delete[] row_pointers[r];
   }
   delete[] row_pointers;
-  std::cout<<"Pixel data aquired"<<"\n";
+  logger.info<<"Pixel data aquired";
   return imageMatrix;
 }
 
 ssrlcv::ptr::host<unsigned char> ssrlcv::readPNG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int& colorDepth){
   /* open file and test for it being a png */
   FILE* fp = fopen(filePath, "rb");
-  std::cout<<"READING "<<filePath<<"\n";
+  logger.info<<"READING "+std::string(filePath);
 
   unsigned char header[8];
 
   if (!fp){
-    std::cout<<"[read_png_file] File could not be opened for reading: "<< filePath<<"\n";
+    logger.err<<"[read_png_file] File could not be opened for reading: " + std::string(filePath);
     exit(-1);
   }
 
   fread(header, 1, 8, fp);
 
   if (png_sig_cmp(header, 0, 8)){
-    std::cout << "[read_png_file] File is not recognized as a PNG file: " << filePath << "\n";
+    logger.err << "[read_png_file] File is not recognized as a PNG file: " + std::string(filePath);
     exit(-1);
   }
 
@@ -230,19 +230,19 @@ ssrlcv::ptr::host<unsigned char> ssrlcv::readPNG(const char* filePath, unsigned 
   png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
 
   if (!png_ptr){
-    std::cout<<"[read_png_file] png_create_read_struct failed"<<"\n";
+    logger.err<<"[read_png_file] png_create_read_struct failed";
     exit(-1);
   }
 
   png_infop info_ptr = png_create_info_struct(png_ptr);
 
   if (!info_ptr){
-    std::cout<<"[read_png_file] png_create_info_struct failed"<<"\n";
+    logger.err<<"[read_png_file] png_create_info_struct failed";
     exit(-1);
   }
 
   if (setjmp(png_jmpbuf(png_ptr))){
-    std::cout<<"[read_png_file] Error during init_io"<<"\n";
+    logger.err<<"[read_png_file] Error during init_io";
     exit(-1);
   }
 
@@ -272,32 +272,32 @@ void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned
   /* create file */
   FILE *fp = fopen(filePath, "wb");
   if(!fp){
-    std::cout<<"[write_png_file] File %s could not be opened for writing "<<filePath<<"\n";
+    logger.err<<"[write_png_file] File %s could not be opened for writing "+std::string(filePath);
   }
 
   /* initialize stuff */
   png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
 
   if(!png_ptr){
-    std::cout<<"[write_png_file] png_create_write_struct failed "<<"\n";
+    logger.err<<"[write_png_file] png_create_write_struct failed ";
   }
 
 
   png_infop info_ptr = png_create_info_struct(png_ptr);
 
   if (!info_ptr){
-    std::cout<<"[write_png_file] png_create_info_struct failed "<<"\n";
+    logger.err<<"[write_png_file] png_create_info_struct failed ";
   }
 
   if (setjmp(png_jmpbuf(png_ptr))){
-    std::cout<<"[write_png_file] Error during init_io "<<"\n";
+    logger.err<<"[write_png_file] Error during init_io ";
   }
 
   png_init_io(png_ptr, fp);
 
   /* write header */
   if (setjmp(png_jmpbuf(png_ptr))){
-    std::cout<<"[write_png_file] Error during writing header "<<"\n";
+    logger.err<<"[write_png_file] Error during writing header ";
   }
 
   int colorType = PNG_COLOR_TYPE_GRAY;
@@ -319,7 +319,7 @@ void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned
 
   /* write bytes */
   if (setjmp(png_jmpbuf(png_ptr))){
-    std::cout<<"[write_png_file] Error during writing bytes "<<"\n";
+    logger.err<<"[write_png_file] Error during writing bytes ";
   }
 
   unsigned char** row_pointers = new unsigned char*[height];
@@ -332,22 +332,22 @@ void ssrlcv::writePNG(const char* filePath, unsigned char* image, const unsigned
 
   /* end write */
   if (setjmp(png_jmpbuf(png_ptr))){
-    std::cout<<"[write_png_file] Error during end of write "<<"\n";
+    logger.err<<"[write_png_file] Error during end of write ";
   }
 
   png_write_end(png_ptr, nullptr);
   fclose(fp);
   png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
-  std::cout<<filePath<<" has been written"<<"\n";
+  logger.info<<std::string(filePath)+" has been written";
 }
 
 ssrlcv::ptr::host<unsigned char> ssrlcv::readJPEG(const char* filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth){
   struct jpeg_decompress_struct cinfo;
   struct jpeg_error_mgr jerr;
-  std::cout<<"attempting to read "<<filePath<<"\n";
+  logger.info<<"attempting to read "+std::string(filePath);
   FILE *infile = fopen(filePath, "rb");
   if (!infile){
-    fprintf(stderr, "can't open %s\n", filePath);
+    logger.err.printf("can't open %s", filePath);
     exit(-1);
   }
   cinfo.err = jpeg_std_error(&jerr);
@@ -383,7 +383,7 @@ void ssrlcv::writeJPEG(const char* filePath, unsigned char* image, const unsigne
   FILE *outfile = fopen(filePath, "wb");
   if (!outfile)
   {
-    fprintf(stderr, "can't open %s\n", filePath);
+    logger.err.printf("can't open %s", filePath);
     exit(-1);
   }
   cinfo.err = jpeg_std_error(&jerr);
@@ -416,7 +416,7 @@ void ssrlcv::writeJPEG(const char* filePath, unsigned char* image, const unsigne
   jpeg_destroy_compress(&cinfo);
 
   fclose(outfile);
-  std::cout<<filePath<<" has been written"<<"\n";
+  logger.info<<std::string(filePath)+" has been written";
 }
 
 ssrlcv::ptr::host<unsigned char> ssrlcv::readImage(const char *filePath, unsigned int &height, unsigned int &width, unsigned int &colorDepth){
@@ -476,7 +476,7 @@ bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out)
 
   FILE * file = fopen(path.c_str(), "r");
   if(file == nullptr) {
-    logger.err << "Couldn't open " << path << "\n";
+    logger.err << "Couldn't open " << path;
     return false;
   }
 
@@ -502,13 +502,13 @@ bool ssrlcv::readImageMeta(std::string imgpath, bcpFormat & out)
 // -- Macros -- //
 #define BIN_VAL(name) \
   fread((void *) &(out.name), sizeof(out.name), 1, file); \
-  if(ferror(file)) { logger.err << "Error reading " << path << "\n"; fclose(file); return false; }
+  if(ferror(file)) { logger.err << "Error reading " << path; fclose(file); return false; }
 
-#define EOF_CHECK if(feof(file)) { logger.err << "Error in " << path << ": Unexpected EOF" << "\n"; fclose(file); return false; }
+#define EOF_CHECK if(feof(file)) { logger.err << "Error in " << path << ": Unexpected EOF"; fclose(file); return false; }
 #define EOF_EXPECT \
   bool __fread; \
   fread((void *) &__fread, sizeof(__fread), 1, file); \
-  if(! feof(file)) { logger.err << "Error in " << path << ": Expected EOF.  Format invalid, ignoring this file" << "\n"; fclose(file); return false; }
+  if(! feof(file)) { logger.err << "Error in " << path << ": Expected EOF.  Format invalid, ignoring this file"; fclose(file); return false; }
 // -- -- -- //
 
 
@@ -557,7 +557,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::readPLY(const char* filePath){
   bool local_debug   = false;
   bool local_verbose = true;
 
-  if (local_verbose || local_debug) std::cout << "Reading Mesh ... " << "\n";
+  if (local_verbose || local_debug) logger.info << "Reading Mesh ... ";
 
   // temp storage
   std::vector<float3> tempPoints;
@@ -580,7 +580,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::readPLY(const char* filePath){
       // Handle elements here
       //
       if (!tag.compare("element")){
-        if(local_debug) std::cout << "element found" << "\n";
+        if(local_debug) logger.info << "element found";
         // temp vars for strings
         std::string elem;
         std::string type;
@@ -592,13 +592,13 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::readPLY(const char* filePath){
         // set the correct value
         if (!type.compare("vertex")){
           numPoints = num;
-          if(local_debug) std::cout << "detected " << num << " Points" << "\n";
+          if(local_debug) logger.info << "detected " + std::to_string(num) + " Points";
         } else if (!type.compare("face")) {
-          if(local_debug) std::cout << "detected " << num << " Faces" << "\n";
+          if(local_debug) logger.info << "detected " + std::to_string(num) + " Faces";
         } else if (!type.compare("edge")) {
           // TODO read in edges if desired
-          logger.warn << "\tWARNING: edge reading is not currently supported in MeshFactory" << "\n";
-          if(local_debug) std::cout << "detected " << num << " Edges" << "\n";
+          logger.warn << "\tWARNING: edge reading is not currently supported in MeshFactory";
+          if(local_debug) logger.info << "detected " + std::to_string(num) + " Edges";
         }
 
       }
@@ -623,7 +623,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::readPLY(const char* filePath){
         iss >> point.y;
         iss >> point.z;
         tempPoints.push_back(point);
-        if (local_debug) std::cout << "\t" << point.x << ", " << point.y << ", " << point.z << "\n";
+        if (local_debug) logger.info << "\t" + std::to_string(point.x) + ", " + std::to_string(point.y) + ", " + std::to_string(point.z);
       }
 
     } // end data reading
@@ -639,15 +639,15 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::readPLY(const char* filePath){
   }
 
   if (local_verbose || local_debug) {
-    std::cout << "Done reading PLY!" << "\n";
-    std::cout << "\t Total Points Loaded:  " << points->size() << "\n";
+    logger.info << "Done reading PLY!";
+    logger.info << "\t Total Points Loaded:  " + std::to_string(points->size());
   }
 
   return points;
 }
 
 void ssrlcv::writePLY(const char* filePath, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, bool binary){
-  std::cout << "saving " << points->size() << " points ..." << "\n";
+  logger.info << "saving " << std::to_string(points->size()) << " points ...";
   MemoryState origin = points->getMemoryState();
   if(origin == gpu) points->transferMemoryTo(cpu);
   tinyply::PlyFile ply;
@@ -668,13 +668,13 @@ void ssrlcv::writePLY(const char* filePath, ssrlcv::ptr::value<ssrlcv::Unity<flo
   	if (outstream_ascii.fail()) throw std::runtime_error("failed to write ply");
     ply.write(outstream_ascii, false);
   }
-  std::cout<<filePath<<" has successfully been written"<<"\n";
+  logger.info<<std::string(filePath)+" has successfully been written";
 
   if(origin == gpu) points->setMemoryState(gpu);
 }
 
 void ssrlcv::writePLY(std::string filename, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points, bool binary){
-  std::cout << "saving " << points->size() << " points ..." << "\n";
+  logger.info << "saving " + std::to_string(points->size()) + " points ...";
   MemoryState origin = points->getMemoryState();
   if(origin == gpu) points->transferMemoryTo(cpu);
   tinyply::PlyFile ply;
@@ -695,7 +695,7 @@ void ssrlcv::writePLY(std::string filename, ssrlcv::ptr::value<ssrlcv::Unity<flo
   	if (outstream_ascii.fail()) throw std::runtime_error("failed to write ply");
     ply.write(outstream_ascii, false);
   }
-  std::cout << filename.c_str() << " has successfully been written" << "\n";
+  logger.info << filename + " has successfully been written";
 
   if(origin == gpu) points->setMemoryState(gpu);
 }
@@ -820,7 +820,7 @@ void ssrlcv::writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<flo
   std::string fname = filename;
   // we need triangles or quadrilaterals
   if (!(faceEncoding == 3 || faceEncoding == 4)){
-    logger.err << "ERROR: error writing mesh based PLY, unsupported face encoding of " << std::to_string(faceEncoding) << "\n";
+    logger.err << "ERROR: error writing mesh based PLY, unsupported face encoding of " << std::to_string(faceEncoding) ;
     return;
   }
   std::ofstream of;
@@ -1024,7 +1024,7 @@ void ssrlcv::writeCSV(std::vector<float> v, std::string filename){
  */
 void ssrlcv::writeCSV(std::vector<float> x, std::vector<float> y, std::string filename){
   if (x.size() != y.size()){
-    logger.err << "CSV ERROR: Vectors are not the same size!" << "\n";
+    logger.err << "CSV ERROR: Vectors are not the same size!" ;
     return;
   }
   std::ofstream outfile;

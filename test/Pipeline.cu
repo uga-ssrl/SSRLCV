@@ -12,6 +12,10 @@ std::string getCheckpoint(int id, bool threeView = false) {
   return getPath(threeView) + std::to_string(id) + "_" + typeid(T).name() + ".uty";
 }
 
+std::string getImgCheckpoint(int id, bool threeView = false) {
+  return getPath(threeView) + std::to_string(id) + "_" + typeid(ssrlcv::Image).name() + ".cpimg";
+}
+
 template <typename T>
 bool sameFeatures(ssrlcv::Unity<ssrlcv::Feature<T>> x, ssrlcv::Unity<ssrlcv::Feature<T>> y) {
 
@@ -98,8 +102,6 @@ bool samePoints(ssrlcv::Unity<float3> x, ssrlcv::Unity<float3> y) {
 }
 
 TEST(PipelineTest, FeatureGeneration2View) {
-  testing::internal::CaptureStdout();
-
   std::string seedPath("/work/demlab/sfm/SSRLCV-Sample-Data/seeds/seed_spongebob.png");
   std::vector<std::string> imagePaths;
   imagePaths.push_back("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/2view/1.png");
@@ -111,15 +113,12 @@ TEST(PipelineTest, FeatureGeneration2View) {
   // featureGenOutput.seedFeatures->checkpoint(-1, getPath());
   // featureGenOutput.allFeatures.at(0)->checkpoint(0, getPath());
   // featureGenOutput.allFeatures.at(1)->checkpoint(1, getPath());
+  featureGenOutput.images.at(0)->checkpoint(getPath());
+  featureGenOutput.images.at(1)->checkpoint(getPath());
 
   ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> realSeedFeatures(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(-1));
   ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> realFeatures0(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(0));
   ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> realFeatures1(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(1));
-  
-  mkdir((std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()).c_str(), 0755);
-  std::ofstream out(std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() + "/" + ::testing::UnitTest::GetInstance()->current_test_info()->name() + ".log");
-  out << testing::internal::GetCapturedStdout();
-  out.close();
 
   // Make sure two images/features
   EXPECT_EQ(featureGenOutput.allFeatures.size(), 2);
@@ -139,8 +138,6 @@ TEST(PipelineTest, FeatureGeneration2View) {
 }
 
 TEST(PipelineTest, FeatureGeneration3View) {
-  testing::internal::CaptureStdout();
-
   std::string seedPath("/work/demlab/sfm/SSRLCV-Sample-Data/seeds/seed_spongebob.png");
   std::vector<std::string> imagePaths;
   imagePaths.push_back("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/3view/1.png");
@@ -154,16 +151,14 @@ TEST(PipelineTest, FeatureGeneration3View) {
   // featureGenOutput.allFeatures.at(0)->checkpoint(0, getPath(true));
   // featureGenOutput.allFeatures.at(1)->checkpoint(1, getPath(true));
   // featureGenOutput.allFeatures.at(2)->checkpoint(2, getPath(true));
+  featureGenOutput.images.at(0)->checkpoint(getPath(true));
+  featureGenOutput.images.at(1)->checkpoint(getPath(true));
+  featureGenOutput.images.at(2)->checkpoint(getPath(true));
 
   ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> realSeedFeatures(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(-1, true));
   ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> realFeatures0(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(0, true));
   ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> realFeatures1(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(1, true));
   ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>> realFeatures2(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(2, true));
-  
-  mkdir((std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()).c_str(), 0755);
-  std::ofstream out(std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() + "/" + ::testing::UnitTest::GetInstance()->current_test_info()->name() + ".log");
-  out << testing::internal::GetCapturedStdout();
-  out.close();
 
   // Make sure two images/features
   EXPECT_EQ(featureGenOutput.allFeatures.size(), 3);
@@ -186,8 +181,6 @@ TEST(PipelineTest, FeatureGeneration3View) {
 }
 
 TEST(PipelineTest, FeatureMatching2View) {
-  testing::internal::CaptureStdout();
-
   ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(-1));
 
   std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
@@ -197,9 +190,8 @@ TEST(PipelineTest, FeatureMatching2View) {
   allFeatures.push_back(features1);
 
   std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
-  ssrlcv::ptr::value<ssrlcv::Image> seedImage = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/seeds/seed_spongebob.png",-1);
-  ssrlcv::ptr::value<ssrlcv::Image> image0 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/2view/1.png",0);
-  ssrlcv::ptr::value<ssrlcv::Image> image1 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/2view/2.png",1);
+  ssrlcv::ptr::value<ssrlcv::Image> image0 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(0), 0);
+  ssrlcv::ptr::value<ssrlcv::Image> image1 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(1), 1);
   images.push_back(image0);
   images.push_back(image1);
 
@@ -211,11 +203,6 @@ TEST(PipelineTest, FeatureMatching2View) {
 
   ssrlcv::Unity<ssrlcv::KeyPoint> realKeyPoints(getCheckpoint<ssrlcv::KeyPoint>(0));
   ssrlcv::Unity<ssrlcv::MultiMatch> realMatches(getCheckpoint<ssrlcv::MultiMatch>(0));
-  
-  mkdir((std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()).c_str(), 0755);
-  std::ofstream out(std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() + "/" + ::testing::UnitTest::GetInstance()->current_test_info()->name() + ".log");
-  out << testing::internal::GetCapturedStdout();
-  out.close();
 
   // Make sure sizes are the same
   EXPECT_EQ(featureMatchOutput.matchSet.keyPoints->size(), realKeyPoints.size());
@@ -229,8 +216,6 @@ TEST(PipelineTest, FeatureMatching2View) {
 }
 
 TEST(PipelineTest, FeatureMatching3View) {
-  testing::internal::CaptureStdout();
-
   ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(-1, true));
 
   std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
@@ -242,10 +227,9 @@ TEST(PipelineTest, FeatureMatching3View) {
   allFeatures.push_back(features2);
 
   std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
-  ssrlcv::ptr::value<ssrlcv::Image> seedImage = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/seeds/seed_spongebob.png",-1);
-  ssrlcv::ptr::value<ssrlcv::Image> image0 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/3view/1.png",0);
-  ssrlcv::ptr::value<ssrlcv::Image> image1 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/3view/2.png",1);
-  ssrlcv::ptr::value<ssrlcv::Image> image2 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/3view/3.png",1);
+  ssrlcv::ptr::value<ssrlcv::Image> image0 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(0, true));
+  ssrlcv::ptr::value<ssrlcv::Image> image1 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(1, true));
+  ssrlcv::ptr::value<ssrlcv::Image> image2 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(2, true));
   images.push_back(image0);
   images.push_back(image1);
   images.push_back(image2);
@@ -258,11 +242,6 @@ TEST(PipelineTest, FeatureMatching3View) {
 
   ssrlcv::Unity<ssrlcv::KeyPoint> realKeyPoints(getCheckpoint<ssrlcv::KeyPoint>(0, true));
   ssrlcv::Unity<ssrlcv::MultiMatch> realMatches(getCheckpoint<ssrlcv::MultiMatch>(0, true));
-  
-  mkdir((std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()).c_str(), 0755);
-  std::ofstream out(std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() + "/" + ::testing::UnitTest::GetInstance()->current_test_info()->name() + ".log");
-  out << testing::internal::GetCapturedStdout();
-  out.close();
 
   // Make sure sizes are the same
   EXPECT_EQ(featureMatchOutput.matchSet.keyPoints->size(), realKeyPoints.size());
@@ -276,12 +255,9 @@ TEST(PipelineTest, FeatureMatching3View) {
 }
 
 TEST(PipelineTest, Triangulation2View) {
-  testing::internal::CaptureStdout();
-
   std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
-  ssrlcv::ptr::value<ssrlcv::Image> seedImage = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/seeds/seed_spongebob.png",-1);
-  ssrlcv::ptr::value<ssrlcv::Image> image0 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/2view/1.png",0);
-  ssrlcv::ptr::value<ssrlcv::Image> image1 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/2view/2.png",1);
+  ssrlcv::ptr::value<ssrlcv::Image> image0 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(0));
+  ssrlcv::ptr::value<ssrlcv::Image> image1 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(1));
   images.push_back(image0);
   images.push_back(image1);
 
@@ -298,11 +274,6 @@ TEST(PipelineTest, Triangulation2View) {
   ssrlcv::Unity<ssrlcv::KeyPoint> realKeyPoints(getCheckpoint<ssrlcv::KeyPoint>(0));
   ssrlcv::Unity<ssrlcv::MultiMatch> realMatches(getCheckpoint<ssrlcv::MultiMatch>(0));
   ssrlcv::Unity<float3> realPoints(getCheckpoint<float3>(0));
-  
-  mkdir((std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()).c_str(), 0755);
-  std::ofstream out(std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() + "/" + ::testing::UnitTest::GetInstance()->current_test_info()->name() + ".log");
-  out << testing::internal::GetCapturedStdout();
-  out.close();
 
   // Make sure sizes are the same
   EXPECT_EQ(triangulationInput.matchSet.keyPoints->size(), realKeyPoints.size());
@@ -319,13 +290,10 @@ TEST(PipelineTest, Triangulation2View) {
 }
 
 TEST(PipelineTest, Triangulation3View) {
-  testing::internal::CaptureStdout();
-
   std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
-  ssrlcv::ptr::value<ssrlcv::Image> seedImage = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/seeds/seed_spongebob.png",-1);
-  ssrlcv::ptr::value<ssrlcv::Image> image0 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/3view/1.png",0);
-  ssrlcv::ptr::value<ssrlcv::Image> image1 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/3view/2.png",1);
-  ssrlcv::ptr::value<ssrlcv::Image> image2 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/3view/3.png",1);
+  ssrlcv::ptr::value<ssrlcv::Image> image0 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(0, true));
+  ssrlcv::ptr::value<ssrlcv::Image> image1 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(1, true));
+  ssrlcv::ptr::value<ssrlcv::Image> image2 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(2, true));
   images.push_back(image0);
   images.push_back(image1);
   images.push_back(image2);
@@ -343,11 +311,6 @@ TEST(PipelineTest, Triangulation3View) {
   ssrlcv::Unity<ssrlcv::KeyPoint> realKeyPoints(getCheckpoint<ssrlcv::KeyPoint>(0, true));
   ssrlcv::Unity<ssrlcv::MultiMatch> realMatches(getCheckpoint<ssrlcv::MultiMatch>(0, true));
   ssrlcv::Unity<float3> realPoints(getCheckpoint<float3>(0, true));
-  
-  mkdir((std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()).c_str(), 0755);
-  std::ofstream out(std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() + "/" + ::testing::UnitTest::GetInstance()->current_test_info()->name() + ".log");
-  out << testing::internal::GetCapturedStdout();
-  out.close();
 
   // Make sure sizes are the same
   EXPECT_EQ(triangulationInput.matchSet.keyPoints->size(), realKeyPoints.size());
@@ -364,12 +327,9 @@ TEST(PipelineTest, Triangulation3View) {
 }
 
 TEST(PipelineTest, Filtering2View) {
-  testing::internal::CaptureStdout();
-
   std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
-  ssrlcv::ptr::value<ssrlcv::Image> seedImage = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/seeds/seed_spongebob.png",-1);
-  ssrlcv::ptr::value<ssrlcv::Image> image0 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/2view/1.png",0);
-  ssrlcv::ptr::value<ssrlcv::Image> image1 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/2view/2.png",1);
+  ssrlcv::ptr::value<ssrlcv::Image> image0 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(0));
+  ssrlcv::ptr::value<ssrlcv::Image> image1 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(1));
   images.push_back(image0);
   images.push_back(image1);
 
@@ -387,11 +347,6 @@ TEST(PipelineTest, Filtering2View) {
   ssrlcv::Unity<ssrlcv::KeyPoint> realKeyPoints(getCheckpoint<ssrlcv::KeyPoint>(1));
   ssrlcv::Unity<ssrlcv::MultiMatch> realMatches(getCheckpoint<ssrlcv::MultiMatch>(1));
   ssrlcv::Unity<float3> realPoints(getCheckpoint<float3>(1));
-  
-  mkdir((std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()).c_str(), 0755);
-  std::ofstream out(std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() + "/" + ::testing::UnitTest::GetInstance()->current_test_info()->name() + ".log");
-  out << testing::internal::GetCapturedStdout();
-  out.close();
 
   // Make sure sizes are the same
   EXPECT_EQ(filteringInput.matchSet.keyPoints->size(), realKeyPoints.size());
@@ -408,15 +363,13 @@ TEST(PipelineTest, Filtering2View) {
 }
 
 TEST(PipelineTest, Filtering3View) {
-  testing::internal::CaptureStdout();
-
   std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
-  ssrlcv::ptr::value<ssrlcv::Image> seedImage = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/seeds/seed_spongebob.png",-1);
-  ssrlcv::ptr::value<ssrlcv::Image> image0 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/3view/1.png",0);
-  ssrlcv::ptr::value<ssrlcv::Image> image1 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/3view/2.png",1);
-  ssrlcv::ptr::value<ssrlcv::Image> image2 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/3view/3.png",1);
+  ssrlcv::ptr::value<ssrlcv::Image> image0 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(0, true));
+  ssrlcv::ptr::value<ssrlcv::Image> image1 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(1, true));
+  ssrlcv::ptr::value<ssrlcv::Image> image2 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(2, true));
   images.push_back(image0);
   images.push_back(image1);
+  images.push_back(image2);
 
   ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>> keyPoints(getCheckpoint<ssrlcv::KeyPoint>(0, true));
   ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::MultiMatch>> matches(getCheckpoint<ssrlcv::MultiMatch>(0, true));
@@ -432,11 +385,6 @@ TEST(PipelineTest, Filtering3View) {
   ssrlcv::Unity<ssrlcv::KeyPoint> realKeyPoints(getCheckpoint<ssrlcv::KeyPoint>(1, true));
   ssrlcv::Unity<ssrlcv::MultiMatch> realMatches(getCheckpoint<ssrlcv::MultiMatch>(1, true));
   ssrlcv::Unity<float3> realPoints(getCheckpoint<float3>(1, true));
-  
-  mkdir((std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()).c_str(), 0755);
-  std::ofstream out(std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() + "/" + ::testing::UnitTest::GetInstance()->current_test_info()->name() + ".log");
-  out << testing::internal::GetCapturedStdout();
-  out.close();
 
   // Make sure sizes are the same
   EXPECT_EQ(filteringInput.matchSet.keyPoints->size(), realKeyPoints.size());
@@ -453,12 +401,9 @@ TEST(PipelineTest, Filtering3View) {
 }
 
 TEST(PipelineTest, BundleAdjust2View) {
-  testing::internal::CaptureStdout();
-
   std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
-  ssrlcv::ptr::value<ssrlcv::Image> seedImage = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/seeds/seed_spongebob.png",-1);
-  ssrlcv::ptr::value<ssrlcv::Image> image0 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/2view/1.png",0);
-  ssrlcv::ptr::value<ssrlcv::Image> image1 = ssrlcv::ptr::value<ssrlcv::Image>("/work/demlab/sfm/SSRLCV-Sample-Data/everest1024/2view/2.png",1);
+  ssrlcv::ptr::value<ssrlcv::Image> image0 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(0));
+  ssrlcv::ptr::value<ssrlcv::Image> image1 = ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(1));
   images.push_back(image0);
   images.push_back(image1);
 
@@ -475,11 +420,6 @@ TEST(PipelineTest, BundleAdjust2View) {
   ssrlcv::Unity<ssrlcv::KeyPoint> realKeyPoints(getCheckpoint<ssrlcv::KeyPoint>(1));
   ssrlcv::Unity<ssrlcv::MultiMatch> realMatches(getCheckpoint<ssrlcv::MultiMatch>(1));
   ssrlcv::Unity<float3> realPoints(getCheckpoint<float3>(2));
-  
-  mkdir((std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()).c_str(), 0755);
-  std::ofstream out(std::string("out/tests/") + ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() + "/" + ::testing::UnitTest::GetInstance()->current_test_info()->name() + ".log");
-  out << testing::internal::GetCapturedStdout();
-  out.close();
 
   // Make sure sizes are the same
   EXPECT_EQ(bundleAdjustInput.matchSet.keyPoints->size(), realKeyPoints.size());

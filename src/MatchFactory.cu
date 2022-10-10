@@ -39,13 +39,13 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::ptr::value<ssrlcv::Unity<u
   CudaCheckError();
   int numMatchesLeft = new_end - needsValidating;
   if(numMatchesLeft == 0){
-    std::cout<<"No valid matches found"<<"\n";
+    logger.info<<"No valid matches found";
     matches.clear();
     return;
   }
   
 
-  printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
+  logger.info.printf("%d valid matches found out of %lu original matches",numMatchesLeft,matches->size());
 
   ssrlcv::ptr::device<uint2_pair> validatedMatches_device(numMatchesLeft);
   CudaSafeCall(cudaMemcpy(validatedMatches_device.get(),matches->device.get(),numMatchesLeft*sizeof(uint2_pair),cudaMemcpyDeviceToDevice));
@@ -65,13 +65,13 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::ptr::value<ssrlcv::Unity<s
   CudaCheckError();
   int numMatchesLeft = new_end - needsValidating;
   if(numMatchesLeft == 0){
-    std::cout<<"No valid matches found"<<"\n";
+    logger.info<<"No valid matches found";
     matches.clear();
     return;
   }
   
 
-  printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
+  logger.info.printf("%d valid matches found out of %lu original matches",numMatchesLeft,matches->size());
 
   ssrlcv::ptr::device<Match> validatedMatches_device(numMatchesLeft);
   CudaSafeCall(cudaMemcpy(validatedMatches_device.get(),matches->device.get(),numMatchesLeft*sizeof(Match),cudaMemcpyDeviceToDevice));
@@ -91,13 +91,13 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::ptr::value<ssrlcv::Unity<s
   CudaCheckError();
   int numMatchesLeft = new_end - needsValidating;
   if(numMatchesLeft == 0){
-    std::cout<<"No valid matches found"<<"\n";
+    logger.info<<"No valid matches found";
     matches.clear();
     return;
   }
   
 
-  printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
+  logger.info.printf("%d valid matches found out of %lu original matches",numMatchesLeft,matches->size());
 
   ssrlcv::ptr::device<DMatch> validatedMatches_device(numMatchesLeft);
   CudaSafeCall(cudaMemcpy(validatedMatches_device.get(),matches->device.get(),numMatchesLeft*sizeof(DMatch),cudaMemcpyDeviceToDevice));
@@ -116,14 +116,14 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::FeatureMatch
   CudaCheckError();
   int numMatchesLeft = new_end - matches->device.get();
   if(numMatchesLeft == 0){
-    std::cout<<"No valid matches found"<<"\n";
+    logger.info<<"No valid matches found";
     delete matches;
     matches = nullptr;
     return;
   }
   
 
-  printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
+  logger.info.printf("%d valid matches found out of %lu original matches",numMatchesLeft,matches->size());
 
   ssrlcv::ptr::device<FeatureMatch<T>> validatedMatches_device(numMatchesLeft);
   CudaSafeCall(cudaMemcpy(validatedMatches_device.get(),matches->device.get(),numMatchesLeft*sizeof(FeatureMatch<T>),cudaMemcpyDeviceToDevice));
@@ -136,7 +136,7 @@ void ssrlcv::MatchFactory<T>::validateMatches(ssrlcv::Unity<ssrlcv::FeatureMatch
 template<typename T>
 void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> matches, float threshold){
   if(threshold == 0.0f){
-    std::cout<<"ERROR illegal value used for threshold: 0.0"<<"\n";
+    logger.err<<"ERROR illegal value used for threshold: 0.0";
     exit(-1);
   }
   MemoryState origin = matches->getMemoryState();
@@ -151,7 +151,7 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::ptr::value<ssrlcv::Unity<ssr
     return;
   }
 
-  printf("%lu matches have been refined to %u matches using a cutoff of %f\n",matches->size(),numElementsBelowThreshold,threshold);
+  logger.info.printf("%lu matches have been refined to %u matches using a cutoff of %f",matches->size(),numElementsBelowThreshold,threshold);
 
   ssrlcv::ptr::device<DMatch> compactedMatches_device(numElementsBelowThreshold);
   CudaSafeCall(cudaMemcpy(compactedMatches_device.get(),matches->device.get(),numElementsBelowThreshold*sizeof(DMatch),cudaMemcpyDeviceToDevice));
@@ -163,7 +163,7 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::ptr::value<ssrlcv::Unity<ssr
 template<typename T>
 void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T>>* matches, float threshold){
   if(threshold == 0.0f){
-    std::cout<<"ERROR illegal value used for cutoff ratio: 0.0"<<"\n";
+    logger.err<<"ERROR illegal value used for cutoff ratio: 0.0";
     exit(-1);
   }
   MemoryState origin = matches->getMemoryState();
@@ -178,7 +178,7 @@ void ssrlcv::MatchFactory<T>::refineMatches(ssrlcv::Unity<ssrlcv::FeatureMatch<T
     return;
   }
 
-  printf("%lu matches have been refined to %u matches using a cutoff of %f\n",matches->size(),numElementsBelowThreshold,threshold);
+  logger.info.printf("%lu matches have been refined to %u matches using a cutoff of %f",matches->size(),numElementsBelowThreshold,threshold);
 
   ssrlcv::ptr::device<FeatureMatch<T>> compactedMatches_device(numElementsBelowThreshold);
   CudaSafeCall(cudaMemcpy(compactedMatches_device.get(),matches->device.get(),numElementsBelowThreshold*sizeof(FeatureMatch<T>),cudaMemcpyDeviceToDevice));
@@ -215,7 +215,7 @@ void ssrlcv::MatchFactory<T>::sortMatches(ssrlcv::ptr::value<ssrlcv::Unity<DMatc
     if(matches->getMemoryState() == both) matches->transferMemoryTo(gpu);
   }
   else{
-    logger.err<<"ERROR cannot perform sortMatches with matches->getMemoryState() = "<<std::to_string(matches->getMemoryState())<<"\n";
+    logger.err<<"ERROR cannot perform sortMatches with matches->getMemoryState() = "<<std::to_string(matches->getMemoryState());
     exit(-1);
   }
 }
@@ -246,7 +246,7 @@ void ssrlcv::MatchFactory<T>::sortMatches(Unity<FeatureMatch<T>>* matches){
     if(matches->getMemoryState() == both) matches->transferMemoryTo(gpu);
   }
   else{
-    logger.err<<"ERROR cannot perform sortMatches with matches->getMemoryState() = "<<std::to_string(matches->getMemoryState())<<"\n";
+    logger.err<<"ERROR cannot perform sortMatches with matches->getMemoryState() = "<<std::to_string(matches->getMemoryState());
     exit(-1);
   }
 }
@@ -332,7 +332,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::MatchFactory<T>::getSeedDistanc
   cudaDeviceSynchronize();
   CudaCheckError();
 
-  printf("seed match distances computed in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("seed match distances computed in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
   if(origin != gpu) features->setMemoryState(origin);
   
@@ -362,7 +362,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::genera
     target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(),this->absoluteThreshold);
   }
   else if(seedDistances->size() != queryFeatures->size()){
-    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
     exit(-1);
   }
   else{
@@ -379,7 +379,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::genera
 
   this->validateMatches(matches);
 
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
   if(origin[0] != gpu) queryFeatures->setMemoryState(origin[0]);
   if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
@@ -413,7 +413,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::genera
     target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(), epsilon,fundamental_device.get(),this->absoluteThreshold);
   }
   else if(seedDistances->size() != queryFeatures->size()){
-    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
     exit(-1);
   }
   else{
@@ -430,7 +430,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::genera
 
   this->validateMatches(matches);
 
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
   if(origin[0] != gpu) queryFeatures->setMemoryState(origin[0]);
   if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
@@ -461,7 +461,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> ssrlcv::MatchFactory<T>::gener
     target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(),this->absoluteThreshold);
   }
   else if(seedDistances->size() != queryFeatures->size()){
-    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
     exit(-1);
   }
   else{
@@ -477,7 +477,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> ssrlcv::MatchFactory<T>::gener
 
   this->validateMatches(matches);
 
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
   if(origin[0] != gpu) queryFeatures->setMemoryState(origin[0]);
   if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
@@ -570,7 +570,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>>ssrlcv::MatchFactory<T>:: gener
     target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(), epsilon, fundamental_device.get(),this->absoluteThreshold);
   }
   else if(seedDistances->size() != queryFeatures->size()){
-    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
     exit(-1);
   }
   else{
@@ -586,7 +586,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>>ssrlcv::MatchFactory<T>:: gener
 
   this->validateMatches(matches);
 
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
   if(origin[0] != gpu) queryFeatures->setMemoryState(origin[0]);
   if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
@@ -621,7 +621,7 @@ ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<ssrlcv::Unity<ssrlc
     target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(),this->absoluteThreshold);
   }
   else if(seedDistances->size() != queryFeatures->size()){
-    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
     exit(-1);
   }
   else{
@@ -633,7 +633,7 @@ ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<ssrlcv::Unity<ssrlc
     if(seedOrigin != gpu) seedDistances->setMemoryState(seedOrigin);
   }
     
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
   if(origin[0] != gpu) queryFeatures->setMemoryState(origin[0]);
   if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
@@ -669,7 +669,7 @@ ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<ssrlcv::Unity<ssrlc
     target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(), epsilon, fundamental_device.get(),this->absoluteThreshold);
   }
   else if(seedDistances->size() != queryFeatures->size()){
-    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
     exit(-1);
   }
   else{
@@ -685,7 +685,7 @@ ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<ssrlcv::Unity<ssrlc
 
   this->validateMatches(matches);
 
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
   if(origin[0] != gpu) queryFeatures->setMemoryState(origin[0]);
   if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
@@ -719,7 +719,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::uint2_pair>> ssrlcv::MatchFactory<T>::g
     target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(),this->absoluteThreshold);
   }
   else if(seedDistances->size() != queryFeatures->size()){
-    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
     exit(-1);
   }
   else{
@@ -736,7 +736,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::uint2_pair>> ssrlcv::MatchFactory<T>::g
 
   this->validateMatches(matches);
 
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
   if(origin[0] != gpu) queryFeatures->setMemoryState(origin[0]);
   if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
@@ -770,7 +770,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::uint2_pair>> ssrlcv::MatchFactory<T>::g
     target->id, targetFeatures->size(), targetFeatures->device.get(), matches->device.get(), epsilon,fundamental_device.get(),this->absoluteThreshold);
   }
   else if(seedDistances->size() != queryFeatures->size()){
-    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures"<<"\n";
+    logger.err<<"ERROR: seedDistances should have come from matching a seed image to queryFeatures";
     exit(-1);
   }
   else{
@@ -787,7 +787,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::uint2_pair>> ssrlcv::MatchFactory<T>::g
 
   this->validateMatches(matches);
 
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
   if(origin[0] != gpu) queryFeatures->setMemoryState(origin[0]);
   if(origin[1] != gpu) targetFeatures->setMemoryState(origin[1]);
@@ -802,7 +802,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
   matchSet.keyPoints = nullptr;
   matchSet.matches = nullptr;
   if(estimatedOverlap == 0){
-    logger.warn<<"WARNING: estimated overlap fraction of 0.0f requires unordered match interpolation"<<"\n";
+    logger.warn<<"WARNING: estimated overlap fraction of 0.0f requires unordered match interpolation";
   }
   std::vector<ssrlcv::ptr::value<ssrlcv::Image>>::iterator query = images.begin();
   std::vector<ssrlcv::ptr::value<ssrlcv::Image>>::iterator target = query + 1;
@@ -812,7 +812,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
   ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances;
   unsigned long long totalMatches = 0;
   int i = 0;
-  std::cout<<"matching images"<<"\n";
+  logger.info<<"matching images";
   for(int i = 0; query != images.end() - 1; ++query, ++features_query){
     if(this->seedFeatures != nullptr) seedDistances = this->getSeedDistances(*features_query);
     for(target = query + 1,features_target = features_query + 1; target != images.end(); ++target, ++features_target){
@@ -823,17 +823,17 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
     }
   }
   if(totalMatches == 0){
-    logger.err<<"There were no matches found in the set of images, likely due to unreasonable threshold"<<"\n";
-    logger.err<<"exiting..."<<"\n";
+    logger.err<<"There were no matches found in the set of images, likely due to unreasonable threshold";
+    logger.err<<"exiting...";
     exit(0);
   }
-  std::cout<<"prepping match interpolation on cpu"<<"\n";
+  logger.info<<"prepping match interpolation on cpu";
   //required connections to make a match?
   std::vector<uint2>** adjacencyList = new std::vector<uint2>*[images.size() - 1];
 
   i = 0;
   adjacencyList[0] = new std::vector<uint2>[features[0]->size()];
-  std::cout<<"building adjacency list"<<"\n";
+  logger.info<<"building adjacency list";
   for(auto m = matchIndices.begin(); m != matchIndices.end(); ++m){
     ssrlcv::ptr::value<ssrlcv::Unity<uint2_pair>> currentMatches = *m;
     if(currentMatches->getMemoryState() != cpu) currentMatches->setMemoryState(cpu);
@@ -849,7 +849,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
   MemoryState* origin = new MemoryState[images.size()];
   std::vector<std::vector<uint2>> multiMatch_vec;
   bool badMatch = false;
-  std::cout<<"deriving matches from adjacency"<<"\n";
+  logger.info<<"deriving matches from adjacency";
   for(i = 0; i < images.size() - 1; ++i){
     origin[i] = features[i]->getMemoryState();
     if(origin[i] != cpu) features[i]->setMemoryState(cpu);
@@ -890,7 +890,7 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
     delete[] adjacencyList[i];
   }
   delete[] adjacencyList;
-  std::cout<<"total matches found in set = "<<multiMatch_vec.size()<<"\n";
+  logger.info.printf("total matches found in set = %d", multiMatch_vec.size());
   matchSet.matches = ssrlcv::ptr::value<ssrlcv::Unity<MultiMatch>>(nullptr,multiMatch_vec.size(),cpu);
   std::vector<KeyPoint> kp_vec;
   i = 0;
@@ -917,20 +917,21 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExaustive(std::vector<s
 ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::generateDiparityMatches(uint2 querySize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> queryPixels, uint2 targetSize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> targetPixels, 
   float fundamental[3][3], unsigned int maxDisparity,unsigned int windowSize, Direction direction){
   if(direction != right && direction != left && direction != undefined){
-    logger.err<<"ERROR: unsupported search direction for disparity matching"<<"\n";
+    logger.err<<"ERROR: unsupported search direction for disparity matching";
     exit(-1);
   }
   if(maxDisparity > querySize.x){
-    logger.err<<"Max disparity cannot be larger than image size"<<"\n";
+    logger.err<<"Max disparity cannot be larger than image size";
     exit(-1);
   }
-  printf(
-    "running disparity matching on parallel images \n\timage[0] = %ux%u\n\timage[1] = %ux%u\n\tmaxDisparity = %u\n\twindow size = %ux%u\n",
-    querySize.x,querySize.y,targetSize.x,targetSize.y,maxDisparity,windowSize,windowSize
-  );
+  logger.info.printf("running disparity matching on parallel images");
+  logger.info.printf("\timage[0] = %ux%u",querySize.x,querySize.y);
+  logger.info.printf("\timage[1] = %ux%u",targetSize.x,targetSize.y);
+  logger.info.printf("\tmaxDisparity = %u",maxDisparity);
+  logger.info.printf("\twindow size = %ux%u",windowSize,windowSize);
 
   if(windowSize == 0 || windowSize % 2 == 0 || windowSize > 31){
-    logger.err<<"ERROR window size for disparity matching must be greater than 0, less than 31 and odd"<<"\n";
+    logger.err<<"ERROR window size for disparity matching must be greater than 0, less than 31 and odd";
     exit(-1);
   }
 
@@ -976,7 +977,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::generateDiparityMatches
   
   cudaDeviceSynchronize();
   CudaCheckError();  
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
   if(origin[0] != gpu) queryPixels->setMemoryState(origin[0]);
   if(origin[1] != gpu) targetPixels->setMemoryState(origin[1]);
@@ -987,11 +988,11 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::generateDiparityMatches
   CudaCheckError();
   int numMatchesLeft = new_end - needsValidating;
   if(numMatchesLeft == 0){
-    std::cout<<"No valid matches found"<<"\n";
+    logger.info<<"No valid matches found";
     matches.clear();
   }
   else{
-    printf("%d valid matches found out of %lu original matches\n",numMatchesLeft,matches->size());
+    logger.info.printf("%d valid matches found out of %lu original matches",numMatchesLeft,matches->size());
     ssrlcv::ptr::device<Match> validatedMatches_device(numMatchesLeft);
     CudaSafeCall(cudaMemcpy(validatedMatches_device.get(),matches->device.get(),numMatchesLeft*sizeof(Match),cudaMemcpyDeviceToDevice));
     matches->setData(validatedMatches_device,numMatchesLeft,gpu);
@@ -1014,7 +1015,7 @@ void ssrlcv::writeMatchFile(ssrlcv::ptr::value<ssrlcv::Unity<Match>> matches, st
       }
     }
     else{
-      logger.err<<"ERROR: cannot write "<<pathToFile<<"\n";
+      logger.err<<"ERROR: cannot write "<<pathToFile;
     }
     matchstream.close();
   }
@@ -1032,11 +1033,11 @@ void ssrlcv::writeMatchFile(ssrlcv::ptr::value<ssrlcv::Unity<Match>> matches, st
       matchstream.close();
     }
     else{
-      logger.err<<"ERROR: cannot write match files"<<"\n";
+      logger.err<<"ERROR: cannot write match files";
       exit(-1);
     }
   }
-  std::cout<<pathToFile<<" has been written"<<"\n";
+  logger.info << pathToFile + " has been written";
   if(origin != matches->getMemoryState()) matches->setMemoryState(origin);
 }
 void ssrlcv::writeMatchFile(MatchSet multiview_matches, std::string pathToFile, bool binary){
@@ -1062,11 +1063,11 @@ void ssrlcv::writeMatchFile(MatchSet multiview_matches, std::string pathToFile, 
     matchstream.close();
   }
   else{
-    logger.err<<"ERROR: cannot write match files"<<"\n";
+    logger.err<<"ERROR: cannot write match files";
     exit(-1);
   }
   
-  std::cout<<pathToFile<<" has been written"<<"\n";
+  logger.info << pathToFile + " has been written";
   if(origin[0] != cpu) matches->setMemoryState(origin[0]);
   if(origin[1] != cpu) keyPoints->setMemoryState(origin[1]);
 }
@@ -1095,7 +1096,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::readMatchFile(std::stri
       match_vec.push_back(match);
     }
   }
-  std::cout<<match_vec.size()<<" matches have been read."<<"\n";
+  logger.info.printf("%d matches have been read.", match_vec.size());
   ssrlcv::ptr::value<ssrlcv::Unity<Match>> matches = ssrlcv::ptr::value<ssrlcv::Unity<Match>>(nullptr,match_vec.size(),cpu);
   std::memcpy(matches->host.get(),&match_vec[0],match_vec.size()*sizeof(Match));
   return matches;

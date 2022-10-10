@@ -27,7 +27,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::stereo_disp
                         + (cameras[0].cam_pos.z - cameras[1].cam_pos.z)*(cameras[0].cam_pos.z - cameras[1].cam_pos.z));
   float scale = (baseline * cameras[0].foc )/(cameras[0].dpix.x);
 
-  std::cout << "Stereo Baseline: " << baseline << ", Stereo Scale Factor: " << scale <<  ", Inverted Stereo Scale Factor: " << (1.0/scale) << std::endl;
+  logger.info << "Stereo Baseline: " + std::to_string(baseline) + ", Stereo Scale Factor: " + std::to_string(scale) +  ", Inverted Stereo Scale Factor: " + std::to_string(1.0/scale);
 
   MemoryState origin = matches->getMemoryState();
   if(origin == cpu) matches->transferMemoryTo(gpu);
@@ -277,9 +277,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::twoViewTria
   void (*fp)(float*, unsigned long, Bundle::Line*, Bundle*, float3*) = &computeTwoViewTriangulate;
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
-  // std::cout << "Starting 2-view triangulation ..." << std::endl;
   computeTwoViewTriangulate<<<grid,block>>>(d_linearError,bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud->device.get());
-  // std::cout << "2-view Triangulation done ... \n" << std::endl;
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -324,9 +322,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::twoViewTria
   void (*fp)(float*, float*, unsigned long, Bundle::Line*, Bundle*, float3*) = &computeTwoViewTriangulate;
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
-  // std::cout << "Starting 2-view triangulation ..." << std::endl;
   computeTwoViewTriangulate<<<grid,block>>>(d_linearError,errors->device.get(),bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud->device.get());
-  // std::cout << "2-view Triangulation done ... \n" << std::endl;
 
   cudaDeviceSynchronize();
   CudaCheckError();
@@ -382,9 +378,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::twoViewTria
   void (*fp)(float*, float*, float*, unsigned long, Bundle::Line*, Bundle*, float3*) = &computeTwoViewTriangulate;
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
-  // std::cout << "Starting 2-view triangulation ..." << std::endl;
   computeTwoViewTriangulate<<<grid,block>>>(d_linearError,d_linearErrorCutoff,errors->device.get(),bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud->device.get());
-  // std::cout << "2-view Triangulation done ... \n" << std::endl;
 
   // tell which data is most up to date
   bundleSet.lines->setFore(gpu);
@@ -450,9 +444,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3_b>> ssrlcv::PointCloudFactory::twoViewTr
     dim3 block = {1,1,1};
     getFlatGridBlock(bundleSet.bundles->size(),grid,block,computeTwoViewTriangulate_b);
 
-    // std::cout << "Starting 2-view triangulation ..." << std::endl;
     computeTwoViewTriangulate_b<<<grid,block>>>(d_linearError,d_linearErrorCutoff,errors->device.get(),bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud_b->device.get());
-    // std::cout << "2-view Triangulation done ... \n" << std::endl;
 
     pointcloud_b->setFore(gpu);
     errors->setFore(gpu);
@@ -469,7 +461,6 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3_b>> ssrlcv::PointCloudFactory::twoViewTr
     errors->clear(gpu);
     // temp
 
-    std::cout << std::endl;
     // end temp
     // clear the other boiz
     bundleSet.lines->clear(gpu);
@@ -586,9 +577,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::nViewTriang
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
 
-  std::cout << "Starting n-view triangulation ..." << std::endl;
+  logger.info << "Starting n-view triangulation ...";
   computeNViewTriangulate<<<grid,block>>>(bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud->device.get());
-  std::cout << "n-view Triangulation done ... \n" << std::endl;
+  logger.info << "n-view Triangulation done ...";
 
   pointcloud->setFore(gpu);
   bundleSet.lines->setFore(gpu);
@@ -627,9 +618,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::nViewTriang
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
 
-  std::cout << "Starting n-view triangulation ..." << std::endl;
+  logger.info << "Starting n-view triangulation ...";
   computeNViewTriangulate<<<grid,block>>>(d_angularError,bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud->device.get());
-  std::cout << "n-view Triangulation done ... \n" << std::endl;
+  logger.info << "n-view Triangulation done ...";
 
   pointcloud->setFore(gpu);
   bundleSet.lines->setFore(gpu);
@@ -673,9 +664,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::nViewTriang
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
 
-  std::cout << "Starting n-view triangulation ..." << std::endl;
+  logger.info << "Starting n-view triangulation ...";
   computeNViewTriangulate<<<grid,block>>>(d_angularError,errors->device.get(),bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud->device.get());
-  std::cout << "n-view Triangulation done ... \n" << std::endl;
+  logger.info << "n-view Triangulation done ...";
 
   //
   pointcloud->setFore(gpu);
@@ -730,9 +721,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::nViewTriang
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
 
-  std::cout << "Starting n-view triangulation ..." << std::endl;
+  logger.info << "Starting n-view triangulation ...";
   computeNViewTriangulate<<<grid,block>>>(d_angularError,d_angularErrorCutoff,errors->device.get(),bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud->device.get());
-  std::cout << "n-view Triangulation done ... \n" << std::endl;
+  logger.info << "n-view Triangulation done ...";
 
   bundleSet.lines->setFore(gpu);
   bundleSet.bundles->setFore(gpu);
@@ -796,9 +787,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::nViewTriang
   getFlatGridBlock(bundleSet.bundles->size(),grid,block,fp);
 
 
-  std::cout << "Starting n-view triangulation ..." << std::endl;
+  logger.info << "Starting n-view triangulation ...";
   computeNViewTriangulate<<<grid,block>>>(d_angularError,d_lowCut,d_highCut,errors->device.get(),bundleSet.bundles->size(),bundleSet.lines->device.get(),bundleSet.bundles->device.get(),pointcloud->device.get());
-  std::cout << "n-view Triangulation done ... \n" << std::endl;
+  logger.info << "n-view Triangulation done ...";
 
   bundleSet.lines->setFore(gpu);
   bundleSet.bundles->setFore(gpu);
@@ -857,7 +848,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
     // standard projection case
     //
 
-    if (local_debug || local_verbose) std::cout << "\t Generating standard projective bundles ... " << std::endl;
+    if (local_debug || local_verbose) logger.info << "\t Generating standard projective bundles ... ";
 
     // the cameras
     size_t cam_bytes = images.size()*sizeof(ssrlcv::Image::Camera);
@@ -868,7 +859,6 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
       h_cameras[i] = images.at(i)->camera;
     }
     ssrlcv::Image::Camera* d_cameras;
-    // std::cout << "set the cameras ... " << std::endl;
     CudaSafeCall(cudaMalloc(&d_cameras, cam_bytes));
     // copy the othe guy
     CudaSafeCall(cudaMemcpy(d_cameras, h_cameras, cam_bytes, cudaMemcpyHostToDevice));
@@ -888,7 +878,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
     // pushbroom projection case
     //
 
-    if (local_debug || local_verbose) std::cout << "\t Generating special pushbroom bundles ... " << std::endl;
+    if (local_debug || local_verbose) logger.info << "\t Generating special pushbroom bundles ... ";
 
     // the cameras
     size_t push_bytes = images.size()*sizeof(ssrlcv::Image::PushbroomCamera);
@@ -899,7 +889,6 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
       h_pushbrooms[i] = images.at(i)->pushbroom;
     }
     ssrlcv::Image::PushbroomCamera* d_pushbrooms;
-    // std::cout << "set the cameras ... " << std::endl;
     CudaSafeCall(cudaMalloc(&d_pushbrooms, push_bytes));
     // copy the othe guy
     CudaSafeCall(cudaMemcpy(d_pushbrooms, h_pushbrooms, push_bytes, cudaMemcpyHostToDevice));
@@ -965,29 +954,41 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   // for the cube 2 view test
   //debug
   if (local_debug){
-    std::cout << std::endl;
-    std::cout << "\t params per cam: " << params_per_cam << std::endl;
+    std::stringstream ss;
+    ss << "\t params per cam: " << params_per_cam;
+    logger.info << ss.str();
+    ss.str("");
     ssrlcv::ptr::value<ssrlcv::Unity<float>> temp_params2;
-    std::cout << "\t input params :" << std::endl;
+    ss << "\t input params : ";
     for (int i = 0; i < params->size(); i++){
-      std::cout << params->host.get()[i] << " ";
+      ss << params->host.get()[i] << " ";
     }
-    std::cout << std::endl;
-    std::cout << "\t images params: " << std::endl << "\t\t ";
+    logger.info << ss.str();
+    ss.str("");
+    ss << "\t images params: ";
+    logger.info << ss.str();
+    ss.str("");
+    ss << "\t\t ";
     for (int i = 0; i < images.size(); i++){
       temp_params2 = images[i]->getFloatVector(params_per_cam);
       for (int j = 0; j < temp_params2->size(); j++) {
-        std::cout << temp_params2->host.get()[j] << " ";
+        ss << temp_params2->host.get()[j] << " ";
       }
-      std::cout << std::endl << "\t\t ";
+      logger.info << ss.str();
+      ss.str("");
+      ss << "\t\t ";
     }
-    std::cout << "\t backup params: " << std::endl << "\t\t ";
+    ss << "\t backup params: ";
+    logger.info << ss.str();
+    ss.str("");
+    ss << "\t\t ";
     for (int i = 0; i < temp.size(); i++){
       temp_params2 = temp[i]->getFloatVector(params_per_cam);
       for (int j = 0; j < temp_params2->size(); j++) {
-        std::cout << temp_params2->host.get()[j] << " ";
+        ss << temp_params2->host.get()[j] << " ";
       }
-      std::cout << std::endl << "\t\t ";
+      logger.info << ss.str();
+      ss.str("");
     }
   }
 
@@ -1006,7 +1007,6 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
     h_cameras[i] = images.at(i)->camera;
   }
   ssrlcv::Image::Camera* d_cameras;
-  // std::cout << "set the cameras ... " << std::endl;
   CudaSafeCall(cudaMalloc(&d_cameras, cam_bytes));
   // copy the othe guy
   CudaSafeCall(cudaMemcpy(d_cameras, h_cameras, cam_bytes, cudaMemcpyHostToDevice));
@@ -1018,9 +1018,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::generateBundles(MatchSet* matchSet,
   getFlatGridBlock(bundles->size(),grid,block,generateBundle);
 
   //in this kernel fill lines and bundles from keyPoints and matches
-  // std::cout << "Calling bundle generation kernel ..." << std::endl;
   generateBundle<<<grid, block>>>(bundles->size(),bundles->device.get(), lines->device.get(), matchSet->matches->device.get(), matchSet->keyPoints->device.get(), d_cameras);
-  // std::cout << "Returned from bundle generation kernel ... \n" << std::endl;
 
   CudaSafeCall(cudaFree(d_cameras));
 
@@ -1299,16 +1297,27 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
   // we are only testing position and orientation gradients
 
   if (local_debug){
-    std::cout << "\t Params: " << std::endl << "\t\t ";
+    std::stringstream ss;
+    ss << "\t Params: ";
+    logger.info << ss.str();
+    ss.str("");
+    ss << "\t\t ";
     for (int i = 0; i < params->size(); i++) {
-      std::cout << params->host.get()[i] << " ";
+      ss << params->host.get()[i] << " ";
     }
-    std::cout << std::endl;
-    std::cout << "\t Params reset: " << std::endl << "\t\t ";
+    logger.info << ss.str();
+    ss.str("");
+    ss << "\t Params reset: ";
+    logger.info << ss.str();
+    ss.str("");
+    ss << "\t\t ";
     for (int i = 0; i < params_reset->size(); i++) {
-      std::cout << params_reset->host.get()[i] << " ";
+      ss << params_reset->host.get()[i] << " ";
     }
-    std::cout << std::endl << "\t Hessian Size: " << params->size() * params->size() << std::endl;
+    logger.info << ss.str();
+    ss.str("");
+    ss << "\t Hessian Size: " << params->size() * params->size();
+    logger.info << ss.str();
   }
 
   for (int i = 0; i < params->size(); i++){
@@ -1368,12 +1377,22 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
         // update the hessian
         h->host.get()[h_i] = numer / denom;
 
-        if (isnan(numer/denom && local_debug)){
-          std::cout << "!!NaN found at: [" << i << "," << j << "] " << std::endl;
-          std::cout << "\t " << A << "  " << B << "  " << C << "  " << D << "  " << E << std::endl;
-          std::cout << "\t i mod " << num_params << " = " << i%num_params << "\t" << std::endl;
-          std::cout << "\t j mod " << num_params << " = " << j%num_params << "\t" << std::endl;
-          std::cout << "\t numer = " << numer << "\t denom = " << denom << std::endl;
+        if (isnan(numer/denom) && local_debug){
+          std::stringstream ss;
+          ss << "!!NaN found at: [" << i << "," << j << "] ";
+          logger.info << ss.str();
+          ss.str("");
+          ss << "\t " << A << "  " << B << "  " << C << "  " << D << "  " << E;
+          logger.info << ss.str();
+          ss.str("");
+          ss << "\t i mod " << num_params << " = " << i%num_params << "\t";
+          logger.info << ss.str();
+          ss.str("");
+          ss << "\t j mod " << num_params << " = " << j%num_params << "\t";
+          logger.info << ss.str();
+          ss.str("");
+          ss << "\t numer = " << numer << "\t denom = " << denom;
+          logger.info << ss.str();
           mfNaNs->host.get()[i*params->size() + j] = true;
         } else {
           mfNaNs->host.get()[i*params->size() + j] = false;
@@ -1428,11 +1447,21 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
         h->host.get()[h_i] = numer / denom;
 
         if (isnan(numer/denom) && local_debug){
-          std::cout << "!!NaN found at: [" << i << "," << j << "] " << std::endl;
-          std::cout << "\t " << A << "  " << B << "  " << C << "  " << D << std::endl;
-          std::cout << "\t i mod " << num_params << " = " << i%num_params << "\t" << std::endl;
-          std::cout << "\t j mod " << num_params << " = " << j%num_params << "\t" << std::endl;
-          std::cout << "\t numer = " << numer << "\t denom = " << denom << std::endl;
+          std::stringstream ss;
+          ss << "!!NaN found at: [" << i << "," << j << "] ";
+          logger.info << ss.str();
+          ss.str("");
+          ss << "\t " << A << "  " << B << "  " << C << "  " << D;
+          logger.info << ss.str();
+          ss.str("");
+          ss << "\t i mod " << num_params << " = " << i%num_params << "\t";
+          logger.info << ss.str();
+          ss.str("");
+          ss << "\t j mod " << num_params << " = " << j%num_params << "\t";
+          logger.info << ss.str();
+          ss.str("");
+          ss << "\t numer = " << numer << "\t denom = " << denom;
+          logger.info << ss.str();
           mfNaNs->host.get()[i*params->size() + j] = true;
         } else {
           mfNaNs->host.get()[i*params->size() + j] = false;
@@ -1442,9 +1471,11 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
 
       if (local_debug){
         // testing what is with respect to what
-        if (!j) std::cout << std::endl <<  "\t\t " ;
-        std::cout << "( " << h_i << " )" << "[ " << i << ", " << j << "] \t";
-        if (i == j && i == (params->size() -1)) std::cout << std::endl;
+        std::stringstream ss;
+        if (!j) ss <<  "\t\t " ;
+        ss << "( " << h_i << " )" << "[ " << i << ", " << j << "] \t";
+        if (i == j && i == (params->size() -1)) logger.info << "";
+        logger.info << ss.str();
       }
 
       // increment the hessian index
@@ -1453,15 +1484,19 @@ void ssrlcv::PointCloudFactory::calculateImageHessian(MatchSet* matchSet, std::v
   }
 
   if (local_debug){
-    std::cout << std::endl;
+    std::stringstream ss;
     for (int k = 0; k < mfNaNs->size(); k++){
-      if (!(k%params->size())) std::cout << std::endl;
+      if (!(k%params->size())) {
+        logger.info << ss.str();
+        ss.str("");
+      }
       if (mfNaNs->host.get()[k]){
-        std::cout << " * ";
+        ss << " * ";
       } else {
-        std::cout << "   ";
+        ss << "   ";
       }
     }
+    logger.info << ss.str();
   }
 
   // cleanup memory
@@ -1494,24 +1529,27 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::PointCloudFactory::calculateIma
   ssrlcv::ptr::value<ssrlcv::Unity<float>> VT = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,hessian->size(),ssrlcv::gpu);
 
   // Put the hessian into matrix A in column major order
-  if (local_debug) std::cout << std::endl << "\t H^T: " << std::endl;
+  if (local_debug) logger.info << "\t H^T: ";
   int index = 0;
   for (int i = 0; i < N; i++){
-    if (local_debug) std::cout << std::endl << "\t\t ";
     for (int j = i; j < (N*N); j+=N){
       A->host.get()[index] = hessian->host.get()[j];
-      if (local_debug) std::cout << std::fixed << std::setprecision(12) << hessian->host.get()[j] << "  ";
       index++;
+      std::stringstream ss;
+      ss << "\t\t " << std::fixed << std::setprecision(12) << hessian->host.get()[j] << "  ";
+      if (local_debug) logger.info << ss.str();
     }
   }
 
   if (local_debug){
-    std::cout << std::endl << "\t matrix A: " << std::endl;
+    logger.info << "\t matrix A: ";
     for (int i = 0; i < N; i++){
-      std::cout << std::endl << "\t\t ";
+      std::stringstream ss;
+      ss << "\t\t ";
       for (int j = i; j < (N*N); j+=N){
-        std::cout << std::fixed << std::setprecision(12) << A->host.get()[j] << "  ";
+        ss << std::fixed << std::setprecision(12) << A->host.get()[j] << "  ";
       }
+      logger.info << ss.str();
     }
   }
 
@@ -1540,18 +1578,18 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::PointCloudFactory::calculateIma
   cudaDeviceSynchronize();
 
   if (cusolver_status != CUSOLVER_STATUS_SUCCESS){
-    std::cerr << std::endl << "ERROR setting up cuSOLVER, error status: " << cusolver_status << std::endl;
+    logger.err << "ERROR setting up cuSOLVER, error status: " + std::to_string(cusolver_status);
     if (cusolver_status == CUSOLVER_STATUS_NOT_INITIALIZED) {
-      std::cerr << "\t ERROR: CUSOLVER_STATUS_NOT_INITIALIZED" << std::endl;
+      logger.err << "\t ERROR: CUSOLVER_STATUS_NOT_INITIALIZED";
     }
     if (cusolver_status == CUSOLVER_STATUS_INVALID_VALUE) {
-      std::cerr << "\t ERROR: CUSOLVER_STATUS_INVALID_VALUE" << std::endl;
+      logger.err << "\t ERROR: CUSOLVER_STATUS_INVALID_VALUE";
     }
     if (cusolver_status == CUSOLVER_STATUS_ARCH_MISMATCH) {
-      std::cerr << "\t ERROR: CUSOLVER_STATUS_ARCH_MISMATCH" << std::endl;
+      logger.err << "\t ERROR: CUSOLVER_STATUS_ARCH_MISMATCH";
     }
     if (cusolver_status == CUSOLVER_STATUS_INTERNAL_ERROR) {
-      std::cerr << "\t ERROR: CUSOLVER_STATUS_INTERNAL_ERROR" << std::endl;
+      logger.err << "\t ERROR: CUSOLVER_STATUS_INTERNAL_ERROR";
     }
     assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
     return nullptr;
@@ -1560,13 +1598,13 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::PointCloudFactory::calculateIma
   // check the devInfo
   CudaSafeCall(cudaMemcpy(&info_gpu, devInfo, sizeof(int), cudaMemcpyDeviceToHost));
   if (info_gpu > 0){
-    std::cerr << std::endl << "ERROR: " << info_gpu << " diagonals did not converge to zero " << std::endl;
+    logger.err << "ERROR: " + std::to_string(info_gpu) + " diagonals did not converge to zero ";
     return nullptr;
   } else if (info_gpu < 0) {
-    std::cerr << std::endl << "ERROR: parameter " << -1.0 * info_gpu << " in the SVD is wrong" << std::endl;
+    logger.err << "ERROR: parameter " + std::to_string(-1.0 * info_gpu) + " in the SVD is wrong";
     return nullptr;
   } else {
-    if (local_debug) std::cout << std::endl << "\t SVD compelete ..." << std::endl;
+    if (local_debug) logger.info << "\t SVD compelete ...";
   }
 
   // move back the results
@@ -1580,44 +1618,47 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::PointCloudFactory::calculateIma
   // the following seciton is
   // only to be used for debugging s
   if (local_debug){
-    std::cout << std::endl << "\t\t U = " << std::endl;
+    logger.info << "\t\t U = ";
     index = 0;
     for (int i = 0; i < N; i++){
-      std::cout << "\t\t ";
+      std::stringstream ss("\t\t ");
       for (int j = i; j < (N*N); j+=N){
-        std::cout << std::fixed << std::setprecision(12) << U->host.get()[j] << " ";
+        ss << std::fixed << std::setprecision(12) << U->host.get()[j] << " ";
         index++;
       }
-      std::cout << std::endl;
+      logger.info << ss.str();
     }
 
-    std::cout << std::endl << "\t\t S = ";
+    logger.info << "\t\t S = ";
+    std::stringstream ss;
     for (int i = 0; i < S->size(); i++){
-      std::cout << std::fixed << std::setprecision(12) << S->host.get()[i] << " ";
+      ss << std::fixed << std::setprecision(12) << S->host.get()[i] << " ";
     }
-    std::cout << std::endl << "\t\t ";
+    logger.info << ss.str();
+    ss.str("\t\t ");
     index = 0;
     for (int i = 0; i < N; i++){
       for (int j = 0; j < N; j++){
         if (i == j){
-          std::cout << std::fixed << std::setprecision(12) << S->host.get()[index] << " ";
+          ss << std::fixed << std::setprecision(12) << S->host.get()[index] << " ";
           index ++;
         } else {
-          std::cout << std::fixed << std::setprecision(12) << 0.0f << " ";
+          ss << std::fixed << std::setprecision(12) << 0.0f << " ";
         }
       }
-      std::cout << std::endl << "\t\t ";
+      logger.info << ss.str();
+      ss.str("\t\t ");
     }
 
-    std::cout << std::endl << "\t\t VT = " << std::endl;
+    logger.info << "\t\t VT = ";
     index = 0;
     for (int i = 0; i < N; i++){
-      std::cout << "\t\t ";
+      ss.str("\t\t ");
       for (int j = i; j < (N*N); j+=N){
-        std::cout << std::fixed << std::setprecision(12) << VT->host.get()[j] << " ";
+        ss << std::fixed << std::setprecision(12) << VT->host.get()[j] << " ";
         index++;
       }
-      std::cout << std::endl;
+      logger.info << ss.str();
     }
   }
 
@@ -1662,44 +1703,48 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::PointCloudFactory::calculateIma
   // just for testing print of the transposes and inverse
   // only to be used for debugging s
   if (local_debug){
-    std::cout << std::endl << "\t\t U^T = " << std::endl;
+    std::stringstream ss;
+    logger.info << "\t\t U^T = ";
     index = 0;
     for (int i = 0; i < N; i++){
-      std::cout << "\t\t ";
+      ss << "\t\t ";
       for (int j = i; j < (N*N); j+=N){
-        std::cout << std::fixed << std::setprecision(4) << U->host.get()[j] << " ";
+        ss << std::fixed << std::setprecision(4) << U->host.get()[j] << " ";
         index++;
       }
-      std::cout << std::endl;
+      logger.info << ss.str();
+      ss.str("");
     }
 
-    std::cout << std::endl << "\t\t S^-1 = ";
+    logger.info << "\t\t S^-1 = ";
     for (int i = 0; i < S->size(); i++){
-      std::cout << std::fixed << std::setprecision(4) << S->host.get()[i] << " ";
+      ss << std::fixed << std::setprecision(4) << S->host.get()[i] << " ";
     }
-    std::cout << std::endl << "\t\t ";
+    logger.info << ss.str();
+    ss.str("\t\t ");
     index = 0;
     for (int i = 0; i < N; i++){
       for (int j = 0; j < N; j++){
         if (i == j){
-          std::cout << std::fixed << std::setprecision(4) << S->host.get()[index] << " ";
+          ss << std::fixed << std::setprecision(4) << S->host.get()[index] << " ";
           index ++;
         } else {
-          std::cout << "0.0000 ";
+          ss << "0.0000 ";
         }
       }
-      std::cout << std::endl << "\t\t ";
+      logger.info << ss.str();
+      ss.str("");
     }
 
-    std::cout << std::endl << "\t\t V = " << std::endl;
+    logger.info << "\t\t V = ";
     index = 0;
     for (int i = 0; i < N; i++){
-      std::cout << "\t\t ";
+      ss.str("");
       for (int j = i; j < (N*N); j+=N){
-        std::cout << std::fixed << std::setprecision(4) << VT->host.get()[j] << " ";
+        ss << std::fixed << std::setprecision(4) << VT->host.get()[j] << " ";
         index++;
       }
-      std::cout << std::endl;
+      logger.info << ss.str();
     }
   }
 
@@ -1738,13 +1783,13 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::PointCloudFactory::calculateIma
   cublas_status = cublasSgemm(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,N,N,N,&alpha,VT->device.get(),N,E->device.get(),N,&beta,C->device.get(),N);
   cudaDeviceSynchronize();
   if (cublas_status != 0){
-    std::cerr << std::endl << "ERROR: in cuBLAS multiply" << std::endl;
+    logger.err << "ERROR: in cuBLAS multiply" ;
     return nullptr;
   }
   cublas_status = cublasSgemm(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,N,N,N,&alpha,C->device.get(),N,U->device.get(),N,&beta,inverse->device.get(),N);
   cudaDeviceSynchronize();
   if (cublas_status != 0){
-    std::cerr << std::endl << "ERROR: in cuBLAS multiply" << std::endl;
+    logger.err << "ERROR: in cuBLAS multiply";
     return nullptr;
   }
   inverse->setFore(gpu);
@@ -1753,15 +1798,17 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::PointCloudFactory::calculateIma
 
   // to print of the inverse if debugging
   if (local_debug) {
-    std::cout << std::endl << "\t\t Pseudo Inverse = " << std::endl;
+    logger.info << "\t\t Pseudo Inverse = ";
     index = 0;
     for (int i = 0; i < N; i++){
-      std::cout << "\t\t ";
+      std::stringstream ss;
+      ss << "\t\t ";
       for (int j = i; j < (N*N); j+=N){
-        std::cout << std::fixed << std::setprecision(4) << inverse->host.get()[j] << " ";
+        ss << std::fixed << std::setprecision(4) << inverse->host.get()[j] << " ";
         index++;
       }
-      std::cout << std::endl;
+      logger.info << ss.str();
+      ss.str("");
     }
   }
 
@@ -1816,9 +1863,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
 
   // just to tell the user what is happening
   if (second_order && ( local_debug || local_verbose )){
-    std::cout << "\t Bundle Adjustment is in Second Order Mode" << std::endl;
+    logger.info << "\t Bundle Adjustment is in Second Order Mode";
   } else {
-    std::cout << "\t Bundle Adjustment is in First Order Mode" << std::endl;
+    logger.info << "\t Bundle Adjustment is in First Order Mode";
   }
 
   // used to store the best params found in the optimization
@@ -1858,7 +1905,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
   // NOTE print off new error
   bundleTemp = generateBundles(matchSet,images);
   voidTwoViewTriangulate(bundleTemp, &initialError);
-  if (local_debug || local_verbose) std::cout << "[initial] \terror: " << initialError << std::endl;
+  if (local_debug || local_verbose) logger.info << "[initial] \terror: " + std::to_string(initialError);
   errorTracker.push_back(initialError); // saves the initial error
   bestError = initialError; // we want our future best erros to be less than the initial error
 
@@ -1883,13 +1930,15 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
     test->host.get()[6] = 7.0; //3.0;
     test->host.get()[7] = 8.0; //-3.0;
     test->host.get()[8] = 9.0; //3.0;
-    std::cout << std::endl << std::endl << "\t\t test matrix = " << std::endl;
+    logger.info << "\t\t test matrix = ";
+    std::stringstream ss;
     for (int i = 0; i < 3; i++){
-      std::cout << std::endl << "\t\t ";
+      ss << "\t\t ";
       for (int j = 0; j < 3; j++){
-        std::cout << std::fixed << std::setprecision(4) << test->host.get()[3*i + j] << "\t ";
+        ss << std::fixed << std::setprecision(4) << test->host.get()[3*i + j] << "\t ";
       }
-
+      logger.info << ss.str();
+      ss.str("");
     }
     calculateImageHessianInverse(test);
   }
@@ -1898,35 +1947,37 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
   for (int i = 0; i < iterations; i++){
 
     // NOTE gradients calculated here
-    if (local_debug || local_verbose) std::cout << "\tCalculating Gradient ..." << std::endl;
+    if (local_debug || local_verbose) logger.info << "\tCalculating Gradient ...";
     calculateImageGradient(matchSet,images,gradient);
 
     // calculate second order stuff
     // if not in constant stepsize mode
     if (second_order){
       // TODO hessians calculated here
-      if (local_debug || local_verbose) std::cout << "\tCalculating Hessian ..." << std::endl;
+      if (local_debug || local_verbose) logger.info << "\tCalculating Hessian ...";
       calculateImageHessian(matchSet,images,hessian);
 
       if (local_debug){
-        std::cout << "\t\t Hessian Size: " << hessian->size() << std::endl;
+        logger.info << "\t\t Hessian Size: " + std::to_string(hessian->size());
+        std::stringstream ss;
         for (int j = 0; j < 12; j++){
-          std::cout << "\t\t";
+          ss << "\t\t";
           for (int k = 0; k < 12; k++){
-            std::cout << " " << std::fixed << std::setprecision(4) << hessian->host.get()[12*j + k];
+            ss << " " << std::fixed << std::setprecision(4) << hessian->host.get()[12*j + k];
           }
-          // std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host.get()[j+1];
-          // std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host.get()[j+2];
-          // std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host.get()[j+3];
-          // std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host.get()[j+4];
-          // std::cout << "  " << std::fixed << std::setprecision(4) << hessian->host.get()[j+5];
-          std::cout << " " << std::endl;
+          // ss << "  " << std::fixed << std::setprecision(4) << hessian->host.get()[j+1];
+          // ss << "  " << std::fixed << std::setprecision(4) << hessian->host.get()[j+2];
+          // ss << "  " << std::fixed << std::setprecision(4) << hessian->host.get()[j+3];
+          // ss << "  " << std::fixed << std::setprecision(4) << hessian->host.get()[j+4];
+          // ss << "  " << std::fixed << std::setprecision(4) << hessian->host.get()[j+5];
+          ss << " ";
+          logger.info << ss.str();
+          ss.str("");
         }
-        std::cout << std::endl;
       }
 
       // invert hessian here
-      if (local_debug || local_verbose) std::cout << "\tInverting Hessian ..." << std::endl;
+      if (local_debug || local_verbose) logger.info << "\tInverting Hessian ...";
       // see https://stackoverflow.com/questions/28794010/solving-dense-linear-systems-ax-b-with-cuda
       // see https://stackoverflow.com/questions/27094612/cublas-matrix-inversion-from-device
       // takes the pseudo inverse of the hessian
@@ -1942,23 +1993,27 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
       // only for testing
       if (local_debug) {
         // print the update
-        std::cout << std::endl << "\t\t (update) pure gradient = " << std::endl;
-        std::cout << "\t\t ";
+        logger.info << "\t\t (update) pure gradient = ";
+        std::stringstream ss;
+        ss << "\t\t ";
         for (int j = 0; j < N; j++){
-          std::cout << std::fixed << std::setprecision(8) << gradient->host.get()[j] << " ";
+          ss << std::fixed << std::setprecision(8) << gradient->host.get()[j] << " ";
         }
-        std::cout << std::endl;
+        logger.info << ss.str();
       }
 
       // only for testing
       if (local_debug) {
         // print the update
-        std::cout << std::endl << "\t\t (update) gradient scaled by alpha " << std::fixed << std::setprecision(8) << alpha << " = " << std::endl;
-        std::cout << "\t\t ";
+        std::stringstream ss;
+        ss << "\t\t (update) gradient scaled by alpha " << std::fixed << std::setprecision(8) << alpha << " = ";
+        logger.info << ss.str();
+        ss.str("");
+        ss << "\t\t ";
         for (int j = 0; j < N; j++){
-          std::cout << std::fixed << std::setprecision(8) << alpha * gradient->host.get()[j] << " ";
+          ss << std::fixed << std::setprecision(8) << alpha * gradient->host.get()[j] << " ";
         }
-        std::cout << std::endl;
+        logger.info << ss.str();
       }
 
       // prep to normalize the update
@@ -2000,21 +2055,23 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
 
       if (local_debug){
         // print hessian
-        std::cout << std::endl << "\t\t H^+ = " << std::endl;
+        std::stringstream ss;
+        logger.info << "\t\t H^+ = ";
         for (int j = 0; j < N; j++){
-          std::cout << "\t\t ";
+          ss << "\t\t ";
           for (int k = j; k < (N*N); k+=N){
-            std::cout << std::fixed << std::setprecision(8) << inverse->host.get()[k] << " ";
+            ss << std::fixed << std::setprecision(8) << inverse->host.get()[k] << " ";
           }
-          std::cout << std::endl;
+          logger.info << ss.str();
+          ss.str("");
         }
         // print the gradient
-        std::cout << std::endl << "\t\t g^T = " << std::endl;
-        std::cout << "\t\t ";
+        logger.info << "\t\t g^T = ";
+        ss << "\t\t ";
         for (int j = 0; j < N; j++){
-          std::cout << std::fixed << std::setprecision(8) << gradient->host.get()[j] << " ";
+          ss << std::fixed << std::setprecision(8) << gradient->host.get()[j] << " ";
         }
-        std::cout << std::endl;
+        logger.info << ss.str();
       }
 
       gradient->transferMemoryTo(gpu);
@@ -2026,19 +2083,19 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
 
       // TODO maybe make a method for printing off exavt cuBLAS errors
       if (cublas_status != CUBLAS_STATUS_SUCCESS){
-        std::cerr << std::endl << "ERROR: failure when multiplying inverse hessian and gradient for state update." << std::endl;
-        std::cerr << "\t ERROR STATUS: multiplication failed with status: " << cublas_status << std::endl;
+        logger.err << "ERROR: failure when multiplying inverse hessian and gradient for state update.";
+        logger.err << "\t ERROR STATUS: multiplication failed with status: " + std::to_string(cublas_status);
         if (cublas_status == CUBLAS_STATUS_NOT_INITIALIZED){
-          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_NOT_INITIALIZED" << std::endl;
+          logger.err << "\t cuBLAS ERROR: CUBLAS_STATUS_NOT_INITIALIZED";
         }
         if (cublas_status == CUBLAS_STATUS_INVALID_VALUE){
-          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_INVALID_VALUE" << std::endl;
+          logger.err << "\t cuBLAS ERROR: CUBLAS_STATUS_INVALID_VALUE";
         }
         if (cublas_status == CUBLAS_STATUS_ARCH_MISMATCH){
-          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_ARCH_MISMATCH" << std::endl;
+          logger.err << "\t cuBLAS ERROR: CUBLAS_STATUS_ARCH_MISMATCH";
         }
         if (cublas_status == CUBLAS_STATUS_EXECUTION_FAILED){
-          std::cerr << "\t cuBLAS ERROR: CUBLAS_STATUS_EXECUTION_FAILED" << std::endl;
+          logger.err << "\t cuBLAS ERROR: CUBLAS_STATUS_EXECUTION_FAILED";
         }
         return nullptr; // TODO have a safe shutdown of bundle adjustment given a failure
       }
@@ -2056,12 +2113,13 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
       // only for testing
       if (local_debug) {
         // print the update
-        std::cout << std::endl << "\t\t (update) Delta X = " << std::endl;
-        std::cout << "\t\t ";
+        logger.info << "\t\t (update) Delta X = ";
+        std::stringstream ss;
+        ss << "\t\t ";
         for (int j = 0; j < N; j++){
-          std::cout << std::fixed << std::setprecision(8) << update->host.get()[j] << " ";
+          ss << std::fixed << std::setprecision(8) << update->host.get()[j] << " ";
         }
-        std::cout << std::endl;
+        logger.info << ss.str();
       }
 
       // prep to normalize the update
@@ -2105,7 +2163,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
     // NOTE print off new error
     bundleTemp = generateBundles(matchSet,images);
     voidTwoViewTriangulate(bundleTemp, &localError);
-    if (local_debug || local_verbose) std::cout << "[" << std::fixed << std::setprecision(12) << (i + 1) << "] \terror: " << localError << std::endl;
+    std::stringstream ss;
+    ss << "[" << std::fixed << std::setprecision(12) << (i + 1) << "] \terror: " << localError;
+    if (local_debug || local_verbose) logger.info << ss.str();
 
     // is this step better than the best?
     if (localError < bestError) {
@@ -2121,7 +2181,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
         secondBestParams[j]->camera = bestParams[j]->camera;
         bestParams[j]->camera = images[j]->camera;
       }
-      if (local_debug || local_verbose) std::cout << "\t New lowest value found: " << bestError << std::endl;
+      if (local_debug || local_verbose) logger.info << "\t New lowest value found: " << std::to_string(bestError);
 
       // NOTE perhaps only scale down only after the frist step is taken?? maybe do it every time?
       if (i){
@@ -2132,7 +2192,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
         // or
         // scale_down = pow(scale_down, scale_down);
         alpha /= scale_down;
-        if (local_debug || local_verbose) std::cout << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down << std::endl;
+        std::stringstream ss;
+        ss << "\t Alpha updated to: " << std::fixed << std::setprecision(24) << alpha << " with scale down: " << scale_down;
+        if (local_debug || local_verbose) logger.info << ss.str();
         alphaTracker.push_back(alpha);
       }
 
@@ -2147,9 +2209,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
       //
 
       if (local_debug || local_verbose) {
-        std::cout << "\t BUNDLE ADJUSTMENT HAS FOUND LOCAL MINIMUM " << std::endl;
-        std::cout << "\t\t Local minima found after: " << i << " iterations" << std::endl;
-        std::cout << "\t\t Reduced error from: " << errorTracker[0] << " ---> " << errorTracker.back() << std::endl;
+        logger.info << "\t BUNDLE ADJUSTMENT HAS FOUND LOCAL MINIMUM ";
+        logger.info << "\t\t Local minima found after: " + std::to_string(i) + " iterations";
+        logger.info << "\t\t Reduced error from: " + std::to_string(errorTracker[0]) + " ---> " + std::to_string(errorTracker.back());
       }
 
       // reset the camera params to the best one's found
@@ -2209,7 +2271,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::BundleAdjus
 
   // TODO
 
-  std::cerr << "ERROR: N view bundle adjustment not yet implemented" << std::endl;
+  logger.err << "ERROR: N view bundle adjustment not yet implemented";
 
   return nullptr;
 }
@@ -2382,7 +2444,7 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
   float3 gr2  = (bad - meh )/1000;
   // initialize the gradient "mapping"
   float3 temp;
-  // std::cout << "building gradient" << std::endl;
+  // logger.info << "building gradient";
   for (int i = 0; i < 2000; i++){
     if (i < 1000){
       temp = good + gr1*i;
@@ -2396,7 +2458,7 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
       colors[i].z = (unsigned char) floor(temp.z);
     }
   }
-  // std::cout << "the boiz" << std::endl;
+  // logger.info << "the boiz";
   float linearError;
   linearError = 0.0; // just something to start
   float linearErrorCutoff;
@@ -2413,7 +2475,7 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
   errors = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
   struct colorPoint* cpoints = (colorPoint*)  malloc(matchSet->matches->size() * sizeof(struct colorPoint));
 
-  std::cout << "attempting guy" << std::endl;
+  logger.info << "attempting guy";
   if (images.size() == 2){
     //
     // 2-View Case
@@ -2426,7 +2488,7 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
         max = errors->host.get()[i];
       }
     }
-    std::cout << "found max: " << max << std::endl;
+    logger.info << "found max: " + std::to_string(max);
     // now fill in the color point locations
     for (int i = 0; i < points->size(); i++){
       // i assume that the errors and the points will have the same indices
@@ -2452,7 +2514,7 @@ void ssrlcv::PointCloudFactory::saveDebugLinearErrorCloud(ssrlcv::MatchSet* matc
         max = errors->host.get()[i];
       }
     }
-    std::cout << "found max: " << max << std::endl;
+    logger.info << "found max: " + std::to_string(max);
     // now fill in the color point locations
     for (int i = 0; i < points->size(); i++){
       // i assume that the errors and the points will have the same indices
@@ -2488,7 +2550,7 @@ void ssrlcv::PointCloudFactory::saveViewNumberCloud(ssrlcv::MatchSet* matchSet, 
   float3 gr2  = (bad - meh )/1000;
   // initialize the gradient "mapping"
   float3 temp;
-  std::cout << "building gradient" << std::endl;
+  logger.info << "building gradient";
   for (int i = 0; i < 2000; i++){
     if (i < 1000){
       temp = good + gr1*i;
@@ -2502,7 +2564,7 @@ void ssrlcv::PointCloudFactory::saveViewNumberCloud(ssrlcv::MatchSet* matchSet, 
       colors[i].z = (unsigned char) floor(temp.z);
     }
   }
-  std::cout << "the boiz" << std::endl;
+  logger.info << "the boiz";
   float linearError;
   linearError = 0.0; // just something to start
   float linearErrorCutoff;
@@ -2519,7 +2581,7 @@ void ssrlcv::PointCloudFactory::saveViewNumberCloud(ssrlcv::MatchSet* matchSet, 
   errors = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
   struct colorPoint* cpoints = (colorPoint*)  malloc(matchSet->matches->size() * sizeof(struct colorPoint));
 
-  std::cout << "attempting guy" << std::endl;
+  logger.info << "attempting guy";
 
 
 
@@ -2591,15 +2653,15 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // 2-View Case
     //
 
-    logger.warn << "WARNING: Starting an intesive debug feature, this should be disabled in production\n";
-    logger.warn << "WARNING: DISABLE GENERATE SENSITIVITY FUNCTIONS IN PRODUCTION!!\n";
+    logger.warn << "WARNING: Starting an intesive debug feature, this should be disabled in production";
+    logger.warn << "WARNING: DISABLE GENERATE SENSITIVITY FUNCTIONS IN PRODUCTION!!";
 
     // TODO graph (deltas and value)
 
     //
     // DELTA X Linear
     //
-    std::cout << "\tTesting x linear sensitivity ..." << std::endl;
+    logger.info << "\tTesting x linear sensitivity ...";
     start = temp[ref_cam]->camera.cam_pos.x - linearRange;
     end   = temp[ref_cam]->camera.cam_pos.x + linearRange;
     temp[ref_cam]->camera.cam_pos.x = start;
@@ -2621,7 +2683,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     //
     // DELTA Y Linear
     //
-    std::cout << "\tTesting y linear sensitivity ..." << std::endl;
+    logger.info << "\tTesting y linear sensitivity ...";
     start = temp[ref_cam]->camera.cam_pos.y - linearRange;
     end   = temp[ref_cam]->camera.cam_pos.y + linearRange;
     temp[ref_cam]->camera.cam_pos.y = start;
@@ -2643,7 +2705,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     //
     // DELTA Z Linear
     //
-    std::cout << "\tTesting z linear sensitivity ..." << std::endl;
+    logger.info << "\tTesting z linear sensitivity ...";
     start = temp[ref_cam]->camera.cam_pos.z - linearRange;
     end   = temp[ref_cam]->camera.cam_pos.z + linearRange;
     temp[ref_cam]->camera.cam_pos.y = start;
@@ -2665,7 +2727,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     //
     // DELTA X Angular
     //
-    std::cout << "\tTesting x angular sensitivity ..." << std::endl;
+    logger.info << "\tTesting x angular sensitivity ...";
     start = temp[ref_cam]->camera.cam_rot.x - angularRange;
     end   = temp[ref_cam]->camera.cam_rot.x + angularRange;
     temp[ref_cam]->camera.cam_rot.x = start;
@@ -2687,7 +2749,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     //
     // DELTA Y Angular
     //
-    std::cout << "\tTesting y angular sensitivity ..." << std::endl;
+    logger.info << "\tTesting y angular sensitivity ...";
     start = temp[ref_cam]->camera.cam_rot.y - angularRange;
     end   = temp[ref_cam]->camera.cam_rot.y + angularRange;
     temp[ref_cam]->camera.cam_rot.y = start;
@@ -2709,7 +2771,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     //
     // DELTA Z Angular
     //
-    std::cout << "\tTesting z angular sensitivity ..." << std::endl;
+    logger.info << "\tTesting z angular sensitivity ...";
     start = temp[ref_cam]->camera.cam_rot.z - angularRange;
     end   = temp[ref_cam]->camera.cam_rot.z + angularRange;
     temp[ref_cam]->camera.cam_rot.z = start;
@@ -2733,7 +2795,7 @@ void ssrlcv::PointCloudFactory::generateSensitivityFunctions(ssrlcv::MatchSet* m
     // N-View Case
     //
 
-    std::cerr << "ERROR: sensitivity generation not yet implemented for N-view" << std::endl;
+    logger.err << "ERROR: sensitivity generation not yet implemented for N-view";
     return;
   }
 
@@ -2767,14 +2829,20 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(ssrlcv::ptr::value<ssrl
   // caclulate the estimated plane normal
   ssrlcv::ptr::value<ssrlcv::Unity<float3>> normal = oct.computeAverageNormal(3, 10, images.size(), locations->host.get());
 
-  if (local_debug || local_verbose) std::cout << "Estimated plane normal: (" << normal->host.get()[0].x << ", " << normal->host.get()[0].y << ", " << normal->host.get()[0].z << ")" << std::endl;
+  std::stringstream ss;
+  ss << "Estimated plane normal: (" << normal->host.get()[0].x << ", " << normal->host.get()[0].y << ", " << normal->host.get()[0].z << ")";
+  if (local_debug || local_verbose) logger.info << ss.str();
 
   // the averate point
   ssrlcv::ptr::value<ssrlcv::Unity<float3>> point = getAveragePoint(pointCloud);
 
   if (local_debug) {
-    std::cout << "Average Point: ( " << point->host.get()[0].x << ", " << point->host.get()[0].y << ", " << point->host.get()[0].z << " )" << std::endl;
-    std::cout << "Normal Vector: < " << normal->host.get()[0].x << ", " << normal->host.get()[0].y << ", " << normal->host.get()[0].z << " )" << std::endl;
+    ss.str("");
+    ss << "Average Point: ( " << point->host.get()[0].x << ", " << point->host.get()[0].y << ", " << point->host.get()[0].z << " )";
+    logger.info << ss.str();
+    ss.str("");
+    ss << "Normal Vector: < " << normal->host.get()[0].x << ", " << normal->host.get()[0].y << ", " << normal->host.get()[0].z << " )";
+    logger.info << ss.str();
     ssrlcv::writePLY("testNorm",point,normal);
   }
 
@@ -2825,7 +2893,7 @@ void ssrlcv::PointCloudFactory::visualizePlaneEstimation(ssrlcv::ptr::value<ssrl
 * @param sigmas a list of float values representing noise to be added to orientaions and rotations
 */
 ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images, unsigned int iterations, ssrlcv::ptr::value<ssrlcv::Unity<float>> noise){
-  std::cout << "\t Running a 2 view bundle adjustment nosie test " << std::endl;
+  logger.info << "\t Running a 2 view bundle adjustment nosie test ";
 
   bool local_debug = true;
   float linearError;
@@ -2841,10 +2909,10 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::testBundleA
 
   // now add the noise to the
   if (noise->size() < 6) {
-    std::cerr << "ERROR: noise array needs to have 6 elements!" << std::endl;
+    logger.err << "ERROR: noise array needs to have 6 elements!";
     return nullptr;
   } else {
-    if (local_debug) std::cout << "Adding noise to image 1" << std::endl;
+    if (local_debug) logger.info << "Adding noise to image 1";
     noisey[1]->camera.cam_pos.x += noise->host.get()[0];
     noisey[1]->camera.cam_pos.y += noise->host.get()[1];
     noisey[1]->camera.cam_pos.z += noise->host.get()[2];
@@ -2860,7 +2928,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::testBundleA
   bundleSet = generateBundles(matchSet,noisey);
   points = twoViewTriangulate(bundleSet, &linearError);
 
-  if (local_debug) std::cout << "Initial Error with noise: " << linearError << std::endl;
+  if (local_debug) logger.info << "Initial Error with noise: " + std::to_string(linearError);
 
   // pre=BA noisey boi
   saveDebugCloud(points, bundleSet, noisey, "preBA");
@@ -2872,15 +2940,18 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::testBundleA
   ssrlcv::ptr::value<ssrlcv::Unity<float>> diff1 = images[0]->getExtrinsicDifference(images[1]->camera);
   ssrlcv::ptr::value<ssrlcv::Unity<float>> diff2 = noisey[0]->getExtrinsicDifference(noisey[1]->camera);
 
-  std::cout << std::endl << "Goal:" << std::endl;
+  logger.info << "Goal:";
+  std::stringstream ss;
   for (int i = 0; i < diff1->size(); i++){
-    std::cout << diff1->host.get()[i] << "  ";
+    ss << diff1->host.get()[i] << "  ";
   }
-  std::cout << std::endl << "Result:" << std::endl;
+  logger.info << ss.str();
+  ss.str("");
+  logger.info << "Result:";
   for (int i = 0; i < diff2->size(); i++){
-    std::cout << diff2->host.get()[i] << "  ";
+    ss << diff2->host.get()[i] << "  ";
   }
-
+  logger.info << ss.str();
   return points;
 }
 
@@ -2895,7 +2966,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::testBundleA
 * @param sigma is the sigma to ranomize from the given noise params
 */
 void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images, unsigned int iterations, ssrlcv::ptr::value<ssrlcv::Unity<float>> noise, int testNum){
-  std::cout << "\t Running a 2 view bundle adjustment nosie test " << std::endl;
+  logger.info << "\t Running a 2 view bundle adjustment nosie test ";
 
   bool local_debug = true;
   float linearError;
@@ -2920,16 +2991,15 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, 
 
   // loop this boi
   for (int i = 0; i < testNum; i++) {
-    std::cout << std::endl;
-    std::cout << "====================================================================================" << std::endl;
-    std::cout << "      Test: " << i << "/" << testNum << std::endl;
-    std::cout << "====================================================================================" << std::endl;
+    logger.info << "====================================================================================";
+    logger.info << "      Test: " << std::to_string(i) + "/" + std::to_string(testNum);
+    logger.info << "====================================================================================";
     // now add the noise to the
     if (noise->size() < 6) {
-      std::cerr << "ERROR: noise array needs to have 6 elements!" << std::endl;
+      logger.err << "ERROR: noise array needs to have 6 elements!";
       return;
     } else {
-      if (local_debug) std::cout << "Adding noise to image 1" << std::endl;
+      if (local_debug) logger.info << "Adding noise to image 1";
       noisey[1]->camera.cam_pos.x += pos_distribution_x(generator);
       noisey[1]->camera.cam_pos.y += pos_distribution_y(generator);
       noisey[1]->camera.cam_pos.z += pos_distribution_z(generator);
@@ -2945,7 +3015,7 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, 
     bundleSet = generateBundles(matchSet,noisey);
     points = twoViewTriangulate(bundleSet, &linearError);
 
-    if (local_debug) std::cout << "Initial Error with noise: " << linearError << std::endl;
+    if (local_debug) logger.info << "Initial Error with noise: " + std::to_string(linearError);
 
     // pre=BA noisey boi
     saveDebugCloud(points, bundleSet, noisey, "preBA");
@@ -2957,18 +3027,25 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, 
     ssrlcv::ptr::value<ssrlcv::Unity<float>> diff1 = images[0]->getExtrinsicDifference(images[1]->camera);
     ssrlcv::ptr::value<ssrlcv::Unity<float>> diff2 = noisey[0]->getExtrinsicDifference(noisey[1]->camera);
 
-    std::cout << std::endl << "Goal:" << std::endl;
+    logger.info << "Goal:";
+    std::stringstream ss;
     for (int i = 0; i < diff1->size(); i++){
-      std::cout << diff1->host.get()[i] << "  ";
+      ss << diff1->host.get()[i] << "  ";
     }
-    std::cout << std::endl << "Result:" << std::endl;
+    logger.info << ss.str();
+    ss.str("");
+    logger.info << "Result:";
     for (int i = 0; i < diff2->size(); i++){
-      std::cout << diff2->host.get()[i] << "  ";
+      ss << diff2->host.get()[i] << "  ";
     }
-    std::cout << std::endl << "Difference:" << std::endl;
+    logger.info << ss.str();
+    ss.str("");
+    logger.info << "Difference:";
     for (int i = 0; i < diff2->size(); i++){
-      std::cout << abs( diff1->host.get()[i] - diff2->host.get()[i] ) << "  ";
+      ss << abs( diff1->host.get()[i] - diff2->host.get()[i] ) << "  ";
     }
+    logger.info << ss.str();
+
 
 
 
@@ -2992,7 +3069,7 @@ void ssrlcv::PointCloudFactory::testBundleAdjustmentTwoView(MatchSet* matchSet, 
  */
 void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images, float sigma, float sampleSize){
   if (sampleSize > 1.0 || sampleSize < 0.0) {
-    std::cerr << "ERROR:  no statistical filtering possible with percentage greater than 1.0 or less than 0.0" << std::endl;
+    logger.err << "ERROR:  no statistical filtering possible with percentage greater than 1.0 or less than 0.0";
     return;
   }
   // find an integer skip that can be used
@@ -3023,7 +3100,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
   // do an initial triangulation
   errors = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
 
-  std::cout << "Starting Determinstic Statistical Filter ..." << std::endl;
+  logger.info << "Starting Determinstic Statistical Filter ...";
 
   // do an initial triangulate
 
@@ -3051,8 +3128,13 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     sample_sum += errors->host.get()[k*sampleJump];
   }
   float sample_mean = sample_sum / errors_sample->size();
-  std::cout << "\tSample Sum: " << std::setprecision(32) << sample_sum << std::endl;
-  std::cout << "\tSample Mean: " << std::setprecision(32) << sample_mean << std::endl;
+  std::stringstream ss;
+  ss << "\tSample Sum: " << std::setprecision(32) << sample_sum;
+  logger.info << ss.str();
+  ss.str("");
+  ss << "\tSample Mean: " << std::setprecision(32) << sample_mean;
+  logger.info << ss.str();
+  ss.str("");
   float squared_sum = 0;
   for (int k = 0; k < sample_size; k++){
     squared_sum += (errors_sample->host.get()[k] - sample_mean)*(errors_sample->host.get()[k] - sample_mean);
@@ -3062,9 +3144,15 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
   //
   // 2-view has an optimum of 0, assumes 0 is the average
   //
-  std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
-  std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
-  std::cout << "\tLinear Error Cutoff Adjusted To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
+  ss << "\tSample variance: " << std::setprecision(32) << variance;
+  logger.info << ss.str();
+  ss.str("");
+  ss << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance);
+  logger.info << ss.str();
+  ss.str("");
+  ss << "\tLinear Error Cutoff Adjusted To: " << std::setprecision(32) << sigma * sqrtf(variance);
+  logger.info << ss.str();
+  ss.str("");
   linearErrorCutoff = sigma * sqrtf(variance);
 
   // do the two view version of this (easier for now)
@@ -3084,7 +3172,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
          bad_bundles++;
       }
     }
-    if (bad_bundles) std::cout << "\tDetected " << bad_bundles << " bad bundles to remove" << std::endl;
+    if (bad_bundles) logger.info << "\tDetected " + std::to_string(bad_bundles) + " bad bundles to remove";
     // Need to generated and adjustment match set
     // make a temporary match set
     tempMatchSet.keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,matchSet->matches->size()*2,ssrlcv::cpu);
@@ -3097,7 +3185,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
       tempMatchSet.matches->host.get()[k] = matchSet->matches->host.get()[k];
     }
     if (!(matchSet->matches->size() - bad_bundles)){
-      std::cerr << "ERROR: filtering is too aggressive, all points would be removed ..." << std::endl;
+      logger.err << "ERROR: filtering is too aggressive, all points would be removed ...";
       return;
     }
     // resize the standard matchSet
@@ -3116,7 +3204,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     	  k_adjust++;
     	}
     }
-    if (bad_bundles) std::cout << "\tRemoved bad bundles" << std::endl;
+    if (bad_bundles) logger.info << "\tRemoved bad bundles";
   } else {
     //
     // This is the N-view case
@@ -3136,10 +3224,10 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
       }
     }
     if (bad_bundles) {
-      std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
-      std::cout << "\tDetected " << bad_lines << " lines to remove" << std::endl;
+      logger.info << "\tDetected " + std::to_string(bad_bundles) + " bundles to remove";
+      logger.info << "\tDetected " + std::to_string(bad_lines) + " lines to remove" ;
     } else {
-      std::cout << "No points removed! all are less than " << linearErrorCutoff << std::endl;
+      logger.info << "No points removed! all are less than " + std::to_string(linearErrorCutoff);
       return;
     }
 
@@ -3155,7 +3243,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
       tempMatchSet.matches->host.get()[k] = matchSet->matches->host.get()[k];
     }
     if (!(matchSet->matches->size() - bad_bundles) || !(matchSet->keyPoints->size() - bad_lines)){
-      std::cerr << "ERROR: filtering is too aggressive, all points would be removed ..." << std::endl;
+      logger.err << "ERROR: filtering is too aggressive, all points would be removed ...";
       return;
     }
     // resize the standard matchSet
@@ -3164,7 +3252,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
     matchSet->keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,new_kp_size,ssrlcv::cpu);
     matchSet->matches   = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,new_mt_size,ssrlcv::cpu);
     // this is harder to do with the N-view case
-    unsigned int k_adjust = 0;
+    int k_adjust = 0;
     unsigned int k_lines  = 0;
     int k_bundle = 0;
     int k_keypnt = 0;
@@ -3181,7 +3269,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
       k_keypnt += k_lines;
     }
 
-    if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
+    if (bad_bundles) logger.info << "\tRemoved bundles";
 
   }
 }
@@ -3197,7 +3285,7 @@ void ssrlcv::PointCloudFactory::deterministicStatisticalFilter(ssrlcv::MatchSet*
  */
 void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images, float sigma, float sampleSize){
   if (sampleSize > 1.0 || sampleSize < 0.0) {
-    std::cerr << "ERROR:  no statistical filtering possible with percentage greater than 1.0 or less than 0.0" << std::endl;
+    logger.err << "ERROR:  no statistical filtering possible with percentage greater than 1.0 or less than 0.0";
     return;
   }
 
@@ -3222,7 +3310,7 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
   // do an initial triangulation
   errors = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,matchSet->matches->size(),ssrlcv::cpu);
 
-  std::cout << "Starting Determinstic Statistical Filter ..." << std::endl;
+  logger.info << "Starting Determinstic Statistical Filter ...";
 
   // do an initial triangulate
 
@@ -3261,16 +3349,27 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
   indexes.clear();
 
   float sample_mean = sample_sum / errors_sample->size();
-  std::cout << "\tSample Sum: " << std::setprecision(32) << sample_sum << std::endl;
-  std::cout << "\tSample Mean: " << std::setprecision(32) << sample_mean << std::endl;
+  std::stringstream ss;
+  ss << "\tSample Sum: " << std::setprecision(32) << sample_sum;
+  logger.info << ss.str();
+  ss.str("");
+  ss << "\tSample Mean: " << std::setprecision(32) << sample_mean;
+  logger.info << ss.str();
+  ss.str("");
   float squared_sum = 0;
   for (int k = 0; k < sample_size; k++){
     squared_sum += (errors_sample->host.get()[k] - sample_mean)*(errors_sample->host.get()[k] - sample_mean);
   }
   float variance = squared_sum / errors_sample->size();
-  std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
-  std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
-  std::cout << "\tLinear Error Cutoff Adjusted To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
+  ss << "\tSample variance: " << std::setprecision(32) << variance;
+  logger.info << ss.str();
+  ss.str("");
+  ss << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance);
+  logger.info << ss.str();
+  ss.str("");
+  ss << "\tLinear Error Cutoff Adjusted To: " << std::setprecision(32) << sigma * sqrtf(variance);
+  logger.info << ss.str();
+  ss.str("");
   linearErrorCutoff = sigma * sqrtf(variance);
 
   // do the two view version of this (easier for now)
@@ -3290,7 +3389,7 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
          bad_bundles++;
       }
     }
-    if (bad_bundles) std::cout << "\tDetected " << bad_bundles << " bad bundles to remove" << std::endl;
+    if (bad_bundles) logger.info << "\tDetected " << std::to_string(bad_bundles) << " bad bundles to remove";
     // Need to generated and adjustment match set
     // make a temporary match set
     tempMatchSet.keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,matchSet->matches->size()*2,ssrlcv::cpu);
@@ -3303,7 +3402,7 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
       tempMatchSet.matches->host.get()[k] = matchSet->matches->host.get()[k];
     }
     if (!(matchSet->matches->size() - bad_bundles)){
-      std::cerr << "ERROR: filtering is too aggressive, all points would be removed ..." << std::endl;
+      logger.err << "ERROR: filtering is too aggressive, all points would be removed ...";
       return;
     }
     // resize the standard matchSet
@@ -3323,7 +3422,7 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
     	  k_adjust++;
     	}
     }
-    if (bad_bundles) std::cout << "\tRemoved bad bundles" << std::endl;
+    if (bad_bundles) logger.info << "\tRemoved bad bundles";
   } else {
     //
     // This is the N-view case
@@ -3343,10 +3442,10 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
       }
     }
     if (bad_bundles) {
-      std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
-      std::cout << "\tDetected " << bad_lines << " lines to remove" << std::endl;
+      logger.info << "\tDetected " + std::to_string(bad_bundles) + " bundles to remove";
+      logger.info << "\tDetected " + std::to_string(bad_lines) + " lines to remove";
     } else {
-      std::cout << "No points removed! all are less than " << linearErrorCutoff << std::endl;
+      logger.info << "No points removed! all are less than " + std::to_string(linearErrorCutoff) ;
       return;
     }
 
@@ -3362,7 +3461,7 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
       tempMatchSet.matches->host.get()[k] = matchSet->matches->host.get()[k];
     }
     if (!(matchSet->matches->size() - bad_bundles) || !(matchSet->keyPoints->size() - bad_lines)){
-      std::cerr << "ERROR: filtering is too aggressive, all points would be removed ..." << std::endl;
+      logger.err << "ERROR: filtering is too aggressive, all points would be removed ...";
       return;
     }
     // resize the standard matchSet
@@ -3371,7 +3470,7 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
     matchSet->keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,new_kp_size,ssrlcv::cpu);
     matchSet->matches   = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,new_mt_size,ssrlcv::cpu);
     // this is harder to do with the N-view case
-    unsigned int k_adjust = 0;
+    int k_adjust = 0;
     unsigned int k_lines  = 0;
     int k_bundle = 0;
     int k_keypnt = 0;
@@ -3388,7 +3487,7 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
       k_keypnt += k_lines;
     }
 
-    if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
+    if (bad_bundles) logger.info << "\tRemoved bundles";
   }
 }
 
@@ -3400,7 +3499,7 @@ void ssrlcv::PointCloudFactory::nonDeterministicStatisticalFilter(ssrlcv::MatchS
  */
 void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images, float cutoff){
   if (cutoff < 0.0){
-    std::cerr << "ERROR: cutoff must be positive" << std::endl;
+    logger.err << "ERROR: cutoff must be positive";
     return;
   }
 
@@ -3440,9 +3539,9 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
       }
     }
     if (bad_bundles) {
-      std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
+      logger.info << "\tDetected " + std::to_string(bad_bundles) + " bundles to remove";
     } else {
-      std::cout << "No points removed! all are less than " << cutoff << std::endl;
+      logger.info << "No points removed! all are less than " + std::to_string(cutoff);
       return;
     }
     // Need to generated and adjustment match set
@@ -3457,7 +3556,7 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
       tempMatchSet.matches->host.get()[k] = matchSet->matches->host.get()[k];
     }
     if (!(matchSet->matches->size() - bad_bundles)){
-      std::cerr << "ERROR: filtering is too aggressive, all points would be removed ..." << std::endl;
+      logger.err << "ERROR: filtering is too aggressive, all points would be removed ...";
       return;
     }
     // resize the standard matchSet
@@ -3476,7 +3575,7 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     	  k_adjust++;
     	}
     }
-    if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
+    if (bad_bundles) logger.info << "\tRemoved bundles";
   } else {
     //
     // This is the N-view case
@@ -3495,10 +3594,10 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
       }
     }
     if (bad_bundles) {
-      std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
-      std::cout << "\tDetected " << bad_lines << " lines to remove" << std::endl;
+      logger.info << "\tDetected " + std::to_string(bad_bundles) + " bundles to remove";
+      logger.info << "\tDetected " + std::to_string(bad_lines) + " lines to remove";
     } else {
-      std::cout << "No points removed! all are less than " << cutoff << std::endl;
+      logger.info << "No points removed! all are less than " + std::to_string(cutoff);
       return;
     }
 
@@ -3514,7 +3613,7 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
       tempMatchSet.matches->host.get()[k] = matchSet->matches->host.get()[k];
     }
     if (!(matchSet->matches->size() - bad_bundles) || !(matchSet->keyPoints->size() - bad_lines)){
-      std::cerr << "ERROR: filtering is too aggressive, all points would be removed ..." << std::endl;
+      logger.err << "ERROR: filtering is too aggressive, all points would be removed ...";
       return;
     }
     // resize the standard matchSet
@@ -3523,7 +3622,7 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
     matchSet->keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,new_kp_size,ssrlcv::cpu);
     matchSet->matches   = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,new_mt_size,ssrlcv::cpu);
     // this is harder to do with the N-view case
-    unsigned int k_adjust = 0;
+    int k_adjust = 0;
     unsigned int k_lines  = 0;
     int k_bundle = 0;
     int k_keypnt = 0;
@@ -3540,7 +3639,7 @@ void ssrlcv::PointCloudFactory::linearCutoffFilter(ssrlcv::MatchSet* matchSet, s
       k_keypnt += k_lines;
     }
 
-    if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
+    if (bad_bundles) logger.info << "\tRemoved bundles";
   }
 }
 
@@ -3556,7 +3655,7 @@ void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, s
   bool local_debug    = true;
   bool local_verbose  = true;
 
-  if (local_debug || local_verbose) std::cout << "Starting Planar Cutoff Filter ..." << std::endl;
+  if (local_debug || local_verbose) logger.info << "Starting Planar Cutoff Filter ...";
 
   // prep for reconstructon
   ssrlcv::BundleSet bundleSet;
@@ -3601,8 +3700,12 @@ void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, s
   ssrlcv::ptr::value<Unity<float3>> averagePoint = getAveragePoint(points);
 
   if (local_debug) {
-    std::cout << "Average Point: ( " << averagePoint->host.get()[0].x << ", " << averagePoint->host.get()[0].y << ", " << averagePoint->host.get()[0].z << " )" << std::endl;
-    std::cout << "Normal Vector: < " << normal->host.get()[0].x << ", " << normal->host.get()[0].y << ", " << normal->host.get()[0].z << " )" << std::endl;
+    std::stringstream ss;
+    ss << "Average Point: ( " << averagePoint->host.get()[0].x << ", " << averagePoint->host.get()[0].y << ", " << averagePoint->host.get()[0].z << " )";
+    logger.info << ss.str();
+    ss.str("");
+    ss << "Normal Vector: < " << normal->host.get()[0].x << ", " << normal->host.get()[0].y << ", " << normal->host.get()[0].z << " )";
+    logger.info << ss.str();
   }
 
   normal->transferMemoryTo(gpu);
@@ -3667,10 +3770,10 @@ void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, s
     }
   }
   if (bad_bundles) {
-    std::cout << "\tDetected " << bad_bundles << " bundles to remove" << std::endl;
-    std::cout << "\tDetected " << bad_lines << " lines to remove" << std::endl;
+    logger.info << "\tDetected " + std::to_string(bad_bundles) + " bundles to remove";
+    logger.info << "\tDetected " + std::to_string(bad_lines) + " lines to remove";
   } else {
-    std::cout << "No bundles or liens to removed! all points are less than " << cutoff  << " km from estimated plane" << std::endl;
+    logger.info << "No bundles or lines to remove! All points are less than " + std::to_string(cutoff)  + " km from estimated plane";
     return;
   }
 
@@ -3686,7 +3789,7 @@ void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, s
     tempMatchSet.matches->host.get()[k] = matchSet->matches->host.get()[k];
   }
   if (!(matchSet->matches->size() - bad_bundles) || !(matchSet->keyPoints->size() - bad_lines)){
-    std::cerr << "ERROR: filtering is too aggressive, all points would be removed ..." << std::endl;
+    logger.err << "ERROR: filtering is too aggressive, all points would be removed ...";
     return;
   }
   // resize the standard matchSet
@@ -3695,7 +3798,7 @@ void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, s
   matchSet->keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,new_kp_size,ssrlcv::cpu);
   matchSet->matches   = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,new_mt_size,ssrlcv::cpu);
   // this is harder to do with the N-view case
-  unsigned int k_adjust = 0;
+  int k_adjust = 0;
   unsigned int k_lines  = 0;
   int k_bundle = 0;
   int k_keypnt = 0;
@@ -3712,7 +3815,7 @@ void ssrlcv::PointCloudFactory::planarCutoffFilter(ssrlcv::MatchSet* matchSet, s
     k_keypnt += k_lines;
   }
 
-  if (bad_bundles) std::cout << "\tRemoved bundles" << std::endl;
+  if (bad_bundles) logger.info << "\tRemoved bundles";
 
   // clean up memory
   cudaFree(d_cutoff);
@@ -3736,9 +3839,9 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet
   }
 
   if (bad_bundles) {
-    std::cout << "\tDetected " << bad_bundles << " bad bundles to remove and " << bad_lines << " lines ..." << std::endl;
+    logger.info << "\tDetected " + std::to_string(bad_bundles) + " bad bundles to remove and " + std::to_string(bad_lines) + " lines ...";
   } else {
-    std::cerr << "ERROR: no bad bundles detected, cannot reduce bundle set" << std::endl;
+    logger.err << "ERROR: no bad bundles detected, cannot reduce bundle set";
     return bundleSet;
   }
 
@@ -3773,8 +3876,8 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet
       k_bundle++;
     }
   }
-  std::cout << "k_bundle: " << k_bundle << ", " << new_bd_size << std::endl;
-  std::cout << "k_adjust: " << k_adjust << ", " << new_ln_size << std::endl;
+  logger.info << "k_bundle: " + std::to_string(k_bundle) + ", " + std::to_string(new_bd_size);
+  logger.info << "k_adjust: " + std::to_string(k_adjust) + ", " + std::to_string(new_ln_size);
 
   return bundleSet;
 }
@@ -3806,7 +3909,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet
   // do an initial triangulation
   errors = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,bundleSet.bundles->size(),ssrlcv::cpu);
 
-  std::cout << "Starting Bundle Reduciton Statistical Filter ..." << std::endl;
+  logger.info << "Starting Bundle Reduciton Statistical Filter ...";
 
   points = nViewTriangulate(bundleSet, errors, &linearError, &linearErrorCutoff);
 
@@ -3820,8 +3923,13 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet
     sample_sum += errors->host.get()[k*sampleJump];
   }
   float sample_mean = sample_sum / errors_sample->size();
-  std::cout << "\tSample Sum: " << std::setprecision(32) << sample_sum << std::endl;
-  std::cout << "\tSample Mean: " << std::setprecision(32) << sample_mean << std::endl;
+  std::stringstream ss;
+  ss << "\tSample Sum: " << std::setprecision(32) << sample_sum;
+  logger.info << ss.str();
+  ss.str("");
+  ss << "\tSample Mean: " << std::setprecision(32) << sample_mean;
+  logger.info << ss.str();
+  ss.str("");
   float squared_sum = 0;
   for (int k = 0; k < sample_size; k++){
     squared_sum += (errors_sample->host.get()[k] - sample_mean)*(errors_sample->host.get()[k] - sample_mean);
@@ -3831,9 +3939,15 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet
   //
   // 2-view has an optimum of 0, assumes 0 is the average
   //
-  std::cout << "\tSample variance: " << std::setprecision(32) << variance << std::endl;
-  std::cout << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance) << std::endl;
-  std::cout << "\tLinear Error Cutoff Adjusted To: " << std::setprecision(32) << sigma * sqrtf(variance) << std::endl;
+  ss << "\tSample variance: " << std::setprecision(32) << variance;
+  logger.info << ss.str();
+  ss.str("");
+  ss << "\tSigma Calculated As: " << std::setprecision(32) << sqrtf(variance);
+  logger.info << ss.str();
+  ss.str("");
+  ss << "\tLinear Error Cutoff Adjusted To: " << std::setprecision(32) << sigma * sqrtf(variance);
+  logger.info << ss.str();
+  ss.str("");
   linearErrorCutoff = sigma * sqrtf(variance);
 
   // set the points to invalid
@@ -3848,7 +3962,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet
     }
   }
 
-  if (bad_bundles) std::cout << "\tDetected " << bad_bundles << " bad bundles to remove and " << bad_lines << " lines ..." << std::endl;
+  if (bad_bundles) logger.info << "\tDetected " + std::to_string(bad_bundles) + " bad bundles to remove and " + std::to_string(bad_lines) + " lines ...";
 
   // make a temp bundleset
   ssrlcv::ptr::value<ssrlcv::Unity<Bundle>> temp_bundles     = ssrlcv::ptr::value<ssrlcv::Unity<Bundle>>(nullptr,bundleSet.bundles->size(),cpu);
@@ -3883,8 +3997,8 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet
       k_bundle++;
     }
   }
-  std::cout << "k_bundle: " << k_bundle << ", " << new_bd_size << std::endl;
-  std::cout << "k_adjust: " << k_adjust << ", " << new_ln_size << std::endl;
+  logger.info << "k_bundle: " + std::to_string(k_bundle) + ", " + std::to_string(new_bd_size);
+  logger.info << "k_adjust: " + std::to_string(k_adjust) + ", " + std::to_string(new_ln_size);
 
   //BundleSet newSet = {bundleSet.lines,bundleSet.bundles};
   // return newSet;
@@ -3904,7 +4018,7 @@ ssrlcv::BundleSet ssrlcv::PointCloudFactory::reduceBundleSet(BundleSet bundleSet
 */
 void ssrlcv::PointCloudFactory::scalePointCloud(float scale, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points){
 
-  std::cout << "\t Scaling Point Cloud ..." << std::endl;
+  logger.info << "\t Scaling Point Cloud ...";
 
   // move to device
   float* d_scale;
@@ -3939,7 +4053,7 @@ void ssrlcv::PointCloudFactory::scalePointCloud(float scale, ssrlcv::ptr::value<
 */
 void ssrlcv::PointCloudFactory::translatePointCloud(float3 translate, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points){
 
-  std::cout << "\t Translating Point Cloud ..." << std::endl;
+  logger.info << "\t Translating Point Cloud ...";
 
   ssrlcv::ptr::value<ssrlcv::Unity<float3>> d_translate = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,1,ssrlcv::cpu);
   d_translate->host.get()[0].x = translate.x;
@@ -3974,7 +4088,7 @@ void ssrlcv::PointCloudFactory::translatePointCloud(float3 translate, ssrlcv::pt
 */
 void ssrlcv::PointCloudFactory::rotatePointCloud(float3 rotate, ssrlcv::ptr::value<ssrlcv::Unity<float3>> points) {
 
-  std::cout << "\t Rotating Point Cloud ..." << std::endl;
+  logger.info << "\t Rotating Point Cloud ...";
 
   ssrlcv::ptr::value<ssrlcv::Unity<float3>> d_rotate = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,1,ssrlcv::cpu);
   d_rotate->host.get()[0].x = rotate.x;
@@ -4008,7 +4122,7 @@ void ssrlcv::PointCloudFactory::rotatePointCloud(float3 rotate, ssrlcv::ptr::val
  */
 ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::PointCloudFactory::getAveragePoint(ssrlcv::ptr::value<ssrlcv::Unity<float3>> points){
 
-  std::cout << "\t Calculating average point ..." << std::endl;
+  logger.info << "\t Calculating average point ...";
 
   ssrlcv::ptr::value<Unity<float3>> average = ssrlcv::ptr::value<Unity<float3>>(nullptr,1,ssrlcv::gpu);
 
@@ -4074,16 +4188,8 @@ __global__ void ssrlcv::generateBundle(unsigned int numBundles, Bundle* bundles,
     }; // set the key point
     // rotate to correct orientation
     kp[k] = rotatePoint(kp[k], cameras[currentKP.parentId].cam_rot);
-    // move to correct world coordinate
-    kp[k].x = cameras[currentKP.parentId].cam_pos.x - (kp[k].x);
-    kp[k].y = cameras[currentKP.parentId].cam_pos.y - (kp[k].y);
-    kp[k].z = cameras[currentKP.parentId].cam_pos.z - (kp[k].z);
     // calculate the vector component of the line
-    lines[i].vec = {
-      cameras[currentKP.parentId].cam_pos.x - kp[k].x,
-      cameras[currentKP.parentId].cam_pos.y - kp[k].y,
-      cameras[currentKP.parentId].cam_pos.z - kp[k].z
-    };
+    lines[i].vec = kp[k];
     // fill in the line values
     normalize(lines[i].vec);
     lines[i].pnt = cameras[currentKP.parentId].cam_pos;

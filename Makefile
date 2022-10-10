@@ -5,6 +5,7 @@ CUDA_INSTALL_PATH := /usr/local/cuda
 CXX := gcc
 LINK := nvcc
 NVCC  := nvcc
+LOG_LEVEL := 1
 
 # Includes
 INCLUDES = -I. -I./include -I/usr/local/cuda/include
@@ -13,6 +14,7 @@ LIB :=  -L/usr/local/cuda/lib64 -lcublas -lcuda -lcudart -lcusparse -lcusolver\
 
 # Common flags
 COMMONFLAGS += $(INCLUDES)
+COMMONFLAGS += -DLOG_LEVEL=$(LOG_LEVEL)
 COMMONFLAGS += -g # Output debug symbols
 CXXFLAGS += $(COMMONFLAGS)
 CXXFLAGS += -Wall -std=c++11

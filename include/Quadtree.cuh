@@ -7,6 +7,7 @@
 
 #include "common_includes.hpp"
 #include "Image.cuh"
+#include "fix_thrust_warning.h"
 #include <thrust/sort.h>
 #include <thrust/pair.h>
 #include <thrust/unique.h>

@@ -13,6 +13,7 @@
 
 #include <cuda.h>
 #include <cuda_occupancy.h>
+#include "fix_thrust_warning.h"
 #include <thrust/device_ptr.h>
 #include <thrust/sort.h>
 #include <thrust/remove.h>

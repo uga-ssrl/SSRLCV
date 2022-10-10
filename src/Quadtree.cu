@@ -51,8 +51,10 @@ ssrlcv::Quadtree<T>::Quadtree(uint2 size, unsigned int depth, ssrlcv::Unity<Loca
   this->border = border;
   this->size = {size.x + (border.x*2),size.y + (border.y*2)};
   this->depth = depth;
-  printf("Building Quadtree with following characteristics:\ndepth = %d",this->depth);
-  printf("\nsize = {%d,%d}\nborder = {%d,%d}\n",this->size.x,this->size.y,this->border.x,this->border.y);
+  logger.info.printf("Building Quadtree with following characteristics:");
+  logger.info.printf("depth = %d",this->depth);
+  logger.info.printf("size = {%d,%d}",this->size.x,this->size.y);
+  logger.info.printf("boirder = {%d,%d}",this->border.x,this->border.y);
   this->generateLeafNodes();
   this->generateParentNodes();
   this->fillNeighborhoods();
@@ -73,7 +75,7 @@ template<typename T>
 void ssrlcv::Quadtree<T>::generateLeafNodes(){
 
   clock_t timer = clock();
-  std::cout<<"generating leaf nodes for quadtree..."<<std::endl;
+  logger.info<<"generating leaf nodes for quadtree...";
 
   unsigned long numLeafNodes = 0;
   numLeafNodes = this->data->size();
@@ -133,7 +135,7 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(){
 
   this->nodes->setFore(gpu);
 
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
 }
 
@@ -141,7 +143,7 @@ void ssrlcv::Quadtree<T>::generateLeafNodes(){
 template<typename T>
 void ssrlcv::Quadtree<T>::generateParentNodes(){
   clock_t timer = clock();
-  std::cout<<"filling coarser depths of quadtree..."<<std::endl;
+  logger.info<<"filling coarser depths of quadtree...";
   if(this->nodes == nullptr || this->nodes->getMemoryState() == null){
     //TODO potentially develop support for bottom up growth
     throw NullUnityException("Cannot generate parent nodes before children");
@@ -244,8 +246,8 @@ void ssrlcv::Quadtree<T>::generateParentNodes(){
   fillDataNodeIndex<T><<<grid,block>>>(this->nodeDepthIndex->host.get()[1],this->nodes->device.get(), this->dataNodeIndex->device.get());
   cudaDeviceSynchronize();
   CudaCheckError();
-  printf("TOTAL NODES = %d\n\n",totalNodes);
-  printf("done in %f seconds.\n\n",((float) clock() -  timer)/CLOCKS_PER_SEC);
+  logger.info.printf("TOTAL NODES = %d",totalNodes);
+  logger.info.printf("done in %f seconds.",((float) clock() -  timer)/CLOCKS_PER_SEC);
 
   this->nodes->setFore(gpu);
   this->dataNodeIndex->setFore(gpu);
@@ -289,7 +291,7 @@ void ssrlcv::Quadtree<T>::fillNeighborhoods(){
     CudaCheckError();
   }
   this->nodes->setFore(gpu);//just to ensure that it is known gpu nodes was edited last
-  std::cout<<"Neighborhoods filled"<<std::endl;
+  logger.info<<"Neighborhoods filled";
 }
 
 template<typename T>
@@ -336,7 +338,7 @@ void ssrlcv::Quadtree<T>::generateVertices(){
     CudaCheckError();
     CudaSafeCall(cudaMemcpy(&numVertices, atomicCounter.get(), sizeof(int), cudaMemcpyDeviceToHost));
     if(i == this->depth  && numVertices - prevCount != 4){
-      std::cout<<"ERROR GENERATING VERTICES, vertices at depth 0 != 4 -> "<<numVertices - prevCount<<std::endl;
+      logger.err<<"ERROR GENERATING VERTICES, vertices at depth 0 != 4 -> " + std::string(numVertices - prevCount);
       exit(-1);
     }
     vertices2D.get()[i].set((numVertices - prevCount));
@@ -424,7 +426,7 @@ void ssrlcv::Quadtree<T>::generateEdges(){
     CudaCheckError();
     CudaSafeCall(cudaMemcpy(&numEdges, atomicCounter, sizeof(int), cudaMemcpyDeviceToHost));
     if(i == this->depth  && numEdges - prevCount != 4){
-      std::cout<<"ERROR GENERATING EDGES, vertices at depth 0 != 4 -> "<<numEdges - prevCount<<std::endl;
+      logger.err<<"ERROR GENERATING EDGES, vertices at depth 0 != 4 -> " + std::string(numEdges - prevCount);
       exit(-1);
     }
 
@@ -482,7 +484,7 @@ void ssrlcv::Quadtree<T>::setNodeFlags(ssrlcv::ptr::value<ssrlcv::Unity<bool>> h
     throw NullUnityException("hashMap must be filled before setFlags is called");
   }
   if(!(depthRange.x == 0 && depthRange.y == 0) && (depthRange.x > depthRange.y || depthRange.x > this->depth || this->depth > depthRange.y || this->depth < depthRange.x)){
-    std::cout<<"ERROR: invalid depthRange in setFlags"<<std::endl;
+    logger.err<<"ERROR: invalid depthRange in setFlags";
     exit(-1);
   }
   MemoryState origin[3] = {hashMap->getMemoryState(),this->nodes->getMemoryState(),this->nodeDepthIndex->getMemoryState()};
@@ -528,7 +530,7 @@ template<typename T>
 void ssrlcv::Quadtree<T>::setNodeFlags(float2 flagBorder, bool requireFullNeighbors, uint2 depthRange){
   if(!(depthRange.x == 0 && depthRange.y == 0) && (depthRange.x > depthRange.y || depthRange.x > this->depth || this->depth > depthRange.y ||
     this->depth < depthRange.x)){
-    std::cout<<"ERROR: invalid depthRange in setFlags"<<std::endl;
+    logger.err<<"ERROR: invalid depthRange in setFlags";
     exit(-1);
   }
   MemoryState origin[2] = {this->nodes->getMemoryState(),this->nodeDepthIndex->getMemoryState()};
@@ -555,9 +557,11 @@ void ssrlcv::Quadtree<T>::setNodeFlags(float2 flagBorder, bool requireFullNeighb
   void (*fp)(unsigned int, unsigned int, typename Quadtree<T>::Node*, float4, bool) = &applyNodeFlags<T>;
   getFlatGridBlock(numNodes, grid, block,fp);
 
-  printf("Setting node flags based on distance from edge = {%f,%f} ",flagBorder.x,flagBorder.y);
-  if(requireFullNeighbors)printf("while also requiring full neighbors");
-  printf("\n");
+  if(requireFullNeighbors) {
+    logger.info.printf("Setting node flags based on distance from edge = {%f,%f} while also requiring full neighbors",flagBorder.x,flagBorder.y);
+  } else {
+    logger.info.printf("Setting node flags based on distance from edge = {%f,%f}",flagBorder.x,flagBorder.y);
+  }
   float4 bounds = {flagBorder.x, flagBorder.y, ((float)this->size.x) - flagBorder.x, ((float)this->size.y) - flagBorder.y};
 
   applyNodeFlags<T><<<grid,block>>>(numNodes,nodeDepthIndex,this->nodes->device.get(),bounds,requireFullNeighbors);
@@ -576,7 +580,7 @@ void ssrlcv::Quadtree<T>::setNodeFlags(float2 flagBorder, bool requireFullNeighb
 template<typename T>
 void ssrlcv::Quadtree<T>::writePLY(){
   std::string newFile = "out/test_"+ std::to_string(rand())+ ".ply";
-  std::cout<<"writing "<<newFile<<std::endl;
+  logger.info<<"writing " + newFile;
   std::ofstream plystream(newFile);
   if (plystream.is_open()) {
     int verticesToWrite = this->nodes->size();
@@ -604,10 +608,10 @@ void ssrlcv::Quadtree<T>::writePLY(){
       plystream << stringBuffer.str();
     }
 
-    std::cout<<newFile + " has been created.\n"<<std::endl;
+    logger.info<<newFile + " has been created.";
   }
   else{
-    std::cout << "Unable to open: " + newFile<< std::endl;
+    logger.err << "Unable to open: " + newFile;
     exit(1);
   }
 }

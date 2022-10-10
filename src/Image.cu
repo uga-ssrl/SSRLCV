@@ -46,6 +46,21 @@ ssrlcv::Image::Image(uint2 size, unsigned int colorDepth, ssrlcv::ptr::value<ssr
 }
 
 ssrlcv::Image::Image(std::string filePath, int id) {
+  if (getFileExtension(filePath) == "cpimg") {
+    std::ifstream cp(filePath.c_str(), std::ifstream::binary);
+    char buf[sizeof(ssrlcv::Image)];
+    cp.read(buf, sizeof(ssrlcv::Image));
+    this->camera = ((ssrlcv::Image *)buf)->camera;
+    this->id = ((ssrlcv::Image *)buf)->id;
+    this->size = ((ssrlcv::Image *)buf)->size;
+    this->colorDepth = ((ssrlcv::Image *)buf)->colorDepth;
+    this->pushbroom = ((ssrlcv::Image *)buf)->pushbroom;
+    ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> thing(getFolderFromFilePath(filePath) + "/pixels/" + std::to_string(this->id) + "_" + typeid(unsigned char).name() + ".uty");
+    this->pixels = thing;
+    cp.close();
+    return;
+  }
+
   std::string filename = getFileFromFilePath(filePath);
   this->filePath = filePath;
   this->id = id;
@@ -76,8 +91,8 @@ ssrlcv::Image::Image(std::string filePath, int id) {
     std::string params_path = getFolderFromFilePath(filePath);
     // defaults to reading ascii params if both exist
     if (fileExists(params_path + "/params.csv")){// read in the file as an ASCII enoding
-      std::cout << "Reading ASCII encoded camera parameters ..."<< "\n";
-      std::cout << "Looking for matching file " << filename<< "\n";
+      logger.info << "Reading ASCII encoded camera parameters ...";
+      logger.info << "Looking for matching file " + filename;
       // you know, this could be cleaner and generalized but idk if we wil ever want a csv reader other than here
       std::ifstream file(params_path + "/params.csv"); // declare file stream: http://www.cplusplus.com/reference/iostream/ifstream/
       std::string value;
@@ -95,7 +110,7 @@ ssrlcv::Image::Image(std::string filePath, int id) {
               this->isPushbroom = true;
               // see https://hirise-pds.lpl.arizona.edu/PDS/DOCUMENT/HIRISE_RDR_SIS.PDF
               // example file: https://hirise-pds.lpl.arizona.edu/PDS/RDR/ESP/ORB_063400_063499/ESP_063462_1985/ESP_063462_1985_RED.LBL
-              std::cout << "Detected a pushbroom camera system"<< "\n";
+              logger.info << "Detected a pushbroom camera system";
               this->pushbroom.size = this->camera.size;
               getline(file,value,',');
               this->pushbroom.projection_center.x = std::atof(value.c_str()); // latitude
@@ -126,7 +141,7 @@ ssrlcv::Image::Image(std::string filePath, int id) {
               //
               // The projective camera params case
               //
-              std::cout << "Detected a standard projective camera system"<< "\n";
+              logger.info << "Detected a standard projective camera system";
               this->isPushbroom = false;
               this->camera.cam_pos.x = std::atof(value.c_str());
               getline(file,value,',');
@@ -166,11 +181,11 @@ ssrlcv::Image::Image(std::string filePath, int id) {
       } // end while
       file.close();
     } else if (fileExists(params_path + "/params.bcp")) {
-      std::cout << "Reading BCP encoded camera parameters ..."<< "\n";
-      logger.warn << "WARN: BCP camera reading is not yet supported"<< "\n";
+      logger.info << "Reading BCP encoded camera parameters ...";
+      logger.warn << "WARN: BCP camera reading is not yet supported";
       // TODO read in binary incoded guys here
     } else if (fileExists(params_path + "/" + file_no_digits + "_par.txt")) {
-      std::cout << "Middleburry ACSII camera params found for " << filename<< "\n";
+      logger.info << "Middleburry ACSII camera params found for " + filename;
       this->isPushbroom = false;
       std::ifstream file(params_path + "/" + file_no_digits + "_par.txt"); // declare file stream: http://www.cplusplus.com/reference/iostream/ifstream/
       std::string value;
@@ -237,17 +252,45 @@ ssrlcv::Image::Image(std::string filePath, int id) {
 
       file.close();
     } else { // if no config file was found!
-      logger.warn << "WARN: NO CAMERA PARAM FILE FOUND, at least an empty params.csv or params.bcp is required. To disable this requirement use the flag -np or -noparams" << "\n";
+      logger.warn << "WARN: NO CAMERA PARAM FILE FOUND, at least an empty params.csv or params.bcp is required. To disable this requirement use the flag -np or -noparams";
       // std::throw -1; // TODO make this throw an exception
-      logger.err << "\t given   filePath: " << filePath<< "\n";
-      logger.err << "\t given   filename: " << filename<< "\n";
-      logger.err << "\t given param_path: " << params_path<< "\n";
-      logger.err << "\t cleaned filename: " << file_no_digits<< "\n";
+      logger.err << "\t given   filePath: " << filePath;
+      logger.err << "\t given   filename: " << filename;
+      logger.err << "\t given param_path: " << params_path;
+      logger.err << "\t cleaned filename: " << file_no_digits;
     }
   }
-  std::cout << "filePath: " << filePath<< "\n";
+  logger.info << "filePath: " + filePath;
 }
 
+void ssrlcv::Image::checkpoint(std::string dirPath) {
+  std::string path = dirPath + std::to_string(this->id) + "_" + typeid(ssrlcv::Image).name() + ".cpimg";
+  std::ofstream cp(path.c_str(), std::ofstream::binary);
+  size_t hash_code = typeid(ssrlcv::Image).hash_code();
+  if(cp.is_open()){
+    ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> temp = this->pixels;
+    std::string temp_str = this->filePath;
+    this->filePath.clear();
+    this->pixels = nullptr;
+    cp.write((char *)this,sizeof(ssrlcv::Image));
+    this->filePath = temp_str;
+    this->pixels = temp;
+    cp.close();
+    if(cp.good()){
+      logger.info<<"checkpoint " + path + " successfully written";
+    }
+    else{
+      path = "could not write Image checkpoint: " + path;
+      throw ssrlcv::CheckpointException(path);
+    }
+  }
+  else{
+    path = "could not open for writing: " + path;
+    throw ssrlcv::CheckpointException(path);
+  }
+  mkdir((dirPath + "/pixels").c_str(), 0755);
+  this->pixels->checkpoint(this->id, dirPath + "/pixels/");
+}
 
 ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int id){
   this->filePath = filePath;
@@ -258,15 +301,15 @@ ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int
   this->camera.size = this->size;
   this->size = size;
   this->pixels = ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>>(pixels_host,this->size.y*this->size.x*this->colorDepth,cpu);
-  for(int i = 0; i < this->pixels->size(); ++i){
-    std::cout<<this->pixels->host.get()[i]<<"\n";
-  }
+  //for(int i = 0; i < this->pixels->size(); ++i){
+    //std::cout<<this->pixels->host.get()[i]<<"\n";
+  //}
   if(convertColorDepthTo == 1){
     convertToBW(this->pixels, this->colorDepth);
     this->colorDepth = 1;
   }
   else if(convertColorDepthTo != 0){
-    logger.err<<"ERROR: Image() does not currently support conversion to anything but BW"<<"\n";
+    logger.err<<"ERROR: Image() does not currently support conversion to anything but BW";
     exit(-1);
   }
 }
@@ -278,7 +321,7 @@ ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int
 // =============================================================================================================
 
 void ssrlcv::Image::convertColorDepthTo(unsigned int colorDepth){
-  std::cout<<"Converting pixel depth to "<<colorDepth<<" from "<<this->colorDepth<<"\n";
+  logger.info.printf("Converting pixel depth to %d from %d", colorDepth, this->colorDepth);
   if(colorDepth == 1){
     convertToBW(this->pixels,this->colorDepth);
     this->colorDepth = 1;
@@ -288,7 +331,7 @@ void ssrlcv::Image::convertColorDepthTo(unsigned int colorDepth){
     this->colorDepth = 3;
   }
   else{
-    logger.err<<std::to_string(colorDepth)<<" is currently not supported in convertColorDepthTo"<<"\n";
+    logger.err<<std::to_string(colorDepth)<<" is currently not supported in convertColorDepthTo";
     exit(-1);
   }
 }
@@ -297,11 +340,12 @@ ssrlcv::ptr::value<ssrlcv::Unity<int2>> ssrlcv::Image::getPixelGradients(){
 }
 void ssrlcv::Image::alterSize(int scalingFactor){
   if(scalingFactor == 0){
-    logger.err<<"using a binDepth of 0 results in no binning or upsampling\nuse binDepth>0 for binning and binDepth<0 for upsampling"<<"\n";
+    logger.err<<"using a binDepth of 0 results in no binning or upsampling";
+    logger.err<<"use binDepth>0 for binning and binDepth<0 for upsampling";
     return;
   }
   else if((float)this->size.x/powf(2.0f,scalingFactor) < 1.0f ||(float)this->size.y/powf(2.0f,scalingFactor) < 1.0f){
-    logger.err<<"ERROR binning "<<std::to_string(scalingFactor)<<" many times cannot be done on and image of size "<<std::to_string(this->size.x)<<"x"<<std::to_string(this->size.y)<<"\n";
+    logger.err<<"ERROR binning "<<std::to_string(scalingFactor)<<" many times cannot be done on and image of size "<<std::to_string(this->size.x)<<"x"<<std::to_string(this->size.y);
     exit(-1);
   }
   MemoryState origin = this->pixels->getMemoryState();
@@ -377,7 +421,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::Image::getFloatVector(int len){
       params->host.get()[0 ] = this->camera.cam_pos.x ;
       break;
     default:
-      logger.err << "ERROR: the requested camera float vector is out of bounds or non-standard!"<< "\n";
+      logger.err << "ERROR: the requested camera float vector is out of bounds or non-standard!";
       break;
   }
   return params;
@@ -442,15 +486,15 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::Image::getExtrinsicDifference(C
 
 ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> ssrlcv::addBufferBorder(uint2 size, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, int2 border){
   if(border.x == 0 && border.y == 0){
-    logger.err<<"ERROR border cannot be 0"<<"\n";
+    logger.err<<"ERROR border cannot be 0";
     exit(-1);
   }
   if(border.x*2 + (int) size.x < 0 || border.y*2 + (int)size.y < 0){
-    logger.err<<"ERROR border causes negative dimensions"<<"\n";
+    logger.err<<"ERROR border causes negative dimensions";
     exit(-1);
   }
   if(pixels->size()%((int)size.x*size.y) != 0){
-    logger.err<<"ERROR color depth cannot be determined due to pixels->size()%(size.x*size.y) != 0"<<"\n";
+    logger.err<<"ERROR color depth cannot be determined due to pixels->size()%(size.x*size.y) != 0";
   }
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
@@ -468,15 +512,15 @@ ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> ssrlcv::addBufferBorder(uint2 s
 }
 ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::addBufferBorder(uint2 size, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, int2 border){
   if(border.x == 0 && border.y == 0){
-    logger.err<<"ERROR border cannot be 0"<<"\n";
+    logger.err<<"ERROR border cannot be 0";
     exit(-1);
   }
   if(border.x*2 + (int) size.x < 0 || border.y*2 + (int)size.y < 0){
-    logger.err<<"ERROR border causes negative dimensions"<<"\n";
+    logger.err<<"ERROR border causes negative dimensions";
     exit(-1);
   }
   if(pixels->size()%((int)size.x*size.y) != 0){
-    logger.err<<"ERROR color depth cannot be determined due to pixels->size()%(size.x*size.y) != 0"<<"\n";
+    logger.err<<"ERROR color depth cannot be determined due to pixels->size()%(size.x*size.y) != 0";
   }
   MemoryState origin = pixels->getMemoryState();
   if(origin != gpu) pixels->setMemoryState(gpu);
@@ -560,7 +604,7 @@ void ssrlcv::normalizeImage(ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, flo
 
 void ssrlcv::convertToBW(ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, unsigned int colorDepth){
   if(colorDepth == 1){
-    std::cout<<"Pixels are already bw"<<"\n";
+    logger.warn<<"Pixels are already bw";
     return;
   }
 
@@ -584,7 +628,7 @@ void ssrlcv::convertToBW(ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels
 }
 void ssrlcv::convertToRGB(ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, unsigned int colorDepth){
   if(colorDepth == 3){
-    std::cout<<"Pixels are already rgb"<<"\n";
+    logger.warn<<"Pixels are already rgb";
     return;
   }
 
@@ -611,7 +655,7 @@ void calcFundamentalMatrix_2View(float cam0[3][3], float cam1[3][3], float (&F)[
 }
 void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F)[3]){
   if(query->camera.foc != target->camera.foc){
-    std::cout<<"ERROR calculating fundamental matrix for 2view needs to bet taken with same camera (foc&fov are same)"<<"\n";
+    logger.err<<"ERROR calculating fundamental matrix for 2view needs to bet taken with same camera (foc&fov are same)";
     exit(-1);
   }
   float angle1;
@@ -737,12 +781,12 @@ void ssrlcv::calcFundamentalMatrix_2View(Image* query, Image* target, float3 (&F
   float3 tempF[3];
   multiply(K_invTranspose, E,tempF);
   multiply(tempF, K_inv, F);
-  std::cout<< "\n" <<"between image "<<query->id<<" and "<<target->id
-  <<" the final fundamental matrix result is: "<< "\n";
+  logger.info.printf("between image %d and %d the final fundamental matrix result is", query->id, target->id);
   for(int r = 0; r < 3; ++r) {
-    std::cout << F[r].x << "  " << F[r].y << " "<<  F[r].z<< "\n";
+    std::stringstream ss;
+    ss << F[r].x << "  " << F[r].y << " "<<  F[r].z;
+    logger.info << ss.str();
   }
-  std::cout<<"\n";
 }
 void ssrlcv::get_cam_params2view(Image* cam1, Image* cam2, std::string infile){
   std::ifstream input(infile);
@@ -856,7 +900,7 @@ void ssrlcv::makeBinnable(uint2 &size, ssrlcv::ptr::value<ssrlcv::Unity<unsigned
     if(origin != gpu) pixels->setMemoryState(origin);
   }
   else{
-    std::cout<<"no resize necessary for binning to depth "<<plannedDepth<<"\n";//TODO turn to verbose debug
+    logger.info.printf("no resize necessary for binning to depth %d", plannedDepth);
   }
 }
 void ssrlcv::makeBinnable(uint2 &size, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, int plannedDepth){
@@ -886,7 +930,7 @@ void ssrlcv::makeBinnable(uint2 &size, ssrlcv::ptr::value<ssrlcv::Unity<float>> 
     if(origin != gpu) pixels->setMemoryState(origin);
   }
   else{
-    std::cout<<"no resize necessary for binning to depth "<<plannedDepth<<"\n";//TODO turn to verbose debug
+    logger.info.printf("no resize necessary for binning to depth %d", plannedDepth);
   }
 }
 
@@ -1023,7 +1067,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::scaleImage(uint2 imageSize, ssr
 
 ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::convolve(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> pixels, int2 kernelSize, float* kernel, bool symmetric){
   if(kernelSize.x%2 == 0 || kernelSize.y%2 == 0){
-    logger.err<<"ERROR kernel for image convolution must have an odd dimension"<<"\n";
+    logger.err<<"ERROR kernel for image convolution must have an odd dimension";
     exit(-1);
   }
   MemoryState origin = pixels->getMemoryState();
@@ -1057,7 +1101,7 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::convolve(uint2 imageSize, ssrlc
 }
 ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::convolve(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, int2 kernelSize, float* kernel, bool symmetric){
   if(kernelSize.x%2 == 0 || kernelSize.y%2 == 0){
-    logger.err<<"ERROR kernel for image convolution must have an odd dimension"<<"\n";
+    logger.err<<"ERROR kernel for image convolution must have an odd dimension";
     exit(-1);
   }
   MemoryState origin = pixels->getMemoryState();
@@ -1141,7 +1185,7 @@ __global__ void ssrlcv::generateBW(int numPixels, unsigned int colorDepth, unsig
         pixels[globalID] = rgbaToBW({colorPixels[globalID*numValues],colorPixels[globalID*numValues + 1], colorPixels[globalID*numValues + 2], colorPixels[globalID*numValues + 3]});
         break;
       default:
-        printf("ERROR colorDepth of %u is not supported\n",numValues);
+        printf("ERROR colorDepth of %u is not supported",numValues);
         asm("trap;");
     }
   }
@@ -1162,7 +1206,7 @@ __global__ void ssrlcv::generateRGB(int numPixels, unsigned int colorDepth, unsi
         value = rgbaToRGB({colorPixels[globalID*numValues],colorPixels[globalID*numValues + 1], colorPixels[globalID*numValues + 2], colorPixels[globalID*numValues + 3]});
         break;
       default:
-        printf("ERROR colorDepth of %u is not supported\n",numValues);
+        printf("ERROR colorDepth of %u is not supported",numValues);
         asm("trap;");
     }
     pixels[globalID*3] = value.x;
