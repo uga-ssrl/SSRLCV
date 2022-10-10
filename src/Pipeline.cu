@@ -13,13 +13,9 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
     logger.logState("SEED");
     
     logger.logState("FEATURES");
-<<<<<<< HEAD
-    float3 offset;
-=======
     
     float3 offset;
 
->>>>>>> 4fad59016738ffe7d499d62689dda977a2ee5aed
     for (int i = 0; i < in->numImages; i ++) {
       // new image with path and ID
       ssrlcv::ptr::value<ssrlcv::Image> image = ssrlcv::ptr::value<ssrlcv::Image>(in->imagePaths[i], i);
@@ -28,11 +24,6 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
         offset = image->camera.cam_pos;
       image->camera.ecef_offset = offset;
       image->camera.cam_pos -= offset;
-<<<<<<< HEAD
-      
-=======
-
->>>>>>> 4fad59016738ffe7d499d62689dda977a2ee5aed
       // array of features containing sift descriptors at every point
       ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> features = featureFactory.generateFeatures(image,false,2,0.8);
       features->transferMemoryTo(ssrlcv::cpu);
@@ -43,34 +34,8 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
   }
   
   void ssrlcv::doFeatureMatching(ssrlcv::FeatureMatchingInput *in, ssrlcv::FeatureMatchingOutput *out) {
-<<<<<<< HEAD
-    std::cout << "Starting matching..." << std::endl;
-
-    /**************************
-    * ORIGINAL IMPLEMENTATION *
-    ***************************/
-
-    // // logger.logState("generating seed matches");
-    // ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,15000.0f); 
-    // if (in->seedFeatures != nullptr)
-    //   matchFactory.setSeedFeatures(in->seedFeatures);
-    // ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
-    // ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], seedDistances);
-    // // logger.logState("done generating seed matches");
-    
-    /*******************************
-    *    KD-TREE IMPLEMENTATION    *
-    ********************************
-    * VARIABLES THAT CAN BE TUNED  *
-    *                              *
-    * emax = 100                   *
-    *                              *
-    ********************************/
-
-=======
     logger.info << "Starting matching...";
-    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,200.0f*200.0f);
->>>>>>> 4fad59016738ffe7d499d62689dda977a2ee5aed
+    // ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,200.0f*200.0f);
     logger.logState("MATCHING");
     ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,15000.0f);
 

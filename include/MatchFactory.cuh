@@ -10,11 +10,8 @@
 #include "Image.cuh"
 #include "Match.cuh"
 #include "Feature.cuh"
-<<<<<<< HEAD
 #include "KDTree.cuh"
-=======
 #include "fix_thrust_warning.h"
->>>>>>> 4fad59016738ffe7d499d62689dda977a2ee5aed
 #include <thrust/device_ptr.h>
 #include <thrust/copy.h>
 #include <thrust/scan.h>
