@@ -89,15 +89,15 @@ namespace ssrlcv {
 
         // constructors
         KDTree();
-        KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> points);
-        KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> points, vector<T> _labels);
+        KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points);
+        KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points, thrust::host_vector<int> _labels);
         
         // helper function to efficiently search the kd tree
         static float medianPartition(size_t* ofs, int a, int b, const unsigned char* vals);
 
         // builds the search tree
-        void build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> points);
-        void build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> points, vector<int> labels);
+        void build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points);
+        void build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points, thrust::host_vector<int> _labels);
 
         // return a point with the specified index
         const float2 getPoint(int ptidx, int *label = 0) const;

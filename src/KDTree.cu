@@ -1,5 +1,12 @@
 #include "KDTree.cuh"
 
+template class ssrlcv::KDTree<ssrlcv::SIFT_Descriptor>;
+template class ssrlcv::KDTree<ssrlcv::Window_3x3>;
+//template class ssrlcv::KDTree<ssrlcv::Window_9x9>;
+//template class ssrlcv::KDTree<ssrlcv::Window_15x15>;
+//template class ssrlcv::KDTree<ssrlcv::Window_25x25>;
+//template class ssrlcv::KDTree<ssrlcv::Window_31x31>;
+
 /******************
 * KD TREE METHODS *
 *******************/
@@ -13,7 +20,7 @@ ssrlcv::KDTree<T>::KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> 
 }
 
 template<typename T>
-ssrlcv::KDTree<T>::KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points, vector<T> _labels) {
+ssrlcv::KDTree<T>::KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points, thrust::host_vector<int> _labels) {
     build(_points, _labels);
 }
 
@@ -89,12 +96,12 @@ static void computeSums(ssrlcv::Feature<T>* points, int start, int end, unsigned
 
 template<typename T>
 void ssrlcv::KDTree<T>::build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points) {
-    vector<int> labels;
+    thrust::host_vector<int> labels;
     build(_points, labels);
 } // build
 
 template<typename T>
-void ssrlcv::KDTree<T>::build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points, vector<int> _labels) {
+void ssrlcv::KDTree<T>::build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points, thrust::host_vector<int> _labels) {
 
     if (_points->size() == 0) {
         logger.err<<"ERROR: number of features in image must be greater than zero"<<"\n";
@@ -107,7 +114,6 @@ void ssrlcv::KDTree<T>::build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T
 
     int i, j, n = _points->size(), top = 0;
     const unsigned char* data = _points->host->descriptor.values;
-    unsigned char* dstdata = points->host->descriptor.values;
 
     // size of object in memory 
     size_t step = sizeof(ssrlcv::Feature<T>);
@@ -502,34 +508,3 @@ const float2 ssrlcv::KDTree<T>::getPoint(int ptidx, int *label) const {
     if (label) { *label = labels[ptidx]; }
     return points->host[ptidx].loc;
 } // getPoint
-
-template<typename T>
-void ssrlcv::KDTree<T>::printKDTree() {
-    printf("\nPRINTING KD TREE...\n\n");
-    
-    printf("NODES: \n\n");
-    vector<Node> nodes = this->nodes;
-    for (size_t i = 0; i < nodes.size(); i ++) {
-        printf("Node %zu\n", i);
-        printf("\tIndex: %d\n", nodes[i].idx);
-        printf("\tIndex of Left Branch: %d\n", nodes[i].left);
-        printf("\tIndex of Right Branch: %d\n", nodes[i].right);
-    }
-    printf("\n");
-
-    printf("POINTS: \n\n");
-    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> points = this->points;
-    for (size_t i = 0; i < points->size(); i++) {
-        points->host[i].descriptor.print(); 
-    }
-    printf("\n");
-
-    printf("LABELS: \n\n");
-    thrust::host_vector<int> labels = this->labels;
-    for (size_t i = 0; i < labels.size(); i++) {
-        printf("%d\n", labels[i]);
-    }
-    printf("\n");
-    
-    printf("...DONE PRINTING\n\n");
-} // printKDTree
