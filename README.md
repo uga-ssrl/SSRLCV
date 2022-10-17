@@ -71,9 +71,9 @@ make clean
 
 1. Compile
 
-       make sfm -j8 SM=35 LOG_LEVEL=3 IN_ORBIT=1
+       make sfm -j8 SM=35 LOG_LEVEL=3 GEO_ORBIT=1
     - Change `LOG_LEVEL` to `4` for memory logging.
-    - Set `IN_ORBIT` to `0` if this is not in geocentric orbit (turns off epipolar geometry reliance)
+    - Set `GEO_ORBIT` to `0` if this is not in geocentric orbit (turns off epipolar geometry reliance)
 
 4. Run
 

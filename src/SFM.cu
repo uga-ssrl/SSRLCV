@@ -70,6 +70,22 @@ int main(int argc, char *argv[]){
     logger.info.printf("Found %d images in directory given", numImages);
     logger.logState("SEED");
 
+    // off-precision distance for epipolar matching (in pixels)
+    float epsilon = 5.0;
+    if (args.find("epsilon") != args.end()) {
+      epsilon = ((ssrlcv::flt_arg *)args["epsilon"])->val;
+
+      logger.info.printf("Setting delta (for epipolar geometry) to %f kilometers.", epsilon);
+    }
+
+    // off-precision distance for orbital SfM (in kilometers)
+    float delta = 0.0;
+    if (args.find("delta") != args.end()) {
+      delta = ((ssrlcv::flt_arg *)args["delta"])->val;
+
+      logger.info.printf("Setting delta (for earth-centered epipolar geometry) to %f kilometers.", delta);
+    }
+
     //
     // FEATURE GENERATION
     //
@@ -82,7 +98,7 @@ int main(int argc, char *argv[]){
     // FEATURE MATCHING
     //
 
-    ssrlcv::FeatureMatchingInput featureMatchInput = {featureGenOutput.seedFeatures, featureGenOutput.allFeatures, featureGenOutput.images};
+    ssrlcv::FeatureMatchingInput featureMatchInput = {featureGenOutput.seedFeatures, featureGenOutput.allFeatures, featureGenOutput.images, epsilon, delta};
     ssrlcv::FeatureMatchingOutput featureMatchOutput;
     ssrlcv::doFeatureMatching(&featureMatchInput, &featureMatchOutput);
 

@@ -5,7 +5,9 @@ CUDA_INSTALL_PATH := /usr/local/cuda
 CXX := gcc
 LINK := nvcc
 NVCC  := nvcc
-LOG_LEVEL := 1
+
+LOG_LEVEL := 3
+GEO_ORBIT := 1 # specifies whether to assume SfM is happening in-orbit of earth
 
 # Includes
 INCLUDES = -I. -I./include -I/usr/local/cuda/include
@@ -15,6 +17,7 @@ LIB :=  -L/usr/local/cuda/lib64 -lcublas -lcuda -lcudart -lcusparse -lcusolver\
 # Common flags
 COMMONFLAGS += $(INCLUDES)
 COMMONFLAGS += -DLOG_LEVEL=$(LOG_LEVEL)
+COMMONFLAGS += -DGEO_ORBIT=$(GEO_ORBIT)
 COMMONFLAGS += -g # Output debug symbols
 CXXFLAGS += $(COMMONFLAGS)
 CXXFLAGS += -Wall -std=c++11

@@ -195,7 +195,7 @@ TEST(PipelineTest, FeatureMatching2View) {
   images.push_back(image0);
   images.push_back(image1);
 
-  ssrlcv::FeatureMatchingInput featureMatchInput = {seedFeatures, allFeatures, images};
+  ssrlcv::FeatureMatchingInput featureMatchInput = {seedFeatures, allFeatures, images, 25, 5};
   ssrlcv::FeatureMatchingOutput featureMatchOutput;
   ssrlcv::doFeatureMatching(&featureMatchInput, &featureMatchOutput);
   // featureMatchOutput.matchSet.keyPoints->checkpoint(0, getPath());
@@ -234,7 +234,7 @@ TEST(PipelineTest, FeatureMatching3View) {
   images.push_back(image1);
   images.push_back(image2);
 
-  ssrlcv::FeatureMatchingInput featureMatchInput = {seedFeatures, allFeatures, images};
+  ssrlcv::FeatureMatchingInput featureMatchInput = {seedFeatures, allFeatures, images, 0.0};
   ssrlcv::FeatureMatchingOutput featureMatchOutput;
   ssrlcv::doFeatureMatching(&featureMatchInput, &featureMatchOutput);
   // featureMatchOutput.matchSet.keyPoints->checkpoint(0, getPath(true));
