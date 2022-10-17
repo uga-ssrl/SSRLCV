@@ -47,7 +47,7 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
     ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
 
     // build a kd tree using img2
-    ssrlcv::KDTree<ssrlcv::SIFT_Descriptor> kdtree = ssrlcv::KDTree<ssrlcv::SIFT_Descriptor>(in->allFeatures[1]);
+    ssrlcv::KDTree kdtree = ssrlcv::KDTree(in->allFeatures[1]);
 
     // generate matches
     ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatchesKDTree(in->images[0], in->allFeatures[0], in->images[1], kdtree);

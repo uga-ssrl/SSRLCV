@@ -1,7 +1,7 @@
 #include "KDTree.cuh"
 
-template class ssrlcv::KDTree<ssrlcv::SIFT_Descriptor>;
-template class ssrlcv::KDTree<ssrlcv::Window_3x3>;
+//template class ssrlcv::KDTree<ssrlcv::SIFT_Descriptor>;
+//template class ssrlcv::KDTree<ssrlcv::Window_3x3>;
 //template class ssrlcv::KDTree<ssrlcv::Window_9x9>;
 //template class ssrlcv::KDTree<ssrlcv::Window_15x15>;
 //template class ssrlcv::KDTree<ssrlcv::Window_25x25>;
@@ -11,16 +11,16 @@ template class ssrlcv::KDTree<ssrlcv::Window_3x3>;
 * KD TREE METHODS *
 *******************/
 
-template<typename T>
-ssrlcv::KDTree<T>::KDTree() {}
+//template<typename T>
+ssrlcv::KDTree::KDTree() {}
 
-template<typename T>
-ssrlcv::KDTree<T>::KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points) {
+//template<typename T>
+ssrlcv::KDTree::KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> _points) {
     build(_points);
 }
 
-template<typename T>
-ssrlcv::KDTree<T>::KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points, thrust::host_vector<int> _labels) {
+//template<typename T>
+ssrlcv::KDTree::KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> _points, thrust::host_vector<int> _labels) {
     build(_points, _labels);
 }
 
@@ -74,11 +74,11 @@ static float medianPartition(size_t* ofs, int a, int b, const unsigned char* val
     return vals[ofs[middle]];
 } // medianPartition
 
-template<typename T>
-static void computeSums(ssrlcv::Feature<T>* points, int start, int end, unsigned char *sums) {
+//template<typename T>
+static void computeSums(ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* points, int start, int end, unsigned char *sums) {
    
     int i, j; 
-    ssrlcv::Feature<T> data; 
+    ssrlcv::Feature<ssrlcv::SIFT_Descriptor> data; 
 
     // initilize sums array with 0
     for(j = 0; j < DIMS; j++)
@@ -94,14 +94,14 @@ static void computeSums(ssrlcv::Feature<T>* points, int start, int end, unsigned
     }
 } // computeSums
 
-template<typename T>
-void ssrlcv::KDTree<T>::build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points) {
+//template<typename T>
+void ssrlcv::KDTree::build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> _points) {
     thrust::host_vector<int> labels;
     build(_points, labels);
 } // build
 
-template<typename T>
-void ssrlcv::KDTree<T>::build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points, thrust::host_vector<int> _labels) {
+//template<typename T>
+void ssrlcv::KDTree::build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> _points, thrust::host_vector<int> _labels) {
 
     if (_points->size() == 0) {
         logger.err<<"ERROR: number of features in image must be greater than zero"<<"\n";
@@ -116,7 +116,7 @@ void ssrlcv::KDTree<T>::build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T
     const unsigned char* data = _points->host->descriptor.values;
 
     // size of object in memory 
-    size_t step = sizeof(ssrlcv::Feature<T>);
+    size_t step = sizeof(ssrlcv::Feature<ssrlcv::SIFT_Descriptor>);
 
     labels.resize(n); // labels and points array will share same size 
     const int* _labels_data = 0;
@@ -141,7 +141,7 @@ void ssrlcv::KDTree<T>::build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T
     }
 
     nodes.push_back(Node());
-    computeSums<T>(points->host.get(), 0, n-1, sumstack[top]);
+    computeSums(points->host.get(), 0, n-1, sumstack[top]);
     stack[top++] = SubTree(0, n-1, 0, 0);
     int _maxDepth = 0;
 
@@ -197,11 +197,11 @@ void ssrlcv::KDTree<T>::build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T
 // J.S. Beis and D.G. Lowe. Shape Indexing Using Approximate Nearest-Neighbor Search
 // in High-Dimensional Spaces. In Proc. IEEE Conf. Comp. Vision Patt. Recog.,
 // pages 1000--1006, 1997. https://www.cs.ubc.ca/~lowe/papers/cvpr97.pdf
-template<typename T> 
-__device__ ssrlcv::DMatch ssrlcv::findNearest(ssrlcv::KDTree<T>* kdtree, typename KDTree<T>::Node* nodes, ssrlcv::Feature<T>* featuresTree,
-ssrlcv::Feature<T> feature, unsigned int queryImageID, unsigned int targetImageID, int emax, float absoluteThreshold, int k) {
+//template<typename T> 
+__device__ ssrlcv::DMatch ssrlcv::findNearest(ssrlcv::KDTree* kdtree, typename KDTree::Node* nodes, ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* featuresTree,
+ssrlcv::Feature<ssrlcv::SIFT_Descriptor> feature, unsigned int queryImageID, unsigned int targetImageID, int emax, float absoluteThreshold, int k) {
 
-    T desc = feature.descriptor;
+    ssrlcv::SIFT_Descriptor desc = feature.descriptor;
     const unsigned char *vec = desc.values; // descriptor values[128] from query
 
     int i, j, ncount = 0, e = 0;
@@ -256,7 +256,7 @@ ssrlcv::Feature<T> feature, unsigned int queryImageID, unsigned int targetImageI
             if (nidx < 0) 
                 break;
                 
-            const typename KDTree<T>::Node& n = nodes[nidx];
+            const typename KDTree::Node& n = nodes[nidx];
 
             if (n.idx < 0) { // if it is a leaf node
                 i = ~n.idx; 
@@ -343,11 +343,11 @@ ssrlcv::Feature<T> feature, unsigned int queryImageID, unsigned int targetImageI
 // J.S. Beis and D.G. Lowe. Shape Indexing Using Approximate Nearest-Neighbor Search
 // in High-Dimensional Spaces. In Proc. IEEE Conf. Comp. Vision Patt. Recog.,
 // pages 1000--1006, 1997. https://www.cs.ubc.ca/~lowe/papers/cvpr97.pdf
-template<typename T> 
-__device__ ssrlcv::DMatch ssrlcv::findNearest(ssrlcv::KDTree<T>* kdtree, typename KDTree<T>::Node* nodes, ssrlcv::Feature<T>* featuresTree,
-ssrlcv::Feature<T> feature, unsigned int queryImageID, unsigned int targetImageID, int emax, float relativeThreshold, float absoluteThreshold, float nearestSeed, int k) {
+//template<typename T> 
+__device__ ssrlcv::DMatch ssrlcv::findNearest(ssrlcv::KDTree* kdtree, typename KDTree::Node* nodes, ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* featuresTree,
+ssrlcv::Feature<ssrlcv::SIFT_Descriptor> feature, unsigned int queryImageID, unsigned int targetImageID, int emax, float relativeThreshold, float absoluteThreshold, float nearestSeed, int k) {
 
-    T desc = feature.descriptor;
+    ssrlcv::SIFT_Descriptor desc = feature.descriptor;
     const unsigned char *vec = desc.values; // descriptor values[128] from query
 
     int i, j, ncount = 0, e = 0;
@@ -402,7 +402,7 @@ ssrlcv::Feature<T> feature, unsigned int queryImageID, unsigned int targetImageI
             if (nidx < 0) 
                 break;
                 
-            const typename KDTree<T>::Node& n = nodes[nidx];
+            const typename KDTree::Node& n = nodes[nidx];
 
             if (n.idx < 0) { // if it is a leaf node
                 i = ~n.idx; 
@@ -500,8 +500,8 @@ ssrlcv::Feature<T> feature, unsigned int queryImageID, unsigned int targetImageI
 * DEBUG METHODS *
 *****************/
 
-template<typename T>
-const float2 ssrlcv::KDTree<T>::getPoint(int ptidx, int *label) const {
+//template<typename T>
+const float2 ssrlcv::KDTree::getPoint(int ptidx, int *label) const {
     if ( !((unsigned)ptidx < (unsigned)points->size()) ) {
         logger.err<<"ERROR: point index is out of range"<<"\n";
     } 

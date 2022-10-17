@@ -68,7 +68,7 @@ namespace ssrlcv {
     * KD-TREE CLASS *
     *****************/
 
-    template <typename T>
+    //template <typename T>
     class KDTree {
 
     public: 
@@ -89,15 +89,12 @@ namespace ssrlcv {
 
         // constructors
         KDTree();
-        KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points);
-        KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points, thrust::host_vector<int> _labels);
-        
-        // helper function to efficiently search the kd tree
-        static float medianPartition(size_t* ofs, int a, int b, const unsigned char* vals);
+        KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> _points);
+        KDTree(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> _points, thrust::host_vector<int> _labels);
 
         // builds the search tree
-        void build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points);
-        void build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> _points, thrust::host_vector<int> _labels);
+        void build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> _points);
+        void build(ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> _points, thrust::host_vector<int> _labels);
 
         // return a point with the specified index
         const float2 getPoint(int ptidx, int *label = 0) const;
@@ -106,7 +103,7 @@ namespace ssrlcv {
         void printKDTree();
 
         thrust::host_vector<Node> nodes; // all the tree nodes
-        ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<T>>> points; // all the points 
+        ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> points; // all the points 
         thrust::host_vector<int> labels; // the parallel array of labels
         int maxDepth;
 
@@ -137,9 +134,9 @@ namespace ssrlcv {
      * \param absoluteThreshold the maximum distance between two matched points
      * \param k the number of nearest neighbors. by default this value finds the 1 closest tree feature to a given query feature
     */ 
-    template<typename T> 
-    __device__ ssrlcv::DMatch findNearest(KDTree<T>* kdtree, typename KDTree<T>::Node* nodes, Feature<T>* treeFeatures, 
-    Feature<T> queryFeature, unsigned int queryImageID, unsigned int targetImageID, int emax, float absoluteThreshold, int k = 1);
+    //template<typename T> 
+    __device__ ssrlcv::DMatch findNearest(KDTree* kdtree, typename KDTree::Node* nodes, Feature<ssrlcv::SIFT_Descriptor>* treeFeatures, 
+    Feature<ssrlcv::SIFT_Descriptor> queryFeature, unsigned int queryImageID, unsigned int targetImageID, int emax, float absoluteThreshold, int k = 1);
     
     /**
      * \brief finds the k nearest neighbors to a point while looking at emax (at most) leaves. matching is done WITH a seed image.
@@ -153,9 +150,9 @@ namespace ssrlcv {
      * \param nearestSeed the seed distance corresponding to the query point 
      * \param k the number of nearest neighbors. by default this value finds the 1 closest tree feature to a given query feature
     */ 
-    template<typename T> 
-    __device__ ssrlcv::DMatch findNearest(ssrlcv::KDTree<T>* kdtree, typename KDTree<T>::Node* nodes, ssrlcv::Feature<T>* treeFeatures, 
-    ssrlcv::Feature<T> queryFeature, unsigned int queryImageID, unsigned int targetImageID, int emax, float relativeThreshold, float absoluteThreshold, float nearestSeed, int k = 1); 
+    //template<typename T> 
+    __device__ ssrlcv::DMatch findNearest(ssrlcv::KDTree* kdtree, typename KDTree::Node* nodes, ssrlcv::Feature<ssrlcv::SIFT_Descriptor>* treeFeatures, 
+    ssrlcv::Feature<ssrlcv::SIFT_Descriptor> queryFeature, unsigned int queryImageID, unsigned int targetImageID, int emax, float relativeThreshold, float absoluteThreshold, float nearestSeed, int k = 1); 
 
 } // namepsace ssrlcv
 

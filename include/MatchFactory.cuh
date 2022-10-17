@@ -16,9 +16,6 @@
 #include <thrust/copy.h>
 #include <thrust/scan.h>
 
-// put aboce structs in Match.cuh header
-// include it in both MatchFactory.cuh and KDTree.cuh
-
 namespace ssrlcv {
   
   namespace {
@@ -219,7 +216,7 @@ namespace ssrlcv {
     /**
     * \brief Generated DMatches between Feature<Descriptor> when KD-Tree is implemented
     */
-    ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> generateDistanceMatchesKDTree(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::KDTree<T> kdtree, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
+    ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> generateDistanceMatchesKDTree(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<ssrlcv::SIFT_Descriptor>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::KDTree kdtree, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
     /**
      * \brief Generates DMatches between Feature<Descriptor> when Descriptor::distProtocol() is implemented with epipolar constaints
      * \warning If bad fundamental matrix between two images, matches will be very bad. 
@@ -324,14 +321,14 @@ namespace ssrlcv {
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
     Feature<T>* featuresTarget, DMatch* matches, float epsilon, float* fundamental, float* seedDistances,
     float relativeThreshold, float absoluteThreshold);
-  template<typename T>
+  //template<typename T>
   __global__ void matchFeaturesKDTree(unsigned int queryImageID, unsigned long numFeaturesQuery, 
-    Feature<T>* featuresQuery, unsigned int targetImageID, KDTree<T>* kdtree, typename KDTree<T>::Node* nodes,
-    Feature<T>* featuresTree, DMatch* matches, float absoluteThreshold);
-  template<typename T>
+    Feature<ssrlcv::SIFT_Descriptor>* featuresQuery, unsigned int targetImageID, KDTree* kdtree, typename KDTree::Node* nodes,
+    Feature<ssrlcv::SIFT_Descriptor>* featuresTree, DMatch* matches, float absoluteThreshold);
+  //template<typename T>
    __global__ void matchFeaturesKDTree(unsigned int queryImageID, unsigned long numFeaturesQuery,
-    Feature<T>* featuresQuery, unsigned int targetImageID, KDTree<T>* kdtree, typename KDTree<T>::Node* nodes,
-    Feature<T>* featuresTree, DMatch* matches, float* seedDistances, float relativeThreshold, float absoluteThreshold);
+    Feature<ssrlcv::SIFT_Descriptor>* featuresQuery, unsigned int targetImageID, KDTree* kdtree, typename KDTree::Node* nodes,
+    Feature<ssrlcv::SIFT_Descriptor>* featuresTree, DMatch* matches, float* seedDistances, float relativeThreshold, float absoluteThreshold);
     
   
   template<typename T>
