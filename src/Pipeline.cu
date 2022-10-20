@@ -136,7 +136,7 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
       pointCloudFactory.linearCutoffFilter(&in->matchSet,in->images, 100.0); // <--- removes linear errors over 100 km
   
       // first time
-      float sigma_filter = 1.0;
+      float sigma_filter = 3.0;
       pointCloudFactory.deterministicStatisticalFilter(&in->matchSet,in->images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       ssrlcv::BundleSet bundleSet = pointCloudFactory.generateBundles(&in->matchSet,in->images);
       out->points = pointCloudFactory.twoViewTriangulate(bundleSet, &linearError);
@@ -145,6 +145,7 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
       logger.info << ss.str();
   
       // second time
+      /*
       sigma_filter = 3.0;
       pointCloudFactory.deterministicStatisticalFilter(&in->matchSet,in->images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = pointCloudFactory.generateBundles(&in->matchSet,in->images);
@@ -152,16 +153,17 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
       ss.str("");
       ss << "Filtered " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << linearError;
       logger.info << ss.str();
+      */
   
       // neighbor filter
-      pointCloudFactory.scalePointCloud(1000.0,out->points); // scales from km into meters
-      float3 rotation = {0.0f, PI, 0.0f};
-      pointCloudFactory.rotatePointCloud(rotation, out->points);
+      //pointCloudFactory.scalePointCloud(1000.0,out->points); // scales from km into meters
+      //float3 rotation = {0.0f, PI, 0.0f};
+      //pointCloudFactory.rotatePointCloud(rotation, out->points);
     } else {
       float angularError;
   
-      for (int i = 0; i < 10; i++) {
-        pointCloudFactory.deterministicStatisticalFilter(&in->matchSet,in->images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
+      for (int i = 0; i < 1; i++) { // could increase for more aggressive filtering
+        pointCloudFactory.deterministicStatisticalFilter(&in->matchSet,in->images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 5.0 sigma
         ssrlcv::BundleSet bundleSet = pointCloudFactory.generateBundles(&in->matchSet,in->images);
         out->points = pointCloudFactory.nViewTriangulate(bundleSet, &angularError);
         std::stringstream ss;
