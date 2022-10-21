@@ -1768,27 +1768,23 @@ ssrlcv::Feature<T>* featuresTarget, DMatch* matches, float epsilon, float delta,
     float regEpsilon = epsilon;
 
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
-      currentFeature = featuresTarget[f];
-
-      float x = currentFeature.loc.x;
-      float y = currentFeature.loc.y;
       //check horizontal
-      if (x < left.x - regEpsilon || x > right.x + regEpsilon) {
+      if (featuresTarget[f].loc.x < left.x - regEpsilon || featuresTarget[f].loc.x > right.x + regEpsilon) {
         // too far from line segment horizontally
         continue;
       } else if (left.x == right.x) {
         // vertical line case
-        if ((top - regEpsilon) > y || (bottom + regEpsilon) < y) {
+        if ((top - regEpsilon) > featuresTarget[f].loc.y || (bottom + regEpsilon) < featuresTarget[f].loc.y) {
           continue;
         }
       } else {
-        y_line = slope * (x - left.x) + left.y;
-        if (abs(y_line - y) > regEpsilon) {
+        y_line = slope * (featuresTarget[f].loc.x - left.x) + left.y;
+        if (abs(y_line - featuresTarget[f].loc.y) > regEpsilon) {
           continue;
         }
       }
 
-      currentDist = feature.descriptor.distProtocol(currentFeature.descriptor,localDist[threadIdx.x]);
+      currentDist = feature.descriptor.distProtocol(featuresTarget[f].descriptor,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -1986,23 +1982,18 @@ __global__ void ssrlcv::matchFeaturesDoubleConstrained(unsigned int queryImageID
     float regEpsilon = epsilon;
 
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
-
-      currentFeature = featuresTarget[f];
-
-      float x = currentFeature.loc.x;
-      float y = currentFeature.loc.y;
       //check horizontal
-      if (x < left.x - regEpsilon || x > right.x + regEpsilon) {
+      if (featuresTarget[f].loc.x < left.x - regEpsilon || featuresTarget[f].loc.x > right.x + regEpsilon) {
         // too far from line segment horizontally
         continue;
       } else if (left.x == right.x) {
         // vertical line case
-        if ((top - regEpsilon) > y || (bottom + regEpsilon) < y) {
+        if ((top - regEpsilon) > featuresTarget[f].loc.y || (bottom + regEpsilon) < featuresTarget[f].loc.y) {
           continue;
         }
       } else {
-        y_line = slope * (x - left.x) + left.y;
-        if (abs(y_line - y) > regEpsilon) {
+        y_line = slope * (featuresTarget[f].loc.x - left.x) + left.y;
+        if (abs(y_line - featuresTarget[f].loc.y) > regEpsilon) {
           continue;
         }
       }
@@ -2423,27 +2414,23 @@ ssrlcv::Feature<T>* featuresTarget, uint2_pair* matches, float epsilon, float de
     float regEpsilon = epsilon;
 
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
-      currentFeature = featuresTarget[f];
-
-      float x = currentFeature.loc.x;
-      float y = currentFeature.loc.y;
       //check horizontal
-      if (x < left.x - regEpsilon || x > right.x + regEpsilon) {
+      if (featuresTarget[f].loc.x < left.x - regEpsilon || featuresTarget[f].loc.x > right.x + regEpsilon) {
         // too far from line segment horizontally
         continue;
       } else if (left.x == right.x) {
         // vertical line case
-        if ((top - regEpsilon) > y || (bottom + regEpsilon) < y) {
+        if ((top - regEpsilon) > featuresTarget[f].loc.y || (bottom + regEpsilon) < featuresTarget[f].loc.y) {
           continue;
         }
       } else {
-        y_line = slope * (x - left.x) + left.y;
-        if (abs(y_line - y) > regEpsilon) {
+        y_line = slope * (featuresTarget[f].loc.x - left.x) + left.y;
+        if (abs(y_line - featuresTarget[f].loc.y) > regEpsilon) {
           continue;
         }
       }
 
-      currentDist = feature.descriptor.distProtocol(currentFeature.descriptor,localDist[threadIdx.x]);
+      currentDist = feature.descriptor.distProtocol(featuresTarget[f].descriptor,localDist[threadIdx.x]);
       if(localDist[threadIdx.x] > currentDist){
         localDist[threadIdx.x] = currentDist;
         localMatch[threadIdx.x] = f;
@@ -2625,23 +2612,18 @@ __global__ void ssrlcv::matchFeaturesDoubleConstrained(unsigned int queryImageID
     float regEpsilon = epsilon;
 
     for(int f = threadIdx.x; f < numFeaturesTarget_register; f += 32){
-
-      currentFeature = featuresTarget[f];
-
-      float x = currentFeature.loc.x;
-      float y = currentFeature.loc.y;
       //check horizontal
-      if (x < left.x - regEpsilon || x > right.x + regEpsilon) {
+      if (featuresTarget[f].loc.x < left.x - regEpsilon || featuresTarget[f].loc.x > right.x + regEpsilon) {
         // too far from line segment horizontally
         continue;
       } else if (left.x == right.x) {
         // vertical line case
-        if ((top - regEpsilon) > y || (bottom + regEpsilon) < y) {
+        if ((top - regEpsilon) > featuresTarget[f].loc.y || (bottom + regEpsilon) < featuresTarget[f].loc.y) {
           continue;
         }
       } else {
-        y_line = slope * (x - left.x) + left.y;
-        if (abs(y_line - y) > regEpsilon) {
+        y_line = slope * (featuresTarget[f].loc.x - left.x) + left.y;
+        if (abs(y_line - featuresTarget[f].loc.y) > regEpsilon) {
           continue;
         }
       }

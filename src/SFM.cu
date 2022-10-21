@@ -75,7 +75,7 @@ int main(int argc, char *argv[]){
     if (args.find("epsilon") != args.end()) {
       epsilon = ((ssrlcv::flt_arg *)args["epsilon"])->val;
 
-      logger.info.printf("Setting delta (for epipolar geometry) to %f kilometers.", epsilon);
+      logger.info.printf("Setting epsilon (for epipolar geometry) to %f pixels.", epsilon);
     }
 
     // off-precision distance for orbital SfM (in kilometers)
