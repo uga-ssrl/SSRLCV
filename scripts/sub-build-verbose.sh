@@ -18,4 +18,4 @@ ml CUDA/10.0.130
 ml GCCcore/6.4.0
 
 make clean
-make sfm -j8 SM=35 LOG_LEVEL=4
+make sfm -j8 SM=35 LOG_LEVEL=4 GEO_ORBIT=1
