@@ -13,12 +13,15 @@ namespace ssrlcv{
   __device__ __host__ void multiply(const float (&A)[9], const float (&B)[3][3], float (&C)[3][3]);
   __device__ __host__ void multiply(const float3 (&A)[3], const float3 (&B)[3], float3 (&C)[3]);
   __device__ __host__ void multiply(const float (&A)[3][3], const float (&B)[3][3], float (&C)[3][3]);
+  __device__ __host__ void multiply(const float3 (&A)[3], const float4 (&B)[3], float4 (&C)[3]);
   __device__ __host__ void multiply(const float (&A)[9], const float (&B)[3], float (&C)[3]);
   __device__ __host__ void multiply(const float3 (&A)[3], const float3 &B, float3 &C);
+  __device__ __host__ void multiply(const float4 (&A)[3], const float4 &B, float3 &C);
   __device__ __host__ void multiply(const float (&A)[3][3], const float (&B)[3], float (&C)[3]);
   __device__ __host__ void multiply(const float (&A)[3], const float (&B)[3][3], float (&C)[3]);
   __device__ __host__ void multiply(const float (&A)[2][2], const float (&B)[2][2], float (&C)[2][2]);
   __device__ __host__ float dotProduct(const float (&A)[3], const float (&B)[3]);
+  __device__ __host__ float dotProduct(const float4 A, const float4 B);
   __device__ __host__ float3 crossProduct(const float3 A, const float3 B);
   __device__ __host__ bool inverse(const float (&M)[3][3], float (&M_out)[3][3]);
   __device__ __host__ bool inverse(const float3 (&M)[3], float3 (&M_out)[3]);

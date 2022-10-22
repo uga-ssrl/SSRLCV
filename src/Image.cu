@@ -478,6 +478,54 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::Image::getExtrinsicDifference(C
   return diff;
 }
 
+/**
+ * Sets P to a projection matrix that maps a point in homogenous R3 (ECEF) to its projection
+ * onto this image's camera (as a point in homogenous R2)
+ * 
+ * @param P pass-by-value matrix that is set to the projection matrix
+ */
+void ssrlcv::Image::getProjectionMatrix(float4 (&P)[3]) {
+  float3 K[3];
+  float4 R[3];
+
+  K[0] = {this->camera.foc / this->camera.dpix.x, 0, this->size.x / 2.0f};
+  K[1] = {0, this->camera.foc / this->camera.dpix.y, this->size.y / 2.0f};
+  K[2] = {0, 0, 1};
+
+  R[0] = {
+    cosf(this->camera.cam_rot.z) * cosf(this->camera.cam_rot.y),
+    sinf(this->camera.cam_rot.z) * cosf(this->camera.cam_rot.y),
+    -1 * sinf(this->camera.cam_rot.y),
+    0
+  };
+
+  R[1] = {
+    cosf(this->camera.cam_rot.z) * sinf(this->camera.cam_rot.y) * sinf(this->camera.cam_rot.x) - sinf(this->camera.cam_rot.z) * cosf(this->camera.cam_rot.x),
+    sinf(this->camera.cam_rot.z) * sinf(this->camera.cam_rot.y) * sinf(this->camera.cam_rot.x) + cosf(this->camera.cam_rot.z) * cosf(this->camera.cam_rot.x),
+    cosf(this->camera.cam_rot.y) * sinf(this->camera.cam_rot.x),
+    0
+  };
+
+  R[2] = {
+    cosf(this->camera.cam_rot.z) * sinf(this->camera.cam_rot.y) * cosf(this->camera.cam_rot.x) + sinf(this->camera.cam_rot.z) * sinf(this->camera.cam_rot.x),
+    sinf(this->camera.cam_rot.z) * sinf(this->camera.cam_rot.y) * cosf(this->camera.cam_rot.x) - cosf(this->camera.cam_rot.z) * sinf(this->camera.cam_rot.x),
+    cosf(this->camera.cam_rot.y) * cosf(this->camera.cam_rot.x),
+    0
+  };
+
+  float3 ecef_cent = {
+    this->camera.cam_pos.x + this->camera.ecef_offset.x,
+    this->camera.cam_pos.y + this->camera.ecef_offset.y,
+    this->camera.cam_pos.z + this->camera.ecef_offset.z
+  };
+
+  for (int i = 0; i < 3; i ++) {
+    R[i].w -= R[i].x * ecef_cent.x + R[i].y * ecef_cent.y + R[i].z * ecef_cent.z;
+  }
+
+  multiply(K, R, P);
+
+}
 // =============================================================================================================
 //
 // Other Host Methods

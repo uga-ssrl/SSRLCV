@@ -44,33 +44,38 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
     // logger.logState("generating seed matches");
     if (in->seedFeatures != nullptr)
       matchFactory.setSeedFeatures(in->seedFeatures);
-    ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
-    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], seedDistances);
-    // logger.logState("done generating seed matches");
-  
-    distanceMatches->transferMemoryTo(ssrlcv::cpu);
-    float maxDist = 0.0f;
-    for(int i = 0; i < distanceMatches->size(); ++i){
-      if(maxDist < distanceMatches->host.get()[i].distance) maxDist = distanceMatches->host.get()[i].distance;
-    }
-    logger.info.printf("max euclidean distance between features = %f",maxDist);
-    if(distanceMatches->getMemoryState() != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
-    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches = matchFactory.getRawMatches(distanceMatches);
-  
-    // Need to fill into to MatchSet boi
-    logger.info << "Generating MatchSet ...";
   
     if (in->images.size() == 2){
       //
       // 2 View Case
       //
+      ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
+      logger.logState("done generating seed matches");
+
       logger.logState("matching images");
+      #if GEO_ORBIT == 1
+        ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatchesDoubleConstrained(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], in->epsilon, in->delta, seedDistances);
+      #else
+        ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], seedDistances);
+      #endif
+      logger.logState("done matching images");
+    
+      distanceMatches->transferMemoryTo(ssrlcv::cpu);
+      float maxDist = 0.0f;
+      for(int i = 0; i < distanceMatches->size(); ++i){
+        if(maxDist < distanceMatches->host.get()[i].distance) maxDist = distanceMatches->host.get()[i].distance;
+      }
+      logger.info.printf("max euclidean distance between features = %f",maxDist);
+      if(distanceMatches->getMemoryState() != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
+      ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches = matchFactory.getRawMatches(distanceMatches);
+      
+      // Need to fill into to MatchSet boi
+      logger.info << "Generating MatchSet ...";
       out->matchSet.keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>>(nullptr,matches->size()*2,ssrlcv::cpu);
       out->matchSet.matches = ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::MultiMatch>>(nullptr,matches->size(),ssrlcv::cpu);
       matches->setMemoryState(ssrlcv::cpu);
       out->matchSet.matches->setMemoryState(ssrlcv::cpu);
       out->matchSet.keyPoints->setMemoryState(ssrlcv::cpu);
-      logger.logState("done matching images");
       for(int i = 0; i < out->matchSet.matches->size(); i++){
         out->matchSet.keyPoints->host.get()[i*2] = matches->host.get()[i].keyPoints[0];
         out->matchSet.keyPoints->host.get()[i*2 + 1] = matches->host.get()[i].keyPoints[1];
@@ -83,8 +88,7 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
       // N View Case
       //
       logger.logState("matching images");
-      out->matchSet = matchFactory.generateMatchesExaustive(in->images, in->allFeatures);
-      matches->setMemoryState(ssrlcv::cpu);
+      out->matchSet = matchFactory.generateMatchesExhaustive(in->images, in->allFeatures, in->epsilon, in->delta);
       out->matchSet.matches->setMemoryState(ssrlcv::cpu);
       out->matchSet.keyPoints->setMemoryState(ssrlcv::cpu);
       logger.logState("done matching images");
@@ -112,6 +116,10 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
     std::stringstream ss;
     ss << "\tUnfiltered Error: " << std::fixed << std::setprecision(12) << error;
     logger.info << ss.str();
+
+    ssrlcv::MeshFactory meshFactory;
+    meshFactory.setPoints(out->points);
+    meshFactory.savePoints("ssrlcv-initial");
   
     logger.logState("TRIANGULATE");
   }
@@ -128,7 +136,7 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
       pointCloudFactory.linearCutoffFilter(&in->matchSet,in->images, 100.0); // <--- removes linear errors over 100 km
   
       // first time
-      float sigma_filter = 1.0;
+      float sigma_filter = 3.0;
       pointCloudFactory.deterministicStatisticalFilter(&in->matchSet,in->images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       ssrlcv::BundleSet bundleSet = pointCloudFactory.generateBundles(&in->matchSet,in->images);
       out->points = pointCloudFactory.twoViewTriangulate(bundleSet, &linearError);
@@ -137,6 +145,7 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
       logger.info << ss.str();
   
       // second time
+      /*
       sigma_filter = 3.0;
       pointCloudFactory.deterministicStatisticalFilter(&in->matchSet,in->images, sigma_filter, 0.1); // <---- samples 10% of points and removes anything past 3.0 sigma
       bundleSet = pointCloudFactory.generateBundles(&in->matchSet,in->images);
@@ -144,16 +153,17 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
       ss.str("");
       ss << "Filtered " << sigma_filter  << " Linear Error: " << std::fixed << std::setprecision(12) << linearError;
       logger.info << ss.str();
+      */
   
       // neighbor filter
-      pointCloudFactory.scalePointCloud(1000.0,out->points); // scales from km into meters
-      float3 rotation = {0.0f, PI, 0.0f};
-      pointCloudFactory.rotatePointCloud(rotation, out->points);
+      //pointCloudFactory.scalePointCloud(1000.0,out->points); // scales from km into meters
+      //float3 rotation = {0.0f, PI, 0.0f};
+      //pointCloudFactory.rotatePointCloud(rotation, out->points);
     } else {
       float angularError;
   
-      for (int i = 0; i < 10; i++) {
-        pointCloudFactory.deterministicStatisticalFilter(&in->matchSet,in->images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 1.0 sigma
+      for (int i = 0; i < 1; i++) { // could increase for more aggressive filtering
+        pointCloudFactory.deterministicStatisticalFilter(&in->matchSet,in->images, 3.0, 0.1); // <---- samples 10% of points and removes anything past 5.0 sigma
         ssrlcv::BundleSet bundleSet = pointCloudFactory.generateBundles(&in->matchSet,in->images);
         out->points = pointCloudFactory.nViewTriangulate(bundleSet, &angularError);
         std::stringstream ss;

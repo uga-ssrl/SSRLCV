@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <cuda.h>
+#include <type_traits>
 
 #define CUDA_ERROR_CHECK
 #define CudaSafeCall( err ) __cudaSafeCall( err, __FILE__, __LINE__ )
@@ -276,9 +277,9 @@ namespace ssrlcv {
         ptr = std::make_shared<T>(std::forward<Args>(args)...);
       }
 
-      template <typename... Args>
-      explicit value(Args&&... args) {
-        ptr = std::make_shared<T>(std::forward<Args>(args)...);
+      template <typename Arg, typename... Args, typename = typename std::enable_if<std::is_constructible<T, Arg, Args ...>::value && (sizeof...(Args) != 0 || !std::is_same<typename std::remove_reference<Arg>::type, value<T>>::value)>::type>
+      value(Arg&& arg, Args&&... args) {
+        ptr = std::make_shared<T>(arg, std::forward<Args>(args)...);
       }
 
     };
