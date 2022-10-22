@@ -35,6 +35,8 @@ namespace ssrlcv {
         ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures;
         const std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
         const std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
+        float epsilon; // pixel buffer around 2D epipolar line
+        float delta; // kilometer buffer above and below line segment in 3D space
     };
 
     struct FeatureMatchingOutput {

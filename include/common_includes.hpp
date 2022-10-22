@@ -48,6 +48,8 @@
 // 0 based indexing for cuBLAS
 #define IDX2C(i,j,ld) (((j)*(ld))+(i))
 
+#define EARTH_MAX_KM_FROM_CENT 6384.4
+#define EARTH_MIN_KM_FROM_CENT 6356.77
 
 namespace ssrlcv{
     /**

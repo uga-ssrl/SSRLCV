@@ -10,7 +10,9 @@ std::map<std::string, std::string> ssrlcv::cl_args = {
   {"-s","seed"}, // for seed images
   {"--seed","seed"}, // for seed images
   {"-np","noparams"}, // to disable the requirement of a params.csv or params.bcp file
-  {"--noparams","noparams"}  // to disable the requirement of a params.csv or params.bcp file
+  {"--noparams","noparams"},  // to disable the requirement of a params.csv or params.bcp file
+  {"--epsilon","epsilon"}, // epipolar geometry
+  {"--delta","delta"} // epipolar geometry
 };
 
 void ssrlcv::toLower(std::string &str){
@@ -176,6 +178,9 @@ std::map<std::string, ssrlcv::arg*> ssrlcv::parseArgs(int numArgs, char* args[])
       else{
         arg_map.insert(arg_pair(temp, new img_dir_arg(args[++a])));
       }
+    }
+    else if (temp == "epsilon" || temp == "delta"){
+      arg_map.insert(arg_pair(temp, new flt_arg(args[++a])));
     }
   }
   if(arg_map.find("img") == arg_map.end() && arg_map.find("dir") == arg_map.end()){

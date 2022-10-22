@@ -58,6 +58,28 @@ You can clean back to source files only with:
 make clean
 ```
 
+### Compiling and Running on Sapelo2 (UGA Cluster)
+
+1. Start an interactive session on a K40 GPU:
+
+        interact -p gpu_p --gres=gpu:K40:1 --mem=16G
+
+1. Load appropriate modules
+
+        ml CUDA/10.0.130
+        ml GCCcore/6.4.0
+
+1. Compile
+
+       make sfm -j8 SM=35 LOG_LEVEL=3 GEO_ORBIT=1
+    - Change `LOG_LEVEL` to `4` for memory logging.
+    - Set `GEO_ORBIT` to `0` if this is not in geocentric orbit (turns off epipolar geometry reliance)
+
+4. Run
+
+        bin/SFM -d /work/demlab/sfm/SSRLCV-Sample-Data/everest1024/2view -s /work/demlab/sfm/SSRLCV-Sample-Data/seeds/seed_spongebob.png --delta 3.0
+
+    - Change first to relevant image set
 ## Usage
 
 Simply use the command `./sfm -d /path/to/images -s path/to/seed.png`
@@ -67,6 +89,7 @@ Simply use the command `./sfm -d /path/to/images -s path/to/seed.png`
 | -i or --image     | `<path/to/single/image>`       | absolute or relative         |
 | -d or --directory | `<path/to/directory/of/images>`| absolute or relative         |
 | -s or --seed      | `<path/to/seed/image>`         | absolute or relative         |
+| --delta |             `[FLOAT]`                | Used as buffer (in km) for epipolar geometry |
 | -np or --noparams |             N/A                | signify no use of params.csv |
 
 
@@ -80,8 +103,8 @@ The image rotation encodes which way the camera was facing as a [rotation of axe
 
 | Data type       | Variable Name     |  SI unit        | Description                                |
 |:---------------:|:-----------------:|:---------------:|:------------------------------------------:|
-| `float3`        | `cam_pos`         | Kilometers      |  The x,y,z camera position                 |
-| `float3`        | `cam_rot`         | Radians         |  The x,y,z camera rotation                 |
+| `float3`        | `cam_pos`         | Kilometers (ECEF)      |  The x,y,z camera position                 |
+| `float3`        | `cam_rot`         | Radians   (ECEF)      |  The x,y,z camera rotation as Euler X-Y-Z                |
 | `float2`        | `fov`             | Radians         |  The x and y field of view                 |
 | `float`         | `foc`             | Meters          |  The camera's focal length                 |
 | `float2`        | `dpix`            | Meters          |  The physical dimensions of a pixel well   |
@@ -114,7 +137,7 @@ ev01.png,781.417,0.0,4436.30,0.0,0.1745329252,0.0,0.19933754453,0.19933754453,0.
 ev02.png,0.0,0.0,4500.0,0.0,0.0,0.0,0.19933754453,0.19933754453,0.16,0.4,0.4,1580766557,1024,1024,
 ```
 
-Examples of such parameters can be found at [data.calebadams.space/CalebAdams-Tests-Used-In-Thesis/](http://104.236.14.11/CalebAdams-Tests-Used-In-Thesis/)
+Examples of such parameters can be found at [https://github.com/uga-ssrl/SSRLCV-Sample-Data/](https://github.com/uga-ssrl/SSRLCV-Sample-Data/)
 
 ### Binary Camera Parameters - `.bcp` file type
 

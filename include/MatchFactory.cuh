@@ -262,6 +262,7 @@ namespace ssrlcv{
      */
     ssrlcv::ptr::value<ssrlcv::Unity<Match>> generateMatchesConstrained(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, float fundamental[3][3], ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
 
+
     /**
      * \brief Generates DMatches between Feature<Descriptor> when Descriptor::distProtocol() is implemented
      */
@@ -271,6 +272,11 @@ namespace ssrlcv{
      * \warning If bad fundamental matrix between two images, matches will be very bad. 
      */
     ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> generateDistanceMatchesConstrained(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, float fundamental[3][3], ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
+    /**
+     * \brief Generates DMatches between Feature<Descriptor> when Descriptor::distProtocol() is implemented with strong epipolar constraints (ONLY WORKS FROM ORBIT)
+     * \warning If bad fundamental matrix between two images, matches will be very bad. 
+     */
+    ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> generateDistanceMatchesDoubleConstrained(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, float delta, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
     
     /**
      * \brief Generates FeatureMatch<Descriptor>s between Feature<Descriptor> when Descriptor::distProtocol() is implemented
@@ -285,15 +291,18 @@ namespace ssrlcv{
 
     ssrlcv::ptr::value<ssrlcv::Unity<uint2_pair>> generateMatchesIndexOnly(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
     ssrlcv::ptr::value<ssrlcv::Unity<uint2_pair>> generateMatchesConstrainedIndexOnly(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, float fundamental[3][3], ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
+    ssrlcv::ptr::value<ssrlcv::Unity<uint2_pair>> generateMatchesDoubleConstrainedIndexOnly(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, float delta, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
 
     /**
     * \brief Match a set of images 
     * \param images images that features were generated from
     * \param features features generated from images
+    * \param epsilon number of pixels to apply as 2D buffer for epipolar geometry projection
+    * \param delta number of kilometers to apply as a buffer for epipolar geometry elevation
     * \param ordered is the image set ordered or not
     * \param estimatedOverlap fraction of overlap from one image to the next
     */
-    MatchSet generateMatchesExaustive(std::vector<ssrlcv::ptr::value<Image>> images, std::vector<ssrlcv::ptr::value<Unity<Feature<T>>>> features, bool ordered = true, float estimatedOverlap = 0.0f);
+    MatchSet generateMatchesExhaustive(std::vector<ssrlcv::ptr::value<Image>> images, std::vector<ssrlcv::ptr::value<Unity<Feature<T>>>> features, float epsilon, float delta, bool ordered = true, float estimatedOverlap = 0.0f);
   
   };
 
@@ -319,6 +328,9 @@ namespace ssrlcv{
   __host__ __device__ __forceinline__ float sum(const float3 &a);
   __host__ __device__ __forceinline__ float square(const float &a);
   __device__ __forceinline__ float atomicMinFloat (float * addr, float value);
+
+  template<typename T>
+  __device__ void getEpipolarEndpoints(Image::Camera *queryCamera, float4 *targetProjection, Feature<T> feature, float2 &p1, float2 &p2, float delta);
   /** \} */
 
   /**
@@ -362,6 +374,10 @@ namespace ssrlcv{
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
     Feature<T>* featuresTarget, DMatch* matches, float epsilon, float* fundamental, float absoluteThreshold);
   template<typename T>
+  __global__ void matchFeaturesDoubleConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, DMatch* matches, float epsilon, float delta, Image::Camera *queryCamera, float4 *targetProjection, float absoluteThreshold);
+  template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
     Feature<T>* featuresTarget, DMatch* matches, float* seedDistances, float relativeThreshold, float absoluteThreshold);
@@ -370,6 +386,10 @@ namespace ssrlcv{
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
     Feature<T>* featuresTarget, DMatch* matches, float epsilon, float* fundamental, float* seedDistances,
     float relativeThreshold, float absoluteThreshold);
+  template<typename T>
+  __global__ void matchFeaturesDoubleConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, DMatch* matches, float epsilon, float delta, Image::Camera *queryCamera, float4 *targetProjection, float* seedDistances, float relativeThreshold, float absoluteThreshold);
   
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
@@ -399,6 +419,10 @@ namespace ssrlcv{
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
     Feature<T>* featuresTarget, uint2_pair* matches, float epsilon, float* fundamental, float absoluteThreshold);
   template<typename T>
+  __global__ void matchFeaturesDoubleConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, uint2_pair* matches, float epsilon, float delta, Image::Camera *queryCamera, float4 *targetProjection, float absoluteThreshold);
+  template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
     Feature<T>* featuresTarget, uint2_pair* matches, float* seedDistances, float relativeThreshold, float absoluteThreshold);
@@ -407,6 +431,10 @@ namespace ssrlcv{
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
     Feature<T>* featuresTarget, uint2_pair* matches, float epsilon, float* fundamental, float* seedDistances, 
     float relativeThreshold, float absoluteThreshold);
+  template<typename T>
+  __global__ void matchFeaturesDoubleConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, uint2_pair* matches, float epsilon, float delta, Image::Camera *queryCamera, float4 *targetProjection, float* seedDistances, float relativeThreshold, float absoluteThreshold);
 
   //utility kernels
 
