@@ -19,6 +19,7 @@
 #include "MatchFactory.cuh"
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
+#include "PoseEstimator.cuh"
 
 /**
  * \brief Example of safe shutdown method caused by a signal.
@@ -86,10 +87,20 @@ int main(int argc, char *argv[]){
       logger.info.printf("Setting delta (for earth-centered epipolar geometry) to %f kilometers.", delta);
     }
 
+
+    ssrlcv::ptr::value<ssrlcv::Image> image0 = ssrlcv::ptr::value<ssrlcv::Image>(imagePaths[0], 0);
+    ssrlcv::ptr::value<ssrlcv::Image> image1 = ssrlcv::ptr::value<ssrlcv::Image>(imagePaths[1], 1);
+ 
     ssrlcv::MatchSet matchSet {
       std::string("tmp/0_N6ssrlcv8KeyPointE.uty"),
       std::string("tmp/0_N6ssrlcv10MultiMatchE.uty")
     };
+
+    ssrlcv::PoseEstimator estim(image0, image1, matchSet.keyPoints);
+
+    estim.estimatePoseRANSAC();
+
+       /*
 
     //std::cout << matchSet.keyPoints->size() << std::endl;
 
@@ -107,7 +118,6 @@ int main(int argc, char *argv[]){
       }
     }
 
-    exit(0);
 
     locSum1 /= (float)(matchSet.keyPoints->size() / 2);
     locSum2 /= (float)(matchSet.keyPoints->size() / 2);
@@ -266,6 +276,7 @@ int main(int argc, char *argv[]){
     ssrlcv::multiply(f, p1, p2);
 
     std::cout << p2[0] << "," << p2[1] << "," << p2[2] << std::endl << std::endl;
+    */
 
     
 /*
@@ -284,7 +295,7 @@ int main(int argc, char *argv[]){
     ssrlcv::multiply(F, p1, p2);
     std::cout << p2[0] << "," << p2[1] << "," << p2[2] << std::endl << std::endl;
 */
-
+/*
     float3 K[3];
     K[0] = {image0->camera.foc / image0->camera.dpix.x, 0, image0->size.x / 2.0f};
     K[1] = {0, image0->camera.foc / image0->camera.dpix.y, image0->size.y / 2.0f};
@@ -305,9 +316,7 @@ int main(int argc, char *argv[]){
     std::cout << E[1].x << "," << E[1].y << "," << E[1].z << std::endl;
     std::cout << E[2].x << "," << E[2].y << "," << E[2].z << std::endl << std::endl;
 
-
-
-    exit(0);
+*/
 
     // cleanup
     for (ssrlcv::arg_pair p : args) {
