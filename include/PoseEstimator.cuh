@@ -29,6 +29,8 @@ namespace ssrlcv{
 
     ssrlcv::ptr::value<ssrlcv::Unity<float>> A; // for equation A F = 0
 
+    float F[3][3];
+
   public:
     /*
     * Sets up pose estimator to adjust target image
@@ -36,6 +38,10 @@ namespace ssrlcv{
     PoseEstimator(ssrlcv::ptr::value<ssrlcv::Image> queryImage, ssrlcv::ptr::value<ssrlcv::Image> targetImage, ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>> keyPoints);
 
     void estimatePoseRANSAC();
+
+    void getRotations(bool relative=false);
+
+    float getCost();
     
   private:
 

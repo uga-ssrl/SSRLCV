@@ -31,12 +31,11 @@ void ssrlcv::PoseEstimator::estimatePoseRANSAC() {
     cusolver_status = cusolverDnCreateGesvdjInfo(&gesvdj_params);
     assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
 
+    assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
 
 
-    
-
-    int m = 7;
-    int n = 9;
+    int m = 9;
+    int n = 7;
     int lwork = 0;
 
     ssrlcv::ptr::device<float> d_S(n * N);
@@ -94,11 +93,12 @@ void ssrlcv::PoseEstimator::estimatePoseRANSAC() {
     getFlatGridBlock(N,grid,block,fp);
     this->keyPoints->transferMemoryTo(gpu);
     ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::FMatrixInliers>> matricesAndInliers(nullptr, N, gpu);
-    computeFMatrixAndInliers<<<grid, block>>>(this->keyPoints->device.get(), this->keyPoints->size(), d_V.get(), N, matricesAndInliers->device.get());
+    computeFMatrixAndInliers<<<grid, block>>>(this->keyPoints->device.get(), this->keyPoints->size(), d_U.get(), N, matricesAndInliers->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
-    this->keyPoints->transferMemoryTo(gpu);
+    this->keyPoints->transferMemoryTo(cpu);
     matricesAndInliers->transferMemoryTo(cpu);
+    A->transferMemoryTo(cpu);
 
     int best = 0;
     int bestIdx = 0;
@@ -110,7 +110,34 @@ void ssrlcv::PoseEstimator::estimatePoseRANSAC() {
             }
         }
     }
-    printf("%d / %d", best, this->keyPoints->size() / 2);
+    printf("%d\n", bestIdx);
+    printf("%d / %d\n", best, this->keyPoints->size() / 2);
+    memcpy(this->F, matricesAndInliers->host[bestIdx].fmatrix, 9*sizeof(float));
+
+    /*float X[7][9], Y[9];
+    memcpy(&X, A->host.get(), 7*9*sizeof(float));
+    float tmp[9][9];
+    CudaSafeCall(cudaMemcpy(&tmp[0][0], d_U.get(), 81*sizeof(float), cudaMemcpyDeviceToHost));
+    for (int i = 0; i < 9; i ++) {
+        Y[i] = tmp[6][i];
+    }
+
+    for (int i = 0; i < 7; i ++) {
+        float prod = 0;
+        for (int j = 0; j < 9; j ++) {
+            prod += X[i][j] * Y[j];
+        }
+        printf("%f\n", prod);
+    }
+    exit(0); */
+    /* float U[81];
+    CudaSafeCall(cudaMemcpy(&U, d_U.get(), 81*sizeof(float), cudaMemcpyDeviceToHost));
+    for(int i = 0; i < 81; i ++) {
+        printf("U[%d][%d] = %f\n", i/9, i%9, U[i]);
+    }
+    exit(0); */
+
+    //exit(0);
 }
 
 void ssrlcv::PoseEstimator::fillA() {
@@ -135,24 +162,106 @@ void ssrlcv::PoseEstimator::fillA() {
     }
 }
 
+void ssrlcv::PoseEstimator::getRotations(bool relative) {
+    if (relative) {
+        float K[3][3] = {
+            {this->queryImage->camera.foc / this->queryImage->camera.dpix.x, 0, this->queryImage->size.x / 2.0f},
+            {0, this->queryImage->camera.foc / this->queryImage->camera.dpix.y, this->queryImage->size.y / 2.0f},
+            {0, 0, 1}
+        }; // camera calibration matrix (same for both)
+
+        float Kt[3][3]; // tranpose calibration matrix
+        transpose(K, Kt);
+
+        float E[3][3]; // essential matrix
+
+        float KtF[3][3];
+        multiply(Kt, this->F, KtF);
+        multiply(KtF, K, E);
+
+        float W[3][3] = {
+            {0, -1, 0},
+            {1, 0, 0},
+            {0, 0, 1}
+        };
+        float Wt[3][3];
+        transpose(W, Wt);
+
+        cusolverDnHandle_t cusolverH = nullptr;
+        cusolverStatus_t cusolver_status = CUSOLVER_STATUS_SUCCESS;
+
+        ssrlcv::ptr::device<float> d_A(3*3);
+        ssrlcv::ptr::device<float> d_S(3*3);
+        ssrlcv::ptr::device<int> devInfo(1);
+        ssrlcv::ptr::device<float> d_rwork(2);
+        ssrlcv::ptr::device<float> d_U(3*3);
+        ssrlcv::ptr::device<float> d_Vt(3*3);
+        int lwork = 0;
+
+        CudaSafeCall(cudaMemcpy(d_A.get(), E, 3*3*sizeof(float), cudaMemcpyHostToDevice));
+
+        cusolver_status = cusolverDnCreate(&cusolverH);
+        assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
+
+        cusolver_status = cusolverDnSgesvd_bufferSize(cusolverH, 3, 3, &lwork);
+        assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
+
+        ssrlcv::ptr::device<float> d_work(lwork);
+        cusolver_status = cusolverDnSgesvd(cusolverH, 'A', 'A', 3, 3,
+        d_A.get(), 3, d_S.get(), d_U.get(), 3, d_Vt.get(), 3, d_work.get(), lwork, d_rwork.get(), devInfo.get());
+        cudaDeviceSynchronize();
+        assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
+
+        float U[3][3];
+        float Vt[3][3];
+        CudaSafeCall(cudaMemcpy(&U[0][0], d_Vt.get(), 9*sizeof(float), cudaMemcpyDeviceToHost));
+        CudaSafeCall(cudaMemcpy(&Vt[0][0], d_U.get(), 9*sizeof(float), cudaMemcpyDeviceToHost));
+
+        float UW[3][3], UWt[3][3];
+        float R1[3][3], R2[3][3];
+        multiply(U, W, UW);
+        multiply(U, Wt, UWt);
+        multiply(UW, Vt, R1);
+        multiply(UWt, Vt, R2);
+
+        float x_rot = atanf(R1[2][1] / R1[2][2]) * 180 / PI;
+        float y_rot = atanf(-R1[2][0] / (R1[2][2]/cosf(x_rot))) * 180 / PI;
+        float z_rot = atanf(R1[1][0] / R1[0][0]) * 180 / PI;
+
+        printf("r: %f %f %f\n", x_rot, y_rot, z_rot);
+
+        x_rot = atanf(R2[2][1] / R2[2][2]) * 180 / PI;
+        y_rot = atanf(-R2[2][0] / (R2[2][2]/cosf(x_rot))) * 180 / PI;
+        z_rot = atanf(R2[1][0] / R2[0][0]) * 180 / PI;
+
+        printf("r: %f %f %f\n", x_rot, y_rot, z_rot);
+
+        printf("t: %f %f %f\n", U[0][2] / this->queryImage->camera.dpix.x / 1000, U[1][2] / this->queryImage->camera.dpix.x / 1000, U[2][2] / this->queryImage->camera.dpix.x / 1000);
+
+        printf("\nE: [%f,%f,%f,%f,%f,%f,%f,%f,%f]\n", E[0][0], E[0][1], E[0][2], E[1][0], E[1][1], E[1][2], E[2][0], E[2][1], E[2][2]);
+
+        printf("\nKtF: [%f,%f,%f,%f,%f,%f,%f,%f,%f]\n", KtF[0][0], KtF[0][1], KtF[0][2], KtF[1][0], KtF[1][1], KtF[1][2], KtF[2][0], KtF[2][1], KtF[2][2]);
+
+        printf("\nF: [%f,%f,%f,%f,%f,%f,%f,%f,%f]\n", this->F[0][0], this->F[0][1], this->F[0][2], this->F[1][0], this->F[1][1], this->F[1][2], this->F[2][0], this->F[2][1], this->F[2][2]);
+
+    } else {
+        // not yet implemented
+    }
+}
+
 __global__ void ssrlcv::computeFMatrixAndInliers(ssrlcv::KeyPoint *keyPoints, int numKeyPoints, float *V, unsigned long N, ssrlcv::FMatrixInliers *matricesAndInliers) {
     unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
 
     if(globalID < N) {
 
-        float *M = V + N;
+        float *M = V + globalID * 81;
 
-        float F1[3][3] = {
-            {M[7], M[16], M[25]},
-            {M[34], M[43], M[52]},
-            {M[61], M[70], M[79]}
-        };
+        float F1[3][3];
 
-        float F2[3][3] = {
-            {M[8], M[17], M[26]},
-            {M[35], M[44], M[53]},
-            {M[62], M[71], M[80]}
-        };
+        float F2[3][3];
+
+        memcpy(F1[0], &M[63], 9 * sizeof(float));
+        memcpy(F2[0], &M[72], 9 * sizeof(float));
 
         // cubic
 
@@ -188,29 +297,41 @@ __global__ void ssrlcv::computeFMatrixAndInliers(ssrlcv::KeyPoint *keyPoints, in
             float Ft[3][3];
             transpose(F, Ft);
 
-            float dist;
-            float X1[3], X2[3], l[3];
+            float dist, denom;
+            float3 X1, X2, FX1, FTX2;
             unsigned long inliers;
 
             for (int i = 0; i < numKeyPoints; i += 2) {
-                X1[0] = keyPoints[i].loc.x;
-                X1[1] = keyPoints[i].loc.y;
-                X1[2] = 1;
-                X2[0] = keyPoints[i+1].loc.x;
-                X2[1] = keyPoints[i+1].loc.y;
-                X2[2] = 1;
+                X1.x = keyPoints[i].loc.x;
+                X1.y = keyPoints[i].loc.y;
+                X1.z = 1;
+                X2.x = keyPoints[i+1].loc.x;
+                X2.y = keyPoints[i+1].loc.y;
+                X2.z = 1;
 
-                multiply(F, X1, l);
-                dist = (l[0]*X2[0] + l[1]*X2[1] + l[2]*X2[2]) / sqrtf(l[0]*l[0]+l[1]*l[1]);
+                FX1 = {
+                    F[0][0] * X1.x + F[0][1] * X1.y + F[0][2] * X1.z,
+                    F[1][0] * X1.x + F[1][1] * X1.y + F[1][2] * X1.z,
+                    F[2][0] * X1.x + F[2][1] * X1.y + F[2][2] * X1.z
+                };
 
-                multiply(Ft, X2, l);
-                dist += (l[0]*X1[0] + l[1]*X1[1] + l[2]*X1[2]) / sqrtf(l[0]*l[0]+l[1]*l[1]);
+                FTX2 = {
+                    F[0][0] * X2.x + F[1][0] * X2.y + F[2][0] * X2.z,
+                    F[0][1] * X2.x + F[1][1] * X2.y + F[2][1] * X2.z,
+                    F[0][2] * X2.x + F[1][2] * X2.y + F[2][2] * X2.z
+                };
 
-                if (dist < 1) inliers += 1;
+                denom = FX1.x * FX1.x;
+                denom += FX1.y * FX1.y;
+                denom += FTX2.x * FTX2.x;
+                denom += FTX2.y * FTX2.y;
+
+                dist = dotProduct(X2, FX1) * dotProduct(X2, FX1) / denom;
+
+                if (dist < 0.001) inliers += 1;
             }
 
             matricesAndInliers[globalID].inliers = inliers;
-
         }
 
         /* float x0 = xn, x1, x2;
