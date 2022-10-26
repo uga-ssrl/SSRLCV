@@ -246,7 +246,7 @@ __device__ __host__ float3 ssrlcv::getAxisRotations(const float(&R)[3][3]){
   return {0.0f, 0.0f, 0.0f};
 }
 
-__device__ float3 ssrlcv::matrixMulVector(float3 x, float A[3][3]){
+__device__ __host__ float3 ssrlcv::matrixMulVector(float3 x, float A[3][3]){
   float temp[3] = {x.x, x.y, x.z};
   float b[3];
   for (int r = 0; r < 3; ++r)

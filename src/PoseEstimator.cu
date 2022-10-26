@@ -1,4 +1,5 @@
 #include "PoseEstimator.cuh"
+#include "PointCloudFactory.cuh"
 #include <cublas_v2.h>
 #include <cusolverDn.h>
 #include <list>
@@ -224,6 +225,83 @@ void ssrlcv::PoseEstimator::getRotations(bool relative) {
         multiply(UW, Vt, R1);
         multiply(UWt, Vt, R2);
 
+
+        unsigned int globalID = 1702;
+        unsigned int qIdx = globalID * 2;
+        unsigned int tIdx = qIdx + 1;
+        float3 queryPnt = {0, 0, 0};
+        float3 queryVec = {
+            this->queryImage->camera.dpix.x * ((this->keyPoints->host[qIdx].loc.x) - (this->queryImage->camera.size.x / 2.0f)),
+            this->queryImage->camera.dpix.y * ((this->keyPoints->host[qIdx].loc.y) - (this->queryImage->camera.size.y / 2.0f)),
+            this->queryImage->camera.foc
+        }; // identity, since it's relative rotation, so no rotation for query
+        normalize(queryVec);
+        float3 targetPnt1 = {U[0][2], U[1][2], U[2][2]}; // 3D position in pixel units
+        float3 targetPnt2 = -1 * targetPnt1;
+        float3 targetVec1 = {
+            this->targetImage->camera.dpix.x * ((this->keyPoints->host[tIdx].loc.x) - (this->targetImage->camera.size.x / 2.0f)),
+            this->targetImage->camera.dpix.y * ((this->keyPoints->host[tIdx].loc.y) - (this->targetImage->camera.size.y / 2.0f)),
+            this->targetImage->camera.foc
+        };
+        float3 targetVec2 = targetVec1;
+        targetVec1 = matrixMulVector(targetVec1, R1);
+        targetVec2 = matrixMulVector(targetVec2, R2);
+        normalize(targetVec1);
+        normalize(targetVec2);
+
+        Bundle::Line queryBundle = {queryVec, queryPnt};
+        Bundle::Line targetBundles[4] = {
+            {targetVec1, targetPnt1},
+            {targetVec1, targetPnt2},
+            {targetVec2, targetPnt1},
+            {targetVec2, targetPnt2}
+        };
+
+        Bundle::Line *L1 = &queryBundle;
+        Bundle::Line *L2 = targetBundles;
+
+        // float4 tmp[3], P2[3];
+        // tmp[0] = {R[0][0], R[1][0], R[2][0], U[0][2]};
+        // tmp[1] = {R[0][1], R[1][1], R[2][1], U[1][2]};
+        // tmp[2] = {R[0][2], R[1][2], R[2][2], U[2][2]};
+        // float3 tmp2[3];
+        // tmp2[0] = {K[0][0], K[0][1], K[0][2]};
+        // tmp2[1] = {K[1][0], K[1][1], K[1][2]};
+        // tmp2[2] = {K[2][0], K[2][1], K[2][2]};
+        // multiply(tmp2, tmp, P2);
+        // float4 P1[3];
+        // P1[0] = {K[0][0], K[0][1], K[0][2], 0};
+        // P1[1] = {K[1][0], K[1][1], K[1][2], 0};
+        // P1[2] = {K[2][0], K[2][1], K[2][2], 0};
+        
+        for (int i = 0; i < 4; i++, L2++) {
+            // calculate the normals
+            float3 n2 = crossProduct(L2->vec,crossProduct(L1->vec,L2->vec));
+            float3 n1 = crossProduct(L1->vec,crossProduct(L1->vec,L2->vec));
+
+            // calculate the numerators
+            float numer1 = dotProduct((L2->pnt - L1->pnt),n2);
+            float numer2 = dotProduct((L1->pnt - L2->pnt),n1);
+
+            // calculate the denominators
+            float denom1 = dotProduct(L1->vec,n2);
+            float denom2 = dotProduct(L2->vec,n1);
+
+            // get the S points
+            float3 s1 = L1->pnt + (numer1/denom1) * L1->vec;
+            float3 s2 = L2->pnt + (numer2/denom2) * L2->vec;
+            float3 point = (s1 + s2)/2.0;
+
+            bool ok1 = magnitude(point - (L1->pnt + L1->vec)) < magnitude(point - (L1->pnt));
+            bool ok2 = magnitude(point - (L2->pnt + L2->vec)) < magnitude(point - (L2->pnt));
+            if (ok1 && ok2) {
+                printf("Point position: %f %f %f\n", point.x/ this->queryImage->camera.dpix.x / 1000, point.y/ this->queryImage->camera.dpix.x / 1000, point.z/ this->queryImage->camera.dpix.x / 1000);
+            } else {
+                printf("Bad position: %f %f %f\n", point.x/ this->queryImage->camera.dpix.x / 1000, point.y/ this->queryImage->camera.dpix.x / 1000, point.z/ this->queryImage->camera.dpix.x / 1000);
+            }
+        }
+
+
         float x_rot = atanf(R1[2][1] / R1[2][2]) * 180 / PI;
         float y_rot = atanf(-R1[2][0] / (R1[2][2]/cosf(x_rot))) * 180 / PI;
         float z_rot = atanf(R1[1][0] / R1[0][0]) * 180 / PI;
@@ -237,12 +315,13 @@ void ssrlcv::PoseEstimator::getRotations(bool relative) {
         printf("r: %f %f %f\n", x_rot, y_rot, z_rot);
 
         printf("t: %f %f %f\n", U[0][2] / this->queryImage->camera.dpix.x / 1000, U[1][2] / this->queryImage->camera.dpix.x / 1000, U[2][2] / this->queryImage->camera.dpix.x / 1000);
+        
 
-        printf("\nE: [%f,%f,%f,%f,%f,%f,%f,%f,%f]\n", E[0][0], E[0][1], E[0][2], E[1][0], E[1][1], E[1][2], E[2][0], E[2][1], E[2][2]);
+        //printf("\nE: [%f,%f,%f,%f,%f,%f,%f,%f,%f]\n", E[0][0], E[0][1], E[0][2], E[1][0], E[1][1], E[1][2], E[2][0], E[2][1], E[2][2]);
 
-        printf("\nKtF: [%f,%f,%f,%f,%f,%f,%f,%f,%f]\n", KtF[0][0], KtF[0][1], KtF[0][2], KtF[1][0], KtF[1][1], KtF[1][2], KtF[2][0], KtF[2][1], KtF[2][2]);
+        //printf("\nKtF: [%f,%f,%f,%f,%f,%f,%f,%f,%f]\n", KtF[0][0], KtF[0][1], KtF[0][2], KtF[1][0], KtF[1][1], KtF[1][2], KtF[2][0], KtF[2][1], KtF[2][2]);
 
-        printf("\nF: [%f,%f,%f,%f,%f,%f,%f,%f,%f]\n", this->F[0][0], this->F[0][1], this->F[0][2], this->F[1][0], this->F[1][1], this->F[1][2], this->F[2][0], this->F[2][1], this->F[2][2]);
+        //printf("\nF: [%f,%f,%f,%f,%f,%f,%f,%f,%f]\n", this->F[0][0], this->F[0][1], this->F[0][2], this->F[1][0], this->F[1][1], this->F[1][2], this->F[2][0], this->F[2][1], this->F[2][2]);
 
     } else {
         // not yet implemented
@@ -328,7 +407,7 @@ __global__ void ssrlcv::computeFMatrixAndInliers(ssrlcv::KeyPoint *keyPoints, in
 
                 dist = dotProduct(X2, FX1) * dotProduct(X2, FX1) / denom;
 
-                if (dist < 0.001) inliers += 1;
+                if (dist < 1) inliers += 1;
             }
 
             matricesAndInliers[globalID].inliers = inliers;

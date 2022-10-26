@@ -63,7 +63,7 @@ namespace ssrlcv{
    */
   __device__ __host__ float3 getAxisRotations(const float(&R)[3][3]);
 
-  __device__ float3 matrixMulVector(float3 x, float A[3][3]);
+  __device__ __host__ float3 matrixMulVector(float3 x, float A[3][3]);
   __device__ float3 getVectorAngles(float3 v);
 
   /**
