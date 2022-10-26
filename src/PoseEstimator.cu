@@ -244,8 +244,11 @@ void ssrlcv::PoseEstimator::getRotations(bool relative) {
             this->targetImage->camera.foc
         };
         float3 targetVec2 = targetVec1;
-        targetVec1 = matrixMulVector(targetVec1, R1);
-        targetVec2 = matrixMulVector(targetVec2, R2);
+        float R1t[3][3], R2t[3][3];
+        transpose(R1, R1t);
+        transpose(R2, R2t);
+        targetVec1 = matrixMulVector(targetVec1, R1t);
+        targetVec2 = matrixMulVector(targetVec2, R2t);
         normalize(targetVec1);
         normalize(targetVec2);
 
@@ -301,16 +304,19 @@ void ssrlcv::PoseEstimator::getRotations(bool relative) {
             }
         }
 
+        /*****************************************************************
+        Note: using transpose for rotations from camera -> world coords
+        *****************************************************************/
 
-        float x_rot = atanf(R1[2][1] / R1[2][2]) * 180 / PI;
-        float y_rot = atanf(-R1[2][0] / (R1[2][2]/cosf(x_rot))) * 180 / PI;
-        float z_rot = atanf(R1[1][0] / R1[0][0]) * 180 / PI;
+        float x_rot = atanf(R1t[2][1] / R1t[2][2]) * 180 / PI;
+        float y_rot = atanf(-R1t[2][0] / (R1t[2][2]/cosf(x_rot))) * 180 / PI;
+        float z_rot = atanf(R1t[1][0] / R1t[0][0]) * 180 / PI;
 
         printf("r: %f %f %f\n", x_rot, y_rot, z_rot);
 
-        x_rot = atanf(R2[2][1] / R2[2][2]) * 180 / PI;
-        y_rot = atanf(-R2[2][0] / (R2[2][2]/cosf(x_rot))) * 180 / PI;
-        z_rot = atanf(R2[1][0] / R2[0][0]) * 180 / PI;
+        x_rot = atanf(R2t[2][1] / R2t[2][2]) * 180 / PI;
+        y_rot = atanf(-R2t[2][0] / (R2t[2][2]/cosf(x_rot))) * 180 / PI;
+        z_rot = atanf(R2t[1][0] / R2t[0][0]) * 180 / PI;
 
         printf("r: %f %f %f\n", x_rot, y_rot, z_rot);
 
