@@ -10,7 +10,7 @@ ssrlcv::PoseEstimator::PoseEstimator(ssrlcv::ptr::value<ssrlcv::Image> queryImag
     A(nullptr, keyPoints->size() / 2 * 9, ssrlcv::cpu),
     keyPoints(keyPoints) {}
 
-void ssrlcv::PoseEstimator::estimatePoseRANSAC() {
+void ssrlcv::PoseEstimator::estimatePoseRANSAC(float (&F_out)[3][3]) {
     this->fillA();
 
     unsigned long numMatches = this->keyPoints->size() / 2;
@@ -113,7 +113,7 @@ void ssrlcv::PoseEstimator::estimatePoseRANSAC() {
     }
     printf("%d\n", bestIdx);
     printf("%d / %d\n", best, this->keyPoints->size() / 2);
-    memcpy(this->F, matricesAndInliers->host[bestIdx].fmatrix, 9*sizeof(float));
+    memcpy(F_out, matricesAndInliers->host[bestIdx].fmatrix, 9*sizeof(float));
 
     /*float X[7][9], Y[9];
     memcpy(&X, A->host.get(), 7*9*sizeof(float));
@@ -163,7 +163,7 @@ void ssrlcv::PoseEstimator::fillA() {
     }
 }
 
-void ssrlcv::PoseEstimator::getRotations(bool relative) {
+ssrlcv::Pose ssrlcv::PoseEstimator::getPose(bool relative) {
     if (relative) {
         float K[3][3] = {
             {this->queryImage->camera.foc / this->queryImage->camera.dpix.x, 0, this->queryImage->size.x / 2.0f},
@@ -177,7 +177,7 @@ void ssrlcv::PoseEstimator::getRotations(bool relative) {
         float E[3][3]; // essential matrix
 
         float KtF[3][3];
-        multiply(Kt, this->F, KtF);
+        multiply(Kt, F, KtF);
         multiply(KtF, K, E);
 
         float W[3][3] = {
@@ -321,6 +321,15 @@ void ssrlcv::PoseEstimator::getRotations(bool relative) {
         printf("r: %f %f %f\n", x_rot, y_rot, z_rot);
 
         printf("t: %f %f %f\n", U[0][2] / this->queryImage->camera.dpix.x / 1000, U[1][2] / this->queryImage->camera.dpix.x / 1000, U[2][2] / this->queryImage->camera.dpix.x / 1000);
+
+        return {
+            atanf(R1t[2][1] / R1t[2][2]),
+            atanf(-R1t[2][0] / (R1t[2][2]/cosf(x_rot))),
+            atanf(R1t[1][0] / R1t[0][0]),
+            U[0][2] / this->queryImage->camera.dpix.x / 1000,
+            U[1][2] / this->queryImage->camera.dpix.x / 1000,
+            U[2][2] / this->queryImage->camera.dpix.x / 1000
+        };
         
 
         //printf("\nE: [%f,%f,%f,%f,%f,%f,%f,%f,%f]\n", E[0][0], E[0][1], E[0][2], E[1][0], E[1][1], E[1][2], E[2][0], E[2][1], E[2][2]);
@@ -332,6 +341,10 @@ void ssrlcv::PoseEstimator::getRotations(bool relative) {
     } else {
         // not yet implemented
     }
+}
+
+void ssrlcv::PoseEstimator::LM_optimize(ssrlcv::Pose pose) {
+
 }
 
 __global__ void ssrlcv::computeFMatrixAndInliers(ssrlcv::KeyPoint *keyPoints, int numKeyPoints, float *V, unsigned long N, ssrlcv::FMatrixInliers *matricesAndInliers) {
@@ -413,7 +426,7 @@ __global__ void ssrlcv::computeFMatrixAndInliers(ssrlcv::KeyPoint *keyPoints, in
 
                 dist = dotProduct(X2, FX1) * dotProduct(X2, FX1) / denom;
 
-                if (dist < 1) inliers += 1;
+                if (dist < 0.25) inliers += 1;
             }
 
             matricesAndInliers[globalID].inliers = inliers;

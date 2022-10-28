@@ -17,6 +17,15 @@ namespace ssrlcv{
         bool valid;
     };
 
+    struct Pose {
+      float roll; // x-rotation, in radians
+      float pitch; // y-rotation, in radians
+      float yaw; // z-rotation, in radians
+      float x; // x-position, kilometers
+      float y; // y-position, kilometers
+      float z; // z-position, kilometers
+    };
+
   /**
   * \brief pose estimator for cameras
   */
@@ -29,17 +38,19 @@ namespace ssrlcv{
 
     ssrlcv::ptr::value<ssrlcv::Unity<float>> A; // for equation A F = 0
 
-    float F[3][3];
-
   public:
     /*
     * Sets up pose estimator to adjust target image
     */
     PoseEstimator(ssrlcv::ptr::value<ssrlcv::Image> queryImage, ssrlcv::ptr::value<ssrlcv::Image> targetImage, ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>> keyPoints);
 
-    void estimatePoseRANSAC();
+    void estimateFundamentalRANSAC(float (&F_out)[3][3]);
 
-    void getRotations(bool relative=false);
+    ssrlcv::Pose getPose(const float (&F)[3][3], bool relative=false);
+
+    void LM_optimize(ssrlcv::Pose pose) {
+      
+    }
 
     float getCost();
     
