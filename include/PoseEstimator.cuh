@@ -32,7 +32,7 @@ namespace ssrlcv{
   class PoseEstimator{
 
   private:
-    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>> keyPoints; // every two keypoints should be matches (query, target, query, target, ...)
+    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches; //keypoints should be (query, target)
     ssrlcv::ptr::value<ssrlcv::Image> query;
     ssrlcv::ptr::value<ssrlcv::Image> target;
 
@@ -42,7 +42,7 @@ namespace ssrlcv{
     /*
     * Sets up pose estimator to adjust target image
     */
-    PoseEstimator(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>> keyPoints);
+    PoseEstimator(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches);
 
     ssrlcv::Pose estimatePoseRANSAC();
 
@@ -58,15 +58,15 @@ namespace ssrlcv{
 
 __device__ __host__ float4 getResidual(ssrlcv::Pose pose, ssrlcv::Image::Camera *query, ssrlcv::Image::Camera *target, float2 q_loc, float2 t_loc);
 
-__global__ void computeFMatrixAndInliers(KeyPoint *keyPoints, int numKeypoints, float *V, unsigned long N, ssrlcv::FMatrixInliers *matricesAndInliers);
+__global__ void computeFMatrixAndInliers(ssrlcv::Match *matches, int numMatches, float *V, unsigned long N, ssrlcv::FMatrixInliers *matricesAndInliers);
 
-__global__ void computeResidualsAndJacobian(KeyPoint *keyPoints, int numKeypoints, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *residuals, float *jacobian);
+__global__ void computeResidualsAndJacobian(ssrlcv::Match *matches, int numMatches, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *residuals, float *jacobian);
 
 __global__ void computeJTJ(float *jacobian, unsigned long rows, float *output);
 
 __global__ void computeJTf(float *jacobian, float *f, unsigned long rows, float *output);
 
-__global__ void computeCost(ssrlcv::KeyPoint *keyPoints, int numKeyPoints, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *residuals, float *cost);
+__global__ void computeCost(ssrlcv::Match *matches, int numMatches, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *residuals, float *cost);
 }
 
 #endif

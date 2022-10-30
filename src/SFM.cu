@@ -90,17 +90,15 @@ int main(int argc, char *argv[]){
 
     ssrlcv::ptr::value<ssrlcv::Image> image0 = ssrlcv::ptr::value<ssrlcv::Image>(imagePaths[0], 0);
     ssrlcv::ptr::value<ssrlcv::Image> image1 = ssrlcv::ptr::value<ssrlcv::Image>(imagePaths[1], 1);
- 
-    ssrlcv::MatchSet matchSet {
-      std::string("tmp/0_N6ssrlcv8KeyPointE.uty"),
-      std::string("tmp/0_N6ssrlcv10MultiMatchE.uty")
-    };
 
-    ssrlcv::PoseEstimator estim(image0, image1, matchSet.keyPoints);
+
+    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches(std::string("tmp/0_N6ssrlcv5MatchE.uty"));
+
+    matches->transferMemoryTo(ssrlcv::cpu); // oops forgot to before
+    ssrlcv::PoseEstimator estim(image0, image1, matches);
 
     ssrlcv::Pose pose = estim.estimatePoseRANSAC();
     estim.LM_optimize(pose);
-    //estim.getRotations(true);
 
        /*
 

@@ -4,16 +4,16 @@
 #include <cusolverDn.h>
 #include <list>
 
-ssrlcv::PoseEstimator::PoseEstimator(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>> keyPoints) :
+ssrlcv::PoseEstimator::PoseEstimator(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches) :
     query(query),
     target(target),
-    A(nullptr, keyPoints->size() / 2 * 9, ssrlcv::cpu),
-    keyPoints(keyPoints) {}
+    A(nullptr, matches->size() * 9, ssrlcv::cpu),
+    matches(matches) {}
 
 ssrlcv::Pose ssrlcv::PoseEstimator::estimatePoseRANSAC() {
     this->fillA();
-
-    unsigned long numMatches = this->keyPoints->size() / 2;
+    printf("Done filling A\n");
+    unsigned long numMatches = this->matches->size();
     int N = numMatches / 7;
 
     cusolverDnHandle_t cusolverH = nullptr;
@@ -33,7 +33,6 @@ ssrlcv::Pose ssrlcv::PoseEstimator::estimatePoseRANSAC() {
     assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
 
     assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
-
 
     int m = 9;
     int n = 7;
@@ -90,14 +89,14 @@ ssrlcv::Pose ssrlcv::PoseEstimator::estimatePoseRANSAC() {
 
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
-    void (*fp)(ssrlcv::KeyPoint *, int, float *, unsigned long, FMatrixInliers *) = &computeFMatrixAndInliers;
+    void (*fp)(ssrlcv::Match *, int, float *, unsigned long, FMatrixInliers *) = &computeFMatrixAndInliers;
     getFlatGridBlock(N,grid,block,fp);
-    this->keyPoints->transferMemoryTo(gpu);
+    this->matches->transferMemoryTo(gpu);
     ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::FMatrixInliers>> matricesAndInliers(nullptr, N, gpu);
-    computeFMatrixAndInliers<<<grid, block>>>(this->keyPoints->device.get(), this->keyPoints->size(), d_U.get(), N, matricesAndInliers->device.get());
+    computeFMatrixAndInliers<<<grid, block>>>(this->matches->device.get(), this->matches->size(), d_U.get(), N, matricesAndInliers->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
-    this->keyPoints->transferMemoryTo(cpu);
+    this->matches->transferMemoryTo(cpu);
     matricesAndInliers->transferMemoryTo(cpu);
     A->transferMemoryTo(cpu);
 
@@ -112,7 +111,7 @@ ssrlcv::Pose ssrlcv::PoseEstimator::estimatePoseRANSAC() {
         }
     }
     printf("%d\n", bestIdx);
-    printf("%d / %d\n", best, this->keyPoints->size() / 2);
+    printf("%d / %d\n", best, this->matches->size() / 2);
     float F[3][3];
     memcpy(F, matricesAndInliers->host[bestIdx].fmatrix, 9*sizeof(float));
 
@@ -145,15 +144,15 @@ ssrlcv::Pose ssrlcv::PoseEstimator::estimatePoseRANSAC() {
 }
 
 void ssrlcv::PoseEstimator::fillA() {
-    const unsigned long length = this->keyPoints->size()/2;
+    const unsigned long length = this->matches->size();
     std::vector<unsigned long> shuffle(length);
     std::iota(shuffle.begin(), shuffle.end(), 0);
     std::random_shuffle(shuffle.begin(), shuffle.end());
 
-    for (int i = 0; i < this->keyPoints->size(); i += 2) {
+    for (int i = 0; i < this->matches->size(); i += 2) {
         float *row = this->A->host.get() + (shuffle[i / 2] * 9);
-        float2 loc1 = this->keyPoints->host.get()[i].loc;
-        float2 loc2 = this->keyPoints->host.get()[i+1].loc;
+        float2 loc1 = this->matches->host[i].keyPoints[0].loc;
+        float2 loc2 = this->matches->host[i].keyPoints[1].loc;
         row[0] = loc2.x * loc1.x;
         row[1] = loc2.x * loc1.y;
         row[2] = loc2.x;
@@ -229,20 +228,20 @@ ssrlcv::Pose ssrlcv::PoseEstimator::getRelativePose(const float (&F)[3][3]) {
 
 
     unsigned int globalID = 1702;
-    unsigned int qIdx = globalID * 2;
-    unsigned int tIdx = qIdx + 1;
+    ssrlcv::KeyPoint qKP = this->matches->host[globalID].keyPoints[0];
+    ssrlcv::KeyPoint tKP = this->matches->host[globalID].keyPoints[1];
     float3 queryPnt = {0, 0, 0};
     float3 queryVec = {
-        this->query->camera.dpix.x * ((this->keyPoints->host[qIdx].loc.x) - (this->query->camera.size.x / 2.0f)),
-        this->query->camera.dpix.y * ((this->keyPoints->host[qIdx].loc.y) - (this->query->camera.size.y / 2.0f)),
+        this->query->camera.dpix.x * ((qKP.loc.x) - (this->query->camera.size.x / 2.0f)),
+        this->query->camera.dpix.y * ((qKP.loc.y) - (this->query->camera.size.y / 2.0f)),
         this->query->camera.foc
     }; // identity, since it's relative rotation, so no rotation for query
     normalize(queryVec);
     float3 targetPnt1 = {U[0][2], U[1][2], U[2][2]}; // 3D position in pixel units
     float3 targetPnt2 = -1 * targetPnt1;
     float3 targetVec1 = {
-        this->target->camera.dpix.x * ((this->keyPoints->host[tIdx].loc.x) - (this->target->camera.size.x / 2.0f)),
-        this->target->camera.dpix.y * ((this->keyPoints->host[tIdx].loc.y) - (this->target->camera.size.y / 2.0f)),
+        this->target->camera.dpix.x * ((tKP.loc.x) - (this->target->camera.size.x / 2.0f)),
+        this->target->camera.dpix.y * ((tKP.loc.y) - (this->target->camera.size.y / 2.0f)),
         this->target->camera.foc
     };
     float3 targetVec2 = targetVec1;
@@ -327,8 +326,8 @@ ssrlcv::Pose ssrlcv::PoseEstimator::getRelativePose(const float (&F)[3][3]) {
 }
 
 void ssrlcv::PoseEstimator::LM_optimize(ssrlcv::Pose pose) {
-    ssrlcv::ptr::value<ssrlcv::Unity<float>> f(nullptr, 4 * this->keyPoints->size() / 2, gpu); // residuals
-    ssrlcv::ptr::value<ssrlcv::Unity<float>> J(nullptr, 6 * 4 * this->keyPoints->size() / 2, gpu); // Jacobian of f
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> f(nullptr, 4 * this->matches->size(), gpu); // residuals
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> J(nullptr, 6 * 4 * this->matches->size(), gpu); // Jacobian of f
     ssrlcv::ptr::value<ssrlcv::Unity<float>> JTJ(nullptr, 6 * 6, gpu);
     ssrlcv::ptr::value<ssrlcv::Unity<float>> JTf(nullptr, 6, gpu);
 
@@ -336,17 +335,17 @@ void ssrlcv::PoseEstimator::LM_optimize(ssrlcv::Pose pose) {
     
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
-    void (*fp)(ssrlcv::KeyPoint *, int, ssrlcv::Pose, ssrlcv::Image::Camera, ssrlcv::Image::Camera, float *, float *) = &computeResidualsAndJacobian;
-    getFlatGridBlock(this->keyPoints->size() / 2,grid,block,fp);
-    this->keyPoints->transferMemoryTo(gpu);
-    computeResidualsAndJacobian<<<grid, block>>>(this->keyPoints->device.get(), this->keyPoints->size(), pose, this->query->camera, this->target->camera, f->device.get(), J->device.get());
+    void (*fp)(ssrlcv::Match *, int, ssrlcv::Pose, ssrlcv::Image::Camera, ssrlcv::Image::Camera, float *, float *) = &computeResidualsAndJacobian;
+    getFlatGridBlock(this->matches->size(),grid,block,fp);
+    this->matches->transferMemoryTo(gpu);
+    computeResidualsAndJacobian<<<grid, block>>>(this->matches->device.get(), this->matches->size(), pose, this->query->camera, this->target->camera, f->device.get(), J->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
 
 
     void (*fp2)(float *, unsigned long, float *) = &computeJTJ;
-    getFlatGridBlock(this->keyPoints->size() / 2 * 4,grid,block,fp2);
-    computeJTJ<<<grid, block>>>(J->device.get(), this->keyPoints->size() / 2 * 4, JTJ->device.get());
+    getFlatGridBlock(this->matches->size() * 4,grid,block,fp2);
+    computeJTJ<<<grid, block>>>(J->device.get(), this->matches->size() * 4, JTJ->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
     JTJ->transferMemoryTo(cpu);
@@ -356,8 +355,8 @@ void ssrlcv::PoseEstimator::LM_optimize(ssrlcv::Pose pose) {
     JTJ->transferMemoryTo(gpu);
 
     void (*fp3)(float *, float *, unsigned long, float *) = &computeJTf;
-    getFlatGridBlock(this->keyPoints->size() / 2 * 4,grid,block,fp3);
-    computeJTf<<<grid, block>>>(J->device.get(), f->device.get(), this->keyPoints->size() / 2 * 4, JTf->device.get());
+    getFlatGridBlock(this->matches->size() * 4,grid,block,fp3);
+    computeJTf<<<grid, block>>>(J->device.get(), f->device.get(), this->matches->size() * 4, JTf->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
 
@@ -428,7 +427,7 @@ void ssrlcv::PoseEstimator::LM_optimize(ssrlcv::Pose pose) {
     
 }
 
-__global__ void ssrlcv::computeFMatrixAndInliers(ssrlcv::KeyPoint *keyPoints, int numKeyPoints, float *V, unsigned long N, ssrlcv::FMatrixInliers *matricesAndInliers) {
+__global__ void ssrlcv::computeFMatrixAndInliers(ssrlcv::Match *matches, int numMatches, float *V, unsigned long N, ssrlcv::FMatrixInliers *matricesAndInliers) {
     unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
 
     if(globalID < N) {
@@ -480,12 +479,12 @@ __global__ void ssrlcv::computeFMatrixAndInliers(ssrlcv::KeyPoint *keyPoints, in
             float3 X1, X2, FX1, FTX2;
             unsigned long inliers;
 
-            for (int i = 0; i < numKeyPoints; i += 2) {
-                X1.x = keyPoints[i].loc.x;
-                X1.y = keyPoints[i].loc.y;
+            for (int i = 0; i < numMatches; i ++) {
+                X1.x = matches[i].keyPoints[0].loc.x;
+                X1.y = matches[i].keyPoints[0].loc.y;
                 X1.z = 1;
-                X2.x = keyPoints[i+1].loc.x;
-                X2.y = keyPoints[i+1].loc.y;
+                X2.x = matches[i].keyPoints[1].loc.x;
+                X2.y = matches[i].keyPoints[1].loc.y;
                 X2.z = 1;
 
                 FX1 = {
@@ -517,12 +516,12 @@ __global__ void ssrlcv::computeFMatrixAndInliers(ssrlcv::KeyPoint *keyPoints, in
 
 }
 
-__global__ void ssrlcv::computeResidualsAndJacobian(ssrlcv::KeyPoint *keyPoints, int numKeyPoints, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *residuals, float *jacobian) {
+__global__ void ssrlcv::computeResidualsAndJacobian(ssrlcv::Match *matches, int numMatches, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *residuals, float *jacobian) {
     unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
 
-    if (globalID < numKeyPoints / 2) {
-        float2 q_loc = keyPoints[globalID * 2].loc;
-        float2 t_loc = keyPoints[globalID * 2 + 1].loc;
+    if (globalID < numMatches) {
+        float2 q_loc = matches[globalID].keyPoints[0].loc;
+        float2 t_loc = matches[globalID].keyPoints[1].loc;
         float *r_out = residuals + 4 * globalID;
         float *j_out = jacobian + 6 * 4 * globalID; // Jacobian is 4 rows of 6 per match
 
@@ -611,12 +610,12 @@ __global__ void ssrlcv::computeResidualsAndJacobian(ssrlcv::KeyPoint *keyPoints,
     }
 }
 
-__global__ void ssrlcv::computeCost(ssrlcv::KeyPoint *keyPoints, int numKeyPoints, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *residuals, float *cost) {
+__global__ void ssrlcv::computeCost(ssrlcv::Match *matches, int numMatches, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *residuals, float *cost) {
     unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
 
-    if (globalID < numKeyPoints / 2) {
-        float2 q_loc = keyPoints[globalID * 2].loc;
-        float2 t_loc = keyPoints[globalID * 2 + 1].loc;
+    if (globalID < numMatches) {
+        float2 q_loc = matches[globalID].keyPoints[0].loc;
+        float2 t_loc = matches[globalID].keyPoints[1].loc;
 
         float4 res = getResidual(pose, &query, &target, q_loc, t_loc);
         float sum = res.x * res.x + res.y * res.y + res.z * res.z + res.w * res.w;
