@@ -544,7 +544,7 @@ MemoryState origin[2] = {queryFeatures->getMemoryState(), targetFeatures->getMem
   unsigned int numPossibleMatches = queryFeatures->size();
 
   float4 targetProjection[3];
-  target->getProjectionMatrix(targetProjection);
+  getProjectionMatrix(targetProjection, &target->camera);
 
   ssrlcv::ptr::device<ssrlcv::Image::Camera> queryCamera_device(1);
   CudaSafeCall(cudaMemcpy(queryCamera_device.get(), &query->camera, sizeof(ssrlcv::Image::Camera), cudaMemcpyHostToDevice));
@@ -797,7 +797,7 @@ MemoryState origin[2] = {queryFeatures->getMemoryState(), targetFeatures->getMem
   unsigned int numPossibleMatches = queryFeatures->size();
 
   float4 targetProjection[3];
-  target->getProjectionMatrix(targetProjection);
+  getProjectionMatrix(targetProjection, &target->camera);
 
   ssrlcv::ptr::device<ssrlcv::Image::Camera> queryCamera_device(1);
   CudaSafeCall(cudaMemcpy(queryCamera_device.get(), &query->camera, sizeof(ssrlcv::Image::Camera), cudaMemcpyHostToDevice));

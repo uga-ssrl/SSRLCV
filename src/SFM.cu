@@ -98,8 +98,9 @@ int main(int argc, char *argv[]){
 
     ssrlcv::PoseEstimator estim(image0, image1, matchSet.keyPoints);
 
-    estim.estimatePoseRANSAC();
-    estim.getRotations(true);
+    ssrlcv::Pose pose = estim.estimatePoseRANSAC();
+    estim.LM_optimize(pose);
+    //estim.getRotations(true);
 
        /*
 

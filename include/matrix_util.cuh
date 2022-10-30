@@ -73,7 +73,7 @@ namespace ssrlcv{
    * \param angles angle to rotate
    * \return point after rotation
    */
-  __device__ float3 rotatePoint(float3 point, float3 angles);
+  __host__ __device__ float3 rotatePoint(float3 point, float3 angles);
 
   /**
    * \brief Rotates a point around a given axis.

@@ -4,13 +4,13 @@
 #include <cusolverDn.h>
 #include <list>
 
-ssrlcv::PoseEstimator::PoseEstimator(ssrlcv::ptr::value<ssrlcv::Image> queryImage, ssrlcv::ptr::value<ssrlcv::Image> targetImage, ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>> keyPoints) :
-    queryImage(queryImage),
-    targetImage(targetImage),
+ssrlcv::PoseEstimator::PoseEstimator(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>> keyPoints) :
+    query(query),
+    target(target),
     A(nullptr, keyPoints->size() / 2 * 9, ssrlcv::cpu),
     keyPoints(keyPoints) {}
 
-void ssrlcv::PoseEstimator::estimatePoseRANSAC(float (&F_out)[3][3]) {
+ssrlcv::Pose ssrlcv::PoseEstimator::estimatePoseRANSAC() {
     this->fillA();
 
     unsigned long numMatches = this->keyPoints->size() / 2;
@@ -113,7 +113,10 @@ void ssrlcv::PoseEstimator::estimatePoseRANSAC(float (&F_out)[3][3]) {
     }
     printf("%d\n", bestIdx);
     printf("%d / %d\n", best, this->keyPoints->size() / 2);
-    memcpy(F_out, matricesAndInliers->host[bestIdx].fmatrix, 9*sizeof(float));
+    float F[3][3];
+    memcpy(F, matricesAndInliers->host[bestIdx].fmatrix, 9*sizeof(float));
+
+    return getRelativePose(F);
 
     /*float X[7][9], Y[9];
     memcpy(&X, A->host.get(), 7*9*sizeof(float));
@@ -163,188 +166,266 @@ void ssrlcv::PoseEstimator::fillA() {
     }
 }
 
-ssrlcv::Pose ssrlcv::PoseEstimator::getPose(bool relative) {
-    if (relative) {
-        float K[3][3] = {
-            {this->queryImage->camera.foc / this->queryImage->camera.dpix.x, 0, this->queryImage->size.x / 2.0f},
-            {0, this->queryImage->camera.foc / this->queryImage->camera.dpix.y, this->queryImage->size.y / 2.0f},
-            {0, 0, 1}
-        }; // camera calibration matrix (same for both)
+ssrlcv::Pose ssrlcv::PoseEstimator::getRelativePose(const float (&F)[3][3]) {
+    float K[3][3] = {
+        {this->query->camera.foc / this->query->camera.dpix.x, 0, this->query->size.x / 2.0f},
+        {0, this->query->camera.foc / this->query->camera.dpix.y, this->query->size.y / 2.0f},
+        {0, 0, 1}
+    }; // camera calibration matrix (same for both)
 
-        float Kt[3][3]; // tranpose calibration matrix
-        transpose(K, Kt);
+    float Kt[3][3]; // tranpose calibration matrix
+    transpose(K, Kt);
 
-        float E[3][3]; // essential matrix
+    float E[3][3]; // essential matrix
 
-        float KtF[3][3];
-        multiply(Kt, F, KtF);
-        multiply(KtF, K, E);
+    float KtF[3][3];
+    multiply(Kt, F, KtF);
+    multiply(KtF, K, E);
 
-        float W[3][3] = {
-            {0, -1, 0},
-            {1, 0, 0},
-            {0, 0, 1}
-        };
-        float Wt[3][3];
-        transpose(W, Wt);
+    float W[3][3] = {
+        {0, -1, 0},
+        {1, 0, 0},
+        {0, 0, 1}
+    };
+    float Wt[3][3];
+    transpose(W, Wt);
 
-        cusolverDnHandle_t cusolverH = nullptr;
-        cusolverStatus_t cusolver_status = CUSOLVER_STATUS_SUCCESS;
+    cusolverDnHandle_t cusolverH = nullptr;
+    cusolverStatus_t cusolver_status = CUSOLVER_STATUS_SUCCESS;
 
-        ssrlcv::ptr::device<float> d_A(3*3);
-        ssrlcv::ptr::device<float> d_S(3*3);
-        ssrlcv::ptr::device<int> devInfo(1);
-        ssrlcv::ptr::device<float> d_rwork(2);
-        ssrlcv::ptr::device<float> d_U(3*3);
-        ssrlcv::ptr::device<float> d_Vt(3*3);
-        int lwork = 0;
+    ssrlcv::ptr::device<float> d_A(3*3);
+    ssrlcv::ptr::device<float> d_S(3*3);
+    ssrlcv::ptr::device<int> devInfo(1);
+    ssrlcv::ptr::device<float> d_rwork(2);
+    ssrlcv::ptr::device<float> d_U(3*3);
+    ssrlcv::ptr::device<float> d_Vt(3*3);
+    int lwork = 0;
 
-        CudaSafeCall(cudaMemcpy(d_A.get(), E, 3*3*sizeof(float), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_A.get(), E, 3*3*sizeof(float), cudaMemcpyHostToDevice));
 
-        cusolver_status = cusolverDnCreate(&cusolverH);
-        assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
+    cusolver_status = cusolverDnCreate(&cusolverH);
+    assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
 
-        cusolver_status = cusolverDnSgesvd_bufferSize(cusolverH, 3, 3, &lwork);
-        assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
+    cusolver_status = cusolverDnSgesvd_bufferSize(cusolverH, 3, 3, &lwork);
+    assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
 
-        ssrlcv::ptr::device<float> d_work(lwork);
-        cusolver_status = cusolverDnSgesvd(cusolverH, 'A', 'A', 3, 3,
-        d_A.get(), 3, d_S.get(), d_U.get(), 3, d_Vt.get(), 3, d_work.get(), lwork, d_rwork.get(), devInfo.get());
-        cudaDeviceSynchronize();
-        assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
+    ssrlcv::ptr::device<float> d_work(lwork);
+    cusolver_status = cusolverDnSgesvd(cusolverH, 'A', 'A', 3, 3,
+    d_A.get(), 3, d_S.get(), d_U.get(), 3, d_Vt.get(), 3, d_work.get(), lwork, d_rwork.get(), devInfo.get());
+    cudaDeviceSynchronize();
+    assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
 
-        float U[3][3];
-        float Vt[3][3];
-        CudaSafeCall(cudaMemcpy(&U[0][0], d_Vt.get(), 9*sizeof(float), cudaMemcpyDeviceToHost));
-        CudaSafeCall(cudaMemcpy(&Vt[0][0], d_U.get(), 9*sizeof(float), cudaMemcpyDeviceToHost));
+    float U[3][3];
+    float Vt[3][3];
+    CudaSafeCall(cudaMemcpy(&U[0][0], d_Vt.get(), 9*sizeof(float), cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaMemcpy(&Vt[0][0], d_U.get(), 9*sizeof(float), cudaMemcpyDeviceToHost));
 
-        float UW[3][3], UWt[3][3];
-        float R1[3][3], R2[3][3];
-        multiply(U, W, UW);
-        multiply(U, Wt, UWt);
-        multiply(UW, Vt, R1);
-        multiply(UWt, Vt, R2);
+    float UW[3][3], UWt[3][3];
+    float R1[3][3], R2[3][3];
+    multiply(U, W, UW);
+    multiply(U, Wt, UWt);
+    multiply(UW, Vt, R1);
+    multiply(UWt, Vt, R2);
 
 
-        unsigned int globalID = 1702;
-        unsigned int qIdx = globalID * 2;
-        unsigned int tIdx = qIdx + 1;
-        float3 queryPnt = {0, 0, 0};
-        float3 queryVec = {
-            this->queryImage->camera.dpix.x * ((this->keyPoints->host[qIdx].loc.x) - (this->queryImage->camera.size.x / 2.0f)),
-            this->queryImage->camera.dpix.y * ((this->keyPoints->host[qIdx].loc.y) - (this->queryImage->camera.size.y / 2.0f)),
-            this->queryImage->camera.foc
-        }; // identity, since it's relative rotation, so no rotation for query
-        normalize(queryVec);
-        float3 targetPnt1 = {U[0][2], U[1][2], U[2][2]}; // 3D position in pixel units
-        float3 targetPnt2 = -1 * targetPnt1;
-        float3 targetVec1 = {
-            this->targetImage->camera.dpix.x * ((this->keyPoints->host[tIdx].loc.x) - (this->targetImage->camera.size.x / 2.0f)),
-            this->targetImage->camera.dpix.y * ((this->keyPoints->host[tIdx].loc.y) - (this->targetImage->camera.size.y / 2.0f)),
-            this->targetImage->camera.foc
-        };
-        float3 targetVec2 = targetVec1;
-        float R1t[3][3], R2t[3][3];
-        transpose(R1, R1t);
-        transpose(R2, R2t);
-        targetVec1 = matrixMulVector(targetVec1, R1t);
-        targetVec2 = matrixMulVector(targetVec2, R2t);
-        normalize(targetVec1);
-        normalize(targetVec2);
+    unsigned int globalID = 1702;
+    unsigned int qIdx = globalID * 2;
+    unsigned int tIdx = qIdx + 1;
+    float3 queryPnt = {0, 0, 0};
+    float3 queryVec = {
+        this->query->camera.dpix.x * ((this->keyPoints->host[qIdx].loc.x) - (this->query->camera.size.x / 2.0f)),
+        this->query->camera.dpix.y * ((this->keyPoints->host[qIdx].loc.y) - (this->query->camera.size.y / 2.0f)),
+        this->query->camera.foc
+    }; // identity, since it's relative rotation, so no rotation for query
+    normalize(queryVec);
+    float3 targetPnt1 = {U[0][2], U[1][2], U[2][2]}; // 3D position in pixel units
+    float3 targetPnt2 = -1 * targetPnt1;
+    float3 targetVec1 = {
+        this->target->camera.dpix.x * ((this->keyPoints->host[tIdx].loc.x) - (this->target->camera.size.x / 2.0f)),
+        this->target->camera.dpix.y * ((this->keyPoints->host[tIdx].loc.y) - (this->target->camera.size.y / 2.0f)),
+        this->target->camera.foc
+    };
+    float3 targetVec2 = targetVec1;
+    float R1t[3][3], R2t[3][3];
+    transpose(R1, R1t);
+    transpose(R2, R2t);
+    targetVec1 = matrixMulVector(targetVec1, R1t);
+    targetVec2 = matrixMulVector(targetVec2, R2t);
+    normalize(targetVec1);
+    normalize(targetVec2);
 
-        Bundle::Line queryBundle = {queryVec, queryPnt};
-        Bundle::Line targetBundles[4] = {
-            {targetVec1, targetPnt1},
-            {targetVec1, targetPnt2},
-            {targetVec2, targetPnt1},
-            {targetVec2, targetPnt2}
-        };
+    Bundle::Line queryBundle = {queryVec, queryPnt};
+    Bundle::Line targetBundles[4] = {
+        {targetVec1, targetPnt1},
+        {targetVec1, targetPnt2},
+        {targetVec2, targetPnt1},
+        {targetVec2, targetPnt2}
+    };
 
-        Bundle::Line *L1 = &queryBundle;
-        Bundle::Line *L2 = targetBundles;
+    Bundle::Line *L1 = &queryBundle;
+    Bundle::Line *L2 = targetBundles;
 
-        // float4 tmp[3], P2[3];
-        // tmp[0] = {R[0][0], R[1][0], R[2][0], U[0][2]};
-        // tmp[1] = {R[0][1], R[1][1], R[2][1], U[1][2]};
-        // tmp[2] = {R[0][2], R[1][2], R[2][2], U[2][2]};
-        // float3 tmp2[3];
-        // tmp2[0] = {K[0][0], K[0][1], K[0][2]};
-        // tmp2[1] = {K[1][0], K[1][1], K[1][2]};
-        // tmp2[2] = {K[2][0], K[2][1], K[2][2]};
-        // multiply(tmp2, tmp, P2);
-        // float4 P1[3];
-        // P1[0] = {K[0][0], K[0][1], K[0][2], 0};
-        // P1[1] = {K[1][0], K[1][1], K[1][2], 0};
-        // P1[2] = {K[2][0], K[2][1], K[2][2], 0};
-        
-        for (int i = 0; i < 4; i++, L2++) {
-            // calculate the normals
-            float3 n2 = crossProduct(L2->vec,crossProduct(L1->vec,L2->vec));
-            float3 n1 = crossProduct(L1->vec,crossProduct(L1->vec,L2->vec));
+    int best = 0; // TODO: turn this (starting at global id) into kernel that votes for the best one
+    
+    for (int i = 0; i < 4; i++, L2++) {
+        // calculate the normals
+        float3 n2 = crossProduct(L2->vec,crossProduct(L1->vec,L2->vec));
+        float3 n1 = crossProduct(L1->vec,crossProduct(L1->vec,L2->vec));
 
-            // calculate the numerators
-            float numer1 = dotProduct((L2->pnt - L1->pnt),n2);
-            float numer2 = dotProduct((L1->pnt - L2->pnt),n1);
+        // calculate the numerators
+        float numer1 = dotProduct((L2->pnt - L1->pnt),n2);
+        float numer2 = dotProduct((L1->pnt - L2->pnt),n1);
 
-            // calculate the denominators
-            float denom1 = dotProduct(L1->vec,n2);
-            float denom2 = dotProduct(L2->vec,n1);
+        // calculate the denominators
+        float denom1 = dotProduct(L1->vec,n2);
+        float denom2 = dotProduct(L2->vec,n1);
 
-            // get the S points
-            float3 s1 = L1->pnt + (numer1/denom1) * L1->vec;
-            float3 s2 = L2->pnt + (numer2/denom2) * L2->vec;
-            float3 point = (s1 + s2)/2.0;
+        // get the S points
+        float3 s1 = L1->pnt + (numer1/denom1) * L1->vec;
+        float3 s2 = L2->pnt + (numer2/denom2) * L2->vec;
+        float3 point = (s1 + s2)/2.0;
 
-            bool ok1 = magnitude(point - (L1->pnt + L1->vec)) < magnitude(point - (L1->pnt));
-            bool ok2 = magnitude(point - (L2->pnt + L2->vec)) < magnitude(point - (L2->pnt));
-            if (ok1 && ok2) {
-                printf("Point position: %f %f %f\n", point.x/ this->queryImage->camera.dpix.x / 1000, point.y/ this->queryImage->camera.dpix.x / 1000, point.z/ this->queryImage->camera.dpix.x / 1000);
-            } else {
-                printf("Bad position: %f %f %f\n", point.x/ this->queryImage->camera.dpix.x / 1000, point.y/ this->queryImage->camera.dpix.x / 1000, point.z/ this->queryImage->camera.dpix.x / 1000);
-            }
+        bool ok1 = magnitude(point - (L1->pnt + L1->vec)) < magnitude(point - (L1->pnt));
+        bool ok2 = magnitude(point - (L2->pnt + L2->vec)) < magnitude(point - (L2->pnt));
+        if (ok1 && ok2) {
+            printf("Point position: %f %f %f\n", point.x/ this->query->camera.dpix.x / 1000, point.y/ this->query->camera.dpix.x / 1000, point.z/ this->query->camera.dpix.x / 1000);
+            best = i;
         }
-
-        /*****************************************************************
-        Note: using transpose for rotations from camera -> world coords
-        *****************************************************************/
-
-        float x_rot = atanf(R1t[2][1] / R1t[2][2]) * 180 / PI;
-        float y_rot = atanf(-R1t[2][0] / (R1t[2][2]/cosf(x_rot))) * 180 / PI;
-        float z_rot = atanf(R1t[1][0] / R1t[0][0]) * 180 / PI;
-
-        printf("r: %f %f %f\n", x_rot, y_rot, z_rot);
-
-        x_rot = atanf(R2t[2][1] / R2t[2][2]) * 180 / PI;
-        y_rot = atanf(-R2t[2][0] / (R2t[2][2]/cosf(x_rot))) * 180 / PI;
-        z_rot = atanf(R2t[1][0] / R2t[0][0]) * 180 / PI;
-
-        printf("r: %f %f %f\n", x_rot, y_rot, z_rot);
-
-        printf("t: %f %f %f\n", U[0][2] / this->queryImage->camera.dpix.x / 1000, U[1][2] / this->queryImage->camera.dpix.x / 1000, U[2][2] / this->queryImage->camera.dpix.x / 1000);
-
-        return {
-            atanf(R1t[2][1] / R1t[2][2]),
-            atanf(-R1t[2][0] / (R1t[2][2]/cosf(x_rot))),
-            atanf(R1t[1][0] / R1t[0][0]),
-            U[0][2] / this->queryImage->camera.dpix.x / 1000,
-            U[1][2] / this->queryImage->camera.dpix.x / 1000,
-            U[2][2] / this->queryImage->camera.dpix.x / 1000
-        };
-        
-
-        //printf("\nE: [%f,%f,%f,%f,%f,%f,%f,%f,%f]\n", E[0][0], E[0][1], E[0][2], E[1][0], E[1][1], E[1][2], E[2][0], E[2][1], E[2][2]);
-
-        //printf("\nKtF: [%f,%f,%f,%f,%f,%f,%f,%f,%f]\n", KtF[0][0], KtF[0][1], KtF[0][2], KtF[1][0], KtF[1][1], KtF[1][2], KtF[2][0], KtF[2][1], KtF[2][2]);
-
-        //printf("\nF: [%f,%f,%f,%f,%f,%f,%f,%f,%f]\n", this->F[0][0], this->F[0][1], this->F[0][2], this->F[1][0], this->F[1][1], this->F[1][2], this->F[2][0], this->F[2][1], this->F[2][2]);
-
-    } else {
-        // not yet implemented
     }
+
+    /*****************************************************************
+    Note: using transpose for rotations from camera -> world coords
+    *****************************************************************/
+
+    Pose pose;
+
+    if (best == 0 || best == 1) {
+        pose.roll = atanf(R1t[2][1] / R1t[2][2]);
+        pose.pitch = atanf(-R1t[2][0] / (R1t[2][2]/cosf(pose.roll)));
+        pose.yaw = atanf(R1t[1][0] / R1t[0][0]);
+    } else {
+        pose.roll = atanf(R2t[2][1] / R2t[2][2]);
+        pose.pitch = atanf(-R2t[2][0] / (R2t[2][2]/cosf(pose.roll)));
+        pose.yaw = atanf(R2t[1][0] / R2t[0][0]);
+    }
+
+    printf("r: %f %f %f\n", pose.roll, pose.pitch, pose.yaw);
+
+    if (best == 0 || best == 2) {
+        pose.x = U[0][2] / this->query->camera.dpix.x / 1000;
+        pose.y = U[1][2] / this->query->camera.dpix.x / 1000;
+        pose.z = U[2][2] / this->query->camera.dpix.x / 1000;
+    } else {
+        pose.x = - U[0][2] / this->query->camera.dpix.x / 1000;
+        pose.y = - U[1][2] / this->query->camera.dpix.x / 1000;
+        pose.z = - U[2][2] / this->query->camera.dpix.x / 1000;
+    }
+
+    printf("t: %f %f %f\n", pose.x, pose.y, pose.z);
+
+    return pose;
 }
 
 void ssrlcv::PoseEstimator::LM_optimize(ssrlcv::Pose pose) {
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> f(nullptr, 4 * this->keyPoints->size() / 2, gpu); // residuals
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> J(nullptr, 6 * 4 * this->keyPoints->size() / 2, gpu); // Jacobian of f
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> JTJ(nullptr, 6 * 6, gpu);
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> JTf(nullptr, 6, gpu);
 
+    float lambda = 100;
+    
+    dim3 grid = {1,1,1};
+    dim3 block = {1,1,1};
+    void (*fp)(ssrlcv::KeyPoint *, int, ssrlcv::Pose, ssrlcv::Image::Camera, ssrlcv::Image::Camera, float *, float *) = &computeResidualsAndJacobian;
+    getFlatGridBlock(this->keyPoints->size() / 2,grid,block,fp);
+    this->keyPoints->transferMemoryTo(gpu);
+    computeResidualsAndJacobian<<<grid, block>>>(this->keyPoints->device.get(), this->keyPoints->size(), pose, this->query->camera, this->target->camera, f->device.get(), J->device.get());
+    cudaDeviceSynchronize();
+    CudaCheckError();
+
+
+    void (*fp2)(float *, unsigned long, float *) = &computeJTJ;
+    getFlatGridBlock(this->keyPoints->size() / 2 * 4,grid,block,fp2);
+    computeJTJ<<<grid, block>>>(J->device.get(), this->keyPoints->size() / 2 * 4, JTJ->device.get());
+    cudaDeviceSynchronize();
+    CudaCheckError();
+    JTJ->transferMemoryTo(cpu);
+    for(int i = 0; i < 6; i ++) {
+        JTJ->host[i + 6 * i] += lambda;
+    }
+    JTJ->transferMemoryTo(gpu);
+
+    void (*fp3)(float *, float *, unsigned long, float *) = &computeJTf;
+    getFlatGridBlock(this->keyPoints->size() / 2 * 4,grid,block,fp3);
+    computeJTf<<<grid, block>>>(J->device.get(), f->device.get(), this->keyPoints->size() / 2 * 4, JTf->device.get());
+    cudaDeviceSynchronize();
+    CudaCheckError();
+
+    cusolverDnHandle_t  cusolverH       = NULL;
+    cusolverStatus_t    cusolver_status = CUSOLVER_STATUS_SUCCESS;
+
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> S  = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,6,ssrlcv::gpu);
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> UT  = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,6*6,ssrlcv::gpu); // transpose because column major
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> V = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,6*6,ssrlcv::gpu); // not transpose because column major
+
+    cusolver_status = cusolverDnCreate(&cusolverH);
+    assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
+
+    // cuSOLVER SVD
+    int lwork       = 0;
+    int *devInfo    = NULL;
+    float *d_work   = NULL;
+    float *d_rwork  = NULL;
+    cusolver_status = cusolverDnDgesvd_bufferSize(cusolverH,6,6,&lwork);
+    assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
+
+    CudaSafeCall(cudaMalloc((void**)&d_work , sizeof(float)*lwork));
+    CudaSafeCall(cudaMalloc ((void**)&devInfo, sizeof(int)));
+
+    cusolver_status = cusolverDnSgesvd(cusolverH,'A','A',6,6,JTJ->device.get(),6,S->device.get(),UT->device.get(),6,V->device.get(),6,d_work,lwork,d_rwork,devInfo); // JTJ should technically be column major but it's symmetric so doesn't matter
+    cudaDeviceSynchronize();
+    assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
+
+    S->transferMemoryTo(cpu);
+    UT->transferMemoryTo(cpu);
+    V->transferMemoryTo(cpu);
+    JTJ->transferMemoryTo(cpu);
+    JTf->transferMemoryTo(cpu);
+
+    float JTJ_inv[6][6];
+    float VS[6][6];
+    float delta[6];
+    
+    float mult;
+    for(int i = 0; i < 6; i ++) {
+        for(int j = 0; j < 6; j ++) {
+            mult = (S->host[j] > 0.0001) ? 1 / S->host[j] : 0;
+            VS[i][j] = V->host[6*i + j] * mult;
+        }
+    }
+
+    for(int i = 0; i < 6; i ++) {
+        for(int j = 0; j < 6; j ++) {
+            JTJ_inv[i][j] = 0;
+            for (int k = 0; k < 6; k ++) {
+                JTJ_inv[i][j] += VS[i][k] * UT->host[k * 6 + j];
+            }
+        }
+    }
+
+    // delta = - JTJ_inv x JTf
+
+    for(int i = 0; i < 6; i ++) {
+        delta[i] = 0;
+        for(int j = 0; j < 6; j ++) {
+            delta[i] += - JTJ_inv[i][j] * JTf->host[j];
+        }
+    }
+
+    for(int i = 0; i < 6; i ++) {
+        printf("%f\n", delta[i]);
+    }
+    
 }
 
 __global__ void ssrlcv::computeFMatrixAndInliers(ssrlcv::KeyPoint *keyPoints, int numKeyPoints, float *V, unsigned long N, ssrlcv::FMatrixInliers *matricesAndInliers) {
@@ -432,32 +513,206 @@ __global__ void ssrlcv::computeFMatrixAndInliers(ssrlcv::KeyPoint *keyPoints, in
             matricesAndInliers[globalID].inliers = inliers;
         }
 
-        /* float x0 = xn, x1, x2;
-        bool threeSols = false;
-
-        if (a * xn * xn * xn + b * xn * xn + c * xn + d > 1.e-5) {
-            return;
-        } else {
-            
-            // now quadratic
-
-            float A = a;
-            float B = b + a * x0;
-            float C = a * c * x0 * x0 + b * c * x0;
-
-            if (B * B - 4 * A * C >= 0) {
-                threeSols = true;
-                x1 = (-B + sqrtf(B * B - 4 * A * C)) / (2 * A);
-                x2 = (-B - sqrtf(B * B - 4 * A * C)) / (2 * A);
-                if(globalID == 0) {
-                    printf("%f %f %f\n", x0, x1, x2); 
-                }
-            }
-
-        } */
-
-
-
     }
 
+}
+
+__global__ void ssrlcv::computeResidualsAndJacobian(ssrlcv::KeyPoint *keyPoints, int numKeyPoints, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *residuals, float *jacobian) {
+    unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+
+    if (globalID < numKeyPoints / 2) {
+        float2 q_loc = keyPoints[globalID * 2].loc;
+        float2 t_loc = keyPoints[globalID * 2 + 1].loc;
+        float *r_out = residuals + 4 * globalID;
+        float *j_out = jacobian + 6 * 4 * globalID; // Jacobian is 4 rows of 6 per match
+
+        float delta = 1e-5;
+
+        float4 res = getResidual(pose, &query, &target, q_loc, t_loc);
+        r_out[0] = res.x;
+        r_out[1] = res.y;
+        r_out[2] = res.z;
+        r_out[3] = res.w;
+
+        float4 left, right;
+        float saved; // set back to initial to avoid fp errors
+
+        saved = pose.roll;
+        pose.roll += delta;
+        right = getResidual(pose, &query, &target, q_loc, t_loc);
+        pose.roll -= 2 * delta;
+        left = getResidual(pose, &query, &target, q_loc, t_loc);
+        pose.roll = saved;
+        j_out[0] = (right.x - left.x) / (2 * delta);
+        j_out[6] = (right.y - left.y) / (2 * delta);
+        j_out[12] = (right.z - left.z) / (2 * delta);
+        j_out[18] = (right.w - left.w) / (2 * delta);
+        ++j_out;
+
+        saved = pose.pitch;
+        pose.pitch += delta;
+        right = getResidual(pose, &query, &target, q_loc, t_loc);
+        pose.pitch -= 2 * delta;
+        left = getResidual(pose, &query, &target, q_loc, t_loc);
+        pose.pitch = saved;
+        j_out[0] = (right.x - left.x) / (2 * delta);
+        j_out[6] = (right.y - left.y) / (2 * delta);
+        j_out[12] = (right.z - left.z) / (2 * delta);
+        j_out[18] = (right.w - left.w) / (2 * delta);
+        ++j_out;
+        
+        saved = pose.yaw;
+        pose.yaw += delta;
+        right = getResidual(pose, &query, &target, q_loc, t_loc);
+        pose.yaw -= 2 * delta;
+        left = getResidual(pose, &query, &target, q_loc, t_loc);
+        pose.yaw = saved;
+        j_out[0] = (right.x - left.x) / (2 * delta);
+        j_out[6] = (right.y - left.y) / (2 * delta);
+        j_out[12] = (right.z - left.z) / (2 * delta);
+        j_out[18] = (right.w - left.w) / (2 * delta);
+        ++j_out;
+
+        saved = pose.x;
+        pose.x += delta;
+        right = getResidual(pose, &query, &target, q_loc, t_loc);
+        pose.x -= 2 * delta;
+        left = getResidual(pose, &query, &target, q_loc, t_loc);
+        pose.x = saved;
+        j_out[0] = (right.x - left.x) / (2 * delta);
+        j_out[6] = (right.y - left.y) / (2 * delta);
+        j_out[12] = (right.z - left.z) / (2 * delta);
+        j_out[18] = (right.w - left.w) / (2 * delta);
+        ++j_out;
+
+        saved = pose.y;
+        pose.y += delta;
+        right = getResidual(pose, &query, &target, q_loc, t_loc);
+        pose.y -= 2 * delta;
+        left = getResidual(pose, &query, &target, q_loc, t_loc);
+        pose.y = saved;
+        j_out[0] = (right.x - left.x) / (2 * delta);
+        j_out[6] = (right.y - left.y) / (2 * delta);
+        j_out[12] = (right.z - left.z) / (2 * delta);
+        j_out[18] = (right.w - left.w) / (2 * delta);
+        ++j_out;
+
+        saved = pose.z;
+        pose.z += delta;
+        right = getResidual(pose, &query, &target, q_loc, t_loc);
+        pose.z -= 2 * delta;
+        left = getResidual(pose, &query, &target, q_loc, t_loc);
+        pose.z = saved;
+        j_out[0] = (right.x - left.x) / (2 * delta);
+        j_out[6] = (right.y - left.y) / (2 * delta);
+        j_out[12] = (right.z - left.z) / (2 * delta);
+        j_out[18] = (right.w - left.w) / (2 * delta);
+        ++j_out;
+    }
+}
+
+__global__ void ssrlcv::computeCost(ssrlcv::KeyPoint *keyPoints, int numKeyPoints, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *residuals, float *cost) {
+    unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+
+    if (globalID < numKeyPoints / 2) {
+        float2 q_loc = keyPoints[globalID * 2].loc;
+        float2 t_loc = keyPoints[globalID * 2 + 1].loc;
+
+        float4 res = getResidual(pose, &query, &target, q_loc, t_loc);
+        float sum = res.x * res.x + res.y * res.y + res.z * res.z + res.w * res.w;
+        atomicAdd(cost, sum);
+    }
+}
+
+__device__ __host__ float4 ssrlcv::getResidual(ssrlcv::Pose pose, ssrlcv::Image::Camera *query, ssrlcv::Image::Camera *target, float2 q_loc, float2 t_loc) {
+    float3 queryPnt = {0, 0, 0};
+    float3 queryVec = {
+        query->dpix.x * ((q_loc.x) - (query->size.x / 2.0f)),
+        query->dpix.y * ((q_loc.y) - (query->size.y / 2.0f)),
+        query->foc
+    }; // identity, since it's relative rotation, so no rotation for query
+    normalize(queryVec);
+    float3 targetPnt = {pose.x, pose.y, pose.z}; // 3D position in pixel units
+    float3 targetVec = {
+        target->dpix.x * ((t_loc.x) - (target->size.x / 2.0f)),
+        target->dpix.y * ((t_loc.y) - (target->size.y / 2.0f)),
+        target->foc
+    };
+    targetVec = rotatePoint(targetVec, {pose.roll, pose.pitch, pose.yaw});
+    normalize(targetVec);
+
+    Bundle::Line queryBundle = {queryVec, queryPnt};
+    Bundle::Line targetBundle = {targetVec, targetPnt};
+
+    Bundle::Line *L1 = &queryBundle;
+    Bundle::Line *L2 = &targetBundle;
+    
+    // calculate the normals
+    float3 n2 = crossProduct(L2->vec,crossProduct(L1->vec,L2->vec));
+    float3 n1 = crossProduct(L1->vec,crossProduct(L1->vec,L2->vec));
+
+    // calculate the numerators
+    float numer1 = dotProduct((L2->pnt - L1->pnt),n2);
+    float numer2 = dotProduct((L1->pnt - L2->pnt),n1);
+
+    // calculate the denominators
+    float denom1 = dotProduct(L1->vec,n2);
+    float denom2 = dotProduct(L2->vec,n1);
+
+    // get the S points
+    float3 s1 = L1->pnt + (numer1/denom1) * L1->vec;
+    float3 s2 = L2->pnt + (numer2/denom2) * L2->vec;
+    
+    float3 point = (s1 + s2)/2.0;
+    float4 point_homog = {point.x, point.y, point.z, 1};
+
+    ssrlcv::Image::Camera q_mock, t_mock;
+    float4 q_P[3], t_P[3];
+    q_mock = *query;
+    q_mock.cam_pos = {0, 0, 0};
+    q_mock.ecef_offset = {0, 0, 0};
+    q_mock.cam_rot = {0, 0, 0};
+    t_mock = *target;
+    t_mock.cam_pos = {pose.x, pose.y, pose.z};
+    t_mock.ecef_offset = {0, 0, 0};
+    t_mock.cam_rot = {pose.roll, pose.pitch, pose.yaw};
+    getProjectionMatrix(q_P, &q_mock);
+    getProjectionMatrix(t_P, &t_mock);
+
+    float3 q_loc_hat, t_loc_hat;
+    multiply(q_P, point_homog, q_loc_hat);
+    multiply(t_P, point_homog, t_loc_hat);
+
+    return {
+        q_loc.x - q_loc_hat.x/q_loc_hat.z,
+        q_loc.y - q_loc_hat.y/q_loc_hat.z,
+        t_loc.x - t_loc_hat.x/t_loc_hat.z,
+        t_loc.y - t_loc_hat.y/t_loc_hat.z
+    };
+}
+
+__global__ void ssrlcv::computeJTJ(float *jacobian, unsigned long rows, float *output) {
+    unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+
+    if (globalID < rows) {
+        for (int i = 0; i < 6; i ++) {
+            for (int j = 0; j < 6; j ++) {
+                float left = (jacobian + globalID * 6)[i];
+                float right = (jacobian + globalID * 6)[j];
+                atomicAdd(output + i + 6*j, left * right);
+            }
+        }
+    }
+}
+
+__global__ void ssrlcv::computeJTf(float *jacobian, float *f, unsigned long rows, float *output) {
+    unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+
+    if (globalID < rows) {
+        for (int i = 0; i < 6; i ++) {
+            float left = (jacobian + globalID * 6)[i];
+            float right = (f + globalID)[0];
+            atomicAdd(output + i, left * right);
+        }
+    }
 }

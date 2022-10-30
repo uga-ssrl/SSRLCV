@@ -33,8 +33,8 @@ namespace ssrlcv{
 
   private:
     ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>> keyPoints; // every two keypoints should be matches (query, target, query, target, ...)
-    ssrlcv::ptr::value<ssrlcv::Image> queryImage;
-    ssrlcv::ptr::value<ssrlcv::Image> targetImage;
+    ssrlcv::ptr::value<ssrlcv::Image> query;
+    ssrlcv::ptr::value<ssrlcv::Image> target;
 
     ssrlcv::ptr::value<ssrlcv::Unity<float>> A; // for equation A F = 0
 
@@ -42,26 +42,31 @@ namespace ssrlcv{
     /*
     * Sets up pose estimator to adjust target image
     */
-    PoseEstimator(ssrlcv::ptr::value<ssrlcv::Image> queryImage, ssrlcv::ptr::value<ssrlcv::Image> targetImage, ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>> keyPoints);
+    PoseEstimator(ssrlcv::ptr::value<ssrlcv::Image> query, ssrlcv::ptr::value<ssrlcv::Image> target, ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::KeyPoint>> keyPoints);
 
-    void estimateFundamentalRANSAC(float (&F_out)[3][3]);
+    ssrlcv::Pose estimatePoseRANSAC();
 
-    ssrlcv::Pose getPose(const float (&F)[3][3], bool relative=false);
-
-    void LM_optimize(ssrlcv::Pose pose) {
-      
-    }
-
-    float getCost();
+    void LM_optimize(ssrlcv::Pose pose);
     
   private:
+
+    ssrlcv::Pose getRelativePose(const float (&F)[3][3]);
 
     void fillA();
 
 };
 
+__device__ __host__ float4 getResidual(ssrlcv::Pose pose, ssrlcv::Image::Camera *query, ssrlcv::Image::Camera *target, float2 q_loc, float2 t_loc);
+
 __global__ void computeFMatrixAndInliers(KeyPoint *keyPoints, int numKeypoints, float *V, unsigned long N, ssrlcv::FMatrixInliers *matricesAndInliers);
 
+__global__ void computeResidualsAndJacobian(KeyPoint *keyPoints, int numKeypoints, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *residuals, float *jacobian);
+
+__global__ void computeJTJ(float *jacobian, unsigned long rows, float *output);
+
+__global__ void computeJTf(float *jacobian, float *f, unsigned long rows, float *output);
+
+__global__ void computeCost(ssrlcv::KeyPoint *keyPoints, int numKeyPoints, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *residuals, float *cost);
 }
 
 #endif

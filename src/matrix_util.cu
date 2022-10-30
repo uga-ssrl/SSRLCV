@@ -291,7 +291,7 @@ __device__ float3 ssrlcv::getVectorAngles(float3 v){
  * \param angles angle to rotate
  * \return point after rotation
  */
-__device__ float3 ssrlcv::rotatePoint(float3 point, float3 angle) {
+__host__ __device__ float3 ssrlcv::rotatePoint(float3 point, float3 angle) {
   float rotationMatrix[3][3];
   rotationMatrix[0][0] = cosf(angle.z) * cosf(angle.y);
   rotationMatrix[0][1] = cosf(angle.z) * sinf(angle.y) * sinf(angle.x) - sinf(angle.z) * cosf(angle.x);

@@ -192,14 +192,6 @@ namespace ssrlcv{
     */
     ssrlcv::ptr::value<ssrlcv::Unity<float>> getExtrinsicDifference(Camera other);
 
-    /**
-     * Sets P to a projection matrix that maps a point in homogenous R3 (ECEF) to its projection
-     * onto this image's camera (as a point in homogenous R2)
-     * 
-     * @param P pass-by-value matrix that is set to the projection matrix
-     */
-    void getProjectionMatrix(float4 (&P)[3]);
-
     /*
     // Binary camera params [Gitlab #58]
     void bcp_in(bcpFormat data) {
@@ -561,6 +553,14 @@ namespace ssrlcv{
   __device__ __host__ uchar3 bwToRGB(const unsigned char &color);
   __device__ __host__ uchar3 bwaToRGB(const uchar2 &color);
   __device__ __host__ uchar3 rgbaToRGB(const uchar4 &color);
+
+  /**
+   * Sets P to a projection matrix that maps a point in homogenous R3 (ECEF) to its projection
+   * onto this image's camera (as a point in homogenous R2)
+   * 
+   * @param P pass-by-value matrix that is set to the projection matrix
+   */
+  __device__ __host__ void getProjectionMatrix(float4 (&P)[3], ssrlcv::Image::Camera *camera);
 
   /**
   * \}
