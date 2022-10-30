@@ -52,7 +52,7 @@ namespace ssrlcv{
 
     ssrlcv::Pose getRelativePose(const float (&F)[3][3]);
 
-    void LM_iteration(ssrlcv::Pose *pose, float *lambda);
+    bool LM_iteration(ssrlcv::Pose *pose, float *lambda);
 
     void fillA();
 

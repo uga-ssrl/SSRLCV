@@ -43,7 +43,7 @@ ssrlcv::Pose ssrlcv::PoseEstimator::estimatePoseRANSAC() {
     ssrlcv::ptr::device<float> d_V(n * n * N);
     ssrlcv::ptr::device<int> devInfo(1 * N);
 
-    A->transferMemoryTo(gpu);
+    A->setMemoryState(gpu);
     cusolver_status = cusolverDnSgesvdjBatched_bufferSize(
         cusolverH,
         CUSOLVER_EIG_MODE_VECTOR,
@@ -91,13 +91,13 @@ ssrlcv::Pose ssrlcv::PoseEstimator::estimatePoseRANSAC() {
     dim3 block = {1,1,1};
     void (*fp)(ssrlcv::Match *, int, float *, unsigned long, FMatrixInliers *) = &computeFMatrixAndInliers;
     getFlatGridBlock(N,grid,block,fp);
-    this->matches->transferMemoryTo(gpu);
+    this->matches->setMemoryState(gpu);
     ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::FMatrixInliers>> matricesAndInliers(nullptr, N, gpu);
     computeFMatrixAndInliers<<<grid, block>>>(this->matches->device.get(), this->matches->size(), d_U.get(), N, matricesAndInliers->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
-    matricesAndInliers->transferMemoryTo(cpu);
-    A->transferMemoryTo(cpu);
+    matricesAndInliers->setMemoryState(cpu);
+    A->setMemoryState(cpu);
 
     int best = 0;
     int bestIdx = 0;
@@ -121,7 +121,7 @@ ssrlcv::Pose ssrlcv::PoseEstimator::estimatePoseRANSAC() {
     computeOutliers<<<grid, block>>>(this->matches->device.get(), this->matches->size(), d_F.get());
     cudaDeviceSynchronize();
     CudaCheckError();
-    this->matches->transferMemoryTo(cpu);
+    this->matches->setMemoryState(cpu);
 
     MatchFactory<ssrlcv::SIFT_Descriptor> mf;
     mf.validateMatches(this->matches);
@@ -297,13 +297,13 @@ ssrlcv::Pose ssrlcv::PoseEstimator::getRelativePose(const float (&F)[3][3]) {
     printf("r: %f %f %f\n", pose.roll, pose.pitch, pose.yaw);
 
     if (best == 0 || best == 2) {
-        pose.x = U[0][2] / this->query->camera.dpix.x / 1000;
-        pose.y = U[1][2] / this->query->camera.dpix.x / 1000;
-        pose.z = U[2][2] / this->query->camera.dpix.x / 1000;
+        pose.x = U[0][2] / this->query->camera.dpix.x / 1000000;
+        pose.y = U[1][2] / this->query->camera.dpix.x / 1000000;
+        pose.z = U[2][2] / this->query->camera.dpix.x / 1000000;
     } else {
-        pose.x = - U[0][2] / this->query->camera.dpix.x / 1000;
-        pose.y = - U[1][2] / this->query->camera.dpix.x / 1000;
-        pose.z = - U[2][2] / this->query->camera.dpix.x / 1000;
+        pose.x = - U[0][2] / this->query->camera.dpix.x / 1000000;
+        pose.y = - U[1][2] / this->query->camera.dpix.x / 1000000;
+        pose.z = - U[2][2] / this->query->camera.dpix.x / 1000000;
     }
 
     printf("t: %f %f %f\n", pose.x, pose.y, pose.z);
@@ -313,15 +313,21 @@ ssrlcv::Pose ssrlcv::PoseEstimator::getRelativePose(const float (&F)[3][3]) {
 
 void ssrlcv::PoseEstimator::LM_optimize(ssrlcv::Pose pose) {
     float lambda = 1e11;
-    LM_iteration(&pose, &lambda);
+
+    // TODO: catch assertion failures
+    do {
+        printf("Pose rotations: %f %f %f\n", pose.roll, pose.pitch, pose.yaw);
+        printf("Pose positions: %f %f %f\n", pose.x, pose.y, pose.z);
+    }
+    while(LM_iteration(&pose, &lambda));
 }
 
-void ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
+bool ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
     ssrlcv::ptr::value<ssrlcv::Unity<float>> f(nullptr, 4 * this->matches->size(), gpu); // residuals
     ssrlcv::ptr::value<ssrlcv::Unity<float>> J(nullptr, 6 * 4 * this->matches->size(), gpu); // Jacobian of f
     ssrlcv::ptr::value<ssrlcv::Unity<float>> JTJ(nullptr, 6 * 6, gpu);
     ssrlcv::ptr::value<ssrlcv::Unity<float>> JTf(nullptr, 6, gpu);
-    this->matches->transferMemoryTo(gpu);
+    this->matches->setMemoryState(gpu);
     ssrlcv::Pose newPose;
 
     dim3 grid = {1,1,1};
@@ -333,13 +339,15 @@ void ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
     cudaDeviceSynchronize();
     CudaCheckError();
 
-    ssrlcv::ptr::value<ssrlcv::Unity<float>> cost(nullptr, 1, gpu);
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> cost(nullptr, 1, cpu);
+    *(cost->host.get()) = 0;
+    cost->setMemoryState(gpu);
     void (*costFP)(ssrlcv::Match *, int, ssrlcv::Pose, ssrlcv::Image::Camera, ssrlcv::Image::Camera, float *) = &computeCost;
     getFlatGridBlock(this->matches->size(),grid,block,costFP);
     computeCost<<<grid, block>>>(this->matches->device.get(), this->matches->size(), *pose, this->query->camera, this->target->camera, cost->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
-    cost->transferMemoryTo(cpu);
+    cost->setMemoryState(cpu);
     printf("Starting cost: %f\n", *(cost->host.get()));
 
     void (*fp2)(float *, unsigned long, float *) = &computeJTJ;
@@ -352,21 +360,27 @@ void ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
     *(newCost->host.get()) = *(cost->host.get()) + 100; // just to make sure it starts off greater
 
     float old_lambda = 0;
+
+    void (*fp3)(float *, float *, unsigned long, float *) = &computeJTf;
+    getFlatGridBlock(this->matches->size() * 4,grid,block,fp3);
+    computeJTf<<<grid, block>>>(J->device.get(), f->device.get(), this->matches->size() * 4, JTf->device.get());
+    cudaDeviceSynchronize();
+    CudaCheckError();
+
+    int num_iterations = 0;
     
     while(*(cost->host.get()) <= *(newCost->host.get())) {
+        if(num_iterations >= 10) {
+            return false;
+        }
+        num_iterations += 1;
 
-        JTJ->transferMemoryTo(cpu);
+        JTJ->setMemoryState(cpu);
         for(int i = 0; i < 6; i ++) {
             JTJ->host[i + 6 * i] += (*lambda - old_lambda);
         }
-        printf("JTJ[0][0] = %f\n", JTJ->host[0]);
-        JTJ->transferMemoryTo(gpu);
-
-        void (*fp3)(float *, float *, unsigned long, float *) = &computeJTf;
-        getFlatGridBlock(this->matches->size() * 4,grid,block,fp3);
-        computeJTf<<<grid, block>>>(J->device.get(), f->device.get(), this->matches->size() * 4, JTf->device.get());
-        cudaDeviceSynchronize();
-        CudaCheckError();
+        //printf("JTJ[0][0] = %f\n", JTJ->host[0]);
+        JTJ->setMemoryState(gpu);
 
         cusolverDnHandle_t  cusolverH       = NULL;
         cusolverStatus_t    cusolver_status = CUSOLVER_STATUS_SUCCESS;
@@ -393,11 +407,11 @@ void ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
         cudaDeviceSynchronize();
         assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
 
-        S->transferMemoryTo(cpu);
-        UT->transferMemoryTo(cpu);
-        V->transferMemoryTo(cpu);
-        JTJ->transferMemoryTo(cpu);
-        JTf->transferMemoryTo(cpu);
+        S->setMemoryState(cpu);
+        UT->setMemoryState(cpu);
+        V->setMemoryState(cpu);
+        JTJ->setMemoryState(cpu);
+        JTf->setMemoryState(cpu);
 
         float JTJ_inv[6][6];
         float VS[6][6];
@@ -425,7 +439,7 @@ void ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
         for(int i = 0; i < 6; i ++) {
             delta[i] = 0;
             for(int j = 0; j < 6; j ++) {
-                delta[i] += JTJ_inv[i][j] * JTf->host[j];
+                delta[i] += - JTJ_inv[i][j] * JTf->host[j];
             }
         }
 
@@ -436,20 +450,22 @@ void ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
         newPose.y = pose->y + delta[4];
         newPose.z = pose->z + delta[5];
 
-        printf("delta[1] = %f\n", delta[1]);
+        //printf("delta[1] = %f\n", delta[1]);
 
         // now check if new pose is better
-        newCost->transferMemoryTo(gpu);
+        *(newCost->host.get()) = 0;
+        newCost->setMemoryState(ssrlcv::gpu);
         getFlatGridBlock(this->matches->size(),grid,block,costFP);
+        //printf("Block: %d %d %d\n", block.x, block.y, block.z);
         computeCost<<<grid, block>>>(this->matches->device.get(), this->matches->size(), newPose, this->query->camera, this->target->camera, newCost->device.get());
         cudaDeviceSynchronize();
         CudaCheckError();
-        newCost->transferMemoryTo(cpu);
+        newCost->setMemoryState(ssrlcv::cpu);
         printf("New cost: %f\n", *(newCost->host.get()));
 
         old_lambda = *lambda;
         *lambda *= 10;
-        printf("Lambda: %f\n", *lambda);
+        //printf("Lambda: %f\n", *lambda);
     }
 
     *lambda /= 100; // really just dividing by 10, but need to account for the multiplication by 10 in the last loop
@@ -463,7 +479,9 @@ void ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
     pose->z = newPose.z;
 
 
-    this->matches->transferMemoryTo(cpu);
+    this->matches->setMemoryState(cpu);
+
+    return true;
     
 }
 
@@ -692,13 +710,13 @@ __global__ void ssrlcv::computeResidualsAndJacobian(ssrlcv::Match *matches, int 
 
 __global__ void ssrlcv::computeCost(ssrlcv::Match *matches, int numMatches, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *cost) {
     unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
-
     if (globalID < numMatches) {
         float2 q_loc = matches[globalID].keyPoints[0].loc;
         float2 t_loc = matches[globalID].keyPoints[1].loc;
 
         float4 res = getResidual(pose, &query, &target, q_loc, t_loc);
         float sum = res.x * res.x + res.y * res.y + res.z * res.z + res.w * res.w;
+
         atomicAdd(cost, sum);
     }
 }
