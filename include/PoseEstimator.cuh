@@ -60,6 +60,8 @@ __device__ __host__ float4 getResidual(ssrlcv::Pose pose, ssrlcv::Image::Camera 
 
 __global__ void computeFMatrixAndInliers(ssrlcv::Match *matches, int numMatches, float *V, unsigned long N, ssrlcv::FMatrixInliers *matricesAndInliers);
 
+__global__ void computeOutliers(ssrlcv::Match *matches, int numMatches, float *F);
+
 __global__ void computeResidualsAndJacobian(ssrlcv::Match *matches, int numMatches, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *residuals, float *jacobian);
 
 __global__ void computeJTJ(float *jacobian, unsigned long rows, float *output);

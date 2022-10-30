@@ -96,7 +96,6 @@ ssrlcv::Pose ssrlcv::PoseEstimator::estimatePoseRANSAC() {
     computeFMatrixAndInliers<<<grid, block>>>(this->matches->device.get(), this->matches->size(), d_U.get(), N, matricesAndInliers->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
-    this->matches->transferMemoryTo(cpu);
     matricesAndInliers->transferMemoryTo(cpu);
     A->transferMemoryTo(cpu);
 
@@ -111,36 +110,23 @@ ssrlcv::Pose ssrlcv::PoseEstimator::estimatePoseRANSAC() {
         }
     }
     printf("%d\n", bestIdx);
-    printf("%d / %d\n", best, this->matches->size() / 2);
+    printf("%d / %d\n", best, this->matches->size());
     float F[3][3];
     memcpy(F, matricesAndInliers->host[bestIdx].fmatrix, 9*sizeof(float));
 
+    ssrlcv::ptr::device<float> d_F(9);
+    CudaSafeCall(cudaMemcpy(d_F.get(), F, 3*3*sizeof(float), cudaMemcpyHostToDevice));
+    void (*fp2)(ssrlcv::Match *, int, float *) = &computeOutliers;
+    getFlatGridBlock(this->matches->size(),grid,block,fp2);
+    computeOutliers<<<grid, block>>>(this->matches->device.get(), this->matches->size(), d_F.get());
+    cudaDeviceSynchronize();
+    CudaCheckError();
+    this->matches->transferMemoryTo(cpu);
+
+    MatchFactory<ssrlcv::SIFT_Descriptor> mf;
+    mf.validateMatches(this->matches);
+
     return getRelativePose(F);
-
-    /*float X[7][9], Y[9];
-    memcpy(&X, A->host.get(), 7*9*sizeof(float));
-    float tmp[9][9];
-    CudaSafeCall(cudaMemcpy(&tmp[0][0], d_U.get(), 81*sizeof(float), cudaMemcpyDeviceToHost));
-    for (int i = 0; i < 9; i ++) {
-        Y[i] = tmp[6][i];
-    }
-
-    for (int i = 0; i < 7; i ++) {
-        float prod = 0;
-        for (int j = 0; j < 9; j ++) {
-            prod += X[i][j] * Y[j];
-        }
-        printf("%f\n", prod);
-    }
-    exit(0); */
-    /* float U[81];
-    CudaSafeCall(cudaMemcpy(&U, d_U.get(), 81*sizeof(float), cudaMemcpyDeviceToHost));
-    for(int i = 0; i < 81; i ++) {
-        printf("U[%d][%d] = %f\n", i/9, i%9, U[i]);
-    }
-    exit(0); */
-
-    //exit(0);
 }
 
 void ssrlcv::PoseEstimator::fillA() {
@@ -149,8 +135,8 @@ void ssrlcv::PoseEstimator::fillA() {
     std::iota(shuffle.begin(), shuffle.end(), 0);
     std::random_shuffle(shuffle.begin(), shuffle.end());
 
-    for (int i = 0; i < this->matches->size(); i += 2) {
-        float *row = this->A->host.get() + (shuffle[i / 2] * 9);
+    for (int i = 0; i < this->matches->size(); i += 1) {
+        float *row = this->A->host.get() + (shuffle[i] * 9);
         float2 loc1 = this->matches->host[i].keyPoints[0].loc;
         float2 loc2 = this->matches->host[i].keyPoints[1].loc;
         row[0] = loc2.x * loc1.x;
@@ -331,7 +317,7 @@ void ssrlcv::PoseEstimator::LM_optimize(ssrlcv::Pose pose) {
     ssrlcv::ptr::value<ssrlcv::Unity<float>> JTJ(nullptr, 6 * 6, gpu);
     ssrlcv::ptr::value<ssrlcv::Unity<float>> JTf(nullptr, 6, gpu);
 
-    float lambda = 100;
+    float lambda = 1000;
     
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
@@ -514,6 +500,46 @@ __global__ void ssrlcv::computeFMatrixAndInliers(ssrlcv::Match *matches, int num
 
     }
 
+}
+
+__global__ void ssrlcv::computeOutliers(ssrlcv::Match *matches, int numMatches, float *F) {
+    unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
+
+    if(globalID < numMatches) {
+
+        float dist, denom;
+        float3 X1, X2, FX1, FTX2;
+        
+        X1.x = matches[globalID].keyPoints[0].loc.x;
+        X1.y = matches[globalID].keyPoints[0].loc.y;
+        X1.z = 1;
+        X2.x = matches[globalID].keyPoints[1].loc.x;
+        X2.y = matches[globalID].keyPoints[1].loc.y;
+        X2.z = 1;
+
+        FX1 = {
+            F[0] * X1.x + F[1] * X1.y + F[2] * X1.z,
+            F[3] * X1.x + F[4] * X1.y + F[5] * X1.z,
+            F[6] * X1.x + F[7] * X1.y + F[8] * X1.z
+        };
+
+        FTX2 = {
+            F[0] * X2.x + F[1] * X2.y + F[2] * X2.z,
+            F[3] * X2.x + F[4] * X2.y + F[5] * X2.z,
+            F[6] * X2.x + F[7] * X2.y + F[8] * X2.z
+        };
+
+        denom = FX1.x * FX1.x;
+        denom += FX1.y * FX1.y;
+        denom += FTX2.x * FTX2.x;
+        denom += FTX2.y * FTX2.y;
+
+        dist = dotProduct(X2, FX1) * dotProduct(X2, FX1) / denom;
+
+        if (dist >= 0.25) {
+            matches[globalID].invalid = true;
+        }
+    }
 }
 
 __global__ void ssrlcv::computeResidualsAndJacobian(ssrlcv::Match *matches, int numMatches, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *residuals, float *jacobian) {
