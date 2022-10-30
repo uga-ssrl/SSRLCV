@@ -52,6 +52,8 @@ namespace ssrlcv{
 
     ssrlcv::Pose getRelativePose(const float (&F)[3][3]);
 
+    void LM_iteration(ssrlcv::Pose *pose, float *lambda);
+
     void fillA();
 
 };
@@ -68,7 +70,7 @@ __global__ void computeJTJ(float *jacobian, unsigned long rows, float *output);
 
 __global__ void computeJTf(float *jacobian, float *f, unsigned long rows, float *output);
 
-__global__ void computeCost(ssrlcv::Match *matches, int numMatches, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *residuals, float *cost);
+__global__ void computeCost(ssrlcv::Match *matches, int numMatches, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *cost);
 }
 
 #endif

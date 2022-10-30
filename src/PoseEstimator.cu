@@ -312,104 +312,158 @@ ssrlcv::Pose ssrlcv::PoseEstimator::getRelativePose(const float (&F)[3][3]) {
 }
 
 void ssrlcv::PoseEstimator::LM_optimize(ssrlcv::Pose pose) {
+    float lambda = 1e11;
+    LM_iteration(&pose, &lambda);
+}
+
+void ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
     ssrlcv::ptr::value<ssrlcv::Unity<float>> f(nullptr, 4 * this->matches->size(), gpu); // residuals
     ssrlcv::ptr::value<ssrlcv::Unity<float>> J(nullptr, 6 * 4 * this->matches->size(), gpu); // Jacobian of f
     ssrlcv::ptr::value<ssrlcv::Unity<float>> JTJ(nullptr, 6 * 6, gpu);
     ssrlcv::ptr::value<ssrlcv::Unity<float>> JTf(nullptr, 6, gpu);
+    this->matches->transferMemoryTo(gpu);
+    ssrlcv::Pose newPose;
 
-    float lambda = 1000;
-    
     dim3 grid = {1,1,1};
     dim3 block = {1,1,1};
-    void (*fp)(ssrlcv::Match *, int, ssrlcv::Pose, ssrlcv::Image::Camera, ssrlcv::Image::Camera, float *, float *) = &computeResidualsAndJacobian;
-    getFlatGridBlock(this->matches->size(),grid,block,fp);
-    this->matches->transferMemoryTo(gpu);
-    computeResidualsAndJacobian<<<grid, block>>>(this->matches->device.get(), this->matches->size(), pose, this->query->camera, this->target->camera, f->device.get(), J->device.get());
+
+    void (*residualAndJacobianFP)(ssrlcv::Match *, int, ssrlcv::Pose, ssrlcv::Image::Camera, ssrlcv::Image::Camera, float *, float *) = &computeResidualsAndJacobian;
+    getFlatGridBlock(this->matches->size(),grid,block,residualAndJacobianFP);
+    computeResidualsAndJacobian<<<grid, block>>>(this->matches->device.get(), this->matches->size(), *pose, this->query->camera, this->target->camera, f->device.get(), J->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
 
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> cost(nullptr, 1, gpu);
+    void (*costFP)(ssrlcv::Match *, int, ssrlcv::Pose, ssrlcv::Image::Camera, ssrlcv::Image::Camera, float *) = &computeCost;
+    getFlatGridBlock(this->matches->size(),grid,block,costFP);
+    computeCost<<<grid, block>>>(this->matches->device.get(), this->matches->size(), *pose, this->query->camera, this->target->camera, cost->device.get());
+    cudaDeviceSynchronize();
+    CudaCheckError();
+    cost->transferMemoryTo(cpu);
+    printf("Starting cost: %f\n", *(cost->host.get()));
 
     void (*fp2)(float *, unsigned long, float *) = &computeJTJ;
     getFlatGridBlock(this->matches->size() * 4,grid,block,fp2);
     computeJTJ<<<grid, block>>>(J->device.get(), this->matches->size() * 4, JTJ->device.get());
     cudaDeviceSynchronize();
     CudaCheckError();
-    JTJ->transferMemoryTo(cpu);
-    for(int i = 0; i < 6; i ++) {
-        JTJ->host[i + 6 * i] += lambda;
-    }
-    JTJ->transferMemoryTo(gpu);
 
-    void (*fp3)(float *, float *, unsigned long, float *) = &computeJTf;
-    getFlatGridBlock(this->matches->size() * 4,grid,block,fp3);
-    computeJTf<<<grid, block>>>(J->device.get(), f->device.get(), this->matches->size() * 4, JTf->device.get());
-    cudaDeviceSynchronize();
-    CudaCheckError();
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> newCost(nullptr, 1, cpu);
+    *(newCost->host.get()) = *(cost->host.get()) + 100; // just to make sure it starts off greater
 
-    cusolverDnHandle_t  cusolverH       = NULL;
-    cusolverStatus_t    cusolver_status = CUSOLVER_STATUS_SUCCESS;
-
-    ssrlcv::ptr::value<ssrlcv::Unity<float>> S  = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,6,ssrlcv::gpu);
-    ssrlcv::ptr::value<ssrlcv::Unity<float>> UT  = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,6*6,ssrlcv::gpu); // transpose because column major
-    ssrlcv::ptr::value<ssrlcv::Unity<float>> V = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,6*6,ssrlcv::gpu); // not transpose because column major
-
-    cusolver_status = cusolverDnCreate(&cusolverH);
-    assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
-
-    // cuSOLVER SVD
-    int lwork       = 0;
-    int *devInfo    = NULL;
-    float *d_work   = NULL;
-    float *d_rwork  = NULL;
-    cusolver_status = cusolverDnDgesvd_bufferSize(cusolverH,6,6,&lwork);
-    assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
-
-    CudaSafeCall(cudaMalloc((void**)&d_work , sizeof(float)*lwork));
-    CudaSafeCall(cudaMalloc ((void**)&devInfo, sizeof(int)));
-
-    cusolver_status = cusolverDnSgesvd(cusolverH,'A','A',6,6,JTJ->device.get(),6,S->device.get(),UT->device.get(),6,V->device.get(),6,d_work,lwork,d_rwork,devInfo); // JTJ should technically be column major but it's symmetric so doesn't matter
-    cudaDeviceSynchronize();
-    assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
-
-    S->transferMemoryTo(cpu);
-    UT->transferMemoryTo(cpu);
-    V->transferMemoryTo(cpu);
-    JTJ->transferMemoryTo(cpu);
-    JTf->transferMemoryTo(cpu);
-
-    float JTJ_inv[6][6];
-    float VS[6][6];
-    float delta[6];
+    float old_lambda = 0;
     
-    float mult;
-    for(int i = 0; i < 6; i ++) {
-        for(int j = 0; j < 6; j ++) {
-            mult = (S->host[j] > 0.0001) ? 1 / S->host[j] : 0;
-            VS[i][j] = V->host[6*i + j] * mult;
-        }
-    }
+    while(*(cost->host.get()) <= *(newCost->host.get())) {
 
-    for(int i = 0; i < 6; i ++) {
-        for(int j = 0; j < 6; j ++) {
-            JTJ_inv[i][j] = 0;
-            for (int k = 0; k < 6; k ++) {
-                JTJ_inv[i][j] += VS[i][k] * UT->host[k * 6 + j];
+        JTJ->transferMemoryTo(cpu);
+        for(int i = 0; i < 6; i ++) {
+            JTJ->host[i + 6 * i] += (*lambda - old_lambda);
+        }
+        printf("JTJ[0][0] = %f\n", JTJ->host[0]);
+        JTJ->transferMemoryTo(gpu);
+
+        void (*fp3)(float *, float *, unsigned long, float *) = &computeJTf;
+        getFlatGridBlock(this->matches->size() * 4,grid,block,fp3);
+        computeJTf<<<grid, block>>>(J->device.get(), f->device.get(), this->matches->size() * 4, JTf->device.get());
+        cudaDeviceSynchronize();
+        CudaCheckError();
+
+        cusolverDnHandle_t  cusolverH       = NULL;
+        cusolverStatus_t    cusolver_status = CUSOLVER_STATUS_SUCCESS;
+
+        ssrlcv::ptr::value<ssrlcv::Unity<float>> S  = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,6,ssrlcv::gpu);
+        ssrlcv::ptr::value<ssrlcv::Unity<float>> UT  = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,6*6,ssrlcv::gpu); // transpose because column major
+        ssrlcv::ptr::value<ssrlcv::Unity<float>> V = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,6*6,ssrlcv::gpu); // not transpose because column major
+
+        cusolver_status = cusolverDnCreate(&cusolverH);
+        assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
+
+        // cuSOLVER SVD
+        int lwork       = 0;
+        int *devInfo    = NULL;
+        float *d_work   = NULL;
+        float *d_rwork  = NULL;
+        cusolver_status = cusolverDnDgesvd_bufferSize(cusolverH,6,6,&lwork);
+        assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
+
+        CudaSafeCall(cudaMalloc((void**)&d_work , sizeof(float)*lwork));
+        CudaSafeCall(cudaMalloc ((void**)&devInfo, sizeof(int)));
+
+        cusolver_status = cusolverDnSgesvd(cusolverH,'A','A',6,6,JTJ->device.get(),6,S->device.get(),UT->device.get(),6,V->device.get(),6,d_work,lwork,d_rwork,devInfo); // JTJ should technically be column major but it's symmetric so doesn't matter
+        cudaDeviceSynchronize();
+        assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
+
+        S->transferMemoryTo(cpu);
+        UT->transferMemoryTo(cpu);
+        V->transferMemoryTo(cpu);
+        JTJ->transferMemoryTo(cpu);
+        JTf->transferMemoryTo(cpu);
+
+        float JTJ_inv[6][6];
+        float VS[6][6];
+        float delta[6];
+        
+        float mult;
+        for(int i = 0; i < 6; i ++) {
+            for(int j = 0; j < 6; j ++) {
+                mult = (S->host[j] > 0.0001) ? 1 / S->host[j] : 0;
+                VS[i][j] = V->host[6*i + j] * mult;
             }
         }
-    }
 
-    // delta = - JTJ_inv x JTf
-
-    for(int i = 0; i < 6; i ++) {
-        delta[i] = 0;
-        for(int j = 0; j < 6; j ++) {
-            delta[i] += - JTJ_inv[i][j] * JTf->host[j];
+        for(int i = 0; i < 6; i ++) {
+            for(int j = 0; j < 6; j ++) {
+                JTJ_inv[i][j] = 0;
+                for (int k = 0; k < 6; k ++) {
+                    JTJ_inv[i][j] += VS[i][k] * UT->host[k * 6 + j];
+                }
+            }
         }
+
+        // delta = - JTJ_inv x JTf
+
+        for(int i = 0; i < 6; i ++) {
+            delta[i] = 0;
+            for(int j = 0; j < 6; j ++) {
+                delta[i] += JTJ_inv[i][j] * JTf->host[j];
+            }
+        }
+
+        newPose.roll = pose->roll + delta[0];
+        newPose.pitch = pose->pitch + delta[1];
+        newPose.yaw = pose->yaw + delta[2];
+        newPose.x = pose->x + delta[3];
+        newPose.y = pose->y + delta[4];
+        newPose.z = pose->z + delta[5];
+
+        printf("delta[1] = %f\n", delta[1]);
+
+        // now check if new pose is better
+        newCost->transferMemoryTo(gpu);
+        getFlatGridBlock(this->matches->size(),grid,block,costFP);
+        computeCost<<<grid, block>>>(this->matches->device.get(), this->matches->size(), newPose, this->query->camera, this->target->camera, newCost->device.get());
+        cudaDeviceSynchronize();
+        CudaCheckError();
+        newCost->transferMemoryTo(cpu);
+        printf("New cost: %f\n", *(newCost->host.get()));
+
+        old_lambda = *lambda;
+        *lambda *= 10;
+        printf("Lambda: %f\n", *lambda);
     }
 
-    for(int i = 0; i < 6; i ++) {
-        printf("%f\n", delta[i]);
-    }
+    *lambda /= 100; // really just dividing by 10, but need to account for the multiplication by 10 in the last loop
+
+    // update pose
+    pose->roll = newPose.roll;
+    pose->pitch = newPose.pitch;
+    pose->yaw = newPose.yaw;
+    pose->x = newPose.x;
+    pose->y = newPose.y;
+    pose->z = newPose.z;
+
+
+    this->matches->transferMemoryTo(cpu);
     
 }
 
@@ -636,7 +690,7 @@ __global__ void ssrlcv::computeResidualsAndJacobian(ssrlcv::Match *matches, int 
     }
 }
 
-__global__ void ssrlcv::computeCost(ssrlcv::Match *matches, int numMatches, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *residuals, float *cost) {
+__global__ void ssrlcv::computeCost(ssrlcv::Match *matches, int numMatches, ssrlcv::Pose pose, ssrlcv::Image::Camera query, ssrlcv::Image::Camera target, float *cost) {
     unsigned long globalID = (blockIdx.y* gridDim.x+ blockIdx.x)*blockDim.x + threadIdx.x;
 
     if (globalID < numMatches) {
