@@ -312,7 +312,7 @@ ssrlcv::Pose ssrlcv::PoseEstimator::getRelativePose(const float (&F)[3][3]) {
 }
 
 void ssrlcv::PoseEstimator::LM_optimize(ssrlcv::Pose pose) {
-    float lambda = 1e11;
+    float lambda = 1000;
 
     // TODO: catch assertion failures
     do {
@@ -370,7 +370,7 @@ bool ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
     int num_iterations = 0;
     
     while(*(cost->host.get()) <= *(newCost->host.get())) {
-        if(num_iterations >= 10) {
+        if(num_iterations >= 100) {
             return false;
         }
         num_iterations += 1;
@@ -394,18 +394,31 @@ bool ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
 
         // cuSOLVER SVD
         int lwork       = 0;
-        int *devInfo    = NULL;
-        float *d_work   = NULL;
-        float *d_rwork  = NULL;
+        ssrlcv::ptr::device<int> devInfo(1);
+        ssrlcv::ptr::device<float> d_rwork(2);
         cusolver_status = cusolverDnDgesvd_bufferSize(cusolverH,6,6,&lwork);
         assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
 
-        CudaSafeCall(cudaMalloc((void**)&d_work , sizeof(float)*lwork));
-        CudaSafeCall(cudaMalloc ((void**)&devInfo, sizeof(int)));
+        ssrlcv::ptr::device<float> d_work(lwork);
 
-        cusolver_status = cusolverDnSgesvd(cusolverH,'A','A',6,6,JTJ->device.get(),6,S->device.get(),UT->device.get(),6,V->device.get(),6,d_work,lwork,d_rwork,devInfo); // JTJ should technically be column major but it's symmetric so doesn't matter
+        cusolver_status = cusolverDnSgesvd(cusolverH,'A','A',6,6,JTJ->device.get(),6,S->device.get(),UT->device.get(),6,V->device.get(),6,d_work.get(),lwork,d_rwork.get(),devInfo.get()); // JTJ should technically be column major but it's symmetric so doesn't matter
         cudaDeviceSynchronize();
-        assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
+        if (cusolver_status != CUSOLVER_STATUS_SUCCESS){
+            logger.err << "ERROR setting up cuSOLVER, error status: " + std::to_string(cusolver_status);
+            if (cusolver_status == CUSOLVER_STATUS_NOT_INITIALIZED) {
+            logger.err << "\t ERROR: CUSOLVER_STATUS_NOT_INITIALIZED";
+            }
+            if (cusolver_status == CUSOLVER_STATUS_INVALID_VALUE) {
+            logger.err << "\t ERROR: CUSOLVER_STATUS_INVALID_VALUE";
+            }
+            if (cusolver_status == CUSOLVER_STATUS_ARCH_MISMATCH) {
+            logger.err << "\t ERROR: CUSOLVER_STATUS_ARCH_MISMATCH";
+            }
+            if (cusolver_status == CUSOLVER_STATUS_INTERNAL_ERROR) {
+            logger.err << "\t ERROR: CUSOLVER_STATUS_INTERNAL_ERROR";
+            }
+            assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
+        }
 
         S->setMemoryState(cpu);
         UT->setMemoryState(cpu);
@@ -464,11 +477,11 @@ bool ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
         printf("New cost: %f\n", *(newCost->host.get()));
 
         old_lambda = *lambda;
-        *lambda *= 10;
+        *lambda *= 2;
         //printf("Lambda: %f\n", *lambda);
     }
 
-    *lambda /= 100; // really just dividing by 10, but need to account for the multiplication by 10 in the last loop
+    *lambda /= 4; // really just dividing by 2, but need to account for the multiplication by 10 in the last loop
 
     // update pose
     pose->roll = newPose.roll;
@@ -623,7 +636,7 @@ __global__ void ssrlcv::computeResidualsAndJacobian(ssrlcv::Match *matches, int 
         float *r_out = residuals + 4 * globalID;
         float *j_out = jacobian + 6 * 4 * globalID; // Jacobian is 4 rows of 6 per match
 
-        float delta = 1e-5;
+        float delta = 1e-6;
 
         float4 res = getResidual(pose, &query, &target, q_loc, t_loc);
         r_out[0] = res.x;
