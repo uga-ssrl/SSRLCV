@@ -24,8 +24,7 @@ sigma(sigma),size(size){
     }
     pixels->setData(convolve(this->size,pixels,kernelSize,gaussian,true)->device,pixels->size(),gpu);
 
-    this->pixels = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,pixels->size(),gpu);
-    CudaSafeCall(cudaMemcpy(this->pixels->device.get(),pixels->device.get(),pixels->size()*sizeof(float),cudaMemcpyDeviceToDevice));
+    this->pixels = ssrlcv::ptr::value<ssrlcv::Unity<float>>(pixels->device,pixels->size(),gpu);
     
     if(origin != gpu){
         pixels->setMemoryState(origin);
