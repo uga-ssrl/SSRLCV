@@ -534,6 +534,26 @@ namespace ssrlcv{
   * \see Unity
   */
   ssrlcv::ptr::value<ssrlcv::Unity<float>> convolve(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, int2 kernelSize, float* kernel, bool symmetric = true);
+  /**
+  * \brief Convolve an float image with a specified kernel.
+  * \details This method will convolve and image with a provided
+  * kernel, separated into 1D that can be convolved along both dims and return a 
+  * ssrlcv::ptr::value<ssrlcv::Unity<float>> containing the convolved image. There
+  * is an optional argument to specify that the convolution should or should not be
+  * symmetric. It is assumed that it should be, meaning that border pixels will
+  * still be convolved by symmetrizing coordinate references based on getSymmetrizedCoord.
+  * \param imageSize - {width,height} of image
+  * \param pixels - pixels of image flattened row-wise
+  * \param kernelSize - width of separated kernel (must have odd dimensions)
+  * \param kernel - (separated) kernel with floating point values to be convolved on every pixel
+  * \param symmetric - bool that specifies if convolution should be symmetric (optiona, defaults to true)
+  * \returns convolved image of same size
+  * \see convolveImage(uint2,float*,unsigned int,int2,float*,float*)
+  * \see convolveImage_symmetric(uint2,float*,unsigned int,int2,float*,float*)
+  * \see getSymmetrizedCoord
+  * \see Unity
+  */
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> convolveSeparable(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, int kernelSize, float* kernel, bool symmetric = true);
 
   // =============================================================================================================
   //
@@ -584,9 +604,11 @@ namespace ssrlcv{
   //border condition 0
   __global__ void convolveImage(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
   __global__ void convolveImage(uint2 imageSize, float* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
+  __global__ void convolveImage1D(uint2 imageSize, float* pixels, unsigned int colorDepth, int kernelSize, float* kernel, float* convolvedImage, bool vertical);
   //border condition non0
   __global__ void convolveImage_symmetric(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
   __global__ void convolveImage_symmetric(uint2 imageSize, float* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage);
+  __global__ void convolveImage1D_symmetric(uint2 imageSize, float* pixels, unsigned int colorDepth, int kernelSize, float* kernel, float* convolvedImage, bool vertical);
 
   __global__ void convertToCharImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels);
   __global__ void convertToFltImage(unsigned int numPixels, unsigned char* pixels, float* fltPixels);
