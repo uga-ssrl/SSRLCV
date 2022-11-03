@@ -621,9 +621,10 @@ void ssrlcv::normalizeImage(ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels){
   MemoryState origin = pixels->getMemoryState();
   float2 minMax = {FLT_MAX,-FLT_MAX};
   if(pixels->getFore() != both) pixels->setMemoryState(both);
+  float *phost = pixels->host.get();
   for(int i = 0; i < pixels->size(); ++i){
-      if(minMax.x > pixels->host.get()[i]) minMax.x = pixels->host.get()[i];
-      if(minMax.y < pixels->host.get()[i]) minMax.y = pixels->host.get()[i];
+      if(minMax.x > phost[i]) minMax.x = phost[i];
+      if(minMax.y < phost[i]) minMax.y = phost[i];
   }
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};

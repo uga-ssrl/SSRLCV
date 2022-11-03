@@ -199,10 +199,11 @@ ssrlcv::ptr::host<unsigned char> ssrlcv::getPixelArray(unsigned char** &row_poin
     exit(-1);
   }
   ssrlcv::ptr::host<unsigned char> imageMatrix(height*width*numValues);
+  unsigned char *ihost = imageMatrix.get();
   for (unsigned int r=0; r < height; ++r){
     for(unsigned int c=0; c < width; ++c){
       for(int p=0; p < numValues; ++p){
-        imageMatrix.get()[(r*width + c)*numValues + p] = row_pointers[r][c*numValues + p];
+        ihost[(r*width + c)*numValues + p] = row_pointers[r][c*numValues + p];
       }
     }
     delete[] row_pointers[r];
@@ -639,8 +640,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<float3>> ssrlcv::readPLY(const char* filePath){
 
   // save the values to the mesh
   ssrlcv::ptr::value<ssrlcv::Unity<float3>> points = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,tempPoints.size(),ssrlcv::cpu);
+  float3 *phost = points->host.get();
   for (unsigned int i = 0; i < points->size(); i++) {
-    points->host.get()[i] = tempPoints[i];
+    phost[i] = tempPoints[i];
   }
 
   if (local_verbose || local_debug) {
@@ -721,8 +723,9 @@ void ssrlcv::writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<flo
   of << "property float x\nproperty float y\nproperty float z\n"; // the elements in the guy
   of << "end_header\n";
   // start writing the values
+  float3 *phost = points->host.get();
   for (unsigned int i = 0; i < points->size(); i++){
-    of << points->host.get()[i].x << " " << points->host.get()[i].y << " " << points->host.get()[i].z << "\n";
+    of << phost[i].x << " " << phost[i].y << " " << phost[i].z << "\n";
   }
   of.close(); // done with the file building
 }
@@ -742,8 +745,9 @@ void ssrlcv::writePLY(std::string filename, ssrlcv::ptr::value<ssrlcv::Unity<flo
   of << "property float x\nproperty float y\nproperty float z\n"; // the elements in the guy
   of << "end_header\n";
   // start writing the values
+  float3 *phost = points->host.get();
   for (unsigned int i = 0; i < points->size(); i++){
-    of << points->host.get()[i].x << " " << points->host.get()[i].y << " " << points->host.get()[i].z << "\n";
+    of << phost[i].x << " " << phost[i].y << " " << phost[i].z << "\n";
   }
   of.close(); // done with the file building
 }
@@ -794,8 +798,9 @@ void ssrlcv::writePLY(const char* filePath, ssrlcv::ptr::value<ssrlcv::Unity<col
   of << "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n"; // the elements in the guy
   of << "end_header\n";
   // start writing the values
+  colorPoint *chost = cpoint->host.get();
   for (unsigned int i = 0; i < cpoint->size(); i++){
-    of << std::fixed << std::setprecision(32) << cpoint->host.get()[i].x << " " << cpoint->host.get()[i].y << " " << cpoint->host.get()[i].z << " " << (unsigned int) cpoint->host.get()[i].r << " " << (unsigned int) cpoint->host.get()[i].g << " " << (unsigned int) cpoint->host.get()[i].b << "\n";
+    of << std::fixed << std::setprecision(32) << chost[i].x << " " << chost[i].y << " " << chost[i].z << " " << (unsigned int) chost[i].r << " " << (unsigned int) chost[i].g << " " << (unsigned int) chost[i].b << "\n";
   }
   of.close(); // done with the file building
 }
@@ -840,14 +845,16 @@ void ssrlcv::writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<flo
   of << "property list uchar uint vertex_indices\n";
   of << "end_header\n";
   // loop thru the points
+  float3 *phost = points->host.get();
   for (unsigned int i = 0; i < points->size(); i++){
-    of << std::fixed << std::setprecision(32) << points->host.get()[i].x << " " << points->host.get()[i].y << " " << points->host.get()[i].z << "\n";
+    of << std::fixed << std::setprecision(32) << phost[i].x << " " << phost[i].y << " " << phost[i].z << "\n";
   }
   // loop thru the faces
+  int *fhost = faceList->host.get();
   for (unsigned int i = 0; i < faceList->size(); i += faceEncoding){
     of << faceEncoding << " ";
     for (int j = 0; j < faceEncoding; j++){
-      of << faceList->host.get()[i + j] << " ";
+      of << fhost[i + j] << " ";
     }
     of << "\n";
   }
@@ -889,18 +896,20 @@ void ssrlcv::writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<flo
   struct colorPoint* cpoints = (colorPoint*)  malloc(points->size() * sizeof(struct colorPoint));
 
   float max = 0.0; // it would be nice to have a better way to get the max, but because this is only for debug idc
+  float *ghost = gradient->host.get();
   for (unsigned int i = 0; i < gradient->size(); i++){
-    if (gradient->host.get()[i] > max){
-      max = gradient->host.get()[i];
+    if (ghost[i] > max){
+      max = ghost[i];
     }
   }
   // now fill in the color point locations
+  float3 *phost = points->host.get();
   for (unsigned int i = 0; i < points->size(); i++){
     // i assume that the errors and the points will have the same indices
-    cpoints[i].x = points->host.get()[i].x; //
-    cpoints[i].y = points->host.get()[i].y;
-    cpoints[i].z = points->host.get()[i].z;
-    int j = floor(gradient->host.get()[i] * (2000 / max));
+    cpoints[i].x = phost[i].x; //
+    cpoints[i].y = phost[i].y;
+    cpoints[i].z = phost[i].z;
+    int j = floor(ghost[i] * (2000 / max));
     cpoints[i].r = colors[j].x;
     cpoints[i].g = colors[j].y;
     cpoints[i].b = colors[j].z;
@@ -946,12 +955,14 @@ void ssrlcv::writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<flo
  struct colorPoint* cpoints = (colorPoint*)  malloc(points->size() * sizeof(struct colorPoint));
 
  // now fill in the color point locations
+ float3 *phost = points->host.get();
+ float *ghost = gradient->host.get();
  for (unsigned int i = 0; i < points->size(); i++){
    // i assume that the errors and the points will have the same indices
-   cpoints[i].x = points->host.get()[i].x; //
-   cpoints[i].y = points->host.get()[i].y;
-   cpoints[i].z = points->host.get()[i].z;
-   int j = floor(gradient->host.get()[i] * (2000.0f / cutoff));
+   cpoints[i].x = phost[i].x; //
+   cpoints[i].y = phost[i].y;
+   cpoints[i].z = phost[i].z;
+   int j = floor(ghost[i] * (2000.0f / cutoff));
    if (j > 1999) j = 1999; // sets to max cutoff no matter what
    cpoints[i].r = colors[j].x;
    cpoints[i].g = colors[j].y;
@@ -980,8 +991,10 @@ void ssrlcv::writePLY(const char* filename, ssrlcv::ptr::value<ssrlcv::Unity<flo
   of << "property float x\nproperty float y\nproperty float z\nproperty float nx\nproperty float ny\nproperty float nz\n"; // the elements in the guy
   of << "end_header\n";
   // start writing the values
+  float3 *phost = points->host.get();
+  float3 *nhost = normals->host.get();
   for (unsigned int i = 0; i < points->size(); i++){
-    of << std::fixed << std::setprecision(32) << points->host.get()[i].x << " " << points->host.get()[i].y << " " << points->host.get()[i].z << " " << normals->host.get()[i].x << " " << normals->host.get()[i].y << " " << normals->host.get()[i].z << "\n";
+    of << std::fixed << std::setprecision(32) << phost[i].x << " " << phost[i].y << " " << phost[i].z << " " << nhost[i].x << " " << nhost[i].y << " " << nhost[i].z << "\n";
   }
   of.close(); // done with the file building
 }
@@ -1064,8 +1077,9 @@ void ssrlcv::writeCSV(std::vector<float3> v, const char* filename){
 void ssrlcv::writeCSV(ssrlcv::ptr::value<ssrlcv::Unity<float>> values, const char* filename){
   std::ofstream outfile;
   std::string fname = filename;
+  float *vhost = values->host.get();
   outfile.open("out/" + fname + ".csv");
-  for (unsigned int i = 0; i < values->size(); i++) outfile << std::fixed << std::setprecision(32) << values->host.get()[i] << ",";
+  for (unsigned int i = 0; i < values->size(); i++) outfile << std::fixed << std::setprecision(32) << vhost[i] << ",";
   outfile.close();
 }
 
@@ -1079,8 +1093,9 @@ void ssrlcv::writeCSV(ssrlcv::ptr::value<ssrlcv::Unity<float3>> v, const char* f
   std::ofstream outfile;
   std::string fname = filename;
   outfile.open("out/" + fname + ".csv");
+  float3 *vhost = v->host.get();
   for (unsigned int i = 0; i < v->size(); i++) {
-      outfile << std::fixed << std::setprecision(32) << v->host.get()[i].x << "," << v->host.get()[i].y << "," << v->host.get()[i].z << "\n";
+      outfile << std::fixed << std::setprecision(32) << vhost[i].x << "," << vhost[i].y << "," << vhost[i].z << "\n";
   }
   outfile.close();
 }

@@ -202,12 +202,13 @@ void ssrlcv::MatchFactory<T>::sortMatches(ssrlcv::ptr::value<ssrlcv::Unity<DMatc
     unsigned long i = 0;
     unsigned long j = 0;
     ssrlcv::DMatch temp;
+    ssrlcv::DMatch *mhost = matches->host.get();
     while (i < len){
       j = i;
-      while (j > 0 && matches->host.get()[j-1].distance > matches->host.get()[j].distance){
-        temp = matches->host.get()[j];
-        matches->host.get()[j] = matches->host.get()[j-1];
-        matches->host.get()[j-1] = temp;
+      while (j > 0 && mhost[j-1].distance > mhost[j].distance){
+        temp = mhost[j];
+        mhost[j] = mhost[j-1];
+        mhost[j-1] = temp;
         j--;
       }
       i++;
@@ -233,12 +234,13 @@ void ssrlcv::MatchFactory<T>::sortMatches(Unity<FeatureMatch<T>>* matches){
     unsigned long i = 0;
     unsigned long j = 0;
     ssrlcv::FeatureMatch<T> temp;
+    ssrlcv::FeatureMatch<T> *mhost;
     while (i < len){
       j = i;
-      while (j > 0 && matches->host.get()[j-1].distance > matches->host.get()[j].distance){
-        temp = matches->host.get()[j];
-        matches->host.get()[j] = matches->host.get()[j-1];
-        matches->host.get()[j-1] = temp;
+      while (j > 0 && mhost[j-1].distance > mhost[j].distance){
+        temp = mhost[j];
+        mhost[j] = mhost[j-1];
+        mhost[j-1] = temp;
         j--;
       }
       i++;
@@ -266,9 +268,11 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::getRaw
   }
   else{
     ssrlcv::ptr::host<Match> rawMatches_host(matches->size());
+    Match *rhost = rawMatches_host.get();
+    DMatch *mhost = matches->host.get();
     for(int i = 0; i < matches->size(); ++i){
       for(int f = 0; f < 2; ++f){
-        rawMatches_host.get()[i] = Match(matches->host.get()[i]);
+        rhost[i] = Match(mhost[i]);
       }
     }
     return ssrlcv::ptr::value<Unity<Match>>(rawMatches_host, matches->size(), cpu);
@@ -289,9 +293,11 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::MatchFactory<T>::getRaw
   }
   else{
     ssrlcv::ptr::host<Match> rawMatches_host(matches->size());
+    FeatureMatch<T> *mhost = matches->host.get();
+    Match *rhost = rawMatches_host.get();
     for(int i = 0; i < matches->size(); ++i){
       for(int f = 0; f < 2; ++f){
-        rawMatches_host.get()[i] = Match(matches->host.get()[i]);
+        rhost[i] = Match(mhost[i]);
       }
     }
     return ssrlcv::ptr::value<Unity<Match>>(rawMatches_host, matches->size(), cpu);
@@ -891,8 +897,9 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExhaustive(std::vector<
       i++;
       adjacencyList[i] = new std::vector<uint2>[features[i]->size()];
     }
+    uint2_pair *chost = currentMatches->host.get();
     for(int p = 0; p < currentMatches->size(); ++p){
-      uint2_pair* currentPair = &currentMatches->host.get()[p];
+      uint2_pair* currentPair = &chost[p];
       adjacencyList[currentPair->a.x][currentPair->a.y].push_back(currentPair->b); 
     }
   }
@@ -945,8 +952,9 @@ ssrlcv::MatchSet ssrlcv::MatchFactory<T>::generateMatchesExhaustive(std::vector<
   std::vector<KeyPoint> kp_vec;
   i = 0;
   int index = 0;
+  MultiMatch *mhost = matchSet.matches->host.get();
   for(auto m = multiMatch_vec.begin(); m != multiMatch_vec.end(); ++m){
-    matchSet.matches->host.get()[i++] = {(unsigned int)m->size(),index};
+    mhost[i++] = {(unsigned int)m->size(),index};
     index += m->size();
     for(auto kp = m->begin(); kp != m->end(); ++kp){
       kp_vec.push_back({(int)kp->x,features[kp->x]->host.get()[kp->y].loc});
@@ -1055,13 +1063,14 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> ssrlcv::generateDiparityMatches
 
 void ssrlcv::writeMatchFile(ssrlcv::ptr::value<ssrlcv::Unity<Match>> matches, std::string pathToFile, bool binary){
   MemoryState origin = matches->getMemoryState();
+  Match *mhost = matches->host.get();
   if(matches->getFore() == gpu) matches->transferMemoryTo(cpu);
   if(binary){
     std::ofstream matchstream(pathToFile,std::ios_base::binary);
     if(matchstream.is_open()){
       for(int i = 0; i < matches->size(); ++i){
-        matchstream.write((char*)&matches->host.get()[i].keyPoints[0].loc,2*sizeof(float));
-        matchstream.write((char*)&matches->host.get()[i].keyPoints[1].loc,2*sizeof(float));
+        matchstream.write((char*)&mhost[i].keyPoints[0].loc,2*sizeof(float));
+        matchstream.write((char*)&mhost[i].keyPoints[1].loc,2*sizeof(float));
       }
     }
     else{
@@ -1074,10 +1083,10 @@ void ssrlcv::writeMatchFile(ssrlcv::ptr::value<ssrlcv::Unity<Match>> matches, st
     if(matchstream.is_open()){
       std::string line;
       for(int i = 0; i < matches->size(); ++i){
-        line = std::to_string(matches->host.get()[i].keyPoints[0].loc.x) + ",";
-        line += std::to_string(matches->host.get()[i].keyPoints[0].loc.y) + ",";
-        line += std::to_string(matches->host.get()[i].keyPoints[1].loc.x) + ",";
-        line += std::to_string(matches->host.get()[i].keyPoints[1].loc.y) + "\n";
+        line = std::to_string(mhost[i].keyPoints[0].loc.x) + ",";
+        line += std::to_string(mhost[i].keyPoints[0].loc.y) + ",";
+        line += std::to_string(mhost[i].keyPoints[1].loc.x) + ",";
+        line += std::to_string(mhost[i].keyPoints[1].loc.y) + "\n";
         matchstream << line;
       }
       matchstream.close();
@@ -1100,12 +1109,14 @@ void ssrlcv::writeMatchFile(MatchSet multiview_matches, std::string pathToFile, 
   std::ofstream matchstream(pathToFile);
   if(matchstream.is_open()){
     std::string line;
+    MultiMatch *mhost = matches->host.get();
+    KeyPoint *khost = keyPoints->host.get();
     for(int i = 0; i < matches->size(); ++i){
-      line = std::to_string(matches->host.get()[i].numKeyPoints) + ",";
-      for(int kp = matches->host.get()[i].index; kp < matches->host.get()[i].index + matches->host.get()[i].numKeyPoints; ++kp){
-        line += std::to_string(keyPoints->host.get()[kp].parentId) + ",";
-        line += std::to_string(keyPoints->host.get()[kp].loc.x) + ",";
-        line += std::to_string(keyPoints->host.get()[kp].loc.y) + ",";
+      line = std::to_string(mhost[i].numKeyPoints) + ",";
+      for(int kp = mhost[i].index; kp < mhost[i].index + mhost[i].numKeyPoints; ++kp){
+        line += std::to_string(khost[kp].parentId) + ",";
+        line += std::to_string(khost[kp].loc.x) + ",";
+        line += std::to_string(khost[kp].loc.y) + ",";
       }
       line += "\n";
       matchstream << line;

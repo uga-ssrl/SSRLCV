@@ -20,11 +20,15 @@ ssrlcv::MeshFactory::MeshFactory(ssrlcv::ptr::value<ssrlcv::Unity<float3>> in_po
   this->faceEncoding = in_faceEncoding;
   this->points       = ssrlcv::ptr::value<ssrlcv::Unity<float3>>(nullptr,in_points->size(),cpu);
   this->faces        = ssrlcv::ptr::value<ssrlcv::Unity<int>>(nullptr,in_faces->size(),cpu);
+  float3 *phost = this->points->host.get();
+  float3 *iphost = in_points->host.get();
+  int *fhost = this->faces->host.get();
+  int *ifhost = in_faces->host.get();
   for (int i = 0; i < this->points->size(); i++) {
-    this->points->host.get()[i] = in_points->host.get()[i];
+    phost[i] = iphost[i];
   }
   for (int i = 0; i < this->faces->size(); i++) {
-    this->faces->host.get()[i] = in_faces->host.get()[i];
+    fhost[i] = ifhost[i];
   }
   // Octree oct = Octree(this->points, 8, false);
   this->octree = ssrlcv::ptr::value<Octree>(this->points, 8, false);

@@ -102,8 +102,9 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
     pixelsLower = this->blurs.get()[0]->pixels;
     getGrid(pixelsLower->size(),grid2D);
     ssrlcv::ptr::host<int> temp(pixelsLower->size());
+    int *p_temp = temp.get(); // ok because this is used later
     for(int i = 0; i < pixelsLower->size(); ++i){
-        temp.get()[i] = -1;
+        p_temp[i] = -1;
     }
     ssrlcv::ptr::device<int> extremaAddresses(pixelsLower->size());
     for(int b = 1; b < this->numBlurs - 1; ++b){
