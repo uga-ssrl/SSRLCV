@@ -509,8 +509,9 @@ namespace ssrlcv{
 
       this->state = cpu;
       this->fore = cpu;
+      T *thost = this->host.get();
       for(unsigned long i = 0; i < this->numElements; ++i){
-        cp.read((char*)&this->host.get()[i],sizeof(T));
+        cp.read((char*)&thost[i],sizeof(T));
       }
       if(this->state != origin) this->setMemoryState(origin);
 
@@ -949,9 +950,9 @@ namespace ssrlcv{
       cp.write((char*)&this->numElements,sizeof(unsigned long));
       cp.write(&eol,sizeof(char));
       //body
-
+      T *thost = this->host.get();
       for(unsigned long i = 0; i < this->numElements; ++i){
-        cp.write((char*)&this->host.get()[i],sizeof(T));
+        cp.write((char*)&thost[i],sizeof(T));
       }
       cp.close();
       if(cp.good()){

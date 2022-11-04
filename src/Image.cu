@@ -621,9 +621,10 @@ void ssrlcv::normalizeImage(ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels){
   MemoryState origin = pixels->getMemoryState();
   float2 minMax = {FLT_MAX,-FLT_MAX};
   if(pixels->getFore() != both) pixels->setMemoryState(both);
+  float *phost = pixels->host.get();
   for(int i = 0; i < pixels->size(); ++i){
-      if(minMax.x > pixels->host.get()[i]) minMax.x = pixels->host.get()[i];
-      if(minMax.y < pixels->host.get()[i]) minMax.y = pixels->host.get()[i];
+      if(minMax.x > phost[i]) minMax.x = phost[i];
+      if(minMax.y < phost[i]) minMax.y = phost[i];
   }
   dim3 grid = {1,1,1};
   dim3 block = {1,1,1};
@@ -1182,6 +1183,50 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::convolve(uint2 imageSize, ssrlc
   return convolvedImage;
 }
 
+ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::convolveSeparable(uint2 imageSize, ssrlcv::ptr::value<ssrlcv::Unity<float>> pixels, int kernelSize, float* kernel, bool symmetric){
+  if(kernelSize%2 == 0){
+    logger.err<<"ERROR kernel for image convolution must have an odd dimension";
+    exit(-1);
+  }
+  MemoryState origin = pixels->getMemoryState();
+  if(origin != gpu) pixels->setMemoryState(gpu);
+  int colorDepth = pixels->size()/((int)imageSize.x*imageSize.y);
+  ssrlcv::ptr::device<float> kernel_device(kernelSize);
+  CudaSafeCall(cudaMemcpy(kernel_device.get(),kernel,kernelSize*sizeof(float),cudaMemcpyHostToDevice));
+  ssrlcv::ptr::value<ssrlcv::Unity<float>> convolvedImage = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,pixels->size(),gpu);
+  ssrlcv::ptr::device<float> halfConvolvedImage = ssrlcv::ptr::device<float>(pixels->size());
+
+  dim3 grid = {1,1,1};
+  dim3 block = {1,1,1};
+
+  if(symmetric){
+    void (*fp)(uint2, float*, unsigned int, int, float*, float*, bool) = &convolveImage1D_symmetric;
+    get2DGridBlock(imageSize,grid,block,fp);
+    convolveImage1D_symmetric<<<grid,block>>>(imageSize, pixels->device.get(), colorDepth, kernelSize, kernel_device.get(), halfConvolvedImage.get(), false);
+    cudaDeviceSynchronize();
+    CudaCheckError();
+    convolveImage1D_symmetric<<<grid,block>>>(imageSize, halfConvolvedImage.get(), colorDepth, kernelSize, kernel_device.get(), convolvedImage->device.get(), true);
+    cudaDeviceSynchronize();
+    CudaCheckError();
+  }
+  else{
+    void (*fp)(uint2, float*, unsigned int, int, float*, float*, bool) = &convolveImage1D;
+    get2DGridBlock(imageSize,grid,block,fp);
+    convolveImage1D<<<grid,block>>>(imageSize, pixels->device.get(), colorDepth, kernelSize, kernel_device.get(), halfConvolvedImage.get(), false);
+    cudaDeviceSynchronize();
+    CudaCheckError();
+    convolveImage1D<<<grid,block>>>(imageSize, halfConvolvedImage.get(), colorDepth, kernelSize, kernel_device.get(), convolvedImage->device.get(), true);
+    cudaDeviceSynchronize();
+    CudaCheckError();
+  }
+
+  if(origin != gpu){
+    pixels->setMemoryState(origin);
+    convolvedImage->setMemoryState(origin);
+  }
+  return convolvedImage;
+}
+
 
 // =============================================================================================================
 //
@@ -1417,6 +1462,24 @@ __global__ void ssrlcv::convolveImage(uint2 imageSize, float* pixels, unsigned i
     }
   }
 }
+__global__ void ssrlcv::convolveImage1D(uint2 imageSize, float* pixels, unsigned int colorDepth, int kernelSize, float* kernel, float* convolvedImage, bool vertical){
+  unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
+  unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+  unsigned int color = blockIdx.z*blockDim.z + threadIdx.z;
+  if(x < imageSize.x && y < imageSize.y){
+    float sum = 0.0f;
+    if (!vertical) {
+      for(int kx = -kernelSize/2; kx <= kernelSize/2; ++kx){
+        sum += pixels[((y)*imageSize.x + (x+kx))*colorDepth + color]*kernel[kx+(kernelSize/2)];
+      }
+    } else {
+      for(int ky = -kernelSize/2; ky <= kernelSize/2; ++ky){
+        sum += pixels[((y+ky)*imageSize.x + (x))*colorDepth + color]*kernel[ky+(kernelSize/2)];
+      }
+    }
+    convolvedImage[(y*imageSize.x + x)*colorDepth + color] = sum;
+  }
+}
 __global__ void ssrlcv::convolveImage_symmetric(uint2 imageSize, unsigned char* pixels, unsigned int colorDepth, int2 kernelSize, float* kernel, float* convolvedImage){
   unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
   unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
@@ -1444,6 +1507,27 @@ __global__ void ssrlcv::convolveImage_symmetric(uint2 imageSize, float* pixels, 
       for(int kx = -kernelSize.x/2; kx <= kernelSize.x/2; ++kx){
         symmetricCoord = {getSymmetrizedCoord(x+kx,(int)imageSize.x),getSymmetrizedCoord(y+ky,(int)imageSize.y)};
         sum += pixels[((symmetricCoord.y)*imageSize.x + (symmetricCoord.x))*colorDepth + color]*kernel[(ky+(kernelSize.y/2))*kernelSize.x + (kx+(kernelSize.x/2))];
+      }
+    }
+    convolvedImage[(y*imageSize.x + x)*colorDepth + color] = sum;
+  }
+}
+__global__ void ssrlcv::convolveImage1D_symmetric(uint2 imageSize, float* pixels, unsigned int colorDepth, int kernelSize, float* kernel, float* convolvedImage, bool vertical){
+  unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
+  unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+  unsigned int color = blockIdx.z*blockDim.z + threadIdx.z;
+  if(x < imageSize.x && y < imageSize.y){
+    int2 symmetricCoord = {0,0};
+    float sum = 0.0f;
+    if (!vertical) {
+      for(int kx = -kernelSize/2; kx <= kernelSize/2; ++kx){
+        symmetricCoord = {getSymmetrizedCoord(x+kx,(int)imageSize.x),(int)y};
+        sum += pixels[((symmetricCoord.y)*imageSize.x + (symmetricCoord.x))*colorDepth + color]*kernel[kx+(kernelSize/2)];
+      }
+    } else {
+      for(int ky = -kernelSize/2; ky <= kernelSize/2; ++ky){
+        symmetricCoord = {(int)x,getSymmetrizedCoord(y+ky,(int)imageSize.y)};
+        sum += pixels[((symmetricCoord.y)*imageSize.x + (symmetricCoord.x))*colorDepth + color]*kernel[ky+(kernelSize/2)];
       }
     }
     convolvedImage[(y*imageSize.x + x)*colorDepth + color] = sum;

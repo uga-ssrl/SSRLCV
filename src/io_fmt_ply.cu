@@ -59,10 +59,11 @@ namespace ssrlcv {
 
 
     if(points->getMemoryState() != cpu) points->transferMemoryTo(cpu);
+    float3 *phost = points->host.get();
     for(int i = 0; i < points->size(); i++) {
-      FWRITE(points->host.get()[i].x);
-      FWRITE(points->host.get()[i].y);
-      FWRITE(points->host.get()[i].z);
+      FWRITE(phost[i].x);
+      FWRITE(phost[i].y);
+      FWRITE(phost[i].z);
     }
 
 
@@ -81,19 +82,21 @@ namespace ssrlcv {
     if(vertices) {
       ssrlcv::ptr::value<ssrlcv::Unity<Octree::Vertex>> vertices = octree->vertices;
       if(vertices->getMemoryState() != cpu) vertices->transferMemoryTo(cpu);
+      Octree::Vertex *vhost = vertices->host.get();
       for(int i =0; i < vertices->size(); i++) {
-        FWRITE(vertices->host.get()[i].coord.x);
-        FWRITE(vertices->host.get()[i].coord.y);
-        FWRITE(vertices->host.get()[i].coord.z);
+        FWRITE(vhost[i].coord.x);
+        FWRITE(vhost[i].coord.y);
+        FWRITE(vhost[i].coord.z);
       }
     }
 
     if(edges) { 
       ssrlcv::ptr::value<ssrlcv::Unity<Octree::Edge>> edges = octree->edges;
       if(edges->getMemoryState() != cpu) edges->transferMemoryTo(cpu);
+      Octree::Edge *ehost = edges->host.get();
       for(int i =0; i < edges->size(); i++) {
-        FWRITE(edges->host.get()[i].v1);
-        FWRITE(edges->host.get()[i].v2);
+        FWRITE(ehost[i].v1);
+        FWRITE(ehost[i].v2);
       }
     }
 

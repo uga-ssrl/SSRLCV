@@ -16,17 +16,26 @@ sigma(sigma),size(size){
     kernelSize.y = ceil((float)kernelSize.y*this->sigma/pixelWidth);
     if(kernelSize.x%2 == 0)kernelSize.x++;
     if(kernelSize.y%2 == 0)kernelSize.y++;
-    float gaussian[kernelSize.y*kernelSize.x];
-    for(int y = -kernelSize.y/2, i = 0; y <= kernelSize.y/2; ++y){
-        for(int x = -kernelSize.x/2; x <= kernelSize.x/2; ++x){
-            gaussian[i++] = expf(-(((x*x) + (y*y))/2.0f/this->sigma/this->sigma))/2.0f/PI/this->sigma/this->sigma;
-        }
-    }
-    pixels->setData(convolve(this->size,pixels,kernelSize,gaussian,true)->device,pixels->size(),gpu);
 
-    this->pixels = ssrlcv::ptr::value<ssrlcv::Unity<float>>(nullptr,pixels->size(),gpu);
-    CudaSafeCall(cudaMemcpy(this->pixels->device.get(),pixels->device.get(),pixels->size()*sizeof(float),cudaMemcpyDeviceToDevice));
-    
+    if (kernelSize.x != kernelSize.y) {
+        float gaussian[kernelSize.y*kernelSize.x];
+        for(int y = -kernelSize.y/2, i = 0; y <= kernelSize.y/2; ++y){
+            for(int x = -kernelSize.x/2; x <= kernelSize.x/2; ++x){
+                gaussian[i++] = expf(-(((x*x) + (y*y))/2.0f/this->sigma/this->sigma))/2.0f/PI/this->sigma/this->sigma;
+            }
+        }
+        pixels->setData(convolve(this->size,pixels,kernelSize,gaussian,true)->device,pixels->size(),gpu);
+    } else {
+        int ksize = kernelSize.x;
+        ssrlcv::ptr::host<float> gaussian(ksize);
+        for(int x = -ksize/2, i = 0; x <= ksize/2; ++x, ++i) {
+            gaussian[i] = expf(-((x*x)/2.0f/this->sigma/this->sigma))/sqrtf(2.0f*PI)/this->sigma;
+        }
+        pixels->setData(convolveSeparable(this->size,pixels,ksize,gaussian.get(),true)->device,pixels->size(),gpu);
+    }
+
+    this->pixels = ssrlcv::ptr::value<ssrlcv::Unity<float>>(pixels->device,pixels->size(),gpu);
+
     if(origin != gpu){
         pixels->setMemoryState(origin);
         this->pixels->setMemoryState(origin);
@@ -93,8 +102,9 @@ void ssrlcv::FeatureFactory::ScaleSpace::Octave::searchForExtrema(){
     pixelsLower = this->blurs.get()[0]->pixels;
     getGrid(pixelsLower->size(),grid2D);
     ssrlcv::ptr::host<int> temp(pixelsLower->size());
+    int *p_temp = temp.get(); // ok because this is used later
     for(int i = 0; i < pixelsLower->size(); ++i){
-        temp.get()[i] = -1;
+        p_temp[i] = -1;
     }
     ssrlcv::ptr::device<int> extremaAddresses(pixelsLower->size());
     for(int b = 1; b < this->numBlurs - 1; ++b){
