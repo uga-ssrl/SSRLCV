@@ -62,8 +62,9 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
     
       distanceMatches->transferMemoryTo(ssrlcv::cpu);
       float maxDist = 0.0f;
+      ssrlcv::DMatch *dhost = distanceMatches->host.get();
       for(int i = 0; i < distanceMatches->size(); ++i){
-        if(maxDist < distanceMatches->host.get()[i].distance) maxDist = distanceMatches->host.get()[i].distance;
+        if(maxDist < dhost[i].distance) maxDist = dhost[i].distance;
       }
       logger.info.printf("max euclidean distance between features = %f",maxDist);
       if(distanceMatches->getMemoryState() != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
@@ -76,10 +77,13 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
       matches->setMemoryState(ssrlcv::cpu);
       out->matchSet.matches->setMemoryState(ssrlcv::cpu);
       out->matchSet.keyPoints->setMemoryState(ssrlcv::cpu);
+      ssrlcv::KeyPoint *okhost = out->matchSet.keyPoints->host.get();
+      ssrlcv::Match *mhost = matches->host.get();
+      ssrlcv::MultiMatch *omhost = out->matchSet.matches->host.get();
       for(int i = 0; i < out->matchSet.matches->size(); i++){
-        out->matchSet.keyPoints->host.get()[i*2] = matches->host.get()[i].keyPoints[0];
-        out->matchSet.keyPoints->host.get()[i*2 + 1] = matches->host.get()[i].keyPoints[1];
-        out->matchSet.matches->host.get()[i] = {2,i*2};
+        okhost[i*2] = mhost[i].keyPoints[0];
+        okhost[i*2 + 1] = mhost[i].keyPoints[1];
+        omhost[i] = {2,i*2};
       }
       logger.info << "Generated MatchSet ...";
       logger.info << "Total Matches: " + std::to_string(matches->size());

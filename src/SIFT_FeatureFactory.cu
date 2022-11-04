@@ -38,9 +38,10 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrl
     ssrlcv::ptr::value<ssrlcv::Unity<float2>> gradients = generatePixelGradients(image->size, pixelsFLT);
     //12x12 border
     ssrlcv::ptr::value<ssrlcv::Unity<float2>> keyPoints = ssrlcv::ptr::value<ssrlcv::Unity<float2>>(nullptr,(image->size.x-24)*(image->size.y-24),cpu);
+    float2 *khost = keyPoints->host.get();
     for(int y = 0; y < image->size.y-24; ++y){
       for(int x = 0; x < image->size.x-24; ++x){
-        keyPoints->host.get()[y*(image->size.x-24) + x] = {(float)x + 12.0f, (float)y + 12.0f};
+        khost[y*(image->size.x-24) + x] = {(float)x + 12.0f, (float)y + 12.0f};
       }
     }
 
@@ -174,8 +175,9 @@ ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> ssrl
   ssrlcv::ptr::device<int> thetaNumbers_device(keyPoints->size()*maxOrientations);
   ssrlcv::ptr::device<float> thetas_device(keyPoints->size()*maxOrientations);
   ssrlcv::ptr::host<float> thetas_host(keyPoints->size()*maxOrientations);
+  float *thost = thetas_host.get();
   for(int i = 0; i < keyPoints->size()*maxOrientations; ++i){
-    thetas_host.get()[i] = -1.0f;
+    thost[i] = -1.0f;
   }
   CudaSafeCall(cudaMemcpy(thetas_device.get(),thetas_host.get(),keyPoints->size()*maxOrientations*sizeof(float),cudaMemcpyHostToDevice));
 
