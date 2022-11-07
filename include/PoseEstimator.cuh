@@ -46,7 +46,7 @@ namespace ssrlcv{
 
     ssrlcv::Pose estimatePoseRANSAC();
 
-    void LM_optimize(ssrlcv::Pose pose);
+    void LM_optimize(ssrlcv::Pose *pose);
     
   private:
 

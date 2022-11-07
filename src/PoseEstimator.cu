@@ -285,13 +285,13 @@ ssrlcv::Pose ssrlcv::PoseEstimator::getRelativePose(const float (&F)[3][3]) {
     Pose pose;
 
     if (best == 0 || best == 1) {
-        pose.roll = atanf(R1t[2][1] / R1t[2][2]);
-        pose.pitch = atanf(-R1t[2][0] / (R1t[2][2]/cosf(pose.roll)));
-        pose.yaw = atanf(R1t[1][0] / R1t[0][0]);
+        pose.roll = atan2f(R1t[2][1] , R1t[2][2]);
+        pose.pitch = atan2f(-R1t[2][0] , (R1t[2][2]/cosf(pose.roll)));
+        pose.yaw = atan2f(R1t[1][0] , R1t[0][0]);
     } else {
-        pose.roll = atanf(R2t[2][1] / R2t[2][2]);
-        pose.pitch = atanf(-R2t[2][0] / (R2t[2][2]/cosf(pose.roll)));
-        pose.yaw = atanf(R2t[1][0] / R2t[0][0]);
+        pose.roll = atan2f(R2t[2][1] , R2t[2][2]);
+        pose.pitch = atan2f(-R2t[2][0] , (R2t[2][2]/cosf(pose.roll)));
+        pose.yaw = atan2f(R2t[1][0] , R2t[0][0]);
     }
 
     printf("r: %f %f %f\n", pose.roll, pose.pitch, pose.yaw);
@@ -311,15 +311,24 @@ ssrlcv::Pose ssrlcv::PoseEstimator::getRelativePose(const float (&F)[3][3]) {
     return pose;
 }
 
-void ssrlcv::PoseEstimator::LM_optimize(ssrlcv::Pose pose) {
+void ssrlcv::PoseEstimator::LM_optimize(ssrlcv::Pose *pose) {
     float lambda = 1000;
 
+    // pose.roll = 0;
+    // pose.pitch = 0.17453292519943298;
+    // pose.yaw = 0;
+    // pose.x = -70.4676808212058 / 1000;
+    // pose.y = 0;
+    // pose.z = 0.3579228881 / 1000;
+
     // TODO: catch assertion failures
+    int iterations = 0;
     do {
-        printf("Pose rotations: %f %f %f\n", pose.roll, pose.pitch, pose.yaw);
-        printf("Pose positions: %f %f %f\n", pose.x, pose.y, pose.z);
+        printf("Pose rotations: %f %f %f\n", pose->roll, pose->pitch, pose->yaw);
+        printf("Pose positions: %f %f %f\n", pose->x, pose->y, pose->z);
+        iterations ++;
     }
-    while(LM_iteration(&pose, &lambda));
+    while(LM_iteration(pose, &lambda) && iterations < 1000);
 }
 
 bool ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
@@ -636,7 +645,7 @@ __global__ void ssrlcv::computeResidualsAndJacobian(ssrlcv::Match *matches, int 
         float *r_out = residuals + 4 * globalID;
         float *j_out = jacobian + 6 * 4 * globalID; // Jacobian is 4 rows of 6 per match
 
-        float delta = 1e-6;
+        float delta = 1e-5;
 
         float4 res = getResidual(pose, &query, &target, q_loc, t_loc);
         r_out[0] = res.x;

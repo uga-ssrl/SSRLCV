@@ -242,8 +242,28 @@ __device__ __host__ float ssrlcv::euclideanDistance(const float3 A, const float3
  * @return rotations a float3 of the x,y,z axis rotations
  */
 __device__ __host__ float3 ssrlcv::getAxisRotations(const float(&R)[3][3]){
+  float x = atan2f(R[2][1] , R[2][2]);
+  float y = atan2f(-R[2][0] , (R[2][2]/cosf(x)));
+  float z = atan2f(R[1][0] , R[0][0]);
+  
+  return {x, y, z};
+}
 
-  return {0.0f, 0.0f, 0.0f};
+/**
+ * \brief calcualtes a rotation matrix from x, y, and z rotations
+ * @param angle a float3 of the x,y,z axis rotations  
+ * @param R output 3x3 rotation matrix
+ */
+__device__ __host__ void ssrlcv::getRotationMatrix(const float3 &angle, float(&R)[3][3]){
+  R[0][0] = cosf(angle.z) * cosf(angle.y);
+  R[0][1] = cosf(angle.z) * sinf(angle.y) * sinf(angle.x) - sinf(angle.z) * cosf(angle.x);
+  R[0][2] = cosf(angle.z) * sinf(angle.y) * cosf(angle.x) + sinf(angle.z) * sinf(angle.x);
+  R[1][0] = sinf(angle.z) * cosf(angle.y);
+  R[1][1] = sinf(angle.z) * sinf(angle.y) * sinf(angle.x) + cosf(angle.z) * cosf(angle.x);
+  R[1][2] = sinf(angle.z) * sinf(angle.y) * cosf(angle.x) - cosf(angle.z) * sinf(angle.x);
+  R[2][0] = -1 * sinf(angle.y);
+  R[2][1] = cosf(angle.y) * sinf(angle.x);
+  R[2][2] = cosf(angle.y) * cosf(angle.x);
 }
 
 __device__ __host__ float3 ssrlcv::matrixMulVector(float3 x, float A[3][3]){
