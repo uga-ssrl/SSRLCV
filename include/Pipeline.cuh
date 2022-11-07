@@ -6,6 +6,7 @@
 #include "MatchFactory.cuh"
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
+#include "PoseEstimator.cuh"
 
 namespace ssrlcv {
 
@@ -26,6 +27,20 @@ namespace ssrlcv {
     };
 
     void doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::FeatureGenerationOutput *out);
+
+
+    //
+    // POSE ESTIMATION
+    //
+
+    struct PoseEstimationInput {
+        ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures;
+        const std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
+        const std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
+    };
+
+    
+    void doPoseEstimation(ssrlcv::PoseEstimationInput *in);
 
     //
     // FEATURE MATCHING

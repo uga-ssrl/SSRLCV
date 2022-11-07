@@ -19,7 +19,6 @@
 #include "MatchFactory.cuh"
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
-#include "PoseEstimator.cuh"
 
 /**
  * \brief Example of safe shutdown method caused by a signal.
@@ -95,23 +94,13 @@ int main(int argc, char *argv[]){
     ssrlcv::FeatureGenerationOutput featureGenOutput;
     ssrlcv::doFeatureGeneration(&featureGenInput, &featureGenOutput);
 
-    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches(std::string("tmp/0_N6ssrlcv5MatchE.uty"));
+    //
+    // POSE ESTIMATION
+    //
 
-    matches->transferMemoryTo(ssrlcv::cpu); // oops forgot to before
-    ssrlcv::PoseEstimator estim(featureGenOutput.images.at(0), featureGenOutput.images.at(1), matches);
-    ssrlcv::Pose pose = estim.estimatePoseRANSAC();
-    estim.LM_optimize(&pose);
-    exit(0);
+    ssrlcv::PoseEstimationInput poseInput = {featureGenOutput.seedFeatures, featureGenOutput.allFeatures, featureGenOutput.images};
+    ssrlcv::doPoseEstimation(&poseInput);
 
-    float R1[3][3], R2[3][3], R[3][3];
-    printf("Original Position: %f %f %f\n", featureGenOutput.images.at(1)->camera.cam_pos.x, featureGenOutput.images.at(1)->camera.cam_pos.y, featureGenOutput.images.at(1)->camera.cam_pos.z);
-    featureGenOutput.images.at(1)->camera.cam_pos = featureGenOutput.images.at(0)->camera.cam_pos + ssrlcv::rotatePoint({1000 * pose.x, 1000 * pose.y, 1000 * pose.z}, featureGenOutput.images.at(0)->camera.cam_rot);
-    ssrlcv::getRotationMatrix({pose.roll, pose.pitch, pose.yaw}, R1);
-    ssrlcv::getRotationMatrix(featureGenOutput.images.at(0)->camera.cam_rot, R2);
-    ssrlcv::multiply(R2, R1, R);
-    featureGenOutput.images.at(1)->camera.cam_rot = ssrlcv::getAxisRotations(R);
-    printf("Rotation: %f %f %f\n", featureGenOutput.images.at(1)->camera.cam_rot.x, featureGenOutput.images.at(1)->camera.cam_rot.y, featureGenOutput.images.at(1)->camera.cam_rot.z);
-    printf("Position: %f %f %f\n", featureGenOutput.images.at(1)->camera.cam_pos.x, featureGenOutput.images.at(1)->camera.cam_pos.y, featureGenOutput.images.at(1)->camera.cam_pos.z);
     
     //
     // FEATURE MATCHING

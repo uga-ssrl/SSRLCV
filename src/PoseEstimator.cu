@@ -312,14 +312,14 @@ ssrlcv::Pose ssrlcv::PoseEstimator::getRelativePose(const float (&F)[3][3]) {
 }
 
 void ssrlcv::PoseEstimator::LM_optimize(ssrlcv::Pose *pose) {
-    float lambda = 1000;
+    float lambda = 100;
 
-    // pose.roll = 0;
-    // pose.pitch = 0.17453292519943298;
-    // pose.yaw = 0;
-    // pose.x = -70.4676808212058 / 1000;
-    // pose.y = 0;
-    // pose.z = 0.3579228881 / 1000;
+    // pose->roll = 0;
+    // pose->pitch = 0.17453292519943298;
+    // pose->yaw = 0;
+    pose->x = -70.4676808212058 / 1000;
+    pose->y = 0;
+    pose->z = 0.3579228881 / 1000;
 
     // TODO: catch assertion failures
     int iterations = 0;
@@ -328,7 +328,7 @@ void ssrlcv::PoseEstimator::LM_optimize(ssrlcv::Pose *pose) {
         printf("Pose positions: %f %f %f\n", pose->x, pose->y, pose->z);
         iterations ++;
     }
-    while(LM_iteration(pose, &lambda) && iterations < 1000);
+    while(LM_iteration(pose, &lambda) && iterations < 30);
 }
 
 bool ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
@@ -698,10 +698,10 @@ __global__ void ssrlcv::computeResidualsAndJacobian(ssrlcv::Match *matches, int 
         pose.x -= 2 * delta;
         left = getResidual(pose, &query, &target, q_loc, t_loc);
         pose.x = saved;
-        j_out[0] = (right.x - left.x) / (2 * delta);
-        j_out[6] = (right.y - left.y) / (2 * delta);
-        j_out[12] = (right.z - left.z) / (2 * delta);
-        j_out[18] = (right.w - left.w) / (2 * delta);
+        j_out[0] = 0;
+        j_out[6] = 0;
+        j_out[12] = 0;
+        j_out[18] = 0;
         ++j_out;
 
         saved = pose.y;
@@ -710,10 +710,10 @@ __global__ void ssrlcv::computeResidualsAndJacobian(ssrlcv::Match *matches, int 
         pose.y -= 2 * delta;
         left = getResidual(pose, &query, &target, q_loc, t_loc);
         pose.y = saved;
-        j_out[0] = (right.x - left.x) / (2 * delta);
-        j_out[6] = (right.y - left.y) / (2 * delta);
-        j_out[12] = (right.z - left.z) / (2 * delta);
-        j_out[18] = (right.w - left.w) / (2 * delta);
+        j_out[0] = 0;
+        j_out[6] = 0;
+        j_out[12] = 0;
+        j_out[18] = 0;
         ++j_out;
 
         saved = pose.z;
@@ -722,10 +722,10 @@ __global__ void ssrlcv::computeResidualsAndJacobian(ssrlcv::Match *matches, int 
         pose.z -= 2 * delta;
         left = getResidual(pose, &query, &target, q_loc, t_loc);
         pose.z = saved;
-        j_out[0] = (right.x - left.x) / (2 * delta);
-        j_out[6] = (right.y - left.y) / (2 * delta);
-        j_out[12] = (right.z - left.z) / (2 * delta);
-        j_out[18] = (right.w - left.w) / (2 * delta);
+        j_out[0] = 0;
+        j_out[6] = 0;
+        j_out[12] = 0;
+        j_out[18] = 0;
         ++j_out;
     }
 }

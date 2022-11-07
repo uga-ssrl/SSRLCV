@@ -27,14 +27,55 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
       image->camera.cam_pos -= offset;
 
       // array of features containing sift descriptors at every point
-      // ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> features =
-      //           featureFactory.generateFeatures(image,false,2,0.8);
-      // features->transferMemoryTo(ssrlcv::cpu);
+      ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> features =
+                featureFactory.generateFeatures(image,false,2,0.8);
+      features->transferMemoryTo(ssrlcv::cpu);
       out->images.push_back(image);
-      //out->allFeatures.push_back(features);
+      out->allFeatures.push_back(features);
     }
     logger.logState("FEATURES");
   
+  }
+
+  void ssrlcv::doPoseEstimation(ssrlcv::PoseEstimationInput *in) {
+    logger.info << "Starting pose estimation...";
+    logger.logState("POSE");
+
+    // TODO: Put in loop for N-View
+
+    //ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches(std::string("tmp/0_N6ssrlcv5MatchE.uty"));
+
+    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,40.0f*40.0f);
+
+    if (in->seedFeatures != nullptr)
+      matchFactory.setSeedFeatures(in->seedFeatures);
+
+    ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
+
+    logger.logState("done generating seed matches");
+
+    logger.logState("matching images");
+    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches = matchFactory.generateMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], seedDistances);
+    logger.logState("done matching images");
+
+
+    matches->transferMemoryTo(ssrlcv::cpu); // oops forgot to before
+    ssrlcv::PoseEstimator estim(in->images.at(0), in->images.at(1), matches);
+    ssrlcv::Pose pose = estim.estimatePoseRANSAC();
+    estim.LM_optimize(&pose);
+
+
+    float R1[3][3], R2[3][3], R[3][3];
+    printf("Original Position: %f %f %f\n", in->images.at(1)->camera.cam_pos.x, in->images.at(1)->camera.cam_pos.y, in->images.at(1)->camera.cam_pos.z);
+    in->images.at(1)->camera.cam_pos = in->images.at(0)->camera.cam_pos + ssrlcv::rotatePoint({1000 * pose.x, 1000 * pose.y, 1000 * pose.z}, in->images.at(0)->camera.cam_rot);
+    ssrlcv::getRotationMatrix({pose.roll, pose.pitch, pose.yaw}, R1);
+    ssrlcv::getRotationMatrix(in->images.at(0)->camera.cam_rot, R2);
+    ssrlcv::multiply(R2, R1, R);
+    in->images.at(1)->camera.cam_rot = ssrlcv::getAxisRotations(R);
+    printf("Rotation: %f %f %f\n", in->images.at(1)->camera.cam_rot.x, in->images.at(1)->camera.cam_rot.y, in->images.at(1)->camera.cam_rot.z);
+    printf("Position: %f %f %f\n", in->images.at(1)->camera.cam_pos.x, in->images.at(1)->camera.cam_pos.y, in->images.at(1)->camera.cam_pos.z);
+
+    logger.logState("POSE");
   }
   
   void ssrlcv::doFeatureMatching(ssrlcv::FeatureMatchingInput *in, ssrlcv::FeatureMatchingOutput *out) {
