@@ -67,15 +67,15 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
     estim.LM_optimize(&pose);
 
 
-    float R1[3][3], R2[3][3], R[3][3];
-    printf("Original Position: %f %f %f\n", in->images.at(1)->camera.cam_pos.x, in->images.at(1)->camera.cam_pos.y, in->images.at(1)->camera.cam_pos.z);
-    in->images.at(1)->camera.cam_pos = in->images.at(0)->camera.cam_pos + ssrlcv::rotatePoint({1000 * pose.x, 1000 * pose.y, 1000 * pose.z}, in->images.at(0)->camera.cam_rot);
-    ssrlcv::getRotationMatrix({pose.roll, pose.pitch, pose.yaw}, R1);
-    ssrlcv::getRotationMatrix(in->images.at(0)->camera.cam_rot, R2);
-    ssrlcv::multiply(R2, R1, R);
-    in->images.at(1)->camera.cam_rot = ssrlcv::getAxisRotations(R);
-    printf("Rotation: %f %f %f\n", in->images.at(1)->camera.cam_rot.x, in->images.at(1)->camera.cam_rot.y, in->images.at(1)->camera.cam_rot.z);
-    printf("Position: %f %f %f\n", in->images.at(1)->camera.cam_pos.x, in->images.at(1)->camera.cam_pos.y, in->images.at(1)->camera.cam_pos.z);
+    // float R1[3][3], R2[3][3], R[3][3];
+    // printf("Original Position: %f %f %f\n", in->images.at(1)->camera.cam_pos.x, in->images.at(1)->camera.cam_pos.y, in->images.at(1)->camera.cam_pos.z);
+    // in->images.at(1)->camera.cam_pos = in->images.at(0)->camera.cam_pos + ssrlcv::rotatePoint({1000 * pose.x, 1000 * pose.y, 1000 * pose.z}, in->images.at(0)->camera.cam_rot);
+    // ssrlcv::getRotationMatrix({pose.roll, pose.pitch, pose.yaw}, R1);
+    // ssrlcv::getRotationMatrix(in->images.at(0)->camera.cam_rot, R2);
+    // ssrlcv::multiply(R2, R1, R);
+    // in->images.at(1)->camera.cam_rot = ssrlcv::getAxisRotations(R);
+    // printf("Rotation: %f %f %f\n", in->images.at(1)->camera.cam_rot.x, in->images.at(1)->camera.cam_rot.y, in->images.at(1)->camera.cam_rot.z);
+    // printf("Position: %f %f %f\n", in->images.at(1)->camera.cam_pos.x, in->images.at(1)->camera.cam_pos.y, in->images.at(1)->camera.cam_pos.z);
 
     logger.logState("POSE");
   }
