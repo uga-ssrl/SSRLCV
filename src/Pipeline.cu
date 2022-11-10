@@ -37,7 +37,7 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
   
   }
 
-  void ssrlcv::doPoseEstimation(ssrlcv::PoseEstimationInput *in) {
+  void ssrlcv::doPoseEstimation(ssrlcv::PoseEstimationInput *in, ssrlcv::PoseEstimationOutput *out) {
     logger.info << "Starting pose estimation...";
     logger.logState("POSE");
 
@@ -50,12 +50,12 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
     if (in->seedFeatures != nullptr)
       matchFactory.setSeedFeatures(in->seedFeatures);
 
-    ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
+    out->seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
 
     logger.logState("done generating seed matches");
 
     logger.logState("matching images");
-    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches = matchFactory.generateMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], seedDistances);
+    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches = matchFactory.generateMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], out->seedDistances);
     logger.logState("done matching images");
 
     //matches->checkpoint(0, "tmp/");
@@ -92,14 +92,13 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
       //
       // 2 View Case
       //
-      ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
       logger.logState("done generating seed matches");
 
       logger.logState("matching images");
       #if GEO_ORBIT == 1
-        ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatchesDoubleConstrained(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], in->epsilon, in->delta, seedDistances);
+        ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatchesDoubleConstrained(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], in->epsilon, in->delta, in->seedDistances);
       #else
-        ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], seedDistances);
+        ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], in->seedDistances);
       #endif
       logger.logState("done matching images");
     

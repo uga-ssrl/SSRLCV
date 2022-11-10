@@ -39,8 +39,12 @@ namespace ssrlcv {
         const std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
     };
 
+    struct PoseEstimationOutput {
+        ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances;
+    };
+
     
-    void doPoseEstimation(ssrlcv::PoseEstimationInput *in);
+    void doPoseEstimation(ssrlcv::PoseEstimationInput *in, ssrlcv::PoseEstimationOutput *out);
 
     //
     // FEATURE MATCHING
@@ -50,6 +54,7 @@ namespace ssrlcv {
         ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures;
         const std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
         const std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
+        ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances;
         float epsilon; // pixel buffer around 2D epipolar line
         float delta; // kilometer buffer above and below line segment in 3D space
     };

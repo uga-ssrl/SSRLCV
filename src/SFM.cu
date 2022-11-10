@@ -99,14 +99,15 @@ int main(int argc, char *argv[]){
     //
 
     ssrlcv::PoseEstimationInput poseInput = {featureGenOutput.seedFeatures, featureGenOutput.allFeatures, featureGenOutput.images};
-    ssrlcv::doPoseEstimation(&poseInput);
+    ssrlcv::PoseEstimationOutput poseOutput;
+    ssrlcv::doPoseEstimation(&poseInput, &poseOutput);
 
     
     //
     // FEATURE MATCHING
     //
 
-    ssrlcv::FeatureMatchingInput featureMatchInput = {featureGenOutput.seedFeatures, featureGenOutput.allFeatures, featureGenOutput.images, epsilon, delta};
+    ssrlcv::FeatureMatchingInput featureMatchInput = {featureGenOutput.seedFeatures, featureGenOutput.allFeatures, featureGenOutput.images, poseOutput.seedDistances, epsilon, delta};
     ssrlcv::FeatureMatchingOutput featureMatchOutput;
     ssrlcv::doFeatureMatching(&featureMatchInput, &featureMatchOutput);
 
