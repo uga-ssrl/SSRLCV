@@ -336,7 +336,7 @@ __host__ __device__ float3 ssrlcv::rotatePoint(float3 point, float3 angle) {
  * \param angle angle to rotate
  * \return point after the rotation
  */
-__device__ float3 ssrlcv::rotatePointArbitrary(float3 point, float3 axis, float angle) {
+__host__ __device__ float3 ssrlcv::rotatePointArbitrary(float3 point, float3 axis, float angle) {
   float rotationMatrix[3][3];
   float k = (1- cosf(angle));
   normalize(axis);

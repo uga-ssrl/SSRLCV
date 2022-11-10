@@ -92,7 +92,7 @@ __device__ __host__ void getRotationMatrix(const float3 &angle, float(&R)[3][3])
    * \param angle angle to rotate
    * \return point after the rotation
    */
-  __device__ float3 rotatePointArbitrary(float3 point, float3 axis, float angle);
+  __host__ __device__ float3 rotatePointArbitrary(float3 point, float3 axis, float angle);
 
 }
 

@@ -132,7 +132,7 @@ int main(int argc, char *argv[]){
 
     ssrlcv::BundleAdjustInput bundleAdjustInput = {filteringInput.matchSet, featureGenOutput.images};
     ssrlcv::BundleAdjustOutput bundleAdjustOutput;
-    ssrlcv::doBundleAdjust(&bundleAdjustInput, &bundleAdjustOutput);
+    //ssrlcv::doBundleAdjust(&bundleAdjustInput, &bundleAdjustOutput);
 
 
     // cleanup

@@ -317,9 +317,17 @@ void ssrlcv::PoseEstimator::LM_optimize(ssrlcv::Pose *pose) {
     // pose->roll = 0;
     // pose->pitch = 0.17453292519943298;
     // pose->yaw = 0;
-    pose->x = -70.4676808212058 / 1000;
-    pose->y = 0;
-    pose->z = 0.3579228881 / 1000;
+    // pose->x = -70.4676808212058 / 1000;
+    // pose->y = 0;
+    // pose->z = 0.3579228881 / 1000;
+
+    float3 pos = target->camera.cam_pos - query->camera.cam_pos;
+    pos = rotatePointArbitrary(pos, {0, 0, 1}, - query->camera.cam_rot.z);
+    pos = rotatePointArbitrary(pos, {0, 1, 0}, - query->camera.cam_rot.y);
+    pos = rotatePointArbitrary(pos, {1, 0, 0}, - query->camera.cam_rot.x);
+    pose->x = pos.x / 1000;
+    pose->y = pos.y / 1000;
+    pose->z = pos.z / 1000;
 
     // TODO: catch assertion failures
     int iterations = 0;
@@ -328,7 +336,7 @@ void ssrlcv::PoseEstimator::LM_optimize(ssrlcv::Pose *pose) {
         printf("Pose positions: %f %f %f\n", pose->x, pose->y, pose->z);
         iterations ++;
     }
-    while(LM_iteration(pose, &lambda) && iterations < 30);
+    while(LM_iteration(pose, &lambda) && iterations < 50);
 }
 
 bool ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
@@ -379,7 +387,7 @@ bool ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
     int num_iterations = 0;
     
     while(*(cost->host.get()) <= *(newCost->host.get())) {
-        if(num_iterations >= 100) {
+        if(num_iterations >= 20) {
             return false;
         }
         num_iterations += 1;
@@ -404,7 +412,7 @@ bool ssrlcv::PoseEstimator::LM_iteration(ssrlcv::Pose *pose, float *lambda) {
         // cuSOLVER SVD
         int lwork       = 0;
         ssrlcv::ptr::device<int> devInfo(1);
-        ssrlcv::ptr::device<float> d_rwork(2);
+        ssrlcv::ptr::device<float> d_rwork(6);
         cusolver_status = cusolverDnDgesvd_bufferSize(cusolverH,6,6,&lwork);
         assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
 

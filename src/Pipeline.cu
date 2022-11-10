@@ -58,6 +58,8 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
     ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches = matchFactory.generateMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], seedDistances);
     logger.logState("done matching images");
 
+    //matches->checkpoint(0, "tmp/");
+
 
     matches->transferMemoryTo(ssrlcv::cpu); // oops forgot to before
     ssrlcv::PoseEstimator estim(in->images.at(0), in->images.at(1), matches);
