@@ -19,6 +19,8 @@
 #include "MatchFactory.cuh"
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
+#include <sys/stat.h>
+#include <stdio.h>
 
 /**
  * \brief Example of safe shutdown method caused by a signal.
@@ -33,6 +35,26 @@ void safeShutdown(int sig){
   logger.logState("safeShutdown");
   logger.stopBackgroundLogging();
   exit(sig); // exit with the same signal
+}
+
+enum cp_stage {
+  fg = 1, // feature generation
+  fm = 2, // feature matching
+  tri = 3, // triangulation
+  filt = 4, // filtering
+  ba = 5 // bundle adjustment
+};
+
+std::string getCheckpointDirForStage(std::string rootDir, int stage) {
+  return rootDir + "/outputs/sfm-stage" + std::to_string(stage) + "/";
+}
+
+void mkdirIfAbsent(std::string dir) {
+  struct stat st = {0};
+
+  if (stat(dir.c_str(), &st) == -1) {
+      mkdir(dir.c_str(), 0777);
+  }
 }
 
 int main(int argc, char *argv[]){
@@ -56,16 +78,32 @@ int main(int argc, char *argv[]){
 
     std::map<std::string, ssrlcv::arg*> args = ssrlcv::parseArgs(argc, argv);
 
-    if(args.find("dir") == args.end()){
+    if(args.find("dir") == args.end() && args.find("cpdir") == args.end()){
       std::cerr << "ERROR: SFM executable requires a directory of images" << std::endl;
       exit(-1);
+    }
+
+    bool checkpoint;
+    ssrlcv::img_dir_arg *imageDir;
+    std::string checkpointRootDir;
+    if(args.find("cpdir") == args.end()) {
+      logger.info.printf("No checkpointing");
+      checkpoint = false;
+      imageDir = (ssrlcv::img_dir_arg *)args["dir"];
+    } else {
+      logger.info.printf("Checkpointing after every stage");
+      checkpoint = true;
+      imageDir = (ssrlcv::img_dir_arg *)args["cpdir"];
+      checkpointRootDir = imageDir->rootPath;
+      logger = ssrlcv::Logger((checkpointRootDir).c_str());
+      mkdirIfAbsent(checkpointRootDir + "/outputs");
     }
 
     std::string seedPath;
     if(args.find("seed") != args.end()){
       seedPath = ((ssrlcv::img_arg *)args["seed"])->path;
     }
-    std::vector<std::string> imagePaths = ((ssrlcv::img_dir_arg *)args["dir"])->paths;
+    std::vector<std::string> imagePaths = imageDir->paths;
     int numImages = (int) imagePaths.size();
     logger.info.printf("Found %d images in directory given", numImages);
     logger.logState("SEED");
@@ -86,46 +124,170 @@ int main(int argc, char *argv[]){
       logger.info.printf("Setting delta (for earth-centered epipolar geometry) to %f kilometers.", delta);
     }
 
+    ssrlcv::FeatureGenerationInput featureGenInput = {seedPath, imagePaths, numImages};
+    ssrlcv::FeatureGenerationOutput featureGenOutput;
+    ssrlcv::FeatureMatchingInput featureMatchInput;
+    ssrlcv::FeatureMatchingOutput featureMatchOutput;
+    ssrlcv::TriangulationInput triangulationInput;
+    ssrlcv::TriangulationOutput triangulationOutput;
+    ssrlcv::FilteringInput filteringInput;
+    ssrlcv::FilteringOutput filteringOutput;
+    ssrlcv::BundleAdjustInput bundleAdjustInput;
+    ssrlcv::BundleAdjustOutput bundleAdjustOutput;
+
+    if (checkpoint) {
+      struct stat buf;
+
+      int cur_stage;
+      for (cur_stage = 1; cur_stage < 5; cur_stage ++) {
+        if (stat((checkpointRootDir + "/outputs/sfm-stage" + std::to_string(cur_stage) + "/done").c_str(), &buf) != 0) break;
+      }
+      logger.info.printf("Already checkpointed %d stage(s).", cur_stage - 1);
+
+      switch (cur_stage) {
+        case cp_stage::fg: // Feature generation
+          // nothing checkpointed yet, continue as normal (start with feature generation)
+          break;
+        case cp_stage::fm: // Feature matching
+          featureMatchInput.fromCheckpoint(getCheckpointDirForStage(checkpointRootDir, cp_stage::fg), numImages, epsilon, delta);
+          goto FEATURE_MATCHING;
+        case cp_stage::tri:
+          triangulationInput.fromCheckpoint(
+            getCheckpointDirForStage(checkpointRootDir, cp_stage::fg),
+            getCheckpointDirForStage(checkpointRootDir, cp_stage::fm),
+            numImages
+          );
+          goto TRIANGULATION;
+        case cp_stage::filt:
+          filteringInput.fromCheckpoint(
+            getCheckpointDirForStage(checkpointRootDir, cp_stage::fg),
+            getCheckpointDirForStage(checkpointRootDir, cp_stage::fm),
+            numImages
+          );
+          goto FILTERING;
+          break;
+        case cp_stage::ba:
+          bundleAdjustInput.fromCheckpoint(
+            getCheckpointDirForStage(checkpointRootDir, cp_stage::fg),
+            getCheckpointDirForStage(checkpointRootDir, cp_stage::filt),
+            numImages
+          );
+          goto BUNDLE_ADJUSTMENT;
+          break;
+        default:
+          break;
+      }
+    }
+
     //
     // FEATURE GENERATION
     //
 
-    ssrlcv::FeatureGenerationInput featureGenInput = {seedPath, imagePaths, numImages};
-    ssrlcv::FeatureGenerationOutput featureGenOutput;
     ssrlcv::doFeatureGeneration(&featureGenInput, &featureGenOutput);
+    if (checkpoint) {
+      std::string cpdir = getCheckpointDirForStage(checkpointRootDir, cp_stage::fg);
+      mkdirIfAbsent(cpdir);
+      if (featureGenOutput.seedFeatures != nullptr) {
+        featureGenOutput.seedFeatures->checkpoint(-1, cpdir);
+      }
+      for (int i = 0; i < numImages; i ++) {
+        featureGenOutput.images.at(i)->checkpoint(cpdir);
+        featureGenOutput.allFeatures.at(i)->checkpoint(i, cpdir);
+      }
+      fclose(fopen((cpdir + "/done").c_str(), "w"));
+    }
     
     //
     // FEATURE MATCHING
     //
 
-    ssrlcv::FeatureMatchingInput featureMatchInput = {featureGenOutput.seedFeatures, featureGenOutput.allFeatures, featureGenOutput.images, epsilon, delta};
-    ssrlcv::FeatureMatchingOutput featureMatchOutput;
+    featureMatchInput.fromFeatureGeneration(&featureGenOutput, epsilon, delta);
+    FEATURE_MATCHING:
     ssrlcv::doFeatureMatching(&featureMatchInput, &featureMatchOutput);
+    if (checkpoint) {
+      std::string cpdir = getCheckpointDirForStage(checkpointRootDir, cp_stage::fm);
+      mkdirIfAbsent(cpdir);
+      featureMatchOutput.matchSet.keyPoints->checkpoint(0, cpdir);
+      featureMatchOutput.matchSet.matches->checkpoint(0, cpdir);
+      fclose(fopen((cpdir + "/done").c_str(), "w"));
+    }
 
     //
     // TRIANGULATION
     //
 
-    ssrlcv::TriangulationInput triangulationInput = {featureMatchOutput.matchSet, featureGenOutput.images};
-    ssrlcv::TriangulationOutput triangulationOutput;
+    triangulationInput.fromPreviousStage(&featureMatchInput, &featureMatchOutput);
+    TRIANGULATION:
     ssrlcv::doTriangulation(&triangulationInput, &triangulationOutput);
+    if (checkpoint) {
+      std::string cpdir = getCheckpointDirForStage(checkpointRootDir, cp_stage::tri);
+      mkdirIfAbsent(cpdir);
+      // Copy PLY file
+      std::ifstream in("out/ssrlcv-initial.ply", std::ios::in | std::ios::binary);
+      std::ofstream out((cpdir + "/ssrlcv-initial.ply").c_str(), std::ios::out | std::ios::binary);
+      out << in.rdbuf();
+      fclose(fopen((cpdir + "/done").c_str(), "w"));
+    }
 
     //
     // FILTERING
     //
 
-    ssrlcv::FilteringInput filteringInput = {triangulationInput.matchSet, featureGenOutput.images};
-    ssrlcv::FilteringOutput filteringOutput;
+    filteringInput.fromPreviousStage(&triangulationInput);
+    FILTERING:
     ssrlcv::doFiltering(&filteringInput, &filteringOutput);
+    if (checkpoint) {
+      std::string cpdir = getCheckpointDirForStage(checkpointRootDir, cp_stage::filt);
+      mkdirIfAbsent(cpdir);
+      // Copy PLY file
+      std::ifstream in("out/ssrlcv-filtered.ply", std::ios::in | std::ios::binary);
+      std::ofstream out((cpdir + "/ssrlcv-filtered.ply").c_str(), std::ios::out | std::ios::binary);
+      out << in.rdbuf();
+
+      // Write new matches
+      filteringInput.matchSet.keyPoints->checkpoint(0, cpdir);
+      filteringInput.matchSet.matches->checkpoint(0, cpdir);
+
+      fclose(fopen((cpdir + "/done").c_str(), "w"));
+    }
 
     //
     // BUNDLE ADJUSTMENT
     //
 
-    ssrlcv::BundleAdjustInput bundleAdjustInput = {filteringInput.matchSet, featureGenOutput.images};
-    ssrlcv::BundleAdjustOutput bundleAdjustOutput;
+    bundleAdjustInput.fromPreviousStage(&filteringInput);
+    BUNDLE_ADJUSTMENT:
     ssrlcv::doBundleAdjust(&bundleAdjustInput, &bundleAdjustOutput);
 
+    //
+    // FINAL OUTPUT (no need to checkpoint Bundle Adjustment raw structures as it's the last stage)
+    //
+    if (checkpoint) {
+      std::string cpdir(checkpointRootDir + "/outputs/final");
+      mkdirIfAbsent(cpdir);
+
+      // Copy PLY file from final BA stage
+      std::ifstream in("out/ssrlcv-BA-final.ply", std::ios::in | std::ios::binary);
+      std::ofstream out((cpdir + "/ssrlcv-BA-final.ply").c_str(), std::ios::out | std::ios::binary);
+      out << in.rdbuf();
+
+      // Copy PLY file from filtering checkpoint
+      std::string filtPlyPath = getCheckpointDirForStage(checkpointRootDir, cp_stage::filt) + "/ssrlcv-filtered.ply";
+      std::ifstream inFilt(filtPlyPath.c_str(), std::ios::in | std::ios::binary);
+      std::ofstream outFilt((cpdir + "/ssrlcv-filtered.ply").c_str(), std::ios::out | std::ios::binary);
+      outFilt << inFilt.rdbuf();
+
+      // Copy PLY file from triangulation checkpoint
+      std::string triPlyPath = getCheckpointDirForStage(checkpointRootDir, cp_stage::tri) + "/ssrlcv-initial.ply";
+      std::ifstream inTri(triPlyPath.c_str(), std::ios::in | std::ios::binary);
+      std::ofstream outTri((cpdir + "/ssrlcv-initial.ply").c_str(), std::ios::out | std::ios::binary);
+      outTri << inTri.rdbuf();
+
+      // Copy Log file
+      std::ifstream inLog((checkpointRootDir + "/ssrlcv.log").c_str(), std::ios::in | std::ios::binary);
+      std::ofstream outLog((cpdir + "/ssrlcv.log").c_str(), std::ios::out | std::ios::binary);
+      outLog << inLog.rdbuf();
+    }
 
     // cleanup
     for (ssrlcv::arg_pair p : args) {

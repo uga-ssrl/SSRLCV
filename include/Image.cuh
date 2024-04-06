@@ -111,7 +111,7 @@ namespace ssrlcv{
     * \param filePath - path to image
     * \param id - id of image for referencing with multiple images (optional, defaults to -1)
     */
-    Image(std::string filePath, int id = -1);
+    Image(std::string filePath, int id = -1, bool ignorePixels = false);
 
     /**
     * \brief Constructor utilizing ssrlcv image io and allowing immediate color conversion.

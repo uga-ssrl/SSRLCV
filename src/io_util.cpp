@@ -12,7 +12,8 @@ std::map<std::string, std::string> ssrlcv::cl_args = {
   {"-np","noparams"}, // to disable the requirement of a params.csv or params.bcp file
   {"--noparams","noparams"},  // to disable the requirement of a params.csv or params.bcp file
   {"--epsilon","epsilon"}, // epipolar geometry
-  {"--delta","delta"} // epipolar geometry
+  {"--delta","delta"}, // epipolar geometry
+  {"--cpdir", "cpdir"}, // checkpointing directory
 };
 
 void ssrlcv::toLower(std::string &str){
@@ -113,36 +114,26 @@ void ssrlcv::getFilePaths(std::string dirPath, std::vector<std::string> &paths, 
   std::sort(paths.begin(), paths.end());
   closedir(dir);
 }
-//will be removed soon
-std::vector<std::string> ssrlcv::findFiles(std::string path){
-  std::vector<std::string> imagePaths;
-  if(path.find(".png") != std::string::npos){
-    imagePaths.push_back(path);
-  }
-  else{
-    if(path.substr(path.length() - 1, 1) != "/") path += "/";
-    getImagePaths(path, imagePaths);
-  }
-  return imagePaths;
-}
 
 ssrlcv::img_arg::img_arg(char* path){
   this->path = path;
   if(!fileExists(this->path)){
-    logger.err<<"ERROR: "<<this->path<<" does not exist";
+    logger.err<<"ERROR: "<<this->path.c_str()<<" does not exist";
     exit(-1);
   }
 }
-ssrlcv::img_dir_arg::img_dir_arg(char* path){
-  if(directoryExists(path)){
-    getImagePaths(path,this->paths);
+ssrlcv::img_dir_arg::img_dir_arg(char* path, const char* subpath){
+  this->rootPath = path;
+  std::string imageDir = std::string(path) + subpath;
+  if(directoryExists(imageDir)){
+    getImagePaths(imageDir,this->paths);
     if(this->paths.size() == 0){
-      logger.err<<"ERROR: no images found in "<<path;
+      logger.err<<"ERROR: no images found in "<<imageDir;
       exit(-1);
     }
   }
   else{
-    logger.err<<"ERROR: "<<path<<" does not exist";
+    logger.err<<"ERROR: "<<imageDir<<" does not exist";
     exit(-1);
   }
 }
@@ -182,8 +173,11 @@ std::map<std::string, ssrlcv::arg*> ssrlcv::parseArgs(int numArgs, char* args[])
     else if (temp == "epsilon" || temp == "delta"){
       arg_map.insert(arg_pair(temp, new flt_arg(args[++a])));
     }
+    else if (temp == "cpdir") {
+      arg_map.insert(arg_pair(temp, new img_dir_arg(args[++a], "/images")));
+    }
   }
-  if(arg_map.find("img") == arg_map.end() && arg_map.find("dir") == arg_map.end()){
+  if(arg_map.find("img") == arg_map.end() && arg_map.find("dir") == arg_map.end() && arg_map.find("cpdir") == arg_map.end()){
     logger.err<<"ERROR must include atleast one image other than seed for processing";
     logger.err<<"USAGE ./bin/<executable> -d </path/to/image/directory/> -i </path/to/image> -s </path/to/seed/image>";
     exit(0);

@@ -1,6 +1,19 @@
 #include "Pipeline.cuh"
 
-void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::FeatureGenerationOutput *out) {
+  template <typename T>
+  std::string getCheckpoint(std::string directory, int id) {
+    return directory + "/" + std::to_string(id) + "_" + typeid(T).name() + ".uty";
+  }
+
+  std::string getImgCheckpoint(std::string directory, int id) {
+    return directory + "/" + std::to_string(id) + "_" + typeid(ssrlcv::Image).name() + ".cpimg";
+  }
+
+  //////////////////////////////
+  // FEATURE GENERATION
+  //////////////////////////////
+
+  void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::FeatureGenerationOutput *out) {
     ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1.5f,6.0f);
   
     logger.logState("SEED");
@@ -35,6 +48,31 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
     }
     logger.logState("FEATURES");
   
+  }
+
+  //////////////////////////////
+  // FEATURE MATCHING
+  //////////////////////////////
+
+  void ssrlcv::FeatureMatchingInput::fromCheckpoint(std::string cpdir, int numImages, float epsilon, float delta) {
+    struct stat buf;
+    std::string seedCpPath = getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(cpdir, -1);
+    if (stat(seedCpPath.c_str(), &buf) == 0) {
+      seedFeatures = seedCpPath;
+    }
+    for (int i = 0; i < numImages; i ++) {
+      images.push_back(ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(cpdir, i), i));
+      allFeatures.push_back(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(cpdir, i));
+    }
+    this->epsilon = epsilon;
+    this->delta = delta;
+  }
+  void ssrlcv::FeatureMatchingInput::fromFeatureGeneration(FeatureGenerationOutput *featureGenOutput, float epsilon, float delta) {
+    this->seedFeatures = featureGenOutput->seedFeatures;
+    this->allFeatures = featureGenOutput->allFeatures;
+    this->images = featureGenOutput->images;
+    this->epsilon = epsilon;
+    this->delta = delta;
   }
   
   void ssrlcv::doFeatureMatching(ssrlcv::FeatureMatchingInput *in, ssrlcv::FeatureMatchingOutput *out) {
@@ -104,7 +142,24 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
     logger.logState("MATCHING");
   
   }
-  
+
+  //////////////////////////////
+  // TRIANGULATION
+  //////////////////////////////
+
+  void ssrlcv::TriangulationInput::fromCheckpoint(std::string featureGenDir, std::string featureMatchDir, int numImages) {
+    for (int i = 0; i < numImages; i ++) {
+      images.push_back(ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(featureGenDir, i), i, true));
+    }
+    matchSet.keyPoints = getCheckpoint<ssrlcv::KeyPoint>(featureMatchDir, 0);
+    matchSet.matches = getCheckpoint<ssrlcv::MultiMatch>(featureMatchDir, 0);
+  }
+
+  void ssrlcv::TriangulationInput::fromPreviousStage(FeatureMatchingInput *featureMatchingInput, FeatureMatchingOutput *featureMatchingOutput) {
+    this->images = featureMatchingInput->images;
+    this->matchSet = featureMatchingOutput->matchSet;
+  }
+
   void ssrlcv::doTriangulation(ssrlcv::TriangulationInput *in, ssrlcv::TriangulationOutput *out) {
     ssrlcv::PointCloudFactory pointCloudFactory = ssrlcv::PointCloudFactory();
     typedef ssrlcv::ptr::value<ssrlcv::Unity<float3>> (ssrlcv::PointCloudFactory::*TriFunc)(ssrlcv::BundleSet, float*);
@@ -121,11 +176,25 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
     ss << "\tUnfiltered Error: " << std::fixed << std::setprecision(12) << error;
     logger.info << ss.str();
 
-    ssrlcv::MeshFactory meshFactory;
-    meshFactory.setPoints(out->points);
-    meshFactory.savePoints("ssrlcv-initial");
-  
+    ssrlcv::writePLY("ssrlcv-initial", out->points);
     logger.logState("TRIANGULATE");
+  }
+
+  //////////////////////////////
+  // FILTERING
+  //////////////////////////////
+
+  void ssrlcv::FilteringInput::fromCheckpoint(std::string featureGenDir, std::string featureMatchDir, int numImages) {
+    for (int i = 0; i < numImages; i ++) {
+      images.push_back(ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(featureGenDir, i), i, true));
+    }
+    matchSet.keyPoints = getCheckpoint<ssrlcv::KeyPoint>(featureMatchDir, 0);
+    matchSet.matches = getCheckpoint<ssrlcv::MultiMatch>(featureMatchDir, 0);
+  }
+
+  void ssrlcv::FilteringInput::fromPreviousStage(TriangulationInput *triangulationInput) {
+    this->images = triangulationInput->images;
+    this->matchSet = triangulationInput->matchSet;
   }
   
   void ssrlcv::doFiltering(ssrlcv::FilteringInput *in, ssrlcv::FilteringOutput *out) {
@@ -183,6 +252,23 @@ void ssrlcv::doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::Fea
   
     logger.logState("FILTER");
   
+  }
+
+  //////////////////////////////
+  // BUNDLE ADJUSTMENT
+  //////////////////////////////
+
+  void ssrlcv::BundleAdjustInput::fromCheckpoint(std::string featureGenDir, std::string filteringDir, int numImages) {
+    for (int i = 0; i < numImages; i ++) {
+      images.push_back(ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(featureGenDir, i), i, true));
+    }
+    matchSet.keyPoints = getCheckpoint<ssrlcv::KeyPoint>(filteringDir, 0);
+    matchSet.matches = getCheckpoint<ssrlcv::MultiMatch>(filteringDir, 0);
+  }
+
+  void ssrlcv::BundleAdjustInput::fromPreviousStage(FilteringInput *filteringInput) {
+    this->images = filteringInput->images;
+    this->matchSet = filteringInput->matchSet;
   }
   
   void ssrlcv::doBundleAdjust(ssrlcv::BundleAdjustInput *in, ssrlcv::BundleAdjustOutput *out) {

@@ -33,10 +33,13 @@ namespace ssrlcv {
 
     struct FeatureMatchingInput {
         ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures;
-        const std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
-        const std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
+        std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
+        std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
         float epsilon; // pixel buffer around 2D epipolar line
         float delta; // kilometer buffer above and below line segment in 3D space
+
+        void fromCheckpoint(std::string cpdir, int numImages, float epsilon, float delta);
+        void fromFeatureGeneration(FeatureGenerationOutput *featureGenOutput, float epsilon, float delta);
     };
 
     struct FeatureMatchingOutput {
@@ -51,7 +54,10 @@ namespace ssrlcv {
 
     struct TriangulationInput {
         ssrlcv::MatchSet matchSet;
-        const std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
+        std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
+
+        void fromCheckpoint(std::string featureGenDir, std::string featureMatchDir, int numImages);
+        void fromPreviousStage(FeatureMatchingInput *featureMatchingInput, FeatureMatchingOutput *featureMatchingOutput);
     };
 
     struct TriangulationOutput {
@@ -66,7 +72,10 @@ namespace ssrlcv {
 
     struct FilteringInput {
         ssrlcv::MatchSet matchSet;
-        const std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
+        std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
+
+        void fromCheckpoint(std::string featureGenDir, std::string featureMatchDir, int numImages);
+        void fromPreviousStage(TriangulationInput *triangulationInput);
     };
 
     struct FilteringOutput {
@@ -81,7 +90,10 @@ namespace ssrlcv {
 
     struct BundleAdjustInput {
         ssrlcv::MatchSet matchSet;
-        const std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
+        std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
+
+        void fromCheckpoint(std::string featureGenDir, std::string filteringDir, int numImages);
+        void fromPreviousStage(FilteringInput *filteringInput);
     };
 
     struct BundleAdjustOutput {

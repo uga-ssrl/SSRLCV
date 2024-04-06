@@ -45,7 +45,7 @@ ssrlcv::Image::Image(uint2 size, unsigned int colorDepth, ssrlcv::ptr::value<ssr
   this->size = size;
 }
 
-ssrlcv::Image::Image(std::string filePath, int id) {
+ssrlcv::Image::Image(std::string filePath, int id, bool ignorePixels) {
   if (getFileExtension(filePath) == "cpimg") {
     std::ifstream cp(filePath.c_str(), std::ifstream::binary);
     char buf[sizeof(ssrlcv::Image)];
@@ -55,8 +55,10 @@ ssrlcv::Image::Image(std::string filePath, int id) {
     this->size = ((ssrlcv::Image *)buf)->size;
     this->colorDepth = ((ssrlcv::Image *)buf)->colorDepth;
     this->pushbroom = ((ssrlcv::Image *)buf)->pushbroom;
-    ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> thing(getFolderFromFilePath(filePath) + "/pixels/" + std::to_string(this->id) + "_" + typeid(unsigned char).name() + ".uty");
-    this->pixels = thing;
+    if (!ignorePixels) {
+      ssrlcv::ptr::value<ssrlcv::Unity<unsigned char>> thing(getFolderFromFilePath(filePath) + "/pixels/" + std::to_string(this->id) + "_" + typeid(unsigned char).name() + ".uty");
+      this->pixels = thing;
+    }
     cp.close();
     return;
   }

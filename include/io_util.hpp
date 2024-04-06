@@ -98,7 +98,8 @@ struct arg
    */
   struct img_dir_arg : public arg{
     std::vector<std::string> paths;
-    img_dir_arg(char* path);
+    std::string rootPath;
+    img_dir_arg(char* path, const char* subpath = "");
     ~img_dir_arg(){};
   };
   /**
@@ -119,8 +120,6 @@ struct arg
   };
 
   typedef std::pair<std::string, arg*> arg_pair;
-
-  std::vector<std::string> findFiles(std::string path);//going to be deprecated
 
   /**
    * \brief Parses command line arguments into a map that can be easily processed in main().
