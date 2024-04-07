@@ -51,26 +51,121 @@
   }
 
   //////////////////////////////
-  // FEATURE MATCHING
+  // POSE ESTIMATION
   //////////////////////////////
 
-  void ssrlcv::FeatureMatchingInput::fromCheckpoint(std::string cpdir, int numImages, float epsilon, float delta) {
+  void ssrlcv::PoseEstimationInput::fromCheckpoint(std::string featureGenDirectory, int numImages) {
     struct stat buf;
-    std::string seedCpPath = getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(cpdir, -1);
+    std::string seedCpPath = getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(featureGenDirectory, -1);
     if (stat(seedCpPath.c_str(), &buf) == 0) {
       seedFeatures = seedCpPath;
     }
     for (int i = 0; i < numImages; i ++) {
-      images.push_back(ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(cpdir, i), i));
-      allFeatures.push_back(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(cpdir, i));
+      images.push_back(ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(featureGenDirectory, i), i, true));
+      allFeatures.push_back(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(featureGenDirectory, i));
     }
-    this->epsilon = epsilon;
-    this->delta = delta;
   }
-  void ssrlcv::FeatureMatchingInput::fromFeatureGeneration(FeatureGenerationOutput *featureGenOutput, float epsilon, float delta) {
+  void ssrlcv::PoseEstimationInput::fromPreviousStage(FeatureGenerationOutput *featureGenOutput) {
     this->seedFeatures = featureGenOutput->seedFeatures;
     this->allFeatures = featureGenOutput->allFeatures;
     this->images = featureGenOutput->images;
+  }
+
+  void ssrlcv::doPoseEstimation(ssrlcv::PoseEstimationInput *in, ssrlcv::PoseEstimationOutput *out) {
+    logger.info << "Starting pose estimation...";
+    logger.logState("POSE");
+
+    // TODO: Put in loop for N-View (only works for 2-view right now)
+
+    //ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches(std::string("tmp/0_N6ssrlcv5MatchE.uty"));
+
+    ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,10.0f*10.0f);
+
+    if (in->seedFeatures != nullptr)
+      matchFactory.setSeedFeatures(in->seedFeatures);
+
+    out->seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
+
+    logger.logState("done generating seed matches");
+
+    logger.logState("matching images");
+    //ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches = matchFactory.generateMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], out->seedDistances);
+    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches = matchFactory.generateMatchesDoubleConstrained(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], 100, 3, out->seedDistances);
+    logger.logState("done matching images");
+
+    //matches->checkpoint(0, "tmp/");
+
+
+    matches->transferMemoryTo(ssrlcv::cpu);
+    ssrlcv::PoseEstimator estim(in->images.at(0), in->images.at(1), matches);
+    //ssrlcv::Pose pose = estim.estimatePoseRANSAC();
+
+    ssrlcv::Pose pose;
+
+    float3 pos = in->images.at(0)->camera.cam_pos - in->images.at(1)->camera.cam_pos;
+    pos = rotatePointArbitrary(pos, {0, 0, 1}, - in->images.at(0)->camera.cam_rot.z);
+    pos = rotatePointArbitrary(pos, {0, 1, 0}, - in->images.at(0)->camera.cam_rot.y);
+    pos = rotatePointArbitrary(pos, {1, 0, 0}, - in->images.at(0)->camera.cam_rot.x);
+    pose.x = pos.x;
+    pose.y = pos.y;
+    pose.z = pos.z;
+
+    float C0[3][3], C0t[3][3], C1[3][3], relative[3][3];
+    ssrlcv::getRotationMatrix(in->images.at(0)->camera.cam_rot, C0);
+    ssrlcv::transpose(C0, C0t);
+    ssrlcv::getRotationMatrix(in->images.at(1)->camera.cam_rot, C1);
+    ssrlcv::multiply(C0t, C1, relative);
+    float3 rot = ssrlcv::getAxisRotations(relative);
+    pose.roll = rot.x;
+    pose.pitch = rot.y;
+    pose.yaw = rot.z;
+    printf("Original pose: %f %f %f\n", pose.roll, pose.pitch, pose.yaw);
+
+    estim.LM_optimize(&pose);
+
+
+    float R1[3][3], R2[3][3], R[3][3];
+    logger.info.printf("Original Position: %f %f %f", in->images.at(1)->camera.cam_pos.x, in->images.at(1)->camera.cam_pos.y, in->images.at(1)->camera.cam_pos.z);
+    in->images.at(1)->camera.cam_pos = in->images.at(0)->camera.cam_pos + ssrlcv::rotatePoint({1000 * pose.x, 1000 * pose.y, 1000 * pose.z}, in->images.at(0)->camera.cam_rot);
+    ssrlcv::getRotationMatrix({pose.roll, pose.pitch, pose.yaw}, R1);
+    ssrlcv::getRotationMatrix(in->images.at(0)->camera.cam_rot, R2);
+    ssrlcv::multiply(R2, R1, R);
+    in->images.at(1)->camera.cam_rot = ssrlcv::getAxisRotations(R);
+    logger.info.printf("Rotation: %f %f %f", in->images.at(1)->camera.cam_rot.x, in->images.at(1)->camera.cam_rot.y, in->images.at(1)->camera.cam_rot.z);
+    logger.info.printf("Position: %f %f %f", in->images.at(1)->camera.cam_pos.x, in->images.at(1)->camera.cam_pos.y, in->images.at(1)->camera.cam_pos.z);
+
+    logger.logState("POSE");
+  }
+
+  //////////////////////////////
+  // FEATURE MATCHING
+  //////////////////////////////
+
+  void ssrlcv::FeatureMatchingInput::fromCheckpoint(std::string featureGenDirectory, std::string poseDirectory, int numImages, float epsilon, float delta) {
+    struct stat buf;
+    std::string seedCpPath = getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(featureGenDirectory, -1);
+    if (stat(seedCpPath.c_str(), &buf) == 0) {
+      seedFeatures = seedCpPath;
+    }
+    for (int i = 0; i < numImages; i ++) {
+      images.push_back(ssrlcv::ptr::value<ssrlcv::Image>(getImgCheckpoint(featureGenDirectory, i), i, true));
+      allFeatures.push_back(getCheckpoint<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>(featureGenDirectory, i));
+    }
+    this->epsilon = epsilon;
+    this->delta = delta;
+    // Pose estimation only supported in 2 view
+    if (numImages == 2) {
+      std::string seedDistPath = getCheckpoint<float>(poseDirectory, 0);
+      if (stat(seedDistPath.c_str(), &buf) == 0) {
+        seedDistances = seedDistPath;
+      }
+    }
+  }
+  void ssrlcv::FeatureMatchingInput::fromPreviousStage(PoseEstimationInput *poseInput, PoseEstimationOutput *poseOutput, float epsilon, float delta) {
+    this->seedFeatures = poseInput->seedFeatures;
+    this->allFeatures = poseInput->allFeatures;
+    this->images = poseInput->images;
+    this->seedDistances = poseOutput->seedDistances;
     this->epsilon = epsilon;
     this->delta = delta;
   }
@@ -82,19 +177,21 @@
     // logger.logState("generating seed matches");
     if (in->seedFeatures != nullptr)
       matchFactory.setSeedFeatures(in->seedFeatures);
+
+    if (in->seedDistances == nullptr)
+      in->seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
   
     if (in->images.size() == 2){
       //
       // 2 View Case
       //
-      ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = (in->seedFeatures != nullptr) ? matchFactory.getSeedDistances(in->allFeatures[0]) : nullptr;
       logger.logState("done generating seed matches");
 
       logger.logState("matching images");
       #if GEO_ORBIT == 1
-        ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatchesDoubleConstrained(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], in->epsilon, in->delta, seedDistances);
+        ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatchesDoubleConstrained(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], in->epsilon, in->delta, in->seedDistances);
       #else
-        ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], seedDistances);
+        ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(in->images[0], in->allFeatures[0], in->images[1], in->allFeatures[1], in->seedDistances);
       #endif
       logger.logState("done matching images");
     

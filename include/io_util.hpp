@@ -118,6 +118,14 @@ struct arg
     int_arg(char* val);
     ~int_arg(){};
   };
+  /**
+   * \brief arg containing a boolean value
+   */
+  struct bool_arg : public arg{
+    bool val;
+    bool_arg(bool val);
+    ~bool_arg(){};
+  };
 
   typedef std::pair<std::string, arg*> arg_pair;
 

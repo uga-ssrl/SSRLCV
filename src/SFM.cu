@@ -39,10 +39,11 @@ void safeShutdown(int sig){
 
 enum cp_stage {
   fg = 1, // feature generation
-  fm = 2, // feature matching
-  tri = 3, // triangulation
-  filt = 4, // filtering
-  ba = 5 // bundle adjustment
+  pose = 2, // pose estimation
+  fm = 3, // feature matching
+  tri = 4, // triangulation
+  filt = 5, // filtering
+  ba = 6 // bundle adjustment
 };
 
 std::string getCheckpointDirForStage(std::string rootDir, int stage) {
@@ -99,6 +100,8 @@ int main(int argc, char *argv[]){
       mkdirIfAbsent(checkpointRootDir + "/outputs");
     }
 
+    bool doPose = args.find("pose") != args.end();
+
     std::string seedPath;
     if(args.find("seed") != args.end()){
       seedPath = ((ssrlcv::img_arg *)args["seed"])->path;
@@ -106,6 +109,12 @@ int main(int argc, char *argv[]){
     std::vector<std::string> imagePaths = imageDir->paths;
     int numImages = (int) imagePaths.size();
     logger.info.printf("Found %d images in directory given", numImages);
+
+    if (numImages > 2 && doPose) {
+      logger.err << "Pose estimation is not currently supported for more than 2 images";
+      exit(-1);
+    }
+
     logger.logState("SEED");
 
     // off-precision distance for epipolar matching (in pixels)
@@ -126,6 +135,8 @@ int main(int argc, char *argv[]){
 
     ssrlcv::FeatureGenerationInput featureGenInput = {seedPath, imagePaths, numImages};
     ssrlcv::FeatureGenerationOutput featureGenOutput;
+    ssrlcv::PoseEstimationInput poseInput;
+    ssrlcv::PoseEstimationOutput poseOutput;
     ssrlcv::FeatureMatchingInput featureMatchInput;
     ssrlcv::FeatureMatchingOutput featureMatchOutput;
     ssrlcv::TriangulationInput triangulationInput;
@@ -148,8 +159,20 @@ int main(int argc, char *argv[]){
         case cp_stage::fg: // Feature generation
           // nothing checkpointed yet, continue as normal (start with feature generation)
           break;
+        case cp_stage::pose:
+          poseInput.fromCheckpoint(
+            getCheckpointDirForStage(checkpointRootDir, cp_stage::fg),
+            numImages
+          );
+          goto POSE_ESTIMATION;
         case cp_stage::fm: // Feature matching
-          featureMatchInput.fromCheckpoint(getCheckpointDirForStage(checkpointRootDir, cp_stage::fg), numImages, epsilon, delta);
+          featureMatchInput.fromCheckpoint(
+            getCheckpointDirForStage(checkpointRootDir, cp_stage::fg), 
+            getCheckpointDirForStage(checkpointRootDir, cp_stage::pose),
+            numImages,
+            epsilon,
+            delta
+          );
           goto FEATURE_MATCHING;
         case cp_stage::tri:
           triangulationInput.fromCheckpoint(
@@ -191,8 +214,31 @@ int main(int argc, char *argv[]){
         featureGenOutput.seedFeatures->checkpoint(-1, cpdir);
       }
       for (int i = 0; i < numImages; i ++) {
-        featureGenOutput.images.at(i)->checkpoint(cpdir);
+        featureGenOutput.images.at(i)->checkpoint(cpdir, false);
         featureGenOutput.allFeatures.at(i)->checkpoint(i, cpdir);
+      }
+      fclose(fopen((cpdir + "/done").c_str(), "w"));
+    }
+
+    //
+    // POSE ESTIMATION
+    //
+
+    poseInput.fromPreviousStage(&featureGenOutput);
+    POSE_ESTIMATION:
+    if (doPose) {
+      ssrlcv::doPoseEstimation(&poseInput, &poseOutput);
+    }
+    if (checkpoint) {
+      std::string cpdir = getCheckpointDirForStage(checkpointRootDir, cp_stage::pose);
+      mkdirIfAbsent(cpdir);
+      std::string fgDir = getCheckpointDirForStage(checkpointRootDir, cp_stage::fg);
+      if (doPose) {
+        if (poseOutput.seedDistances != nullptr) poseOutput.seedDistances->checkpoint(0, cpdir);
+        // Cameras in `images` changed, so write that back to the previous checkpoint directory
+        for (int i = 0; i < numImages; i ++) {
+          poseInput.images.at(i)->checkpoint(fgDir);
+        }
       }
       fclose(fopen((cpdir + "/done").c_str(), "w"));
     }
@@ -201,7 +247,7 @@ int main(int argc, char *argv[]){
     // FEATURE MATCHING
     //
 
-    featureMatchInput.fromFeatureGeneration(&featureGenOutput, epsilon, delta);
+    featureMatchInput.fromPreviousStage(&poseInput, &poseOutput, epsilon, delta);
     FEATURE_MATCHING:
     ssrlcv::doFeatureMatching(&featureMatchInput, &featureMatchOutput);
     if (checkpoint) {
@@ -257,7 +303,9 @@ int main(int argc, char *argv[]){
 
     bundleAdjustInput.fromPreviousStage(&filteringInput);
     BUNDLE_ADJUSTMENT:
-    ssrlcv::doBundleAdjust(&bundleAdjustInput, &bundleAdjustOutput);
+    if(!doPose) {
+      ssrlcv::doBundleAdjust(&bundleAdjustInput, &bundleAdjustOutput);
+    }
 
     //
     // FINAL OUTPUT (no need to checkpoint Bundle Adjustment raw structures as it's the last stage)
@@ -266,10 +314,12 @@ int main(int argc, char *argv[]){
       std::string cpdir(checkpointRootDir + "/outputs/final");
       mkdirIfAbsent(cpdir);
 
-      // Copy PLY file from final BA stage
-      std::ifstream in("out/ssrlcv-BA-final.ply", std::ios::in | std::ios::binary);
-      std::ofstream out((cpdir + "/ssrlcv-BA-final.ply").c_str(), std::ios::out | std::ios::binary);
-      out << in.rdbuf();
+      if (!doPose) {
+        // Copy PLY file from final BA stage
+        std::ifstream in("out/ssrlcv-BA-final.ply", std::ios::in | std::ios::binary);
+        std::ofstream out((cpdir + "/ssrlcv-BA-final.ply").c_str(), std::ios::out | std::ios::binary);
+        out << in.rdbuf();
+      }
 
       // Copy PLY file from filtering checkpoint
       std::string filtPlyPath = getCheckpointDirForStage(checkpointRootDir, cp_stage::filt) + "/ssrlcv-filtered.ply";
