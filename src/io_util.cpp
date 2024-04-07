@@ -13,7 +13,8 @@ std::map<std::string, std::string> ssrlcv::cl_args = {
   {"--noparams","noparams"},  // to disable the requirement of a params.csv or params.bcp file
   {"--epsilon","epsilon"}, // epipolar geometry
   {"--delta","delta"}, // epipolar geometry
-  {"--cpdir", "cpdir"}, // checkpointing directory
+  {"--cpdir", "cpdir"}, // checkpointing 
+  {"--pose", "pose"}, // enable pose estimation
 };
 
 void ssrlcv::toLower(std::string &str){
@@ -146,6 +147,10 @@ ssrlcv::int_arg::int_arg(char* val){
   this->val = std::stoi(val);
 }
 
+ssrlcv::bool_arg::bool_arg(bool val){
+  this->val = val;
+}
+
 /*
  * Arguments from the main executable are parsed here. These are set above in the cl_args map
  * @param
@@ -175,6 +180,9 @@ std::map<std::string, ssrlcv::arg*> ssrlcv::parseArgs(int numArgs, char* args[])
     }
     else if (temp == "cpdir") {
       arg_map.insert(arg_pair(temp, new img_dir_arg(args[++a], "/images")));
+    }
+    else if (temp == "pose") {
+      arg_map.insert(arg_pair(temp, new bool_arg(true)));
     }
   }
   if(arg_map.find("img") == arg_map.end() && arg_map.find("dir") == arg_map.end() && arg_map.find("cpdir") == arg_map.end()){

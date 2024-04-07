@@ -6,6 +6,7 @@
 #include "MatchFactory.cuh"
 #include "PointCloudFactory.cuh"
 #include "MeshFactory.cuh"
+#include "PoseEstimator.cuh"
 
 namespace ssrlcv {
 
@@ -27,6 +28,27 @@ namespace ssrlcv {
 
     void doFeatureGeneration(ssrlcv::FeatureGenerationInput *in, ssrlcv::FeatureGenerationOutput *out);
 
+
+    //
+    // POSE ESTIMATION
+    //
+
+    struct PoseEstimationInput {
+        ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures;
+        std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
+        std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
+
+        void fromCheckpoint(std::string featureGenDir, int numImages);
+        void fromPreviousStage(FeatureGenerationOutput *featureGenOutput);
+    };
+
+    struct PoseEstimationOutput {
+        ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr;
+    };
+
+    
+    void doPoseEstimation(ssrlcv::PoseEstimationInput *in, ssrlcv::PoseEstimationOutput *out);
+
     //
     // FEATURE MATCHING
     //
@@ -35,11 +57,12 @@ namespace ssrlcv {
         ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures;
         std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
         std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
+        ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances;
         float epsilon; // pixel buffer around 2D epipolar line
         float delta; // kilometer buffer above and below line segment in 3D space
 
-        void fromCheckpoint(std::string cpdir, int numImages, float epsilon, float delta);
-        void fromFeatureGeneration(FeatureGenerationOutput *featureGenOutput, float epsilon, float delta);
+        void fromCheckpoint(std::string featureGenDirectory, std::string poseDirectory, int numImages, float epsilon, float delta);
+        void fromPreviousStage(PoseEstimationInput *poseInput, PoseEstimationOutput *poseOutput, float epsilon, float delta);
     };
 
     struct FeatureMatchingOutput {

@@ -261,6 +261,11 @@ namespace ssrlcv{
      * \warning If bad fundamental matrix between two images, matches will be very bad. 
      */
     ssrlcv::ptr::value<ssrlcv::Unity<Match>> generateMatchesConstrained(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, float fundamental[3][3], ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
+    /**
+     * \brief \brief Generates DMatches between Feature<Descriptor> when Descriptor::distProtocol() is 
+     * implemented with strong epipolar constraints
+     */
+    ssrlcv::ptr::value<ssrlcv::Unity<Match>> generateMatchesDoubleConstrained(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, float delta, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
 
 
     /**
@@ -273,8 +278,7 @@ namespace ssrlcv{
      */
     ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> generateDistanceMatchesConstrained(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, float fundamental[3][3], ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
     /**
-     * \brief Generates DMatches between Feature<Descriptor> when Descriptor::distProtocol() is implemented with strong epipolar constraints (ONLY WORKS FROM ORBIT)
-     * \warning If bad fundamental matrix between two images, matches will be very bad. 
+     * \brief Generates DMatches between Feature<Descriptor> when Descriptor::distProtocol() is implemented with strong epipolar constraints
      */
     ssrlcv::ptr::value<ssrlcv::Unity<DMatch>> generateDistanceMatchesDoubleConstrained(ssrlcv::ptr::value<Image> query, ssrlcv::ptr::value<Unity<Feature<T>>> queryFeatures, ssrlcv::ptr::value<Image> target, ssrlcv::ptr::value<Unity<Feature<T>>> targetFeatures, float epsilon, float delta, ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = nullptr);
     
@@ -356,6 +360,10 @@ namespace ssrlcv{
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
     Feature<T>* featuresTarget, Match* matches, float epsilon, float* fundamental, float absoluteThreshold);
   template<typename T>
+  __global__ void matchFeaturesDoubleConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, Match* matches, float epsilon, float delta, Image::Camera *queryCamera, float4 *targetProjection, float absoluteThreshold);
+  template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
     Feature<T>* featuresTarget, Match* matches, float* seedDistances ,float relativeThreshold, float absoluteThreshold);
@@ -363,7 +371,10 @@ namespace ssrlcv{
   __global__ void matchFeaturesConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
     Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
     Feature<T>* featuresTarget, Match* matches, float epsilon, float* fundamental, float* seedDistances ,float relativeThreshold, float absoluteThreshold);
-
+  template<typename T>
+  __global__ void matchFeaturesDoubleConstrained(unsigned int queryImageID, unsigned long numFeaturesQuery,
+    Feature<T>* featuresQuery, unsigned int targetImageID, unsigned long numFeaturesTarget,
+    Feature<T>* featuresTarget, Match* matches, float epsilon, float delta, Image::Camera *queryCamera, float4 *targetProjection, float* seedDistances, float relativeThreshold, float absoluteThreshold);
 
   template<typename T>
   __global__ void matchFeaturesBruteForce(unsigned int queryImageID, unsigned long numFeaturesQuery,

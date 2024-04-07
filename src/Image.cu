@@ -151,11 +151,17 @@ ssrlcv::Image::Image(std::string filePath, int id, bool ignorePixels) {
               getline(file,value,',');
               this->camera.cam_pos.z = std::atof(value.c_str());
               getline(file,value,',');
-              this->camera.cam_rot.x = std::atof(value.c_str());
-              getline(file,value,',');
-              this->camera.cam_rot.y = std::atof(value.c_str());
-              getline(file,value,',');
-              this->camera.cam_rot.z = std::atof(value.c_str());
+              if (value == "-") {
+                getline(file,value,',');
+                getline(file,value,',');
+                this->camera.no_rot = true;
+              } else {
+                this->camera.cam_rot.x = std::atof(value.c_str());
+                getline(file,value,',');
+                this->camera.cam_rot.y = std::atof(value.c_str());
+                getline(file,value,',');
+                this->camera.cam_rot.z = std::atof(value.c_str());
+              }
               getline(file,value,',');
               this->camera.fov.x     = std::atof(value.c_str());
               getline(file,value,',');
@@ -265,7 +271,7 @@ ssrlcv::Image::Image(std::string filePath, int id, bool ignorePixels) {
   logger.info << "filePath: " + filePath;
 }
 
-void ssrlcv::Image::checkpoint(std::string dirPath) {
+void ssrlcv::Image::checkpoint(std::string dirPath, bool ignorePixels) {
   std::string path = dirPath + std::to_string(this->id) + "_" + typeid(ssrlcv::Image).name() + ".cpimg";
   std::ofstream cp(path.c_str(), std::ofstream::binary);
   size_t hash_code = typeid(ssrlcv::Image).hash_code();
@@ -290,8 +296,10 @@ void ssrlcv::Image::checkpoint(std::string dirPath) {
     path = "could not open for writing: " + path;
     throw ssrlcv::CheckpointException(path);
   }
-  mkdir((dirPath + "/pixels").c_str(), 0755);
-  this->pixels->checkpoint(this->id, dirPath + "/pixels/");
+  if (!ignorePixels) {
+    mkdir((dirPath + "/pixels").c_str(), 0755);
+    this->pixels->checkpoint(this->id, dirPath + "/pixels/");
+  }
 }
 
 ssrlcv::Image::Image(std::string filePath, unsigned int convertColorDepthTo, int id){
@@ -485,40 +493,41 @@ ssrlcv::ptr::value<ssrlcv::Unity<float>> ssrlcv::Image::getExtrinsicDifference(C
  * onto this image's camera (as a point in homogenous R2)
  * 
  * @param P pass-by-value matrix that is set to the projection matrix
+ * @param image the Image whose projection matrix to compute
  */
-void ssrlcv::Image::getProjectionMatrix(float4 (&P)[3]) {
+void ssrlcv::getProjectionMatrix(float4 (&P)[3], ssrlcv::Image::Camera* camera) {
   float3 K[3];
   float4 R[3];
 
-  K[0] = {this->camera.foc / this->camera.dpix.x, 0, this->size.x / 2.0f};
-  K[1] = {0, this->camera.foc / this->camera.dpix.y, this->size.y / 2.0f};
+  K[0] = {camera->foc / camera->dpix.x, 0, camera->size.x / 2.0f};
+  K[1] = {0, camera->foc / camera->dpix.y, camera->size.y / 2.0f};
   K[2] = {0, 0, 1};
 
   R[0] = {
-    cosf(this->camera.cam_rot.z) * cosf(this->camera.cam_rot.y),
-    sinf(this->camera.cam_rot.z) * cosf(this->camera.cam_rot.y),
-    -1 * sinf(this->camera.cam_rot.y),
+    cosf(camera->cam_rot.z) * cosf(camera->cam_rot.y),
+    sinf(camera->cam_rot.z) * cosf(camera->cam_rot.y),
+    -1 * sinf(camera->cam_rot.y),
     0
   };
 
   R[1] = {
-    cosf(this->camera.cam_rot.z) * sinf(this->camera.cam_rot.y) * sinf(this->camera.cam_rot.x) - sinf(this->camera.cam_rot.z) * cosf(this->camera.cam_rot.x),
-    sinf(this->camera.cam_rot.z) * sinf(this->camera.cam_rot.y) * sinf(this->camera.cam_rot.x) + cosf(this->camera.cam_rot.z) * cosf(this->camera.cam_rot.x),
-    cosf(this->camera.cam_rot.y) * sinf(this->camera.cam_rot.x),
+    cosf(camera->cam_rot.z) * sinf(camera->cam_rot.y) * sinf(camera->cam_rot.x) - sinf(camera->cam_rot.z) * cosf(camera->cam_rot.x),
+    sinf(camera->cam_rot.z) * sinf(camera->cam_rot.y) * sinf(camera->cam_rot.x) + cosf(camera->cam_rot.z) * cosf(camera->cam_rot.x),
+    cosf(camera->cam_rot.y) * sinf(camera->cam_rot.x),
     0
   };
 
   R[2] = {
-    cosf(this->camera.cam_rot.z) * sinf(this->camera.cam_rot.y) * cosf(this->camera.cam_rot.x) + sinf(this->camera.cam_rot.z) * sinf(this->camera.cam_rot.x),
-    sinf(this->camera.cam_rot.z) * sinf(this->camera.cam_rot.y) * cosf(this->camera.cam_rot.x) - cosf(this->camera.cam_rot.z) * sinf(this->camera.cam_rot.x),
-    cosf(this->camera.cam_rot.y) * cosf(this->camera.cam_rot.x),
+    cosf(camera->cam_rot.z) * sinf(camera->cam_rot.y) * cosf(camera->cam_rot.x) + sinf(camera->cam_rot.z) * sinf(camera->cam_rot.x),
+    sinf(camera->cam_rot.z) * sinf(camera->cam_rot.y) * cosf(camera->cam_rot.x) - cosf(camera->cam_rot.z) * sinf(camera->cam_rot.x),
+    cosf(camera->cam_rot.y) * cosf(camera->cam_rot.x),
     0
   };
 
   float3 ecef_cent = {
-    this->camera.cam_pos.x + this->camera.ecef_offset.x,
-    this->camera.cam_pos.y + this->camera.ecef_offset.y,
-    this->camera.cam_pos.z + this->camera.ecef_offset.z
+    camera->cam_pos.x + camera->ecef_offset.x,
+    camera->cam_pos.y + camera->ecef_offset.y,
+    camera->cam_pos.z + camera->ecef_offset.z
   };
 
   for (int i = 0; i < 3; i ++) {
