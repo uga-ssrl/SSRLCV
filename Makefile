@@ -76,6 +76,7 @@ _BASE_OBJS += Octree.cu.o
 _BASE_OBJS += PointCloudFactory.cu.o
 _BASE_OBJS += MeshFactory.cu.o
 _BASE_OBJS += Pipeline.cu.o
+_BASE_OBJS += PoseEstimator.cu.o
 _SFM_OBJS = SFM.cu.o
 _TEST_OBJS += Pipeline.cu.o
 _T_OBJS += Tester.cu.o
