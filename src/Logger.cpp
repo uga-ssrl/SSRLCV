@@ -14,7 +14,7 @@ ssrlcv::Logger logger = ssrlcv::Logger("out");
  * Default constructor
  */
 ssrlcv::Logger::Logger(){
-  this->logPath = "./out";
+  this->logPath = "~/out";
   // check if the log file exists
   this->logFileLocation = this->logPath + "/" + this->logName;
   std::ifstream exist(this->logFileLocation.c_str());
