@@ -1,7 +1,7 @@
 #include "Logger.hpp"
 
 // log in the out directory;
-ssrlcv::Logger logger = ssrlcv::Logger("out");
+ssrlcv::Logger logger = ssrlcv::Logger("~/out");
 
 // =============================================================================================================
 //
@@ -14,7 +14,7 @@ ssrlcv::Logger logger = ssrlcv::Logger("out");
  * Default constructor
  */
 ssrlcv::Logger::Logger(){
-  this->logPath = "/home/ssrl/out";
+  this->logPath = "~/out";
   // check if the log file exists
   this->logFileLocation = this->logPath + "/" + this->logName;
   std::ifstream exist(this->logFileLocation.c_str());
