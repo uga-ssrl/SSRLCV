@@ -75,7 +75,7 @@ ssrlcv::Logger::Logger(const char* logPath){
   this->mem = Memory(this);
 #endif
   // this->verbosity = 0;
-  std::cout << "Logging to " + this->logFileLocation << std::endl;
+  std::cout << "Logging (from given path) to " + this->logFileLocation << std::endl;
 }
 
 /**
