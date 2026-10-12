@@ -78,6 +78,7 @@ int main(int argc, char *argv[]){
     // ARG PARSING
 
     std::map<std::string, ssrlcv::arg*> args = ssrlcv::parseArgs(argc, argv);
+    std::cout << "Args are " + args << std::endl;
 
     if(args.find("dir") == args.end() && args.find("cpdir") == args.end()){
       std::cerr << "ERROR: SFM executable requires a directory of images" << std::endl;
@@ -97,6 +98,7 @@ int main(int argc, char *argv[]){
       imageDir = (ssrlcv::img_dir_arg *)args["cpdir"];
       checkpointRootDir = imageDir->rootPath;
       logger = ssrlcv::Logger((checkpointRootDir).c_str());
+      std::cout << "checkpointrootdir: " + checkpointRootDir << std::endl;
       mkdirIfAbsent(checkpointRootDir + "/outputs");
     }
 
