@@ -78,7 +78,10 @@ int main(int argc, char *argv[]){
     // ARG PARSING
 
     std::map<std::string, ssrlcv::arg*> args = ssrlcv::parseArgs(argc, argv);
-    std::cout << "Args are " + args << std::endl;
+    std::cout << "Args are " << std::endl;
+    for (const auto& kv : args){
+	std::cout << " " << kv.first << "->" << kv.second << std::endl;
+    }
 
     if(args.find("dir") == args.end() && args.find("cpdir") == args.end()){
       std::cerr << "ERROR: SFM executable requires a directory of images" << std::endl;
