@@ -14,20 +14,7 @@ ssrlcv::Logger logger = ssrlcv::Logger("~/out");
  * Default constructor
  */
 ssrlcv::Logger::Logger(){
-  this->logPath = "~/out";
-  // check if the log file exists
-  this->logFileLocation = this->logPath + "/" + this->logName;
-  std::ifstream exist(this->logFileLocation.c_str());
-  if (!exist.good()){
-    // make the file
-    std::ofstream temp;
-    temp.open(this->logFileLocation);
-    // ALWAYS LOG THE TIME!
-    temp << std::fixed << std::setprecision(32) << getTime() << ",";
-    // now print the real junk
-    temp << "Log Generated," << this->logFileLocation << std::endl;
-    temp.close();
-  }
+  this->setupLogLocation("~/out");
   // default backgound states
   this->isLogging = false;
   this->killLogging = false;
@@ -46,24 +33,7 @@ ssrlcv::Logger::Logger(){
  * Constructor with path to desired log location
  */
 ssrlcv::Logger::Logger(const char* logPath){
-  this->logPath = logPath;
-  // check if the log file exists
-  if (this->logPath.back() == '/'){
-    this->logFileLocation = this->logPath + this->logName;
-  } else {
-    this->logFileLocation = this->logPath + "/" + this->logName;
-  }
-  std::ifstream exist(this->logFileLocation.c_str());
-  if (!exist.good()){
-    // make the file
-    std::ofstream temp;
-    temp.open(this->logFileLocation);
-    // ALWAYS LOG THE TIME!
-    temp << std::fixed << std::setprecision(32) << getTime() << ",";
-    // now print the real junk
-    temp << "Log Generated," << this->logFileLocation << std::endl;
-    temp.close();
-  }
+  this->setupLogLocation(logPath);
   // default backgound states
   this->isLogging = false;
   this->killLogging = false;
@@ -852,6 +822,120 @@ void ssrlcv::Logger::looper(int delay){
 unsigned long ssrlcv::Logger::getTime(){
   std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
   return ms.count();
+}
+
+/**
+ * Expand a leading ~ the way a shell would (~, ~/path, ~user, ~user/path).
+ */
+std::string ssrlcv::Logger::expandTilde(std::string path){
+  if (path.empty() || path[0] != '~'){
+    return path;
+  }
+
+  size_t slash = path.find('/');
+  std::string userPart = (slash == std::string::npos) ? path.substr(1) : path.substr(1, slash - 1);
+  std::string rest = (slash == std::string::npos) ? "" : path.substr(slash);
+
+  std::string home;
+  if (userPart.empty()){
+    const char* envHome = std::getenv("HOME");
+    if (envHome != nullptr && envHome[0] != '\0'){
+      home = envHome;
+    } else {
+      struct passwd* pw = getpwuid(getuid());
+      if (pw != nullptr && pw->pw_dir != nullptr){
+        home = pw->pw_dir;
+      }
+    }
+  } else {
+    struct passwd* pw = getpwnam(userPart.c_str());
+    if (pw != nullptr && pw->pw_dir != nullptr){
+      home = pw->pw_dir;
+    }
+  }
+
+  if (home.empty()){
+    std::cerr << "ERROR: logger could not expand " << path << std::endl;
+    return path;
+  }
+  return home + rest;
+}
+
+/**
+ * Create dir and any missing parents (mkdir -p).
+ */
+void ssrlcv::Logger::mkdirIfAbsent(std::string dir){
+  if (dir.empty()){
+    return;
+  }
+  while (dir.size() > 1 && dir.back() == '/'){
+    dir.pop_back();
+  }
+
+  std::string current;
+  size_t start = 0;
+  if (dir[0] == '/'){
+    current = "/";
+    start = 1;
+  }
+
+  while (start <= dir.size()){
+    size_t end = dir.find('/', start);
+    if (end == std::string::npos){
+      end = dir.size();
+    }
+    std::string component = dir.substr(start, end - start);
+    if (!component.empty() && component != "."){
+      if (current.empty()){
+        current = component;
+      } else if (current == "/"){
+        current += component;
+      } else {
+        current += "/" + component;
+      }
+      struct stat st;
+      if (stat(current.c_str(), &st) == -1){
+        if (mkdir(current.c_str(), 0755) != 0 && errno != EEXIST){
+          std::cerr << "ERROR: logger could not create directory " << current
+                    << ": " << std::strerror(errno) << std::endl;
+          return;
+        }
+      }
+    }
+    if (end == dir.size()){
+      break;
+    }
+    start = end + 1;
+  }
+}
+
+/**
+ * Expand ~, create the log directory, and set logFileLocation.
+ */
+void ssrlcv::Logger::setupLogLocation(const char* path){
+  this->logPath = this->expandTilde(path == nullptr ? "~/out" : std::string(path));
+  if (this->logPath.empty()){
+    this->logPath = this->expandTilde("~/out");
+  }
+  this->mkdirIfAbsent(this->logPath);
+  if (!this->logPath.empty() && this->logPath.back() == '/'){
+    this->logFileLocation = this->logPath + this->logName;
+  } else {
+    this->logFileLocation = this->logPath + "/" + this->logName;
+  }
+  std::ifstream exist(this->logFileLocation.c_str());
+  if (!exist.good()){
+    std::ofstream temp;
+    temp.open(this->logFileLocation);
+    if (!temp.is_open()){
+      std::cerr << "ERROR: logger could not open " << this->logFileLocation
+                << ": " << std::strerror(errno) << std::endl;
+      return;
+    }
+    temp << std::fixed << std::setprecision(32) << getTime() << ",";
+    temp << "Log Generated," << this->logFileLocation << std::endl;
+    temp.close();
+  }
 }
 
 

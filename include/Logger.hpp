@@ -22,6 +22,12 @@
 #include <iomanip>
 #include <thread>
 #include <mutex>
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
+#include <pwd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 
 namespace ssrlcv{
@@ -335,6 +341,21 @@ namespace ssrlcv{
      * @return timestamp the number of milliseconds sense January 1st 1970
      */
     unsigned long getTime();
+
+    /**
+     * Expand a leading ~ the way a shell would (~, ~/path, ~user, ~user/path).
+     */
+    std::string expandTilde(std::string path);
+
+    /**
+     * Create dir and any missing parents (mkdir -p).
+     */
+    void mkdirIfAbsent(std::string dir);
+
+    /**
+     * Expand ~, create the log directory, and set logFileLocation.
+     */
+    void setupLogLocation(const char* path);
 
   }; // end Logger class
 
