@@ -71,24 +71,23 @@ int main(int argc, char *argv[]){
     ssrlcv::SIFT_FeatureFactory featureFactory = ssrlcv::SIFT_FeatureFactory(1.5f,6.0f);
     ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor> matchFactory = ssrlcv::MatchFactory<ssrlcv::SIFT_Descriptor>(0.6f,200.0f*200.0f);
     bool seedProvided = false;
-    ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* seedFeatures = nullptr;
+    ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> seedFeatures = nullptr;
     if(args.find("seed") != args.end()){
       seedProvided = true;
       std::string seedPath = ((ssrlcv::img_arg*)args["seed"])->path;
-      ssrlcv::Image* seed = new ssrlcv::Image(seedPath,-1);
+      ssrlcv::ptr::value<ssrlcv::Image> seed = ssrlcv::ptr::value<ssrlcv::Image>(seedPath,-1);
       seedFeatures = featureFactory.generateFeatures(seed,false,2,0.8);
       matchFactory.setSeedFeatures(seedFeatures);
-      delete seed;
     }
     std::vector<std::string> imagePaths = ((ssrlcv::img_dir_arg*)args["dir"])->paths;
     int numImages = (int) imagePaths.size();
     std::cout<<"found "<<numImages<<" in directory given"<<std::endl;
 
-    std::vector<ssrlcv::Image*> images;
-    std::vector<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>*> allFeatures;
+    std::vector<ssrlcv::ptr::value<ssrlcv::Image>> images;
+    std::vector<ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>>> allFeatures;
     for(int i = 0; i < numImages; ++i){
-      ssrlcv::Image* image = new ssrlcv::Image(imagePaths[i],i);
-      ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>* features = featureFactory.generateFeatures(image,false,2,0.8);
+      ssrlcv::ptr::value<ssrlcv::Image> image = ssrlcv::ptr::value<ssrlcv::Image>(imagePaths[i],i);
+      ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Feature<ssrlcv::SIFT_Descriptor>>> features = featureFactory.generateFeatures(image,false,2,0.8);
       features->transferMemoryTo(ssrlcv::cpu);
       images.push_back(image);
       allFeatures.push_back(features);
@@ -103,7 +102,6 @@ int main(int argc, char *argv[]){
 
     ssrlcv::ptr::value<ssrlcv::Unity<float>> seedDistances = (seedProvided) ? matchFactory.getSeedDistances(allFeatures[0]) : nullptr;
     ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::DMatch>> distanceMatches = matchFactory.generateDistanceMatches(images[0],allFeatures[0],images[1],allFeatures[1],seedDistances);
-    if(seedDistances != nullptr) delete seedDistances;
 
     distanceMatches->transferMemoryTo(ssrlcv::cpu);
     float maxDist = 0.0f;
@@ -113,7 +111,6 @@ int main(int argc, char *argv[]){
     printf("max euclidean distance between features = %f\n",maxDist);
     if(distanceMatches->getMemoryState() != ssrlcv::gpu) distanceMatches->setMemoryState(ssrlcv::gpu);
     ssrlcv::ptr::value<ssrlcv::Unity<ssrlcv::Match>> matches = matchFactory.getRawMatches(distanceMatches);
-    delete distanceMatches;
 
     std::string delimiter = "/";
     std::string matchFile = imagePaths[0].substr(0,imagePaths[0].rfind(delimiter)) + "/matches.txt";
@@ -163,24 +160,14 @@ int main(int argc, char *argv[]){
 
     std::cout << "\t doing 2-view Triangulation ..." << std::endl;
 
-    float* linearError = (float*)malloc(sizeof(float));
+    float linearError = 0.0f;
     std::cout << "\t getting points ..." << std::endl;
-    points = demPoints.twoViewTriangulate(bundleSet, linearError);
+    points = demPoints.twoViewTriangulate(bundleSet, &linearError);
     ssrlcv::writePLY("out/marsTest",points);
 
 
 
-    // cleanup
-    delete points;
-    delete matches;
-    delete matchSet.matches;
-    delete matchSet.keyPoints;
-    // delete bundleSet.bundles;
-    // delete bundleSet.lines;
-    for(int i = 0; i < imagePaths.size(); ++i){
-      delete images[i];
-      delete allFeatures[i];
-    }
+    // cleanup is handled by ssrlcv::ptr::value going out of scope
 
     logger.logState("end");
     return 0;

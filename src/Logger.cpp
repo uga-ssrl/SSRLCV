@@ -455,7 +455,9 @@ void ssrlcv::Logger::logCPUnames(){
         }
         infile.close();
       } else {
+        this->mtx.unlock(); // err << locks mtx too
         this->err << "ERROR: logger could not open CPU name \n";
+        this->mtx.lock();
       }
       this->mtx.unlock();
     }
@@ -474,7 +476,9 @@ void ssrlcv::Logger::logCPUnames(){
         }
         infile.close();
       } else {
+        this->mtx.unlock(); // err << locks mtx too
         this->err << "ERROR: logger could not open CPU name \n";
+        this->mtx.lock();
       }
       this->mtx.unlock();
     }
@@ -516,7 +520,9 @@ void ssrlcv::Logger::logVoltage(){
     }
     infile1.close();
   } else {
+    this->mtx.unlock(); // err << locks mtx too
     this->err << "ERROR: logger could not log voltage \n";
+    this->mtx.lock();
   }
   this->mtx.unlock();
 
@@ -531,7 +537,9 @@ void ssrlcv::Logger::logVoltage(){
     }
     infile2.close();
   } else {
+    this->mtx.unlock(); // err << locks mtx too
     this->err << "ERROR: logger could not log voltage \n";
+    this->mtx.lock();
   }
   this->mtx.unlock();
 
@@ -546,7 +554,9 @@ void ssrlcv::Logger::logVoltage(){
     }
     infile3.close();
   } else {
+    this->mtx.unlock(); // err << locks mtx too
     this->err << "ERROR: logger could not log voltage \n";
+    this->mtx.lock();
   }
   this->mtx.unlock();
 
@@ -561,7 +571,9 @@ void ssrlcv::Logger::logVoltage(){
     }
     infile4.close();
   } else {
+    this->mtx.unlock(); // err << locks mtx too
     this->err << "ERROR: logger could not log voltage \n";
+    this->mtx.lock();
   }
   this->mtx.unlock();
   // log to the file
@@ -600,7 +612,9 @@ void ssrlcv::Logger::logCurrent(){
     }
     infile1.close();
   } else {
+    this->mtx.unlock(); // err << locks mtx too
     this->err << "ERROR: logger could not log current \n";
+    this->mtx.lock();
   }
   this->mtx.unlock();
 
@@ -615,7 +629,9 @@ void ssrlcv::Logger::logCurrent(){
     }
     infile2.close();
   } else {
+    this->mtx.unlock(); // err << locks mtx too
     this->err << "ERROR: logger could not log current \n";
+    this->mtx.lock();
   }
   this->mtx.unlock();
 
@@ -630,7 +646,9 @@ void ssrlcv::Logger::logCurrent(){
     }
     infile3.close();
   } else {
+    this->mtx.unlock(); // err << locks mtx too
     this->err << "ERROR: logger could not log current \n";
+    this->mtx.lock();
   }
   this->mtx.unlock();
 
@@ -645,7 +663,9 @@ void ssrlcv::Logger::logCurrent(){
     }
     infile4.close();
   } else {
+    this->mtx.unlock(); // err << locks mtx too
     this->err << "ERROR: logger could not log current \n";
+    this->mtx.lock();
   }
   this->mtx.unlock();
   // log to the file
@@ -684,7 +704,9 @@ void ssrlcv::Logger::logPower(){
       }
       infile1.close();
     } else {
+      this->mtx.unlock(); // err << locks mtx too
       this->err << "ERROR: logger could not log power \n";
+      this->mtx.lock();
     }
     this->mtx.unlock();
 
@@ -699,7 +721,9 @@ void ssrlcv::Logger::logPower(){
       }
       infile2.close();
     } else {
+      this->mtx.unlock(); // err << locks mtx too
       this->err << "ERROR: logger could not log power \n";
+      this->mtx.lock();
     }
     this->mtx.unlock();
 
@@ -714,7 +738,9 @@ void ssrlcv::Logger::logPower(){
       }
       infile3.close();
     } else {
+      this->mtx.unlock(); // err << locks mtx too
       this->err << "ERROR: logger could not log power \n";
+      this->mtx.lock();
     }
     this->mtx.unlock();
 
@@ -729,7 +755,9 @@ void ssrlcv::Logger::logPower(){
       }
       infile4.close();
     } else {
+      this->mtx.unlock(); // err << locks mtx too
       this->err << "ERROR: logger could not log power \n";
+      this->mtx.lock();
     }
     this->mtx.unlock();
     // log to the file
@@ -755,8 +783,8 @@ void ssrlcv::Logger::startBackgoundLogging(int rate){
   this->mtx.unlock();
   this->mtx.lock();
   if (isLogging) {
+    this->mtx.unlock(); // err << locks mtx too
     this->err << "ERROR: unable to start backgound logging because a background log is currently running. Stop it and restart it if so desired \n";
-    this->mtx.unlock();
   } else {
     // spawn the new thread
     this->mtx.unlock();

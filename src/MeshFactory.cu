@@ -2138,7 +2138,8 @@ __global__ void ssrlcv::categorizeCubesRecursively_child(int parent, int parentC
   triangleNumbers[childIndex] = numTrianglesInCubeCategory[category];
   cubeCategory[childIndex] = category;
   categorizeCubesRecursively_child<<<1,8>>>(childIndex, category, edgeArray, nodeArray, vertexNumbers, cubeCategory, triangleNumbers);
-  cudaDeviceSynchronize();
+  // device-side cudaDeviceSynchronize() was removed in CUDA 12; parent grids
+  // implicitly wait for child grids to finish, so no explicit sync is needed
 }
 __global__ void ssrlcv::categorizeCubesRecursively(int firstChildrenIndex, Octree::Edge* edgeArray, Octree::Node* nodeArray, int* vertexNumbers, int* cubeCategory, int* triangleNumbers){
   int edgeBasedCategory = 0;
@@ -2162,7 +2163,6 @@ __global__ void ssrlcv::categorizeCubesRecursively(int firstChildrenIndex, Octre
   triangleNumbers[firstChildrenIndex + threadIdx.x] = numTrianglesInCubeCategory[category];
   cubeCategory[firstChildrenIndex + threadIdx.x] = category;
   categorizeCubesRecursively_child<<<1,8>>>(firstChildrenIndex + threadIdx.x, category, edgeArray, nodeArray, vertexNumbers, cubeCategory, triangleNumbers);
-  cudaDeviceSynchronize();
 
 }
 __global__ void ssrlcv::minimizeVertices(int numEdges, Octree::Edge* edgeArray, Octree::Node* nodeArray, int* cubeCategory, int* vertexNumbers){

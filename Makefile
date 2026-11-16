@@ -12,7 +12,7 @@ GEO_ORBIT := 1 # specifies whether to assume SfM is happening in-orbit of earth
 # Includes
 INCLUDES = -I. -I./include -I/usr/local/cuda/include
 LIB :=  -L/usr/local/cuda/lib64 -lcublas -lcuda -lcudart -lcusparse -lcusolver\
-        -lpng -Xcompiler -fopenmp -ltiff -ljpeg
+        -lpng -Xcompiler -fopenmp -ljpeg # add -ltiff once TIFF IO is implemented
 
 # Common flags
 COMMONFLAGS += $(INCLUDES)
